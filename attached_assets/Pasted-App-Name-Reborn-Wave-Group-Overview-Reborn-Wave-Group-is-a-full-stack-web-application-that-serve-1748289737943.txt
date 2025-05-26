@@ -1,0 +1,129 @@
+App Name: Reborn Wave Group 
+Overview: 
+Reborn Wave Group is a full-stack web application that serves as:
+
+A booking system for appointments.
+
+A loyalty platform for users to accumulate and redeem points.
+
+A marketplace for users to manage, trade, and sell collectible soft toys (blind box style).
+
+A credit-based system where users can top-up or cash out.
+
+Core Features 
+1. Authentication & Authorization
+Single login page for both Users and Admins.
+
+Different dashboard views based on role.
+
+User: Basic features, limited permissions.
+
+Admin: Full control, including management of inventory, users, and points.
+
+2. Booking System
+Users can book appointments via a calendar system.
+
+Admins can manage, view, and modify bookings.
+
+3. Loyalty Points System
+Users earn points with every transaction.
+
+Points contribute to leveling up and unlock:
+
+Discounts.
+
+Special gifts.
+
+Bonus offers.
+
+Users can redeem points for:
+
+Products.
+
+Services.
+
+4. Transaction History
+Users can view all previous purchases, point usage, and booking history in a clean timeline format.
+
+5. Soft Toy Inventory & QR Integration
+Each soft toy (from blind boxes) has a unique code.
+
+Users can scan QR codes to add toys to their inventory.
+
+Admin can upload and manage blind box inventory.
+
+6. Marketplace
+Users can:
+
+List their soft toys for sale.
+
+Set their own prices.
+
+Browse listings from other users.
+
+Buyers can:
+
+Chat with sellers.
+
+Confirm item pickup/receipt before credit is transferred to the seller.
+
+Admin can monitor transactions and resolve disputes.
+
+7. Top-Up & Cash-Out System
+Users can top up credits for purchases and bookings.
+
+Credits can also be cashed out via bank transfer.
+
+Requires users to update their bank info in their profile.
+
+Admin handles withdrawal approvals manually or automatically.
+
+8. User Profile
+Users can:
+
+Edit personal info.
+
+Update bank details.
+
+View points, rankings, and redeemed rewards.
+
+Admins can:
+
+Edit user profiles.
+
+Adjust point balances manually.
+
+Admin Dashboard Capabilities 
+Add/edit product inventory.
+
+Manage soft toy QR code system.
+
+Edit or delete users.
+
+Adjust point balances.
+
+View full user transaction and booking history.
+
+🔹 Technologies Suggested (for Replit Full Stack App)
+Frontend:
+React.js (with Vite or CRA)
+
+Tailwind CSS or Chakra UI
+
+Socket.io (for real-time chat)
+
+Backend:
+Node.js (Express.js)
+
+MongoDB (NoSQL, scalable for inventory and history)
+
+JWT for authentication
+
+RESTful API or GraphQL
+
+Optional:
+Firebase (for QR code scanning, or real-time features)
+
+Stripe/PayPal API (for top-up)
+
+Bank API Integration (for cash-out)
