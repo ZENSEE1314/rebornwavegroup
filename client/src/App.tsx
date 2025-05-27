@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard";
 import Bookings from "@/pages/bookings";
 import Marketplace from "@/pages/marketplace";
 import Referrals from "@/pages/referrals";
+import MyReferral from "@/pages/my-referral";
 import Profile from "@/pages/profile";
 import AdminDashboard from "@/pages/admin-dashboard";
 import NotFound from "@/pages/not-found";
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/bookings" component={Bookings} />
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/referrals" component={Referrals} />
+          <Route path="/my-referral" component={MyReferral} />
           <Route path="/profile" component={Profile} />
           {user?.role === 'admin' && (
             <Route path="/admin" component={AdminDashboard} />
