@@ -453,6 +453,7 @@ export default function CompleteApp() {
     };
 
     setUserListings([...userListings, newListing]);
+    setMarketplaceToys([...marketplaceToys, newListing]);
     setNewListingPrice("");
     setSelectedToyForSale(null);
     setShowCreateListingModal(false);
@@ -477,6 +478,16 @@ export default function CompleteApp() {
     setRewards(rewards.map(r => 
       r.id === reward.id ? { ...r, claimed: true } : r
     ));
+
+    // Add to point history
+    const newHistoryItem = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      description: `${language === "id" ? "Tukar" : "Redeemed"} ${reward.name}`,
+      points: -reward.pointsCost,
+      type: "redeemed"
+    };
+    setPointHistory([newHistoryItem, ...pointHistory]);
 
     toast({
       title: language === "id" ? "Reward Ditukar!" : "Reward Claimed!",
@@ -1226,7 +1237,7 @@ export default function CompleteApp() {
                       <SelectContent>
                         {serviceCategories[newAppointment.category].options.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label} - RP {formatRupiah(option.cost)}
+                            {option.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
