@@ -10,6 +10,7 @@ import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
 import Referrals from "@/pages/referrals-working";
 import MyReferral from "@/pages/my-referral";
+import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
 import AdminDashboard from "@/pages/admin-dashboard";
 import NotFound from "@/pages/not-found";
@@ -42,6 +43,7 @@ function Router() {
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/referrals" component={Referrals} />
           <Route path="/my-referral" component={MyReferral} />
+          <Route path="/loyalty" component={LoyaltyProgram} />
           <Route path="/profile" component={Profile} />
           {user?.role === 'admin' && (
             <Route path="/admin" component={AdminDashboard} />

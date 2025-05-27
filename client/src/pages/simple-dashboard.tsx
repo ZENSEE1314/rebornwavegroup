@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Users, DollarSign, Calendar, Gift, Copy, Plus } from "lucide-react";
+import { Users, DollarSign, Calendar, Gift, Copy, Plus, Star } from "lucide-react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -13,6 +14,8 @@ export default function Dashboard() {
   const [userCredits, setUserCredits] = useState(350.00);
   const [loyaltyPoints, setLoyaltyPoints] = useState(125);
   const [referralEarnings, setReferralEarnings] = useState(8.00);
+  const [userLevel, setUserLevel] = useState(1);
+  const [availableRewards, setAvailableRewards] = useState([]);
 
   // Simple state management for appointments
   const [appointments, setAppointments] = useState([
@@ -101,6 +104,12 @@ export default function Dashboard() {
             <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
             <p className="text-sm text-purple-600 font-medium">Loyalty Points</p>
             <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
+            <Link href="/loyalty">
+              <Button size="sm" className="mt-2 bg-purple-600 hover:bg-purple-700">
+                <Star className="w-4 h-4 mr-1" />
+                View Rewards
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
