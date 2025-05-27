@@ -261,6 +261,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(toys.createdAt));
   }
 
+  async getAllToys(): Promise<Toy[]> {
+    return await db
+      .select()
+      .from(toys)
+      .orderBy(desc(toys.createdAt));
+  }
+
   async getToyByQrCode(qrCode: string): Promise<Toy | undefined> {
     const [toy] = await db
       .select()
