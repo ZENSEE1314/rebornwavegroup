@@ -340,6 +340,18 @@ export default function CompleteApp() {
   const processPayment = (amount) => {
     // This would integrate with PayPal/Stripe
     setUserCredits(prev => prev + parseInt(amount));
+    
+    // Add transaction to history
+    const newTransaction = {
+      id: Date.now(),
+      type: "top-up",
+      description: `${language === "id" ? "Top up kredit" : "Credit top-up"}`,
+      amount: parseInt(amount),
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString()
+    };
+    setTransactionHistory([newTransaction, ...transactionHistory]);
+    
     setShowTopUpModal(false);
     setTopUpAmount("");
     toast({
@@ -391,7 +403,7 @@ export default function CompleteApp() {
         description: language === "id" ? "Permintaan penarikan berhasil diajukan" : "Cash-out request submitted successfully",
       });
 
-      // Add to history
+      // Add to cash-out history
       const newCashOut = {
         id: Date.now(),
         amount: amount,
@@ -402,6 +414,17 @@ export default function CompleteApp() {
         date: new Date().toISOString().split('T')[0]
       };
       setCashOutHistory([newCashOut, ...cashOutHistory]);
+      
+      // Add transaction to history
+      const newTransaction = {
+        id: Date.now(),
+        type: "cash-out",
+        description: `${language === "id" ? "Penarikan ke" : "Cash out to"} ${bankName}`,
+        amount: -amount,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString()
+      };
+      setTransactionHistory([newTransaction, ...transactionHistory]);
     } catch (error) {
       toast({
         title: language === "id" ? "Error" : "Error",
@@ -513,6 +536,16 @@ export default function CompleteApp() {
   };
 
   const buyToy = (toy) => {
+    // Check if trying to buy own item
+    if (toy.seller === (user?.firstName || "User")) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Tidak bisa membeli item sendiri" : "Cannot buy your own item",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (userCredits < toy.price) {
       toast({
         title: language === "id" ? "Error" : "Error",
@@ -525,43 +558,84 @@ export default function CompleteApp() {
     // Deduct credits from buyer
     setUserCredits(userCredits - toy.price);
     
-    // Add toy to buyer's collection
-    const newToyForCollection = {
-      id: toyInventory.length + 100,
+    // Calculate and add points (1 point per 10,000 RP)
+    const pointsEarned = Math.floor(toy.price / 10000);
+    setLoyaltyPoints(prev => prev + pointsEarned);
+    setLifetimePoints(prev => prev + pointsEarned);
+    
+    // Create pending purchase (waiting for confirmation)
+    const pendingPurchase = {
+      id: Date.now(),
       name: toy.name || toy.title,
       rarity: toy.rarity || "common",
       acquiredDate: new Date().toISOString().split('T')[0],
       qrCode: `QR${Date.now()}`,
-      image: toy.image || "🧸"
+      image: toy.image || "🧸",
+      status: "pending_confirmation",
+      price: toy.price,
+      seller: toy.seller
     };
-    setToyInventory([...toyInventory, newToyForCollection]);
     
-    // Remove toy from marketplace if it's a user listing
-    setMarketplaceToys(marketplaceToys.filter(item => item.id !== toy.id));
-    
-    // If this was sold by current user, remove from their listings too
-    setUserListings(userListings.filter(item => item.id !== toy.id));
-    
-    // Mark as owned in marketplace
-    setMarketplace(marketplace.map(item => 
-      item.id === toy.id ? { ...item, owned: true } : item
-    ));
+    // Remove toy from marketplace (user listings only, not default marketplace)
+    if (toy.seller && toy.seller !== "System") {
+      setMarketplaceToys(marketplaceToys.filter(item => item.id !== toy.id));
+      setUserListings(userListings.filter(item => item.id !== toy.id));
+    } else {
+      // Mark as owned in default marketplace
+      setMarketplace(marketplace.map(item => 
+        item.id === toy.id ? { ...item, owned: true } : item
+      ));
+    }
     
     // Add transaction to history
     const newTransaction = {
       id: Date.now(),
       type: "purchase",
-      description: `${language === "id" ? "Beli" : "Bought"} ${toy.name || toy.title}`,
+      description: `${language === "id" ? "Beli" : "Bought"} ${toy.name || toy.title} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
       amount: -toy.price,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString()
     };
     setTransactionHistory([newTransaction, ...transactionHistory]);
 
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Mainan berhasil dibeli dan ditambahkan ke koleksi" : "Toy purchased and added to your collection",
-    });
+    // For user items, add to pending; for system items, add directly
+    if (toy.seller && toy.seller !== "System") {
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? `Pembelian berhasil! Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Purchase successful! Waiting for seller confirmation. +${pointsEarned} points`,
+      });
+    } else {
+      setToyInventory([...toyInventory, pendingPurchase]);
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? `Mainan berhasil dibeli! +${pointsEarned} poin` : `Toy purchased successfully! +${pointsEarned} points`,
+      });
+    }
+  };
+
+  const cancelListing = (listingId) => {
+    const listing = userListings.find(item => item.id === listingId);
+    if (listing) {
+      // Return toy to inventory
+      const toyToReturn = {
+        id: listing.toyId,
+        name: listing.name,
+        rarity: listing.rarity,
+        acquiredDate: listing.createdDate,
+        qrCode: `QR${Date.now()}`,
+        image: listing.image
+      };
+      setToyInventory([...toyInventory, toyToReturn]);
+      
+      // Remove from listings
+      setUserListings(userListings.filter(item => item.id !== listingId));
+      setMarketplaceToys(marketplaceToys.filter(item => item.id !== listingId));
+      
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Penjualan dibatalkan dan mainan dikembalikan ke koleksi" : "Sale canceled and toy returned to collection",
+      });
+    }
   };
 
   const saveProfile = () => {
