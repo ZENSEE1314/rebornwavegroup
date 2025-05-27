@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function CompleteApp() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("dashboard");
   
   // State for pending purchases and confirmations
@@ -194,20 +197,41 @@ export default function CompleteApp() {
     { id: 6, type: "referral", description: "Referral Bonus (Level 1)", amount: 50000, date: "2025-05-20", time: "11:20" }
   ]);
 
-  // User's toy inventory (stored per user)
-  const [toyInventory, setToyInventory] = useState(() => {
-    const userToys = localStorage.getItem(`userToys_${user?.id || 'guest'}`);
-    if (userToys) {
-      return JSON.parse(userToys);
-    }
-    // Default toys for new users
-    const defaultToys = [
-      { id: 2, name: "Lucky Cat", rarity: "common", acquiredDate: "2025-05-15", qrCode: "LC001", image: "🐱" },
-      { id: 6, name: "Cute Panda", rarity: "rare", acquiredDate: "2025-05-20", qrCode: "CP002", image: "🐼" },
-      { id: 7, name: "Magic Bunny", rarity: "epic", acquiredDate: "2025-05-10", qrCode: "MB003", image: "🐰" }
-    ];
-    localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(defaultToys));
-    return defaultToys;
+  // Fetch user's toy inventory from database
+  const { data: toyInventory = [], isLoading: toysLoading } = useQuery({
+    queryKey: ['/api/toys'],
+    enabled: !!user,
+  });
+
+  // Fetch all marketplace listings from database
+  const { data: marketplaceListings = [], isLoading: listingsLoading } = useQuery({
+    queryKey: ['/api/listings'],
+    enabled: !!user,
+  });
+
+  // Mutation to create new toy
+  const createToyMutation = useMutation({
+    mutationFn: (toyData: any) => apiRequest('POST', '/api/toys', toyData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      toast({
+        title: "Success!",
+        description: "New toy added to your collection!",
+      });
+    },
+  });
+
+  // Mutation to create marketplace listing
+  const createListingMutation = useMutation({
+    mutationFn: (listingData: any) => apiRequest('POST', '/api/listings', listingData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      toast({
+        title: "Success!",
+        description: "Your toy has been listed in the marketplace!",
+      });
+    },
   });
 
   // Point and redemption history (dynamic)
