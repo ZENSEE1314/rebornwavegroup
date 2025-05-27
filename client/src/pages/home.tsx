@@ -547,28 +547,365 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Other tabs can be added similarly */}
+        {/* Bookings Tab */}
         {activeTab === "bookings" && (
-          <div className="text-center py-20">
-            <Calendar className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Bookings</h3>
-            <p className="text-gray-500">Booking management coming soon!</p>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900">Appointment Bookings</h2>
+                <p className="text-slate-600">Manage your beauty, spa, and entertainment bookings</p>
+              </div>
+              <Button onClick={() => setActiveTab("dashboard")} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Book New Appointment
+              </Button>
+            </div>
+
+            {/* Service Categories */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-pink-50 border-pink-200 hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">💄</div>
+                  <h3 className="text-lg font-semibold text-pink-800 mb-2">Beauty Services</h3>
+                  <p className="text-sm text-pink-600 mb-4">Facials, makeup, skincare treatments</p>
+                  <Badge className="bg-pink-100 text-pink-800">Starting from $50</Badge>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50 border-blue-200 hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">🎮</div>
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Entertainment</h3>
+                  <p className="text-sm text-blue-600 mb-4">Gaming, VR experiences, events</p>
+                  <Badge className="bg-blue-100 text-blue-800">Starting from $30</Badge>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-green-50 border-green-200 hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">🧘</div>
+                  <h3 className="text-lg font-semibold text-green-800 mb-2">Wellness & Spa</h3>
+                  <p className="text-sm text-green-600 mb-4">Massage, meditation, wellness</p>
+                  <Badge className="bg-green-100 text-green-800">Starting from $80</Badge>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Current Appointments */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Appointments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {appointments.map((apt) => (
+                    <div key={apt.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Calendar className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">{apt.service}</h4>
+                          <p className="text-sm text-slate-600">{apt.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <p className="font-bold text-slate-900">${apt.cost}</p>
+                          <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'}>
+                            {apt.status}
+                          </Badge>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Reschedule
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-gray-50">
+                <CardContent className="p-4 text-center">
+                  <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
+                  <p className="text-sm text-gray-600">Total Bookings</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-green-50">
+                <CardContent className="p-4 text-center">
+                  <p className="text-2xl font-bold text-green-900">
+                    {appointments.filter(a => a.status === 'confirmed').length}
+                  </p>
+                  <p className="text-sm text-green-600">Confirmed</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-yellow-50">
+                <CardContent className="p-4 text-center">
+                  <p className="text-2xl font-bold text-yellow-900">
+                    {appointments.filter(a => a.status === 'pending').length}
+                  </p>
+                  <p className="text-sm text-yellow-600">Pending</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50">
+                <CardContent className="p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-900">
+                    ${appointments.reduce((sum, apt) => sum + apt.cost, 0)}
+                  </p>
+                  <p className="text-sm text-blue-600">Total Spent</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
+        {/* Referrals Tab */}
         {activeTab === "referrals" && (
-          <div className="text-center py-20">
-            <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Referrals</h3>
-            <p className="text-gray-500">Referral management coming soon!</p>
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Referral Program</h2>
+              <p className="text-slate-600">Invite friends and earn amazing commissions</p>
+            </div>
+
+            {/* Referral Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="p-6 text-center">
+                  <Users className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                  <p className="text-2xl font-bold text-green-800">1</p>
+                  <p className="text-sm text-green-600">Direct Referrals</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <DollarSign className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <p className="text-2xl font-bold text-blue-800">${referralEarnings.toFixed(2)}</p>
+                  <p className="text-sm text-blue-600">Total Earnings</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-purple-50 border-purple-200">
+                <CardContent className="p-6 text-center">
+                  <Trophy className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+                  <p className="text-2xl font-bold text-purple-800">Level 1</p>
+                  <p className="text-sm text-purple-600">Referrer Level</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-yellow-50 border-yellow-200">
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                  <p className="text-2xl font-bold text-yellow-800">10%</p>
+                  <p className="text-sm text-yellow-600">Commission Rate</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Your Referral Code */}
+              <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                <CardHeader>
+                  <CardTitle className="text-white">Share Your Referral Code</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-white/20 rounded-lg p-4 mb-4 text-center">
+                    <p className="text-3xl font-bold font-mono mb-2">{referralCode}</p>
+                    <p className="text-blue-100">Share this code to earn 10% commission</p>
+                  </div>
+                  <Button 
+                    onClick={copyReferralCode}
+                    className="w-full bg-white/20 hover:bg-white/30 text-white mb-4"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Referral Code
+                  </Button>
+                  <div className="space-y-2 text-sm text-blue-100">
+                    <p>• Get 10% from direct referrals (Level 1)</p>
+                    <p>• Get 3% from their referrals (Level 2)</p>
+                    <p>• Get 2% from Level 3 referrals</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Commission Structure */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Commission Structure</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
+                      <span className="font-medium">Direct Referrals</span>
+                    </div>
+                    <span className="font-bold text-green-600 text-xl">10%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
+                      <span className="font-medium">Level 2 Referrals</span>
+                    </div>
+                    <span className="font-bold text-blue-600 text-xl">3%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
+                      <span className="font-medium">Level 3 Referrals</span>
+                    </div>
+                    <span className="font-bold text-purple-600 text-xl">2%</span>
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold mb-2">Your Referral Tree</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Sarah Chen (Level 1)</span>
+                        <span className="text-green-600 font-medium">+$8.00</span>
+                      </div>
+                      <div className="text-xs text-gray-500 ml-4">
+                        → No Level 2 referrals yet
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
+        {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="text-center py-20">
-            <User className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Profile</h3>
-            <p className="text-gray-500">Profile settings coming soon!</p>
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Your Profile</h2>
+              <p className="text-slate-600">Manage your account settings and preferences</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Profile Overview */}
+              <Card className="lg:col-span-1">
+                <CardContent className="p-8 text-center">
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold">
+                      {(user?.firstName || 'C')[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">
+                    {user?.firstName || 'Candy'} {user?.lastName || 'Heng'}
+                  </h3>
+                  <p className="text-slate-600 mb-4">{user?.email || 'candy@example.com'}</p>
+                  <Badge className="bg-blue-100 text-blue-800 mb-4">
+                    {currentLevelInfo.name}
+                  </Badge>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Member Since:</span>
+                      <span className="font-medium">May 2025</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Points:</span>
+                      <span className="font-medium">{lifetimePoints}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Current Level:</span>
+                      <span className="font-medium">Level {currentLevelInfo.level}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Account Settings */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Account Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Personal Information */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">Personal Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">First Name</label>
+                        <Input value={user?.firstName || 'Candy'} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Last Name</label>
+                        <Input value={user?.lastName || 'Heng'} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                        <Input value={user?.email || 'candy@example.com'} type="email" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preferences */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">Preferences</h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Email Notifications</p>
+                          <p className="text-sm text-slate-600">Receive updates about appointments and promotions</p>
+                        </div>
+                        <Button variant="outline" size="sm">Manage</Button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Marketing Communications</p>
+                          <p className="text-sm text-slate-600">Promotional offers and special deals</p>
+                        </div>
+                        <Button variant="outline" size="sm">Manage</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Actions */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">Account Actions</h4>
+                    <div className="space-y-3">
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                        Update Profile
+                      </Button>
+                      <Button variant="outline" className="w-full">
+                        Change Password
+                      </Button>
+                      <Button variant="outline" className="w-full">
+                        Download Account Data
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Account Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">${userCredits.toFixed(2)}</p>
+                    <p className="text-sm text-slate-600">Current Credits</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{loyaltyPoints}</p>
+                    <p className="text-sm text-slate-600">Loyalty Points</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{appointments.length}</p>
+                    <p className="text-sm text-slate-600">Total Bookings</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">${referralEarnings.toFixed(2)}</p>
+                    <p className="text-sm text-slate-600">Referral Earnings</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
