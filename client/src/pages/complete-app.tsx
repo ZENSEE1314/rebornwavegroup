@@ -152,6 +152,32 @@ export default function CompleteApp() {
 
   // Remove this old marketplace array - we only use marketplaceToys now
 
+  // Global toy database (all toys from all users)
+  const [allGlobalToys, setAllGlobalToys] = useState(() => {
+    const savedGlobalToys = localStorage.getItem('allGlobalToys');
+    if (savedGlobalToys) {
+      return JSON.parse(savedGlobalToys);
+    }
+    // Initialize with all users' toys
+    const allUserToys = [];
+    // Get all user toy data
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('userToys_')) {
+        const userToys = JSON.parse(localStorage.getItem(key) || '[]');
+        const userId = key.replace('userToys_', '');
+        userToys.forEach(toy => {
+          allUserToys.push({
+            ...toy,
+            ownerId: userId
+          });
+        });
+      }
+    }
+    localStorage.setItem('allGlobalToys', JSON.stringify(allUserToys));
+    return allUserToys;
+  });
+
   // All user marketplace listings (shared across all users)
   const [marketplaceToys, setMarketplaceToys] = useState(() => {
     const savedListings = localStorage.getItem('globalMarketplaceListings');
@@ -714,7 +740,15 @@ export default function CompleteApp() {
         description: language === "id" ? `Pembelian berhasil! Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Purchase successful! Waiting for seller confirmation. +${pointsEarned} points`,
       });
     } else {
-      setToyInventory([...toyInventory, pendingPurchase]);
+      const updatedInventory = [...toyInventory, pendingPurchase];
+      setToyInventory(updatedInventory);
+      localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(updatedInventory));
+      
+      // Update global toy database
+      const newGlobalToy = { ...pendingPurchase, ownerId: user?.id || 'guest' };
+      const updatedGlobalToys = [...allGlobalToys, newGlobalToy];
+      setAllGlobalToys(updatedGlobalToys);
+      localStorage.setItem('allGlobalToys', JSON.stringify(updatedGlobalToys));
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? `Mainan berhasil dibeli! +${pointsEarned} poin` : `Toy purchased successfully! +${pointsEarned} points`,
