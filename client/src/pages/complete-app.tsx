@@ -162,13 +162,64 @@ export default function CompleteApp() {
   // Marketplace toys (user listings) - shared across all users
   const [marketplaceToys, setMarketplaceToys] = useState(() => {
     const savedListings = localStorage.getItem('globalMarketplaceListings');
-    return savedListings ? JSON.parse(savedListings) : [];
+    if (savedListings) {
+      return JSON.parse(savedListings);
+    }
+    // Initialize with sample user listings to show cross-user marketplace
+    const sampleListings = [
+      {
+        id: 101,
+        name: "Golden Dragon",
+        rarity: "legendary",
+        price: 1200000,
+        image: "🐲",
+        sellerId: "user_001",
+        sellerName: "Sarah_M",
+        listedDate: "2025-05-26"
+      },
+      {
+        id: 102,
+        name: "Crystal Fox",
+        rarity: "epic",
+        price: 750000,
+        image: "🦊",
+        sellerId: "user_002",
+        sellerName: "Alex_Chen",
+        listedDate: "2025-05-25"
+      },
+      {
+        id: 103,
+        name: "Rainbow Bird",
+        rarity: "rare",
+        price: 450000,
+        image: "🦜",
+        sellerId: "user_003",
+        sellerName: "Mike_K",
+        listedDate: "2025-05-24"
+      },
+      {
+        id: 104,
+        name: "Space Robot",
+        rarity: "epic",
+        price: 880000,
+        image: "🤖",
+        sellerId: "user_004",
+        sellerName: "Luna_Star",
+        listedDate: "2025-05-23"
+      }
+    ];
+    localStorage.setItem('globalMarketplaceListings', JSON.stringify(sampleListings));
+    return sampleListings;
   });
   
   // Transaction history state
   const [transactionHistory, setTransactionHistory] = useState([
-    { id: 1, type: "top-up", description: "Top up kredit", amount: 500000, date: "2025-05-25", time: "14:30" },
-    { id: 2, type: "booking", description: "Facial Treatment", amount: -250000, date: "2025-05-24", time: "10:00" }
+    { id: 1, type: "top-up", description: "Credit Top-up", amount: 500000, date: "2025-05-25", time: "14:30" },
+    { id: 2, type: "booking", description: "Facial Treatment", amount: -250000, date: "2025-05-24", time: "10:00" },
+    { id: 3, type: "purchase", description: "Lucky Cat Purchase", amount: -200000, date: "2025-05-23", time: "16:45" },
+    { id: 4, type: "top-up", description: "PayPal Top-up", amount: 1000000, date: "2025-05-22", time: "09:15" },
+    { id: 5, type: "booking", description: "KTV Room 1", amount: -500000, date: "2025-05-21", time: "20:30" },
+    { id: 6, type: "referral", description: "Referral Bonus (Level 1)", amount: 50000, date: "2025-05-20", time: "11:20" }
   ]);
 
   // User's toy inventory
@@ -1178,7 +1229,7 @@ export default function CompleteApp() {
                         <SelectContent>
                           {serviceCategories[newAppointment.category].options.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                              {option.label} - RP {formatRupiah(option.cost)}
+                              {option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1187,6 +1238,11 @@ export default function CompleteApp() {
 
                     <Input
                       type="date"
+                      min={(() => {
+                        const today = new Date();
+                        today.setHours(today.getHours() + 2); // Add 2 hours minimum advance booking
+                        return today.toISOString().split('T')[0];
+                      })()}
                       value={newAppointment.date}
                       onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
                     />
