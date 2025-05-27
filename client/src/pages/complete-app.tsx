@@ -538,6 +538,34 @@ export default function CompleteApp() {
     });
   };
 
+  // Function to cancel listing
+  const cancelListing = (listingId) => {
+    // Remove from marketplace toys
+    setMarketplaceToys(marketplaceToys.filter(item => item.id !== listingId));
+    setUserListings(userListings.filter(item => item.id !== listingId));
+    
+    // Find the toy that was being sold
+    const canceledToy = marketplaceToys.find(toy => toy.id === listingId);
+    if (canceledToy) {
+      // Add it back to user's inventory
+      const restoredToy = {
+        id: canceledToy.toyId || canceledToy.id,
+        name: canceledToy.name,
+        rarity: canceledToy.rarity,
+        acquiredDate: new Date().toISOString().split('T')[0],
+        qrCode: `QR${Date.now()}`,
+        image: canceledToy.image
+      };
+      
+      setToyInventory(prev => [...prev, restoredToy]);
+    }
+    
+    toast({
+      title: language === "id" ? "Penjualan Dibatalkan" : "Sale Canceled",
+      description: language === "id" ? "Mainan dikembalikan ke inventori Anda" : "Toy returned to your inventory",
+    });
+  };
+
   const buyToy = (toy) => {
     // Check if trying to buy own item
     if (toy.seller === (user?.firstName || "User")) {
@@ -635,30 +663,7 @@ export default function CompleteApp() {
     }
   };
 
-  const cancelListing = (listingId) => {
-    const listing = userListings.find(item => item.id === listingId);
-    if (listing) {
-      // Return toy to inventory with original toy data
-      const originalToy = toyInventory.find(toy => toy.id === listing.toyId) || {
-        id: listing.toyId,
-        name: listing.title?.split(' (')[0] || listing.name,
-        rarity: listing.rarity || "common",
-        acquiredDate: listing.createdDate,
-        qrCode: `QR${Date.now()}`,
-        image: listing.image || "🧸"
-      };
-      setToyInventory([...toyInventory, originalToy]);
-      
-      // Remove from listings
-      setUserListings(userListings.filter(item => item.id !== listingId));
-      setMarketplaceToys(marketplaceToys.filter(item => item.id !== listingId));
-      
-      toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Penjualan dibatalkan dan mainan dikembalikan ke koleksi" : "Sale canceled and toy returned to collection",
-      });
-    }
-  };
+
 
   const confirmSale = (purchaseId) => {
     const pendingPurchases = JSON.parse(localStorage.getItem('pendingPurchases') || '[]');
@@ -1566,6 +1571,19 @@ export default function CompleteApp() {
                         <Badge variant="default" className="w-full">
                           {language === "id" ? "Sudah Dimiliki" : "Owned"}
                         </Badge>
+                      ) : toy.seller === (user?.firstName || "User") ? (
+                        <div className="space-y-2">
+                          <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
+                            {language === "id" ? "Milik Anda" : "Your Item"}
+                          </Badge>
+                          <Button 
+                            onClick={() => cancelListing(toy.id)} 
+                            className="w-full bg-red-600 hover:bg-red-700"
+                            variant="destructive"
+                          >
+                            {language === "id" ? "Batalkan Penjualan" : "Cancel Sale"}
+                          </Button>
+                        </div>
                       ) : (
                         <Button 
                           onClick={() => buyToy(toy)} 
