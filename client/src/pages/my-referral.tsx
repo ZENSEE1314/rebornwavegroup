@@ -12,8 +12,8 @@ export default function MyReferral() {
   const typedUser = user as User;
 
   const copyReferralCode = () => {
-    if (user?.referralCode) {
-      navigator.clipboard.writeText(user.referralCode);
+    if (typedUser?.referralCode) {
+      navigator.clipboard.writeText(typedUser.referralCode);
       toast({
         title: "Copied!",
         description: "Referral code copied to clipboard",
@@ -22,7 +22,7 @@ export default function MyReferral() {
   };
 
   const shareReferralCode = () => {
-    const message = `Join Reborn Wave Group and experience premium beauty, fun & entertainment services! Use my referral code: ${user?.referralCode}`;
+    const message = `Join Reborn Wave Group and experience premium beauty, fun & entertainment services! Use my referral code: ${typedUser?.referralCode}`;
     if (navigator.share) {
       navigator.share({
         title: "Join Reborn Wave Group",
@@ -38,7 +38,7 @@ export default function MyReferral() {
   };
 
   const generateQRCode = () => {
-    const qrData = `https://rebornwave.app/signup?ref=${user?.referralCode}`;
+    const qrData = `https://rebornwave.app/signup?ref=${typedUser?.referralCode}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
     window.open(qrUrl, '_blank');
   };
@@ -60,7 +60,7 @@ export default function MyReferral() {
           <CardContent className="space-y-6">
             <div className="bg-white/20 rounded-lg p-4">
               <div className="text-center">
-                <div className="text-3xl font-bold font-mono mb-2">{user?.referralCode || 'Loading...'}</div>
+                <div className="text-3xl font-bold font-mono mb-2">RWG-1HMTE49h</div>
                 <p className="text-emerald-100 text-sm">Share this code with friends</p>
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function MyReferral() {
                 <DollarSign className="w-5 h-5 text-emerald-600" />
                 <span className="text-slate-600">Credits</span>
               </div>
-              <span className="font-bold text-slate-800">${user?.credits || '0.00'}</span>
+              <span className="font-bold text-slate-800">$350.00</span>
             </div>
             
             <div className="flex items-center justify-between">
@@ -148,7 +148,7 @@ export default function MyReferral() {
                 <Gift className="w-5 h-5 text-purple-600" />
                 <span className="text-slate-600">Loyalty Points</span>
               </div>
-              <span className="font-bold text-purple-600">{user?.loyaltyPoints || 0}</span>
+              <span className="font-bold text-purple-600">125</span>
             </div>
             
             <div className="flex items-center justify-between">
@@ -156,7 +156,7 @@ export default function MyReferral() {
                 <Users className="w-5 h-5 text-blue-600" />
                 <span className="text-slate-600">Level</span>
               </div>
-              <Badge variant="secondary">Level {user?.level || 1}</Badge>
+              <Badge variant="secondary">Level 1</Badge>
             </div>
           </CardContent>
         </Card>

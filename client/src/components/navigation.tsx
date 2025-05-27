@@ -13,6 +13,7 @@ export default function Navigation() {
 
   const navigation = [
     { name: "Dashboard", href: "/", current: location === "/" },
+    { name: "My Referral", href: "/my-referral", current: location === "/my-referral" },
     { name: "Bookings", href: "/bookings", current: location === "/bookings" },
     { name: "Marketplace", href: "/marketplace", current: location === "/marketplace" },
     { name: "Referrals", href: "/referrals", current: location === "/referrals" },
