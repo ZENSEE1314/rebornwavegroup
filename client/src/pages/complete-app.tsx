@@ -159,53 +159,9 @@ export default function CompleteApp() {
     { id: 5, name: "Rainbow Unicorn", rarity: "epic", price: 800000, image: "🦄", owned: false }
   ]);
 
-  // Sample cross-user marketplace listings (always visible)
-  const sampleCrossUserListings = [
-    {
-      id: 101,
-      name: "Golden Dragon",
-      rarity: "legendary",
-      price: 1200000,
-      image: "🐲",
-      seller: "Sarah_M",
-      sellerName: "Sarah_M",
-      listedDate: "2025-05-26"
-    },
-    {
-      id: 102,
-      name: "Crystal Fox",
-      rarity: "epic",
-      price: 750000,
-      image: "🦊",
-      seller: "Alex_Chen",
-      sellerName: "Alex_Chen",
-      listedDate: "2025-05-25"
-    },
-    {
-      id: 103,
-      name: "Rainbow Bird",
-      rarity: "rare",
-      price: 450000,
-      image: "🦜",
-      seller: "Mike_K",
-      sellerName: "Mike_K",
-      listedDate: "2025-05-24"
-    },
-    {
-      id: 104,
-      name: "Space Robot",
-      rarity: "epic",
-      price: 880000,
-      image: "🤖",
-      seller: "Luna_Star",
-      sellerName: "Luna_Star",
-      listedDate: "2025-05-23"
-    }
-  ];
-
-  // User's own marketplace listings
+  // All user marketplace listings (shared across all users)
   const [marketplaceToys, setMarketplaceToys] = useState(() => {
-    const savedListings = localStorage.getItem('userMarketplaceListings');
+    const savedListings = localStorage.getItem('globalMarketplaceListings');
     return savedListings ? JSON.parse(savedListings) : [];
   });
   
@@ -587,8 +543,8 @@ export default function CompleteApp() {
     setUserListings([...userListings, newListing]);
     setMarketplaceToys(updatedMarketplaceToys);
     
-    // Save to user's own marketplace listings
-    localStorage.setItem('userMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
+    // Save to global marketplace listings so all users can see
+    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
     
     // Remove toy from seller's collection when listing
     setToyInventory(toyInventory.filter(toy => toy.id !== selectedToyForSale.id));
@@ -644,8 +600,8 @@ export default function CompleteApp() {
     setMarketplaceToys(updatedMarketplaceToys);
     setUserListings(userListings.filter(item => item.id !== listingId));
     
-    // Update user's marketplace listings storage
-    localStorage.setItem('userMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
+    // Update global marketplace listings storage
+    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
     
     if (canceledToy) {
       // Add it back to user's inventory
@@ -1682,7 +1638,7 @@ export default function CompleteApp() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...marketplace, ...sampleCrossUserListings, ...marketplaceToys].map((toy) => (
+              {marketplaceToys.length > 0 ? marketplaceToys.map((toy) => (
                 <Card key={toy.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="text-center">
@@ -1729,7 +1685,17 @@ export default function CompleteApp() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )) : (
+                <div className="col-span-full text-center py-12 text-slate-500">
+                  <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <h3 className="text-lg font-medium mb-2">
+                    {language === "id" ? "Belum ada mainan dijual" : "No toys for sale yet"}
+                  </h3>
+                  <p className="text-sm">
+                    {language === "id" ? "Jadilah yang pertama menjual mainan!" : "Be the first to sell a toy!"}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
