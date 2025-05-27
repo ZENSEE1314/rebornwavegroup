@@ -8,8 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
-  Crown, Trophy, Award, Medal, Zap, Home, User, LogOut 
+  Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -17,23 +19,120 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   // User data
-  const [userCredits, setUserCredits] = useState(350.00);
+  const [userCredits, setUserCredits] = useState(3500000); // In Indonesian Rupiah
   const [loyaltyPoints, setLoyaltyPoints] = useState(125);
   const [lifetimePoints, setLifetimePoints] = useState(235);
-  const [referralEarnings, setReferralEarnings] = useState(8.00);
-  const referralCode = "RWG-1HMTE49h";
+  const [referralEarnings, setReferralEarnings] = useState(80000); // In Indonesian Rupiah
+  const [language, setLanguage] = useState("en"); // "en" or "id"
+  const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
+  const [profileImage, setProfileImage] = useState(null);
+  const referralCode = "RWG8H4K2";
+
+  // Format currency to Indonesian Rupiah
+  const formatRupiah = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Loyalty point history
+  const [pointHistory] = useState([
+    { id: 1, date: "2025-05-25", description: language === "id" ? "Hair Spa - Penjualan" : "Hair Spa - Purchase", points: 20, type: "earned" },
+    { id: 2, date: "2025-05-20", description: language === "id" ? "Rujukan Baru" : "New Referral", points: 15, type: "earned" },
+    { id: 3, date: "2025-05-15", description: language === "id" ? "Tukar Lucky Cat" : "Redeemed Lucky Cat", points: -50, type: "redeemed" },
+    { id: 4, date: "2025-05-10", description: language === "id" ? "KTV Room - Penjualan" : "KTV Room - Purchase", points: 50, type: "earned" }
+  ]);
+
+  // Reward redemption history
+  const [redemptionHistory] = useState([
+    { id: 1, date: "2025-05-15", reward: "Lucky Cat", pointsSpent: 50, status: "completed" },
+    { id: 2, date: "2025-05-01", reward: language === "id" ? "Diskon 10%" : "10% Discount", pointsSpent: 25, status: "used" }
+  ]);
+
+  // Service categories and options
+  const serviceCategories = {
+    beauty: {
+      name: language === "id" ? "Layanan Kecantikan" : "Beauty Services",
+      options: [
+        { value: "hair_spa", label: language === "id" ? "Hair Spa" : "Hair Spa", cost: 200000 },
+        { value: "facials", label: language === "id" ? "Perawatan Wajah" : "Facials", cost: 250000 },
+        { value: "nails", label: language === "id" ? "Perawatan Kuku" : "Nail Service", cost: 150000 }
+      ]
+    },
+    entertainment: {
+      name: language === "id" ? "Hiburan" : "Entertainment",
+      options: [
+        { value: "claw_machine", label: language === "id" ? "Mesin Cakar" : "Claw Machine", cost: 50000 },
+        { value: "ktv_lounge_table", label: language === "id" ? "KTV Lounge Meja" : "KTV Lounge Table", cost: 350000 },
+        { value: "ktv_lounge_sofa", label: language === "id" ? "KTV Lounge Sofa" : "KTV Lounge Sofa", cost: 400000 },
+        { value: "ktv_room_1", label: "KTV Room 1", cost: 500000 },
+        { value: "ktv_room_2", label: "KTV Room 2", cost: 500000 },
+        { value: "ktv_room_3", label: "KTV Room 3", cost: 500000 },
+        { value: "ktv_room_4", label: "KTV Room 4", cost: 500000 },
+        { value: "ktv_vip_1", label: "KTV VIP Room 1", cost: 800000 },
+        { value: "ktv_vip_2", label: "KTV VIP Room 2", cost: 800000 }
+      ]
+    },
+    restaurant: {
+      name: language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant",
+      options: [
+        { value: "breakfast_indoor", label: language === "id" ? "Sarapan Indoor" : "Breakfast Indoor", cost: 150000 },
+        { value: "breakfast_outdoor", label: language === "id" ? "Sarapan Outdoor" : "Breakfast Outdoor", cost: 180000 },
+        { value: "lunch_indoor", label: language === "id" ? "Makan Siang Indoor" : "Lunch Indoor", cost: 200000 },
+        { value: "lunch_outdoor", label: language === "id" ? "Makan Siang Outdoor" : "Lunch Outdoor", cost: 230000 },
+        { value: "high_tea", label: language === "id" ? "High Tea" : "High Tea", cost: 120000 },
+        { value: "dinner_indoor", label: language === "id" ? "Makan Malam Indoor" : "Dinner Indoor", cost: 300000 },
+        { value: "dinner_outdoor", label: language === "id" ? "Makan Malam Outdoor" : "Dinner Outdoor", cost: 350000 }
+      ]
+    }
+  };
 
   // Appointments
   const [appointments, setAppointments] = useState([
-    { id: 1, service: "Beauty Consultation", date: "2025-05-30", cost: 150, status: "confirmed" },
-    { id: 2, service: "Spa Treatment", date: "2025-06-02", cost: 200, status: "pending" }
+    { id: 1, service: "Hair Spa", category: "beauty", date: "2025-05-30", time: "14:00", status: "confirmed", cost: 200000 },
+    { id: 2, service: "KTV Room 1", category: "entertainment", date: "2025-06-02", time: "19:00", status: "pending", cost: 500000 }
   ]);
 
   const [newAppointment, setNewAppointment] = useState({
+    category: "",
     service: "",
     date: "",
-    cost: 0
+    time: ""
   });
+
+  // Events and Ads
+  const [events] = useState([
+    {
+      id: 1,
+      title: language === "id" ? "Promo Akhir Tahun" : "Year End Promotion",
+      description: language === "id" ? "Diskon 30% untuk semua layanan kecantikan" : "30% discount on all beauty services",
+      validUntil: "2025-12-31",
+      image: "🎉"
+    },
+    {
+      id: 2,
+      title: language === "id" ? "Grand Opening KTV VIP" : "KTV VIP Grand Opening",
+      description: language === "id" ? "Ruang VIP baru dengan sistem audio terbaru" : "New VIP rooms with latest audio system",
+      validUntil: "2025-06-30",
+      image: "🎤"
+    }
+  ]);
+
+  // Marketplace items (toys)
+  const [marketplace] = useState([
+    { id: 1, name: "Teddy Bear Premium", rarity: "rare", price: 500000, image: "🧸", owned: false },
+    { id: 2, name: "Lucky Cat", rarity: "common", price: 200000, image: "🐱", owned: true },
+    { id: 3, name: "Dragon Plushie", rarity: "legendary", price: 1000000, image: "🐉", owned: false }
+  ]);
+
+  // User's toy inventory
+  const [toyInventory] = useState([
+    { id: 2, name: "Lucky Cat", rarity: "common", acquiredDate: "2025-05-15", qrCode: "LC001" },
+    { id: 4, name: "Cute Panda", rarity: "rare", acquiredDate: "2025-05-20", qrCode: "CP002" }
+  ]);
 
   // Loyalty levels
   const levels = [
@@ -243,11 +342,13 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-8">
             {[
-              { id: "dashboard", label: "Dashboard", icon: Home },
-              { id: "loyalty", label: "Loyalty Program", icon: Star },
-              { id: "bookings", label: "Bookings", icon: Calendar },
-              { id: "referrals", label: "Referrals", icon: Users },
-              { id: "profile", label: "Profile", icon: User }
+              { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
+              { id: "loyalty", label: language === "id" ? "Program Loyalitas" : "Loyalty Program", icon: Star },
+              { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
+              { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
+              { id: "inventory", label: language === "id" ? "Koleksi Saya" : "My Toys", icon: Package },
+              { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
+              { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
             ].map((tab) => (
               <button
                 key={tab.id}
