@@ -19,6 +19,9 @@ export default function CompleteApp() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("dashboard");
   
+  // State for pending purchases and confirmations
+  const [pendingPurchases, setPendingPurchases] = useState([]);
+  
   // User data
   const [userCredits, setUserCredits] = useState(3500000); // In Indonesian Rupiah
   const [loyaltyPoints, setLoyaltyPoints] = useState(125);
@@ -598,8 +601,27 @@ export default function CompleteApp() {
     };
     setTransactionHistory([newTransaction, ...transactionHistory]);
 
+    // Add to point history immediately
+    const newPointHistory = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      description: `${language === "id" ? "Beli" : "Purchase"} ${toy.name || toy.title} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
+      points: pointsEarned,
+      type: "earned"
+    };
+    setPointHistory([newPointHistory, ...pointHistory]);
+
     // For user items, add to pending; for system items, add directly
     if (toy.seller && toy.seller !== "System") {
+      // Create pending purchase state
+      const pendingPurchases = JSON.parse(localStorage.getItem('pendingPurchases') || '[]');
+      pendingPurchases.push({
+        ...pendingPurchase,
+        buyerId: user?.id,
+        sellerId: toy.sellerId || toy.seller
+      });
+      localStorage.setItem('pendingPurchases', JSON.stringify(pendingPurchases));
+      
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? `Pembelian berhasil! Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Purchase successful! Waiting for seller confirmation. +${pointsEarned} points`,
@@ -616,16 +638,16 @@ export default function CompleteApp() {
   const cancelListing = (listingId) => {
     const listing = userListings.find(item => item.id === listingId);
     if (listing) {
-      // Return toy to inventory
-      const toyToReturn = {
+      // Return toy to inventory with original toy data
+      const originalToy = toyInventory.find(toy => toy.id === listing.toyId) || {
         id: listing.toyId,
-        name: listing.name,
-        rarity: listing.rarity,
+        name: listing.title?.split(' (')[0] || listing.name,
+        rarity: listing.rarity || "common",
         acquiredDate: listing.createdDate,
         qrCode: `QR${Date.now()}`,
-        image: listing.image
+        image: listing.image || "🧸"
       };
-      setToyInventory([...toyInventory, toyToReturn]);
+      setToyInventory([...toyInventory, originalToy]);
       
       // Remove from listings
       setUserListings(userListings.filter(item => item.id !== listingId));
@@ -634,6 +656,36 @@ export default function CompleteApp() {
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Penjualan dibatalkan dan mainan dikembalikan ke koleksi" : "Sale canceled and toy returned to collection",
+      });
+    }
+  };
+
+  const confirmSale = (purchaseId) => {
+    const pendingPurchases = JSON.parse(localStorage.getItem('pendingPurchases') || '[]');
+    const purchase = pendingPurchases.find(p => p.id === purchaseId);
+    
+    if (purchase) {
+      // Remove from pending
+      const updatedPending = pendingPurchases.filter(p => p.id !== purchaseId);
+      localStorage.setItem('pendingPurchases', JSON.stringify(updatedPending));
+      
+      // Add seller's credit (you would need to implement cross-user credit transfer)
+      setUserCredits(prev => prev + purchase.price);
+      
+      // Add transaction for seller
+      const sellerTransaction = {
+        id: Date.now(),
+        type: "sale",
+        description: `${language === "id" ? "Jual" : "Sold"} ${purchase.name}`,
+        amount: purchase.price,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString()
+      };
+      setTransactionHistory([sellerTransaction, ...transactionHistory]);
+      
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Penjualan dikonfirmasi!" : "Sale confirmed!",
       });
     }
   };
