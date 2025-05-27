@@ -1748,52 +1748,6 @@ export default function CompleteApp() {
               </p>
             </div>
 
-            {/* Database Status Panel */}
-            <Card className="mb-6 border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                  <Database className="w-5 h-5 mr-2 text-blue-600" />
-                  {language === "id" ? "Status Database Mainan" : "Toy Database Status"}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="bg-white p-3 rounded-lg text-center shadow-sm">
-                    <div className="text-2xl font-bold text-blue-600">{allGlobalToys.length}</div>
-                    <div className="text-sm text-gray-600">{language === "id" ? "Total Global" : "Total Global"}</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg text-center shadow-sm">
-                    <div className="text-2xl font-bold text-green-600">{toyInventory.length}</div>
-                    <div className="text-sm text-gray-600">{language === "id" ? "Milik Anda" : "Your Toys"}</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg text-center shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600">{marketplaceToys.length}</div>
-                    <div className="text-sm text-gray-600">{language === "id" ? "Di Marketplace" : "In Marketplace"}</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg text-center shadow-sm">
-                    <div className="text-xs font-mono text-gray-500 truncate">{user?.id || 'guest'}</div>
-                    <div className="text-sm text-gray-600">{language === "id" ? "User ID" : "User ID"}</div>
-                  </div>
-                </div>
-                <details className="bg-white p-4 rounded-lg shadow-sm">
-                  <summary className="cursor-pointer font-medium text-gray-700 hover:text-blue-600 mb-2">
-                    🔍 {language === "id" ? "Lihat Data Lengkap (Klik untuk expand)" : "View Full Data (Click to expand)"}
-                  </summary>
-                  <div className="mt-3 space-y-4 text-xs">
-                    <div>
-                      <div className="font-semibold text-blue-600 mb-1">Global Toys Database ({allGlobalToys.length} items):</div>
-                      <pre className="bg-gray-100 p-3 rounded overflow-auto max-h-40 font-mono">{JSON.stringify(allGlobalToys, null, 2)}</pre>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-green-600 mb-1">Your Personal Inventory ({toyInventory.length} items):</div>
-                      <pre className="bg-gray-100 p-3 rounded overflow-auto max-h-40 font-mono">{JSON.stringify(toyInventory, null, 2)}</pre>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-purple-600 mb-1">Marketplace Listings ({marketplaceToys.length} items):</div>
-                      <pre className="bg-gray-100 p-3 rounded overflow-auto max-h-40 font-mono">{JSON.stringify(marketplaceToys, null, 2)}</pre>
-                    </div>
-                  </div>
-                </details>
-              </CardContent>
-            </Card>
 
             {/* Add New Toy Section */}
             <Card className="bg-blue-50 border-blue-200">
