@@ -242,6 +242,21 @@ export default function CompleteApp() {
       return;
     }
 
+    // Check if booking is within 2 hours
+    const now = new Date();
+    const appointmentTime = new Date(`${newAppointment.date}T${newAppointment.time}`);
+    const timeDiff = appointmentTime.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    if (hoursDiff > 2) {
+      toast({
+        title: language === "id" ? "Error" : "Error", 
+        description: language === "id" ? "Reservasi harus dibuat dalam 2 jam ke depan" : "Booking must be within 2 hours",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const selectedCategory = serviceCategories[newAppointment.category];
     const selectedService = selectedCategory.options.find(opt => opt.value === newAppointment.service);
     
@@ -256,15 +271,10 @@ export default function CompleteApp() {
     };
 
     setAppointments([...appointments, appointment]);
-    
-    // Add loyalty points (1 point per 10,000 RP spent)
-    const pointsEarned = Math.floor(selectedService.cost / 10000);
-    setLoyaltyPoints(prev => prev + pointsEarned);
-    setLifetimePoints(prev => prev + pointsEarned);
 
     toast({
       title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? `Reservasi berhasil dibuat! Anda mendapat ${pointsEarned} poin` : `Appointment booked! You earned ${pointsEarned} points`,
+      description: language === "id" ? "Reservasi berhasil dibuat! Menunggu persetujuan admin" : "Appointment booked! Waiting for admin approval",
     });
 
     setNewAppointment({ category: "", service: "", date: "", time: "" });
@@ -626,8 +636,843 @@ export default function CompleteApp() {
           </div>
         )}
 
-        {/* Continue with other tabs... */}
-        {/* Due to length constraints, I'll implement the remaining tabs in the next part */}
+        {/* Loyalty Program Tab */}
+        {activeTab === "loyalty" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Program Loyalitas" : "Loyalty Program"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Kumpulkan poin dan tukar reward menarik" : "Earn points and claim amazing rewards"}
+              </p>
+            </div>
+
+            {/* Current Status */}
+            <Card className={`${currentLevelInfo.bgColor} border-2`}>
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-16 h-16 bg-gradient-to-br ${currentLevelInfo.color} rounded-full flex items-center justify-center`}>
+                      <currentLevelInfo.icon className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900">{currentLevelInfo.name}</h3>
+                      <p className="text-slate-600">Level {currentLevelInfo.level}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-slate-900">{loyaltyPoints}</p>
+                    <p className="text-slate-600">{language === "id" ? "Poin Tersedia" : "Available Points"}</p>
+                  </div>
+                </div>
+
+                {nextLevelInfo && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-slate-700">
+                        {language === "id" ? `Progress ke ${nextLevelInfo.name}` : `Progress to ${nextLevelInfo.name}`}
+                      </span>
+                      <span className="text-sm text-slate-600">
+                        {pointsToNextLevel} {language === "id" ? "poin dibutuhkan" : "points needed"}
+                      </span>
+                    </div>
+                    <Progress value={progressPercentage} className="h-3" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Available Rewards */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>{language === "id" ? "Reward Tersedia" : "Available Rewards"}</CardTitle>
+                    <Button onClick={earnBonusPoints} className="bg-green-600 hover:bg-green-700">
+                      <Zap className="w-4 h-4 mr-2" />
+                      {language === "id" ? "Dapat 50 Poin" : "Earn 50 Points"}
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {rewards.filter(r => !r.claimed).map((reward) => (
+                        <div key={reward.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <span className="text-2xl">{getCategoryIcon(reward.category)}</span>
+                              <div>
+                                <h4 className="font-semibold text-slate-900">{reward.name}</h4>
+                                <Badge className={getCategoryColor(reward.category)}>
+                                  {reward.category}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold text-blue-600">
+                              {reward.pointsCost} {language === "id" ? "poin" : "points"}
+                            </span>
+                            <Button
+                              size="sm"
+                              onClick={() => redeemReward(reward)}
+                              disabled={loyaltyPoints < reward.pointsCost}
+                              className={loyaltyPoints >= reward.pointsCost ? 
+                                "bg-blue-600 hover:bg-blue-700" : 
+                                "bg-gray-300 cursor-not-allowed"
+                              }
+                            >
+                              {loyaltyPoints >= reward.pointsCost ? 
+                                (language === "id" ? "Tukar" : "Redeem") : 
+                                (language === "id" ? "Poin Kurang" : "Need more points")
+                              }
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Point History */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>{language === "id" ? "Riwayat Poin" : "Point History"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {pointHistory.map((history) => (
+                        <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium text-slate-900">{history.description}</p>
+                            <p className="text-sm text-slate-600">{history.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
+                              {history.type === 'earned' ? '+' : ''}{history.points} {language === "id" ? "poin" : "points"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Sidebar */}
+              <div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{language === "id" ? "Benefit Level Anda" : "Your Level Benefits"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {currentLevelInfo.benefits.map((benefit, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm text-slate-700">{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Redemption History */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>{language === "id" ? "Riwayat Penukaran" : "Redemption History"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {redemptionHistory.map((redemption) => (
+                        <div key={redemption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-sm">{redemption.reward}</p>
+                            <p className="text-xs text-gray-600">{redemption.date}</p>
+                          </div>
+                          <Badge variant={redemption.status === 'used' ? 'secondary' : 'default'}>
+                            {redemption.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bookings Tab */}
+        {activeTab === "bookings" && (
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900">
+                  {language === "id" ? "Manajemen Reservasi" : "Booking Management"}
+                </h2>
+                <p className="text-slate-600">
+                  {language === "id" ? "Kelola reservasi kecantikan, hiburan, dan restoran" : "Manage your beauty, entertainment, and restaurant bookings"}
+                </p>
+              </div>
+            </div>
+
+            {/* Service Categories */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-pink-50 border-pink-200 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">💄</div>
+                  <h3 className="text-lg font-semibold text-pink-800 mb-2">
+                    {serviceCategories.beauty.name}
+                  </h3>
+                  <p className="text-sm text-pink-600 mb-4">Hair Spa, Facials, Nails</p>
+                  <Badge className="bg-pink-100 text-pink-800">
+                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.beauty.startingPrice}
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50 border-blue-200 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">🎮</div>
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
+                    {serviceCategories.entertainment.name}
+                  </h3>
+                  <p className="text-sm text-blue-600 mb-4">Claw Machine, KTV Rooms</p>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.entertainment.startingPrice}
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-green-50 border-green-200 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6 text-center">
+                  <div className="text-4xl mb-3">🍽️</div>
+                  <h3 className="text-lg font-semibold text-green-800 mb-2">
+                    {serviceCategories.restaurant.name}
+                  </h3>
+                  <p className="text-sm text-green-600 mb-4">Breakfast, Lunch, Dinner</p>
+                  <Badge className="bg-green-100 text-green-800">
+                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.restaurant.startingPrice}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* New Booking Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === "id" ? "Buat Reservasi Baru" : "Create New Booking"}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Select onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={language === "id" ? "Pilih Kategori" : "Select Category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(serviceCategories).map(([key, category]) => (
+                        <SelectItem key={key} value={key}>{category.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {newAppointment.category && (
+                    <Select onValueChange={(value) => setNewAppointment({...newAppointment, service: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={language === "id" ? "Pilih Layanan" : "Select Service"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceCategories[newAppointment.category].options.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label} - RP {formatRupiah(option.cost)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    type="date"
+                    value={newAppointment.date}
+                    min={new Date().toISOString().split('T')[0]}
+                    max={new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
+                  />
+
+                  <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={language === "id" ? "Pilih Waktu" : "Select Time"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({length: 24}, (_, i) => i).map(hour => (
+                        ['00', '30'].map(minute => (
+                          <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
+                            {`${hour.toString().padStart(2, '0')}:${minute}`}
+                          </SelectItem>
+                        ))
+                      )).flat()}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button onClick={bookAppointment} className="w-full">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  {language === "id" ? "Buat Reservasi" : "Book Appointment"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Current Appointments */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === "id" ? "Reservasi Anda" : "Your Appointments"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {appointments.map((apt) => (
+                    <div key={apt.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Calendar className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">{apt.service}</h4>
+                          <p className="text-sm text-slate-600">{apt.date} at {apt.time}</p>
+                          <p className="text-sm text-slate-500">RP {formatRupiah(apt.cost)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Badge variant={apt.status === 'confirmed' ? 'default' : apt.status === 'pending' ? 'secondary' : 'destructive'}>
+                          {apt.status}
+                        </Badge>
+                        {editingAppointment === apt.id ? (
+                          <div className="flex space-x-2">
+                            <Input
+                              type="date"
+                              defaultValue={apt.date}
+                              onChange={(e) => apt.newDate = e.target.value}
+                              className="w-32"
+                            />
+                            <Select onValueChange={(value) => apt.newTime = value} defaultValue={apt.time}>
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({length: 24}, (_, i) => i).map(hour => (
+                                  ['00', '30'].map(minute => (
+                                    <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
+                                      {`${hour.toString().padStart(2, '0')}:${minute}`}
+                                    </SelectItem>
+                                  ))
+                                )).flat()}
+                              </SelectContent>
+                            </Select>
+                            <Button size="sm" onClick={() => rescheduleAppointment(apt.id, apt.newDate || apt.date, apt.newTime || apt.time)}>
+                              {language === "id" ? "Simpan" : "Save"}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
+                              {language === "id" ? "Batal" : "Cancel"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex space-x-2">
+                            <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
+                              <Edit3 className="w-4 h-4" />
+                              {language === "id" ? "Ubah" : "Reschedule"}
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
+                              <Trash2 className="w-4 h-4" />
+                              {language === "id" ? "Hapus" : "Delete"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Marketplace Tab */}
+        {activeTab === "marketplace" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Pasar Mainan" : "Toy Marketplace"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Beli mainan lucu dengan kredit Anda" : "Buy cute toys with your credits"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {marketplace.map((toy) => (
+                <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-6xl mb-4">{toy.image}</div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                      <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                        {toy.rarity}
+                      </Badge>
+                      <p className="text-2xl font-bold text-green-600 mt-4 mb-4">
+                        RP {formatRupiah(toy.price)}
+                      </p>
+                      {toy.owned ? (
+                        <Badge variant="default" className="w-full">
+                          {language === "id" ? "Sudah Dimiliki" : "Owned"}
+                        </Badge>
+                      ) : (
+                        <Button 
+                          onClick={() => buyToy(toy)} 
+                          className="w-full"
+                          disabled={userCredits < toy.price}
+                        >
+                          {userCredits >= toy.price ? 
+                            (language === "id" ? "Beli" : "Buy") : 
+                            (language === "id" ? "Kredit Kurang" : "Not enough credits")
+                          }
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Inventory Tab */}
+        {activeTab === "inventory" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Koleksi Mainan Saya" : "My Toy Collection"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Lihat semua mainan yang Anda miliki" : "View all your owned toys"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {toyInventory.map((toy) => (
+                <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-6xl mb-4">{toy.image}</div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                      <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                        {toy.rarity}
+                      </Badge>
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm text-slate-600">
+                          {language === "id" ? "Diperoleh" : "Acquired"}: {toy.acquiredDate}
+                        </p>
+                        <div className="bg-gray-100 p-2 rounded">
+                          <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
+                          <div className="mt-2 bg-white p-2 rounded border-2 border-dashed border-gray-300">
+                            <QrCode className="w-16 h-16 mx-auto text-gray-400" />
+                            <p className="text-xs text-gray-500 mt-1">
+                              {language === "id" ? "Pindai untuk verifikasi" : "Scan to verify"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Referrals Tab */}
+        {activeTab === "referrals" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Program Rujukan" : "Referral Program"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Undang teman dan dapatkan komisi" : "Invite friends and earn commissions"}
+              </p>
+            </div>
+
+            {/* Referral Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="p-6 text-center">
+                  <Users className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                  <p className="text-2xl font-bold text-green-800">1</p>
+                  <p className="text-sm text-green-600">
+                    {language === "id" ? "Rujukan Langsung" : "Direct Referrals"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <DollarSign className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <p className="text-2xl font-bold text-blue-800">RP {formatRupiah(referralEarnings)}</p>
+                  <p className="text-sm text-blue-600">
+                    {language === "id" ? "Total Pendapatan" : "Total Earnings"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-purple-50 border-purple-200">
+                <CardContent className="p-6 text-center">
+                  <Trophy className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+                  <p className="text-2xl font-bold text-purple-800">Level 1</p>
+                  <p className="text-sm text-purple-600">
+                    {language === "id" ? "Level Rujukan" : "Referrer Level"}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-yellow-50 border-yellow-200">
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                  <p className="text-2xl font-bold text-yellow-800">10%</p>
+                  <p className="text-sm text-yellow-600">
+                    {language === "id" ? "Tingkat Komisi" : "Commission Rate"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Your Referral Code */}
+              <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                <CardHeader>
+                  <CardTitle className="text-white">
+                    {language === "id" ? "Bagikan Kode Rujukan" : "Share Your Referral Code"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-white/20 rounded-lg p-4 mb-4 text-center">
+                    <p className="text-4xl font-bold font-mono mb-2">{referralCode}</p>
+                    <p className="text-blue-100">
+                      {language === "id" ? "Bagikan untuk dapat komisi 10%" : "Share to earn 10% commission"}
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={copyReferralCode}
+                    className="w-full bg-white/20 hover:bg-white/30 text-white mb-4"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    {language === "id" ? "Salin Kode" : "Copy Code"}
+                  </Button>
+                  <div className="bg-white/20 rounded-lg p-4 text-center">
+                    <QrCode className="w-24 h-24 mx-auto text-white/80 mb-2" />
+                    <p className="text-sm text-white/80">
+                      {language === "id" ? "Pindai QR Code untuk rujukan" : "Scan QR Code for referral"}
+                    </p>
+                    <p className="text-xs text-white/60 mt-1">
+                      Code: {referralCode}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Commission Structure */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {language === "id" ? "Struktur Komisi" : "Commission Structure"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
+                      <span className="font-medium">
+                        {language === "id" ? "Rujukan Langsung" : "Direct Referrals"}
+                      </span>
+                    </div>
+                    <span className="font-bold text-green-600 text-xl">10%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
+                      <span className="font-medium">
+                        {language === "id" ? "Rujukan Level 2" : "Level 2 Referrals"}
+                      </span>
+                    </div>
+                    <span className="font-bold text-blue-600 text-xl">3%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
+                      <span className="font-medium">
+                        {language === "id" ? "Rujukan Level 3" : "Level 3 Referrals"}
+                      </span>
+                    </div>
+                    <span className="font-bold text-purple-600 text-xl">2%</span>
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold mb-2">
+                      {language === "id" ? "Pohon Rujukan Anda" : "Your Referral Tree"}
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Sarah Chen (Level 1)</span>
+                        <span className="text-green-600 font-medium">+RP {formatRupiah(80000)}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 ml-4">
+                        → {language === "id" ? "Belum ada rujukan Level 2" : "No Level 2 referrals yet"}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Tab */}
+        {activeTab === "profile" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Profil Anda" : "Your Profile"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Kelola pengaturan akun dan preferensi" : "Manage your account settings and preferences"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Profile Overview */}
+              <Card className="lg:col-span-1">
+                <CardContent className="p-8 text-center">
+                  <div className="relative w-24 h-24 mx-auto mb-4">
+                    {profileImage ? (
+                      <img src={profileImage} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-2xl font-bold">
+                          {(user?.firstName || 'C')[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <Button 
+                      size="sm" 
+                      className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
+                      onClick={() => document.getElementById('profile-image').click()}
+                    >
+                      <Camera className="w-4 h-4" />
+                    </Button>
+                    <input 
+                      id="profile-image" 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (e) => setProfileImage(e.target?.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">
+                    {user?.firstName || 'Candy'} {user?.lastName || 'Heng'}
+                  </h3>
+                  <p className="text-slate-600 mb-2">{user?.email || 'candy@example.com'}</p>
+                  <p className="text-slate-600 mb-4">{phoneNumber}</p>
+                  <Badge className="bg-blue-100 text-blue-800 mb-4">
+                    {currentLevelInfo.name}
+                  </Badge>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>{language === "id" ? "Member Sejak:" : "Member Since:"}</span>
+                      <span className="font-medium">May 2025</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{language === "id" ? "Total Poin:" : "Total Points:"}</span>
+                      <span className="font-medium">{lifetimePoints}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{language === "id" ? "Level Saat Ini:" : "Current Level:"}</span>
+                      <span className="font-medium">Level {currentLevelInfo.level}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Account Settings */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>{language === "id" ? "Pengaturan Akun" : "Account Settings"}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Personal Information */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">
+                      {language === "id" ? "Informasi Pribadi" : "Personal Information"}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          {language === "id" ? "Nama Depan" : "First Name"}
+                        </label>
+                        <Input 
+                          defaultValue={user?.firstName || 'Candy'} 
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          {language === "id" ? "Nama Belakang" : "Last Name"}
+                        </label>
+                        <Input 
+                          defaultValue={user?.lastName || 'Heng'} 
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                        <Input 
+                          defaultValue={user?.email || 'candy@example.com'} 
+                          type="email" 
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          {language === "id" ? "Nomor Telepon" : "Phone Number"}
+                        </label>
+                        <Input 
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
+                          placeholder="+62 812-3456-7890"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preferences */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">
+                      {language === "id" ? "Preferensi" : "Preferences"}
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">
+                            {language === "id" ? "Notifikasi Email" : "Email Notifications"}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {language === "id" ? "Terima update tentang janji dan promosi" : "Receive updates about appointments and promotions"}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm">
+                          {language === "id" ? "Kelola" : "Manage"}
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">
+                            {language === "id" ? "Komunikasi Marketing" : "Marketing Communications"}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {language === "id" ? "Penawaran promosi dan promo khusus" : "Promotional offers and special deals"}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm">
+                          {language === "id" ? "Kelola" : "Manage"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Actions */}
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-4">
+                      {language === "id" ? "Aksi Akun" : "Account Actions"}
+                    </h4>
+                    <div className="space-y-3">
+                      {editingProfile ? (
+                        <div className="flex space-x-3">
+                          <Button onClick={saveProfile} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                            {language === "id" ? "Simpan Perubahan" : "Save Changes"}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setEditingProfile(false)}
+                            className="flex-1"
+                          >
+                            {language === "id" ? "Batal" : "Cancel"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          onClick={() => setEditingProfile(true)}
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                        >
+                          {language === "id" ? "Edit Profil" : "Edit Profile"}
+                        </Button>
+                      )}
+                      <Button variant="outline" className="w-full">
+                        {language === "id" ? "Ubah Password" : "Change Password"}
+                      </Button>
+                      <Button variant="outline" className="w-full">
+                        {language === "id" ? "Unduh Data Akun" : "Download Account Data"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Account Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === "id" ? "Statistik Akun" : "Account Statistics"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(userCredits)}</p>
+                    <p className="text-sm text-slate-600">
+                      {language === "id" ? "Kredit Saat Ini" : "Current Credits"}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{loyaltyPoints}</p>
+                    <p className="text-sm text-slate-600">
+                      {language === "id" ? "Poin Loyalitas" : "Loyalty Points"}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">{appointments.length}</p>
+                    <p className="text-sm text-slate-600">
+                      {language === "id" ? "Total Reservasi" : "Total Bookings"}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
+                    <p className="text-sm text-slate-600">
+                      {language === "id" ? "Pendapatan Rujukan" : "Referral Earnings"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
       </div>
     </div>
