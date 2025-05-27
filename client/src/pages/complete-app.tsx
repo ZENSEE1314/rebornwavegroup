@@ -626,7 +626,7 @@ export default function CompleteApp() {
 
   const buyToy = (toy) => {
     // Check if trying to buy own item
-    if (toy.seller === (user?.firstName || "User")) {
+    if (toy.seller === (user?.id || "unknown")) {
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Tidak bisa membeli item sendiri" : "Cannot buy your own item",
