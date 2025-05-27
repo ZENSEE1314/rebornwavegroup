@@ -129,13 +129,16 @@ export default function CompleteApp() {
   ]);
 
   // Marketplace items
-  const [marketplace] = useState([
+  const [marketplace, setMarketplace] = useState([
     { id: 1, name: "Teddy Bear Premium", rarity: "rare", price: 500000, image: "🧸", owned: false },
     { id: 2, name: "Lucky Cat", rarity: "common", price: 200000, image: "🐱", owned: true },
     { id: 3, name: "Dragon Plushie", rarity: "legendary", price: 1000000, image: "🐉", owned: false },
     { id: 4, name: "Cute Panda", rarity: "rare", price: 600000, image: "🐼", owned: false },
     { id: 5, name: "Rainbow Unicorn", rarity: "epic", price: 800000, image: "🦄", owned: false }
   ]);
+
+  // Marketplace toys (user listings)
+  const [marketplaceToys, setMarketplaceToys] = useState([]);
 
   // User's toy inventory
   const [toyInventory, setToyInventory] = useState([
@@ -499,23 +502,52 @@ export default function CompleteApp() {
   const buyToy = (toy) => {
     if (userCredits < toy.price) {
       toast({
-        title: language === "id" ? "Kredit Tidak Cukup" : "Insufficient Credits",
-        description: language === "id" ? "Saldo tidak mencukupi" : "Not enough credits",
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
         variant: "destructive"
       });
       return;
     }
 
-    setUserCredits(prev => prev - toy.price);
+    // Deduct credits from buyer
+    setUserCredits(userCredits - toy.price);
     
-    // Add points for purchase
-    const pointsEarned = Math.floor(toy.price / 10000);
-    setLoyaltyPoints(prev => prev + pointsEarned);
-    setLifetimePoints(prev => prev + pointsEarned);
+    // Add toy to buyer's collection
+    const newToyForCollection = {
+      id: toyInventory.length + 100,
+      name: toy.name || toy.title,
+      rarity: toy.rarity || "common",
+      acquiredDate: new Date().toISOString().split('T')[0],
+      qrCode: `QR${Date.now()}`,
+      image: toy.image || "🧸"
+    };
+    setToyInventory([...toyInventory, newToyForCollection]);
+    
+    // Remove toy from marketplace if it's a user listing
+    setMarketplaceToys(marketplaceToys.filter(item => item.id !== toy.id));
+    
+    // If this was sold by current user, remove from their listings too
+    setUserListings(userListings.filter(item => item.id !== toy.id));
+    
+    // Mark as owned in marketplace
+    setMarketplace(marketplace.map(item => 
+      item.id === toy.id ? { ...item, owned: true } : item
+    ));
+    
+    // Add transaction to history
+    const newTransaction = {
+      id: Date.now(),
+      type: "purchase",
+      description: `${language === "id" ? "Beli" : "Bought"} ${toy.name || toy.title}`,
+      amount: -toy.price,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString()
+    };
+    setTransactionHistory([newTransaction, ...transactionHistory]);
 
     toast({
       title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? `${toy.name} berhasil dibeli! +${pointsEarned} poin` : `${toy.name} purchased! +${pointsEarned} points`,
+      description: language === "id" ? "Mainan berhasil dibeli dan ditambahkan ke koleksi" : "Toy purchased and added to your collection",
     });
   };
 
@@ -1379,7 +1411,7 @@ export default function CompleteApp() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketplace.map((toy) => (
+              {[...marketplace, ...marketplaceToys].map((toy) => (
                 <Card key={toy.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="text-center">
