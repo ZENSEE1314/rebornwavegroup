@@ -651,6 +651,93 @@ export default function CompleteApp() {
         </div>
       )}
 
+      {/* Cash-out Modal */}
+      {showCashOutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-green-600">
+              {language === "id" ? "💰 Tarik Kredit ke Bank" : "💰 Cash Out to Bank"}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Jumlah Penarikan" : "Withdrawal Amount"}
+                </label>
+                <Input
+                  placeholder={language === "id" ? "Min. RP 50,000" : "Min. RP 50,000"}
+                  value={cashOutAmount}
+                  onChange={(e) => setCashOutAmount(e.target.value)}
+                  type="number"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {language === "id" ? `Saldo tersedia: RP ${formatRupiah(userCredits)}` : `Available balance: RP ${formatRupiah(userCredits)}`}
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Bank" : "Bank Name"}
+                </label>
+                <Select onValueChange={setBankName}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={language === "id" ? "Pilih bank" : "Select bank"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BCA">🏧 Bank Central Asia (BCA)</SelectItem>
+                    <SelectItem value="Mandiri">🏧 Bank Mandiri</SelectItem>
+                    <SelectItem value="BRI">🏧 Bank Rakyat Indonesia (BRI)</SelectItem>
+                    <SelectItem value="BNI">🏧 Bank Negara Indonesia (BNI)</SelectItem>
+                    <SelectItem value="CIMB">🏧 CIMB Niaga</SelectItem>
+                    <SelectItem value="Danamon">🏧 Bank Danamon</SelectItem>
+                    <SelectItem value="Permata">🏧 Bank Permata</SelectItem>
+                    <SelectItem value="OCBC">🏧 OCBC NISP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nomor Rekening" : "Account Number"}
+                </label>
+                <Input
+                  placeholder={language === "id" ? "Masukkan nomor rekening" : "Enter account number"}
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Pemilik Rekening" : "Account Holder Name"}
+                </label>
+                <Input
+                  placeholder={language === "id" ? "Nama sesuai rekening bank" : "Name as per bank account"}
+                  value={accountHolderName}
+                  onChange={(e) => setAccountHolderName(e.target.value)}
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-700">
+                  {language === "id" 
+                    ? "⚠️ Proses penarikan membutuhkan 1-3 hari kerja. Pastikan data bank sudah benar." 
+                    : "⚠️ Withdrawal process takes 1-3 business days. Please ensure bank details are correct."}
+                </p>
+              </div>
+
+              <div className="flex space-x-2">
+                <Button onClick={processCashOut} className="flex-1 bg-green-600 hover:bg-green-700">
+                  {language === "id" ? "Ajukan Penarikan" : "Submit Withdrawal"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowCashOutModal(false)} className="flex-1">
+                  {language === "id" ? "Batal" : "Cancel"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Listing Modal */}
       {showCreateListingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -742,11 +829,17 @@ export default function CompleteApp() {
                   <p className="text-sm text-green-600 font-medium">
                     {language === "id" ? "Kredit" : "Credits"}
                   </p>
-                  <p className="text-lg font-bold text-green-800">{formatRupiah(userCredits)}</p>
-                  <Button size="sm" onClick={() => setShowTopUpModal(true)} className="mt-2 bg-green-600 hover:bg-green-700">
-                    <Plus className="w-4 h-4 mr-1" />
-                    {language === "id" ? "Top Up" : "Top Up"}
-                  </Button>
+                  <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
+                  <div className="flex space-x-1 mt-2">
+                    <Button size="sm" onClick={() => setShowTopUpModal(true)} className="bg-blue-600 hover:bg-blue-700 flex-1">
+                      <Plus className="w-3 h-3 mr-1" />
+                      {language === "id" ? "Top Up" : "Top Up"}
+                    </Button>
+                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="bg-green-600 hover:bg-green-700 flex-1">
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      {language === "id" ? "Tarik" : "Cash Out"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
