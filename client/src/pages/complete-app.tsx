@@ -140,8 +140,11 @@ export default function CompleteApp() {
     { id: 5, name: "Rainbow Unicorn", rarity: "epic", price: 800000, image: "🦄", owned: false }
   ]);
 
-  // Marketplace toys (user listings)
-  const [marketplaceToys, setMarketplaceToys] = useState([]);
+  // Marketplace toys (user listings) - shared across all users
+  const [marketplaceToys, setMarketplaceToys] = useState(() => {
+    const savedListings = localStorage.getItem('globalMarketplaceListings');
+    return savedListings ? JSON.parse(savedListings) : [];
+  });
   
   // Transaction history state
   const [transactionHistory, setTransactionHistory] = useState([
@@ -287,10 +290,10 @@ export default function CompleteApp() {
     const timeDiff = appointmentTime.getTime() - now.getTime();
     const hoursDiff = timeDiff / (1000 * 60 * 60);
 
-    if (hoursDiff > 2) {
+    if (hoursDiff < 2) {
       toast({
         title: language === "id" ? "Error" : "Error", 
-        description: language === "id" ? "Reservasi harus dibuat dalam 2 jam ke depan" : "Booking must be within 2 hours",
+        description: language === "id" ? "Reservasi harus dibuat minimal 2 jam ke depan" : "Booking must be at least 2 hours in advance",
         variant: "destructive"
       });
       return;
@@ -491,8 +494,12 @@ export default function CompleteApp() {
       owned: false
     };
 
+    const updatedMarketplaceToys = [...marketplaceToys, newListing];
     setUserListings([...userListings, newListing]);
-    setMarketplaceToys([...marketplaceToys, newListing]);
+    setMarketplaceToys(updatedMarketplaceToys);
+    
+    // Save to global localStorage so all users can see this listing
+    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
     
     // Remove toy from seller's collection when listing
     setToyInventory(toyInventory.filter(toy => toy.id !== selectedToyForSale.id));
@@ -540,12 +547,17 @@ export default function CompleteApp() {
 
   // Function to cancel listing
   const cancelListing = (listingId) => {
-    // Remove from marketplace toys
-    setMarketplaceToys(marketplaceToys.filter(item => item.id !== listingId));
-    setUserListings(userListings.filter(item => item.id !== listingId));
-    
     // Find the toy that was being sold
     const canceledToy = marketplaceToys.find(toy => toy.id === listingId);
+    
+    // Remove from marketplace toys
+    const updatedMarketplaceToys = marketplaceToys.filter(item => item.id !== listingId);
+    setMarketplaceToys(updatedMarketplaceToys);
+    setUserListings(userListings.filter(item => item.id !== listingId));
+    
+    // Update global storage
+    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
+    
     if (canceledToy) {
       // Add it back to user's inventory
       const restoredToy = {
