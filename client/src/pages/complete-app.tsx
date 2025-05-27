@@ -37,6 +37,14 @@ export default function CompleteApp() {
   const [showCreateListingModal, setShowCreateListingModal] = useState(false);
   const referralCode = "RWG8H4K2";
 
+  // Cash-out states
+  const [showCashOutModal, setShowCashOutModal] = useState(false);
+  const [cashOutAmount, setCashOutAmount] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+  const [cashOutHistory, setCashOutHistory] = useState([]);
+
   // Format currency
   const formatRupiah = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -328,6 +336,69 @@ export default function CompleteApp() {
       title: language === "id" ? "Berhasil!" : "Success!",
       description: language === "id" ? `RP ${formatRupiah(amount)} berhasil ditambahkan` : `RP ${formatRupiah(amount)} added successfully`,
     });
+  };
+
+  const processCashOut = async () => {
+    if (!cashOutAmount || !bankName || !accountNumber || !accountHolderName) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Harap isi semua field" : "Please fill all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amount = parseFloat(cashOutAmount);
+    if (amount < 50000) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Minimal penarikan RP 50,000" : "Minimum cash-out RP 50,000",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (amount > userCredits) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // API call would go here
+      setUserCredits(userCredits - amount);
+      setShowCashOutModal(false);
+      setCashOutAmount("");
+      setBankName("");
+      setAccountNumber("");
+      setAccountHolderName("");
+
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Permintaan penarikan berhasil diajukan" : "Cash-out request submitted successfully",
+      });
+
+      // Add to history
+      const newCashOut = {
+        id: Date.now(),
+        amount: amount,
+        bankName,
+        accountNumber,
+        accountHolderName,
+        status: "pending",
+        date: new Date().toISOString().split('T')[0]
+      };
+      setCashOutHistory([newCashOut, ...cashOutHistory]);
+    } catch (error) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Gagal memproses penarikan" : "Failed to process cash-out",
+        variant: "destructive"
+      });
+    }
   };
 
   const addToyByCode = () => {

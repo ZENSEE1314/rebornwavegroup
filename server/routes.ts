@@ -332,6 +332,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cash-out routes
+  app.post("/api/cashout/request", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { amount, bankName, accountNumber, accountHolderName } = req.body;
+
+      // Validate minimum cash-out amount (e.g., 50,000 IDR)
+      const minAmount = 50000;
+      if (parseFloat(amount) < minAmount) {
+        return res.status(400).json({ 
+          message: `Minimum cash-out amount is RP ${minAmount.toLocaleString('id-ID')}` 
+        });
+      }
+
+      // Check if user has sufficient credits
+      const user = await storage.getUser(userId);
+      if (!user || parseFloat(user.credits) < parseFloat(amount)) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+
+      // Create cash-out request
+      const cashOut = await storage.createCashOutRequest({
+        userId,
+        amount,
+        bankName,
+        accountNumber,
+        accountHolderName,
+        status: "pending",
+      });
+
+      // Deduct credits from user account
+      const newCredits = (parseFloat(user.credits) - parseFloat(amount)).toString();
+      await storage.updateUserCredits(userId, newCredits);
+
+      // Update user's bank details for future use
+      await storage.updateUserBankDetails(userId, bankName, accountNumber, accountHolderName);
+
+      res.json({ 
+        message: "Cash-out request submitted successfully",
+        transaction: cashOut
+      });
+    } catch (error) {
+      console.error("Error creating cash-out request:", error);
+      res.status(500).json({ message: "Failed to process cash-out request" });
+    }
+  });
+
+  app.get("/api/cashout/history", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const cashOuts = await storage.getCashOutsByUserId(userId);
+      res.json(cashOuts);
+    } catch (error) {
+      console.error("Error fetching cash-out history:", error);
+      res.status(500).json({ message: "Failed to fetch cash-out history" });
+    }
+  });
+
+  // Admin routes for cash-out management
+  app.get("/api/admin/cashouts", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const cashOuts = await storage.getAllCashOuts();
+      res.json(cashOuts);
+    } catch (error) {
+      console.error("Error fetching all cash-outs:", error);
+      res.status(500).json({ message: "Failed to fetch cash-outs" });
+    }
+  });
+
+  app.put("/api/admin/cashouts/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+
+      await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
+      res.json({ message: "Cash-out status updated successfully" });
+    } catch (error) {
+      console.error("Error updating cash-out status:", error);
+      res.status(500).json({ message: "Failed to update cash-out status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
