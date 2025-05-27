@@ -54,6 +54,7 @@ export interface IStorage {
   // Toy operations
   createToy(toy: InsertToy): Promise<Toy>;
   getToysByOwnerId(ownerId: string): Promise<Toy[]>;
+  getAllToys(): Promise<Toy[]>;
   getToyByQrCode(qrCode: string): Promise<Toy | undefined>;
   updateToyOwner(toyId: number, newOwnerId: string): Promise<void>;
   

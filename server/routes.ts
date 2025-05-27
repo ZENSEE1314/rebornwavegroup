@@ -186,6 +186,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/toys/all', isAuthenticated, async (req: any, res) => {
+    try {
+      // Return all toys from all users for marketplace visibility
+      const allToys = await storage.getAllToys();
+      res.json(allToys);
+    } catch (error) {
+      console.error("Error fetching all toys:", error);
+      res.status(500).json({ message: "Failed to fetch all toys" });
+    }
+  });
+
+  app.post('/api/toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertToySchema.parse({
+        ...req.body,
+        ownerId: userId,
+      });
+      
+      const toy = await storage.createToy(validatedData);
+      res.json(toy);
+    } catch (error) {
+      console.error("Error creating toy:", error);
+      res.status(500).json({ message: "Failed to create toy" });
+    }
+  });
+
+  app.get('/api/toys/qr/:qrCode', isAuthenticated, async (req: any, res) => {
+    try {
+      const { qrCode } = req.params;
+      const toy = await storage.getToyByQrCode(qrCode);
+      
+      if (!toy) {
+        return res.status(404).json({ message: "Toy not found" });
+      }
+      
+      res.json(toy);
+    } catch (error) {
+      console.error("Error fetching toy by QR code:", error);
+      res.status(500).json({ message: "Failed to fetch toy" });
+    }
+  });
+
+  app.put('/api/toys/:toyId/owner', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { toyId } = req.params;
+      
+      await storage.updateToyOwner(parseInt(toyId), userId);
+      res.json({ message: "Toy ownership updated successfully" });
+    } catch (error) {
+      console.error("Error updating toy owner:", error);
+      res.status(500).json({ message: "Failed to update toy owner" });
+    }
+  });
+
+  // Marketplace listing routes
+  app.get('/api/listings', async (req: any, res) => {
+    try {
+      const listings = await storage.getAllListings();
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  app.post('/api/listings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertListingSchema.parse({
+        ...req.body,
+        sellerId: userId,
+      });
+      
+      const listing = await storage.createListing(validatedData);
+      res.json(listing);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+
+  app.put('/api/listings/:listingId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { listingId } = req.params;
+      const { status } = req.body;
+      
+      await storage.updateListingStatus(parseInt(listingId), status);
+      res.json({ message: "Listing status updated successfully" });
+    } catch (error) {
+      console.error("Error updating listing status:", error);
+      res.status(500).json({ message: "Failed to update listing status" });
+    }
+  });
+
   app.post('/api/toys/scan', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
