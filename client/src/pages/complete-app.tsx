@@ -150,14 +150,7 @@ export default function CompleteApp() {
     }
   ]);
 
-  // Marketplace items
-  const [marketplace, setMarketplace] = useState([
-    { id: 1, name: "Teddy Bear Premium", rarity: "rare", price: 500000, image: "🧸", owned: false },
-    { id: 2, name: "Lucky Cat", rarity: "common", price: 200000, image: "🐱", owned: true },
-    { id: 3, name: "Dragon Plushie", rarity: "legendary", price: 1000000, image: "🐉", owned: false },
-    { id: 4, name: "Cute Panda", rarity: "rare", price: 600000, image: "🐼", owned: false },
-    { id: 5, name: "Rainbow Unicorn", rarity: "epic", price: 800000, image: "🦄", owned: false }
-  ]);
+  // Remove this old marketplace array - we only use marketplaceToys now
 
   // All user marketplace listings (shared across all users)
   const [marketplaceToys, setMarketplaceToys] = useState(() => {
@@ -175,12 +168,21 @@ export default function CompleteApp() {
     { id: 6, type: "referral", description: "Referral Bonus (Level 1)", amount: 50000, date: "2025-05-20", time: "11:20" }
   ]);
 
-  // User's toy inventory
-  const [toyInventory, setToyInventory] = useState([
-    { id: 2, name: "Lucky Cat", rarity: "common", acquiredDate: "2025-05-15", qrCode: "LC001", image: "🐱" },
-    { id: 6, name: "Cute Panda", rarity: "rare", acquiredDate: "2025-05-20", qrCode: "CP002", image: "🐼" },
-    { id: 7, name: "Magic Bunny", rarity: "epic", acquiredDate: "2025-05-10", qrCode: "MB003", image: "🐰" }
-  ]);
+  // User's toy inventory (stored per user)
+  const [toyInventory, setToyInventory] = useState(() => {
+    const userToys = localStorage.getItem(`userToys_${user?.id || 'guest'}`);
+    if (userToys) {
+      return JSON.parse(userToys);
+    }
+    // Default toys for new users
+    const defaultToys = [
+      { id: 2, name: "Lucky Cat", rarity: "common", acquiredDate: "2025-05-15", qrCode: "LC001", image: "🐱" },
+      { id: 6, name: "Cute Panda", rarity: "rare", acquiredDate: "2025-05-20", qrCode: "CP002", image: "🐼" },
+      { id: 7, name: "Magic Bunny", rarity: "epic", acquiredDate: "2025-05-10", qrCode: "MB003", image: "🐰" }
+    ];
+    localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(defaultToys));
+    return defaultToys;
+  });
 
   // Point and redemption history (dynamic)
   const [pointHistory, setPointHistory] = useState([
