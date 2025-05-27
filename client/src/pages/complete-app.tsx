@@ -27,6 +27,13 @@ export default function CompleteApp() {
   const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [newToyCode, setNewToyCode] = useState("");
+  const [newListingTitle, setNewListingTitle] = useState("");
+  const [newListingPrice, setNewListingPrice] = useState("");
+  const [newListingDescription, setNewListingDescription] = useState("");
+  const [selectedToyForSale, setSelectedToyForSale] = useState(null);
   const referralCode = "RWG8H4K2";
 
   // Format currency
@@ -127,17 +134,27 @@ export default function CompleteApp() {
     { id: 7, name: "Magic Bunny", rarity: "epic", acquiredDate: "2025-05-10", qrCode: "MB003", image: "🐰" }
   ]);
 
-  // Point and redemption history
-  const [pointHistory] = useState([
+  // Point and redemption history (dynamic)
+  const [pointHistory, setPointHistory] = useState([
     { id: 1, date: "2025-05-25", description: language === "id" ? "Hair Spa - Pembelian" : "Hair Spa - Purchase", points: 20, type: "earned" },
     { id: 2, date: "2025-05-20", description: language === "id" ? "Rujukan Baru" : "New Referral", points: 15, type: "earned" },
     { id: 3, date: "2025-05-15", description: language === "id" ? "Tukar Lucky Cat" : "Redeemed Lucky Cat", points: -50, type: "redeemed" },
     { id: 4, date: "2025-05-10", description: language === "id" ? "KTV Room - Pembelian" : "KTV Room - Purchase", points: 50, type: "earned" }
   ]);
 
-  const [redemptionHistory] = useState([
+  const [redemptionHistory, setRedemptionHistory] = useState([
     { id: 1, date: "2025-05-15", reward: "Lucky Cat", pointsSpent: 50, status: "completed" },
     { id: 2, date: "2025-05-01", reward: language === "id" ? "Diskon 10%" : "10% Discount", pointsSpent: 25, status: "used" }
+  ]);
+
+  // Marketplace listings (user-created)
+  const [userListings, setUserListings] = useState([
+    { id: 1, title: "Rare Teddy Bear", description: "Collectible bear from limited edition", price: 750000, toyId: 2, seller: "Candy", status: "active", createdDate: "2025-05-20" }
+  ]);
+
+  // Sales history
+  const [salesHistory, setSalesHistory] = useState([
+    { id: 1, item: "Lucky Cat", buyer: "Sarah Chen", amount: 300000, date: "2025-05-18", status: "completed" }
   ]);
 
   // Loyalty levels
@@ -301,22 +318,43 @@ export default function CompleteApp() {
     });
   };
 
-  const topUpCredits = () => {
-    setUserCredits(prev => prev + 1000000);
+  const processPayment = (amount) => {
+    // This would integrate with PayPal/Stripe
+    setUserCredits(prev => prev + parseInt(amount));
+    setShowTopUpModal(false);
+    setTopUpAmount("");
     toast({
       title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "RP 1,000,000 ditambahkan" : "RP 1,000,000 added",
+      description: language === "id" ? `RP ${formatRupiah(amount)} berhasil ditambahkan` : `RP ${formatRupiah(amount)} added successfully`,
     });
   };
 
-  const earnBonusPoints = () => {
-    const bonusPoints = 50;
-    setLoyaltyPoints(prev => prev + bonusPoints);
-    setLifetimePoints(prev => prev + bonusPoints);
+  const addToyByCode = () => {
+    if (!newToyCode) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Masukkan kode mainan" : "Enter toy code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Simulate adding toy by unique code
+    const newToy = {
+      id: toyInventory.length + 10,
+      name: "Special Edition Bear",
+      rarity: "rare",
+      acquiredDate: new Date().toISOString().split('T')[0],
+      qrCode: newToyCode,
+      image: "🧸"
+    };
+
+    setToyInventory([...toyInventory, newToy]);
+    setNewToyCode("");
     
     toast({
-      title: language === "id" ? "Bonus Poin!" : "Bonus Points!",
-      description: language === "id" ? `Anda mendapat ${bonusPoints} poin bonus!` : `You earned ${bonusPoints} bonus points!`,
+      title: language === "id" ? "Berhasil!" : "Success!",
+      description: language === "id" ? "Mainan berhasil ditambahkan ke koleksi" : "Toy added to collection",
     });
   };
 
@@ -504,10 +542,10 @@ export default function CompleteApp() {
                   <p className="text-sm text-green-600 font-medium">
                     {language === "id" ? "Kredit" : "Credits"}
                   </p>
-                  <p className="text-2xl font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
-                  <Button size="sm" onClick={topUpCredits} className="mt-2 bg-green-600 hover:bg-green-700">
+                  <p className="text-lg font-bold text-green-800">{formatRupiah(userCredits)}</p>
+                  <Button size="sm" onClick={() => setShowTopUpModal(true)} className="mt-2 bg-green-600 hover:bg-green-700">
                     <Plus className="w-4 h-4 mr-1" />
-                    +RP 1,000,000
+                    {language === "id" ? "Top Up" : "Top Up"}
                   </Button>
                 </CardContent>
               </Card>
@@ -587,11 +625,20 @@ export default function CompleteApp() {
                       onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
                     />
 
-                    <Input
-                      type="time"
-                      value={newAppointment.time}
-                      onChange={(e) => setNewAppointment({...newAppointment, time: e.target.value})}
-                    />
+                    <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={language === "id" ? "Pilih Waktu" : "Select Time"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({length: 24}, (_, i) => i).map(hour => (
+                          ['00', '30'].map(minute => (
+                            <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
+                              {`${hour.toString().padStart(2, '0')}:${minute}`}
+                            </SelectItem>
+                          ))
+                        )).flat()}
+                      </SelectContent>
+                    </Select>
 
                     <Button onClick={bookAppointment} className="w-full">
                       <Calendar className="w-4 h-4 mr-2" />
