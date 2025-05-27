@@ -139,6 +139,12 @@ export default function CompleteApp() {
 
   // Marketplace toys (user listings)
   const [marketplaceToys, setMarketplaceToys] = useState([]);
+  
+  // Transaction history state
+  const [transactionHistory, setTransactionHistory] = useState([
+    { id: 1, type: "top-up", description: "Top up kredit", amount: 500000, date: "2025-05-25", time: "14:30" },
+    { id: 2, type: "booking", description: "Facial Treatment", amount: -250000, date: "2025-05-24", time: "10:00" }
+  ]);
 
   // User's toy inventory
   const [toyInventory, setToyInventory] = useState([
@@ -445,19 +451,26 @@ export default function CompleteApp() {
     }
 
     const newListing = {
-      id: userListings.length + 10,
+      id: Date.now(),
+      name: selectedToyForSale.name,
       title: `${selectedToyForSale.name} (${selectedToyForSale.rarity})`,
       description: `Original ${selectedToyForSale.name} from collection`,
       price: parseInt(newListingPrice),
+      rarity: selectedToyForSale.rarity,
       toyId: selectedToyForSale.id,
-      seller: user?.firstName || "User",
+      seller: user?.firstName || "User", 
       status: "active",
       createdDate: new Date().toISOString().split('T')[0],
-      image: selectedToyForSale.image
+      image: selectedToyForSale.image,
+      owned: false
     };
 
     setUserListings([...userListings, newListing]);
     setMarketplaceToys([...marketplaceToys, newListing]);
+    
+    // Remove toy from seller's collection when listing
+    setToyInventory(toyInventory.filter(toy => toy.id !== selectedToyForSale.id));
+    
     setNewListingPrice("");
     setSelectedToyForSale(null);
     setShowCreateListingModal(false);
