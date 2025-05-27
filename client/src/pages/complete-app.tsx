@@ -1238,13 +1238,10 @@ export default function CompleteApp() {
 
                     <Input
                       type="date"
-                      min={(() => {
-                        const today = new Date();
-                        today.setHours(today.getHours() + 2); // Add 2 hours minimum advance booking
-                        return today.toISOString().split('T')[0];
-                      })()}
+                      min={new Date().toISOString().split('T')[0]}
                       value={newAppointment.date}
                       onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
+                      className="w-full"
                     />
 
                     <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
