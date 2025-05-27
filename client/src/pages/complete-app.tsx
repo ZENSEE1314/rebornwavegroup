@@ -736,10 +736,9 @@ export default function CompleteApp() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>{language === "id" ? "Reward Tersedia" : "Available Rewards"}</CardTitle>
-                    <Button onClick={earnBonusPoints} className="bg-green-600 hover:bg-green-700">
-                      <Zap className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Dapat 50 Poin" : "Earn 50 Points"}
-                    </Button>
+                    <div className="text-sm text-gray-500">
+                      {language === "id" ? "Poin hanya dapat ditambahkan oleh admin" : "Points can only be added by admin"}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
