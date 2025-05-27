@@ -506,7 +506,7 @@ export default function CompleteApp() {
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-8">
+          <div className="flex space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide pb-2">
             {[
               { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
               { id: "loyalty", label: language === "id" ? "Loyalitas" : "Loyalty", icon: Star },
@@ -1184,6 +1184,13 @@ export default function CompleteApp() {
               <p className="text-slate-600">
                 {language === "id" ? "Beli mainan lucu dengan kredit Anda" : "Buy cute toys with your credits"}
               </p>
+              <Button 
+                onClick={() => setShowCreateListingModal(true)} 
+                className="mt-4 bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {language === "id" ? "Jual Mainan Saya" : "Sell My Toy"}
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
