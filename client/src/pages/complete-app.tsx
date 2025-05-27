@@ -1694,8 +1694,11 @@ export default function CompleteApp() {
                       <Badge className={getRarityColor(toy.rarity)} variant="secondary">
                         {toy.rarity}
                       </Badge>
-                      <p className="text-2xl font-bold text-green-600 mt-4 mb-4">
+                      <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
                         RP {formatRupiah(toy.price)}
+                      </p>
+                      <p className="text-sm text-slate-500 mb-4">
+                        {language === "id" ? "Dijual oleh" : "Sold by"}: {toy.seller || toy.sellerName || "Unknown"}
                       </p>
                       {toy.owned ? (
                         <Badge variant="default" className="w-full">
