@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
