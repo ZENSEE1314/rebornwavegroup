@@ -159,57 +159,54 @@ export default function CompleteApp() {
     { id: 5, name: "Rainbow Unicorn", rarity: "epic", price: 800000, image: "🦄", owned: false }
   ]);
 
-  // Marketplace toys (user listings) - shared across all users
-  const [marketplaceToys, setMarketplaceToys] = useState(() => {
-    const savedListings = localStorage.getItem('globalMarketplaceListings');
-    if (savedListings) {
-      return JSON.parse(savedListings);
+  // Sample cross-user marketplace listings (always visible)
+  const sampleCrossUserListings = [
+    {
+      id: 101,
+      name: "Golden Dragon",
+      rarity: "legendary",
+      price: 1200000,
+      image: "🐲",
+      seller: "Sarah_M",
+      sellerName: "Sarah_M",
+      listedDate: "2025-05-26"
+    },
+    {
+      id: 102,
+      name: "Crystal Fox",
+      rarity: "epic",
+      price: 750000,
+      image: "🦊",
+      seller: "Alex_Chen",
+      sellerName: "Alex_Chen",
+      listedDate: "2025-05-25"
+    },
+    {
+      id: 103,
+      name: "Rainbow Bird",
+      rarity: "rare",
+      price: 450000,
+      image: "🦜",
+      seller: "Mike_K",
+      sellerName: "Mike_K",
+      listedDate: "2025-05-24"
+    },
+    {
+      id: 104,
+      name: "Space Robot",
+      rarity: "epic",
+      price: 880000,
+      image: "🤖",
+      seller: "Luna_Star",
+      sellerName: "Luna_Star",
+      listedDate: "2025-05-23"
     }
-    // Initialize with sample user listings to show cross-user marketplace
-    const sampleListings = [
-      {
-        id: 101,
-        name: "Golden Dragon",
-        rarity: "legendary",
-        price: 1200000,
-        image: "🐲",
-        sellerId: "user_001",
-        sellerName: "Sarah_M",
-        listedDate: "2025-05-26"
-      },
-      {
-        id: 102,
-        name: "Crystal Fox",
-        rarity: "epic",
-        price: 750000,
-        image: "🦊",
-        sellerId: "user_002",
-        sellerName: "Alex_Chen",
-        listedDate: "2025-05-25"
-      },
-      {
-        id: 103,
-        name: "Rainbow Bird",
-        rarity: "rare",
-        price: 450000,
-        image: "🦜",
-        sellerId: "user_003",
-        sellerName: "Mike_K",
-        listedDate: "2025-05-24"
-      },
-      {
-        id: 104,
-        name: "Space Robot",
-        rarity: "epic",
-        price: 880000,
-        image: "🤖",
-        sellerId: "user_004",
-        sellerName: "Luna_Star",
-        listedDate: "2025-05-23"
-      }
-    ];
-    localStorage.setItem('globalMarketplaceListings', JSON.stringify(sampleListings));
-    return sampleListings;
+  ];
+
+  // User's own marketplace listings
+  const [marketplaceToys, setMarketplaceToys] = useState(() => {
+    const savedListings = localStorage.getItem('userMarketplaceListings');
+    return savedListings ? JSON.parse(savedListings) : [];
   });
   
   // Transaction history state
@@ -590,8 +587,8 @@ export default function CompleteApp() {
     setUserListings([...userListings, newListing]);
     setMarketplaceToys(updatedMarketplaceToys);
     
-    // Save to global localStorage so all users can see this listing
-    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
+    // Save to user's own marketplace listings
+    localStorage.setItem('userMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
     
     // Remove toy from seller's collection when listing
     setToyInventory(toyInventory.filter(toy => toy.id !== selectedToyForSale.id));
@@ -647,8 +644,8 @@ export default function CompleteApp() {
     setMarketplaceToys(updatedMarketplaceToys);
     setUserListings(userListings.filter(item => item.id !== listingId));
     
-    // Update global storage
-    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
+    // Update user's marketplace listings storage
+    localStorage.setItem('userMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
     
     if (canceledToy) {
       // Add it back to user's inventory
@@ -1685,7 +1682,7 @@ export default function CompleteApp() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...marketplace, ...marketplaceToys].map((toy) => (
+              {[...marketplace, ...sampleCrossUserListings, ...marketplaceToys].map((toy) => (
                 <Card key={toy.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="text-center">
