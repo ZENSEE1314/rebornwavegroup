@@ -945,10 +945,36 @@ export default function CompleteApp() {
                   {language === "id" ? "Nomor Rekening" : "Account Number"}
                 </label>
                 <Input
-                  placeholder={language === "id" ? "Masukkan nomor rekening" : "Enter account number"}
+                  placeholder={
+                    bankName ? 
+                      (() => {
+                        const bank = indonesianBanks.find(b => b.code === bankName);
+                        return bank ? 
+                          `${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digits` :
+                          (language === "id" ? "Masukkan nomor rekening" : "Enter account number");
+                      })() :
+                      (language === "id" ? "Pilih bank terlebih dahulu" : "Select bank first")
+                  }
                   value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
+                  onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+                  disabled={!bankName}
                 />
+                {bankName && (
+                  <p className="text-xs mt-1">
+                    {(() => {
+                      const bank = indonesianBanks.find(b => b.code === bankName);
+                      const isValid = validateAccountNumber(bankName, accountNumber);
+                      return bank ? (
+                        <span className={isValid ? "text-green-600" : "text-red-500"}>
+                          {language === "id" ? 
+                            `${bank.name}: ${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digit ${isValid ? '✓' : '✗'}` :
+                            `${bank.name}: ${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digits ${isValid ? '✓' : '✗'}`
+                          }
+                        </span>
+                      ) : null;
+                    })()}
+                  </p>
+                )}
               </div>
 
               <div>
