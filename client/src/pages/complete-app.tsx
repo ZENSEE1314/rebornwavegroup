@@ -11,6 +11,7 @@ import {
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package
 } from "lucide-react";
+import logoImage from "@assets/2.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CompleteApp() {
@@ -562,7 +563,15 @@ export default function CompleteApp() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-blue-600">Reborn Wave Group</h1>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow-sm">
+                <img src={logoImage} alt="Reborn Wave House" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-blue-600">Reborn Wave House</h1>
+                <p className="text-xs text-gray-500">Your Oasis of Joy</p>
+              </div>
+            </div>
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
