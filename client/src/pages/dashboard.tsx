@@ -3,48 +3,49 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Users, DollarSign, Store, Calendar, Gift, CreditCard, QrCode, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import ReferralTree from "@/components/referral-tree";
+import type { User } from "@shared/schema";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const typedUser = user as User;
   
-  const { data: transactions } = useQuery({
+  const { data: transactions = [] } = useQuery({
     queryKey: ["/api/transactions"],
+    enabled: isAuthenticated,
   });
 
-  const { data: referrals } = useQuery({
+  const { data: referrals = [] } = useQuery({
     queryKey: ["/api/users/referrals"],
+    enabled: isAuthenticated,
   });
 
-  const { data: referralEarnings } = useQuery({
-    queryKey: ["/api/users/referral-earnings"],
-  });
-
-  const { data: appointments } = useQuery({
+  const { data: appointments = [] } = useQuery({
     queryKey: ["/api/appointments"],
+    enabled: isAuthenticated,
   });
 
-  const { data: toys } = useQuery({
+  const { data: toys = [] } = useQuery({
     queryKey: ["/api/toys"],
+    enabled: isAuthenticated,
   });
 
-  const { data: listings } = useQuery({
+  const { data: listings = [] } = useQuery({
     queryKey: ["/api/marketplace/my-listings"],
+    enabled: isAuthenticated,
   });
 
   // Calculate level progress
-  const currentPoints = user?.loyaltyPoints || 0;
-  const currentLevel = user?.level || 1;
+  const currentPoints = typedUser?.loyaltyPoints || 0;
+  const currentLevel = typedUser?.level || 1;
   const pointsForNextLevel = currentLevel * 1000;
   const progressPercentage = Math.min((currentPoints % 1000) / 10, 100);
 
-  const recentTransactions = transactions?.slice(0, 3) || [];
-  const activeListings = listings?.filter(l => l.status === 'active')?.length || 0;
-  const totalReferrals = referrals?.length || 0;
-  const totalEarnings = referralEarnings?.earnings || 0;
+  const recentTransactions = transactions.slice(0, 3);
+  const activeListings = listings.filter((l: any) => l.status === 'active').length;
+  const totalReferrals = referrals.length;
+  const totalEarnings = referrals.reduce((sum: number, ref: any) => sum + parseFloat(ref.totalEarnings || '0'), 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
