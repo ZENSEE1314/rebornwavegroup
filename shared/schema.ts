@@ -132,6 +132,21 @@ export const pointRedemptions = pgTable("point_redemptions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Cash-out transactions table
+export const cashOutTransactions = pgTable("cash_out_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  bankName: varchar("bank_name").notNull(),
+  accountNumber: varchar("account_number").notNull(),
+  accountHolderName: varchar("account_holder_name").notNull(),
+  status: varchar("status").default("pending").notNull(), // 'pending' | 'processing' | 'completed' | 'failed'
+  transactionId: varchar("transaction_id"),
+  adminNotes: text("admin_notes"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   referrals: many(referrals, { relationName: "referrer" }),
@@ -147,6 +162,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   sentMessages: many(messages, { relationName: "sender" }),
   receivedMessages: many(messages, { relationName: "receiver" }),
   pointRedemptions: many(pointRedemptions),
+  cashOutTransactions: many(cashOutTransactions),
 }));
 
 export const referralsRelations = relations(referrals, ({ one }) => ({
@@ -220,6 +236,13 @@ export const pointRedemptionsRelations = relations(pointRedemptions, ({ one }) =
   }),
 }));
 
+export const cashOutTransactionsRelations = relations(cashOutTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [cashOutTransactions.userId],
+    references: [users.id],
+  }),
+}));
+
 // Schema types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -272,6 +295,15 @@ export type InsertListing = z.infer<typeof insertListingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertPointRedemption = z.infer<typeof insertPointRedemptionSchema>;
 
+// Cash-out transaction schemas
+export const insertCashOutTransactionSchema = createInsertSchema(cashOutTransactions).omit({
+  id: true,
+  requestedAt: true,
+  processedAt: true,
+});
+
+export type InsertCashOutTransaction = z.infer<typeof insertCashOutTransactionSchema>;
+
 export type Appointment = typeof appointments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Toy = typeof toys.$inferSelect;
@@ -279,3 +311,4 @@ export type Listing = typeof listings.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Referral = typeof referrals.$inferSelect;
 export type PointRedemption = typeof pointRedemptions.$inferSelect;
+export type CashOutTransaction = typeof cashOutTransactions.$inferSelect;

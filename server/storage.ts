@@ -7,6 +7,7 @@ import {
   messages,
   referrals,
   pointRedemptions,
+  cashOutTransactions,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -14,6 +15,7 @@ import {
   type InsertToy,
   type InsertListing,
   type InsertMessage,
+  type InsertCashOutTransaction,
   type Appointment,
   type Transaction,
   type Toy,
@@ -21,6 +23,7 @@ import {
   type Message,
   type Referral,
   type PointRedemption,
+  type CashOutTransaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or } from "drizzle-orm";
@@ -71,6 +74,13 @@ export interface IStorage {
   // Admin operations
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<void>;
+  
+  // Cash-out operations
+  createCashOutRequest(cashOut: InsertCashOutTransaction): Promise<CashOutTransaction>;
+  getCashOutsByUserId(userId: string): Promise<CashOutTransaction[]>;
+  getAllCashOuts(): Promise<CashOutTransaction[]>;
+  updateCashOutStatus(id: number, status: string, adminNotes?: string): Promise<void>;
+  updateUserBankDetails(userId: string, bankName: string, accountNumber: string, accountHolderName: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -348,6 +358,57 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(users)
       .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  // Cash-out operations
+  async createCashOutRequest(cashOut: InsertCashOutTransaction): Promise<CashOutTransaction> {
+    const [result] = await db
+      .insert(cashOutTransactions)
+      .values(cashOut)
+      .returning();
+    return result;
+  }
+
+  async getCashOutsByUserId(userId: string): Promise<CashOutTransaction[]> {
+    return await db
+      .select()
+      .from(cashOutTransactions)
+      .where(eq(cashOutTransactions.userId, userId))
+      .orderBy(desc(cashOutTransactions.requestedAt));
+  }
+
+  async getAllCashOuts(): Promise<CashOutTransaction[]> {
+    return await db
+      .select()
+      .from(cashOutTransactions)
+      .orderBy(desc(cashOutTransactions.requestedAt));
+  }
+
+  async updateCashOutStatus(id: number, status: string, adminNotes?: string): Promise<void> {
+    const updateData: any = { 
+      status, 
+      processedAt: new Date() 
+    };
+    if (adminNotes) {
+      updateData.adminNotes = adminNotes;
+    }
+    
+    await db
+      .update(cashOutTransactions)
+      .set(updateData)
+      .where(eq(cashOutTransactions.id, id));
+  }
+
+  async updateUserBankDetails(userId: string, bankName: string, accountNumber: string, accountHolderName: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        bankName, 
+        bankAccountNumber: accountNumber, 
+        accountHolderName,
+        updatedAt: new Date() 
+      })
       .where(eq(users.id, userId));
   }
 }
