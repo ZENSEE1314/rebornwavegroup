@@ -1238,7 +1238,6 @@ export default function CompleteApp() {
 
                     <Input
                       type="date"
-                      min={new Date().toISOString().split('T')[0]}
                       value={newAppointment.date}
                       onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
                       className="w-full"
