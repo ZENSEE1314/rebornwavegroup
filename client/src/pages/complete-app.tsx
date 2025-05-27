@@ -11,7 +11,7 @@ import {
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package
 } from "lucide-react";
-import logoImage from "@assets/2.png";
+import logoImage from "@assets/2-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CompleteApp() {
