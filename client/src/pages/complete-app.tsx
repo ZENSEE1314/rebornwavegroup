@@ -532,7 +532,8 @@ export default function CompleteApp() {
       price: parseInt(newListingPrice),
       rarity: selectedToyForSale.rarity,
       toyId: selectedToyForSale.id,
-      seller: user?.firstName || "User", 
+      seller: user?.id || "unknown",
+      sellerName: user?.firstName || "User", 
       status: "active",
       createdDate: new Date().toISOString().split('T')[0],
       image: selectedToyForSale.image,
@@ -1651,13 +1652,13 @@ export default function CompleteApp() {
                         RP {formatRupiah(toy.price)}
                       </p>
                       <p className="text-sm text-slate-500 mb-4">
-                        {language === "id" ? "Dijual oleh" : "Sold by"}: {toy.seller || toy.sellerName || "Unknown"}
+                        {language === "id" ? "Dijual oleh" : "Sold by"}: {toy.sellerName || "Unknown"}
                       </p>
                       {toy.owned ? (
                         <Badge variant="default" className="w-full">
                           {language === "id" ? "Sudah Dimiliki" : "Owned"}
                         </Badge>
-                      ) : toy.seller === (user?.firstName || "User") ? (
+                      ) : toy.seller === (user?.id || "unknown") ? (
                         <div className="space-y-2">
                           <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
                             {language === "id" ? "Milik Anda" : "Your Item"}
