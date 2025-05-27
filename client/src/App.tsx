@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
-import Dashboard from "@/pages/simple-dashboard";
+import HomePage from "@/pages/home";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
 import Referrals from "@/pages/referrals-working";
@@ -37,18 +37,7 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
-          <Navigation />
-          <Route path="/" component={Dashboard} />
-          <Route path="/bookings" component={Bookings} />
-          <Route path="/marketplace" component={Marketplace} />
-          <Route path="/referrals" component={Referrals} />
-          <Route path="/my-referral" component={MyReferral} />
-          <Route path="/loyalty" component={LoyaltyProgram} />
-          <Route path="/profile" component={Profile} />
-          {user?.role === 'admin' && (
-            <Route path="/admin" component={AdminDashboard} />
-          )}
-          <MobileNav />
+          <Route path="/" component={HomePage} />
         </>
       )}
       <Route component={NotFound} />
