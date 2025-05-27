@@ -617,7 +617,9 @@ export default function CompleteApp() {
         image: canceledToy.image
       };
       
-      setToyInventory(prev => [...prev, restoredToy]);
+      const updatedInventory = [...toyInventory, restoredToy];
+      setToyInventory(updatedInventory);
+      localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(updatedInventory));
     }
     
     toast({
@@ -672,10 +674,7 @@ export default function CompleteApp() {
       setMarketplaceToys(marketplaceToys.filter(item => item.id !== toy.id));
       setUserListings(userListings.filter(item => item.id !== toy.id));
     } else {
-      // Mark as owned in default marketplace
-      setMarketplace(marketplace.map(item => 
-        item.id === toy.id ? { ...item, owned: true } : item
-      ));
+      // No need to update marketplace since we removed the old marketplace array
     }
     
     // Add transaction to history
