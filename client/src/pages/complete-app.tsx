@@ -34,6 +34,7 @@ export default function CompleteApp() {
   const [newListingPrice, setNewListingPrice] = useState("");
   const [newListingDescription, setNewListingDescription] = useState("");
   const [selectedToyForSale, setSelectedToyForSale] = useState(null);
+  const [showCreateListingModal, setShowCreateListingModal] = useState(false);
   const referralCode = "RWG8H4K2";
 
   // Format currency

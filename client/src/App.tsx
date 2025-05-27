@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
-import CompleteWorkingApp from "@/pages/complete-working-app";
+import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
 import Referrals from "@/pages/referrals-working";
@@ -37,7 +37,7 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
-          <Route path="/" component={CompleteWorkingApp} />
+          <Route path="/" component={CompleteApp} />
         </>
       )}
       <Route component={NotFound} />
