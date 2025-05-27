@@ -48,6 +48,25 @@ export default function CompleteApp() {
   const [accountNumber, setAccountNumber] = useState("");
   const [accountHolderName, setAccountHolderName] = useState("");
   const [cashOutHistory, setCashOutHistory] = useState([]);
+  
+  // Indonesian banks with account validation
+  const indonesianBanks = [
+    { code: "BCA", name: "Bank Central Asia (BCA)", minDigits: 10, maxDigits: 10, icon: "🏦" },
+    { code: "BNI", name: "Bank Negara Indonesia (BNI)", minDigits: 10, maxDigits: 10, icon: "🏦" },
+    { code: "BRI", name: "Bank Rakyat Indonesia (BRI)", minDigits: 15, maxDigits: 15, icon: "🏦" },
+    { code: "MANDIRI", name: "Bank Mandiri", minDigits: 13, maxDigits: 13, icon: "🏦" },
+    { code: "CIMB", name: "CIMB Niaga", minDigits: 13, maxDigits: 14, icon: "🏦" },
+    { code: "DANAMON", name: "Bank Danamon", minDigits: 10, maxDigits: 10, icon: "🏦" },
+    { code: "PERMATA", name: "Bank Permata", minDigits: 10, maxDigits: 10, icon: "🏦" },
+    { code: "BTPN", name: "Bank BTPN", minDigits: 10, maxDigits: 10, icon: "🏦" },
+    { code: "OCBC", name: "OCBC NISP", minDigits: 12, maxDigits: 12, icon: "🏦" },
+    { code: "MAYBANK", name: "Maybank Indonesia", minDigits: 12, maxDigits: 12, icon: "🏦" },
+    { code: "BSI", name: "Bank Syariah Indonesia (BSI)", minDigits: 10, maxDigits: 10, icon: "🕌" },
+    { code: "GOPAY", name: "GoPay", minDigits: 10, maxDigits: 13, icon: "📱" },
+    { code: "OVO", name: "OVO", minDigits: 10, maxDigits: 13, icon: "📱" },
+    { code: "DANA", name: "DANA", minDigits: 10, maxDigits: 13, icon: "📱" },
+    { code: "SHOPEEPAY", name: "ShopeePay", minDigits: 10, maxDigits: 13, icon: "🛒" }
+  ];
 
   // Format currency
   const formatRupiah = (amount) => {
@@ -366,6 +385,15 @@ export default function CompleteApp() {
     });
   };
 
+  // Account number validation function
+  const validateAccountNumber = (bankCode, accountNum) => {
+    const bank = indonesianBanks.find(b => b.code === bankCode);
+    if (!bank) return false;
+    
+    const numericAccount = accountNum.replace(/\D/g, '');
+    return numericAccount.length >= bank.minDigits && numericAccount.length <= bank.maxDigits;
+  };
+
   const processCashOut = async () => {
     if (!cashOutAmount || !bankName || !accountNumber || !accountHolderName) {
       toast({
@@ -390,6 +418,19 @@ export default function CompleteApp() {
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate account number format for selected bank
+    if (!validateAccountNumber(bankName, accountNumber)) {
+      const bank = indonesianBanks.find(b => b.code === bankName);
+      toast({
+        title: language === "id" ? "Nomor Rekening Tidak Valid" : "Invalid Account Number",
+        description: language === "id" ? 
+          `Nomor rekening ${bank?.name} harus ${bank?.minDigits}-${bank?.maxDigits} digit` :
+          `${bank?.name} account number must be ${bank?.minDigits}-${bank?.maxDigits} digits`,
         variant: "destructive"
       });
       return;
@@ -887,17 +928,14 @@ export default function CompleteApp() {
                 </label>
                 <Select onValueChange={setBankName}>
                   <SelectTrigger>
-                    <SelectValue placeholder={language === "id" ? "Pilih bank" : "Select bank"} />
+                    <SelectValue placeholder={language === "id" ? "Pilih bank atau e-wallet" : "Select bank or e-wallet"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BCA">🏧 Bank Central Asia (BCA)</SelectItem>
-                    <SelectItem value="Mandiri">🏧 Bank Mandiri</SelectItem>
-                    <SelectItem value="BRI">🏧 Bank Rakyat Indonesia (BRI)</SelectItem>
-                    <SelectItem value="BNI">🏧 Bank Negara Indonesia (BNI)</SelectItem>
-                    <SelectItem value="CIMB">🏧 CIMB Niaga</SelectItem>
-                    <SelectItem value="Danamon">🏧 Bank Danamon</SelectItem>
-                    <SelectItem value="Permata">🏧 Bank Permata</SelectItem>
-                    <SelectItem value="OCBC">🏧 OCBC NISP</SelectItem>
+                    {indonesianBanks.map((bank) => (
+                      <SelectItem key={bank.code} value={bank.code}>
+                        {bank.icon} {bank.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
