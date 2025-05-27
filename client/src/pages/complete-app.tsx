@@ -129,7 +129,7 @@ export default function CompleteApp() {
   ]);
 
   // User's toy inventory
-  const [toyInventory] = useState([
+  const [toyInventory, setToyInventory] = useState([
     { id: 2, name: "Lucky Cat", rarity: "common", acquiredDate: "2025-05-15", qrCode: "LC001", image: "🐱" },
     { id: 6, name: "Cute Panda", rarity: "rare", acquiredDate: "2025-05-20", qrCode: "CP002", image: "🐼" },
     { id: 7, name: "Magic Bunny", rarity: "epic", acquiredDate: "2025-05-10", qrCode: "MB003", image: "🐰" }
@@ -359,6 +359,40 @@ export default function CompleteApp() {
     });
   };
 
+  const createMarketplaceListing = () => {
+    if (!newListingTitle || !newListingPrice || !selectedToyForSale) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Harap isi semua field" : "Please fill all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newListing = {
+      id: userListings.length + 10,
+      title: newListingTitle,
+      description: newListingDescription,
+      price: parseInt(newListingPrice),
+      toyId: selectedToyForSale.id,
+      seller: "Candy",
+      status: "active",
+      createdDate: new Date().toISOString().split('T')[0]
+    };
+
+    setUserListings([...userListings, newListing]);
+    setNewListingTitle("");
+    setNewListingPrice("");
+    setNewListingDescription("");
+    setSelectedToyForSale(null);
+    setShowCreateListingModal(false);
+
+    toast({
+      title: language === "id" ? "Berhasil!" : "Success!",
+      description: language === "id" ? "Listing berhasil dibuat" : "Listing created successfully",
+    });
+  };
+
   const redeemReward = (reward) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
@@ -475,10 +509,10 @@ export default function CompleteApp() {
           <div className="flex space-x-8">
             {[
               { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
-              { id: "loyalty", label: language === "id" ? "Program Loyalitas" : "Loyalty Program", icon: Star },
+              { id: "loyalty", label: language === "id" ? "Loyalitas" : "Loyalty", icon: Star },
               { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
               { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
-              { id: "inventory", label: language === "id" ? "Koleksi Saya" : "My Toys", icon: Package },
+              { id: "inventory", label: language === "id" ? "Koleksi" : "Collections", icon: Package },
               { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
               { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
             ].map((tab) => (
@@ -498,6 +532,100 @@ export default function CompleteApp() {
           </div>
         </div>
       </div>
+
+      {/* Top-up Payment Modal */}
+      {showTopUpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">{language === "id" ? "Top Up Kredit" : "Top Up Credits"}</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {["100000", "500000", "1000000", "2000000", "5000000", "10000000"].map(amount => (
+                  <Button 
+                    key={amount}
+                    variant="outline"
+                    onClick={() => setTopUpAmount(amount)}
+                    className={`text-xs ${topUpAmount === amount ? "bg-blue-100" : ""}`}
+                  >
+                    RP {parseInt(amount).toLocaleString('id-ID')}
+                  </Button>
+                ))}
+              </div>
+              <Input
+                placeholder={language === "id" ? "Jumlah custom" : "Custom amount"}
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value)}
+              />
+              <div className="flex space-x-2">
+                <Button 
+                  className="flex-1 bg-blue-600" 
+                  onClick={() => processPayment(topUpAmount)}
+                  disabled={!topUpAmount}
+                >
+                  PayPal
+                </Button>
+                <Button 
+                  className="flex-1 bg-purple-600" 
+                  onClick={() => processPayment(topUpAmount)}
+                  disabled={!topUpAmount}
+                >
+                  Stripe
+                </Button>
+              </div>
+              <Button variant="outline" onClick={() => setShowTopUpModal(false)} className="w-full">
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Listing Modal */}
+      {showCreateListingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">{language === "id" ? "Buat Listing Baru" : "Create New Listing"}</h3>
+            <div className="space-y-4">
+              <Input
+                placeholder={language === "id" ? "Judul listing" : "Listing title"}
+                value={newListingTitle}
+                onChange={(e) => setNewListingTitle(e.target.value)}
+              />
+              <Input
+                placeholder={language === "id" ? "Harga (RP)" : "Price (RP)"}
+                value={newListingPrice}
+                onChange={(e) => setNewListingPrice(e.target.value)}
+                type="number"
+              />
+              <Input
+                placeholder={language === "id" ? "Deskripsi" : "Description"}
+                value={newListingDescription}
+                onChange={(e) => setNewListingDescription(e.target.value)}
+              />
+              <Select onValueChange={(value) => setSelectedToyForSale(toyInventory.find(toy => toy.id.toString() === value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder={language === "id" ? "Pilih mainan untuk dijual" : "Select toy to sell"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {toyInventory.map((toy) => (
+                    <SelectItem key={toy.id} value={toy.id.toString()}>
+                      {toy.image} {toy.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex space-x-2">
+                <Button onClick={createMarketplaceListing} className="flex-1">
+                  {language === "id" ? "Buat Listing" : "Create Listing"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowCreateListingModal(false)} className="flex-1">
+                  {language === "id" ? "Batal" : "Cancel"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content Area */}
       <div className="max-w-7xl mx-auto px-4 py-8">
