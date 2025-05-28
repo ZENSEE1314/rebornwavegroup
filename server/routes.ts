@@ -547,7 +547,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
+      console.log("Fetching pending purchases for user:", userId);
       const purchases = await storage.getPendingPurchasesByUserId(userId);
+      console.log("Found purchases:", purchases.length);
       res.json(purchases);
     } catch (error) {
       console.error("Error fetching pending purchases:", error);
