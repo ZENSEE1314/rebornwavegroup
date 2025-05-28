@@ -230,6 +230,22 @@ export default function CompleteApp() {
     },
   });
 
+  // Mutation to update toy ownership
+  const updateToyOwnerMutation = useMutation({
+    mutationFn: ({ toyId, newOwnerId }: any) => apiRequest('PUT', `/api/toys/${toyId}/owner`, { newOwnerId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+    },
+  });
+
+  // Mutation to update listing status
+  const updateListingStatusMutation = useMutation({
+    mutationFn: ({ id, status }: any) => apiRequest('PUT', `/api/listings/${id}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+    },
+  });
+
   // Point and redemption history (dynamic)
   const [pointHistory, setPointHistory] = useState([
     { id: 1, date: "2025-05-25", description: language === "id" ? "Hair Spa - Pembelian" : "Hair Spa - Purchase", points: 20, type: "earned" },
