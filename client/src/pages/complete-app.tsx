@@ -271,6 +271,25 @@ export default function CompleteApp() {
   const { data: userPendingPurchases } = useQuery({
     queryKey: ['/api/pending-purchases'],
     enabled: !!user?.id,
+    queryFn: async () => {
+      console.log("*** FRONTEND: Making API call to fetch pending purchases");
+      const response = await fetch('/api/pending-purchases', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.log("*** FRONTEND: API call failed with status:", response.status);
+        throw new Error('Failed to fetch pending purchases');
+      }
+      
+      const data = await response.json();
+      console.log("*** FRONTEND: Received data:", data);
+      return data;
+    }
   });
 
   // Mutation to create credit history entry
