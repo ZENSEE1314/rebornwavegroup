@@ -544,6 +544,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const purchases = await storage.getPendingPurchasesByUserId(userId);
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching pending purchases:", error);
+      res.status(500).json({ message: "Failed to fetch pending purchases" });
+    }
+  });
+
   app.get('/api/pending-purchases/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const { userId } = req.params;
