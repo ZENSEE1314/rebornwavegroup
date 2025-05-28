@@ -246,6 +246,30 @@ export default function CompleteApp() {
     },
   });
 
+  // Mutation to create pending purchase
+  const createPendingPurchaseMutation = useMutation({
+    mutationFn: (purchaseData: any) => apiRequest('POST', '/api/pending-purchases', purchaseData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+    },
+  });
+
+  // Mutation to create credit history entry
+  const createCreditHistoryMutation = useMutation({
+    mutationFn: (creditData: any) => apiRequest('POST', '/api/credit-history', creditData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/credit-history'] });
+    },
+  });
+
+  // Mutation to create points history entry
+  const createPointsHistoryMutation = useMutation({
+    mutationFn: (pointsData: any) => apiRequest('POST', '/api/points-history', pointsData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/points-history'] });
+    },
+  });
+
   // Point and redemption history (dynamic)
   const [pointHistory, setPointHistory] = useState([
     { id: 1, date: "2025-05-25", description: language === "id" ? "Hair Spa - Pembelian" : "Hair Spa - Purchase", points: 20, type: "earned" },
@@ -687,25 +711,46 @@ export default function CompleteApp() {
       return;
     }
 
-    // Purchase the toy - transfer ownership and update credits
-    updateToyOwnerMutation.mutate({
+    // Calculate points earned (1 point per 10,000 RP)
+    const pointsEarned = Math.floor(price / 10000);
+
+    // Create pending purchase - buyer pays, seller must confirm
+    createPendingPurchaseMutation.mutate({
+      listingId: listing.id,
+      buyerId: user?.id,
+      sellerId: listing.sellerId,
       toyId: listing.toyId,
-      newOwnerId: user?.id
+      amount: listing.price,
+      pointsEarned: pointsEarned,
     });
 
-    // Update credits
+    // Deduct credits from buyer immediately
     const newCredits = userCredits - price;
     setUserCredits(newCredits);
 
-    // Remove listing from marketplace
-    updateListingStatusMutation.mutate({
-      id: listing.id,
-      status: 'sold'
+    // Add credit transaction to history
+    createCreditHistoryMutation.mutate({
+      userId: user?.id,
+      amount: `-${price}`,
+      type: 'purchase',
+      description: `${language === "id" ? "Beli" : "Purchase"} ${listing.toy?.name} (${language === "id" ? "Menunggu konfirmasi penjual" : "Pending seller confirmation"})`,
+      relatedId: listing.id,
     });
+
+    // Add points to buyer's history (earned immediately)
+    if (pointsEarned > 0) {
+      createPointsHistoryMutation.mutate({
+        userId: user?.id,
+        points: pointsEarned,
+        type: 'earned',
+        description: `${language === "id" ? "Pembelian" : "Purchase"} ${listing.toy?.name} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
+        relatedId: listing.id,
+      });
+    }
 
     toast({
       title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
-      description: language === "id" ? `Anda membeli ${listing.toy?.name} seharga RP ${price.toLocaleString('id-ID')}` : `You bought ${listing.toy?.name} for RP ${price.toLocaleString('id-ID')}`,
+      description: language === "id" ? `Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Waiting for seller confirmation. +${pointsEarned} points`,
     });
   };
 

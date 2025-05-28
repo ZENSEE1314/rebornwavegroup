@@ -82,6 +82,17 @@ export interface IStorage {
   getAllCashOuts(): Promise<CashOutTransaction[]>;
   updateCashOutStatus(id: number, status: string, adminNotes?: string): Promise<void>;
   updateUserBankDetails(userId: string, bankName: string, accountNumber: string, accountHolderName: string): Promise<void>;
+  
+  // Purchase confirmation operations
+  createPendingPurchase(purchase: InsertPendingPurchase): Promise<PendingPurchase>;
+  getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]>;
+  confirmPendingPurchase(purchaseId: number): Promise<void>;
+  
+  // Credit and points history operations
+  createCreditHistory(credit: InsertCreditHistory): Promise<CreditHistory>;
+  getCreditHistoryByUserId(userId: string): Promise<CreditHistory[]>;
+  createPointsHistory(points: InsertPointsHistory): Promise<PointsHistory>;
+  getPointsHistoryByUserId(userId: string): Promise<PointsHistory[]>;
 }
 
 export class DatabaseStorage implements IStorage {

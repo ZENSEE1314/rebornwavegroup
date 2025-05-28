@@ -147,6 +147,42 @@ export const cashOutTransactions = pgTable("cash_out_transactions", {
   processedAt: timestamp("processed_at"),
 });
 
+// Pending purchases table - for purchase confirmation flow
+export const pendingPurchases = pgTable("pending_purchases", {
+  id: serial("id").primaryKey(),
+  listingId: integer("listing_id").notNull(),
+  buyerId: varchar("buyer_id").notNull(),
+  sellerId: varchar("seller_id").notNull(),
+  toyId: integer("toy_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  pointsEarned: integer("points_earned").default(0),
+  status: varchar("status").default("pending_seller_confirmation").notNull(), // 'pending_seller_confirmation' | 'completed' | 'cancelled'
+  createdAt: timestamp("created_at").defaultNow(),
+  confirmedAt: timestamp("confirmed_at"),
+});
+
+// Credit history table - track all credit transactions
+export const creditHistory = pgTable("credit_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: varchar("type").notNull(), // 'purchase' | 'sale' | 'refund' | 'topup' | 'cashout'
+  description: text("description").notNull(),
+  relatedId: integer("related_id"), // Reference to purchase, listing, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Points history table - track all points transactions
+export const pointsHistory = pgTable("points_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  points: integer("points").notNull(),
+  type: varchar("type").notNull(), // 'earned' | 'redeemed'
+  description: text("description").notNull(),
+  relatedId: integer("related_id"), // Reference to purchase, redemption, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   referrals: many(referrals, { relationName: "referrer" }),
@@ -243,6 +279,41 @@ export const cashOutTransactionsRelations = relations(cashOutTransactions, ({ on
   }),
 }));
 
+export const pendingPurchasesRelations = relations(pendingPurchases, ({ one }) => ({
+  buyer: one(users, {
+    fields: [pendingPurchases.buyerId],
+    references: [users.id],
+    relationName: "buyer",
+  }),
+  seller: one(users, {
+    fields: [pendingPurchases.sellerId],
+    references: [users.id],
+    relationName: "seller",
+  }),
+  listing: one(listings, {
+    fields: [pendingPurchases.listingId],
+    references: [listings.id],
+  }),
+  toy: one(toys, {
+    fields: [pendingPurchases.toyId],
+    references: [toys.id],
+  }),
+}));
+
+export const creditHistoryRelations = relations(creditHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [creditHistory.userId],
+    references: [users.id],
+  }),
+}));
+
+export const pointsHistoryRelations = relations(pointsHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [pointsHistory.userId],
+    references: [users.id],
+  }),
+}));
+
 // Schema types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -304,6 +375,27 @@ export const insertCashOutTransactionSchema = createInsertSchema(cashOutTransact
 
 export type InsertCashOutTransaction = z.infer<typeof insertCashOutTransactionSchema>;
 
+// New table insert schemas
+export const insertPendingPurchaseSchema = createInsertSchema(pendingPurchases).omit({
+  id: true,
+  createdAt: true,
+  confirmedAt: true,
+});
+
+export const insertCreditHistorySchema = createInsertSchema(creditHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPointsHistorySchema = createInsertSchema(pointsHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPendingPurchase = z.infer<typeof insertPendingPurchaseSchema>;
+export type InsertCreditHistory = z.infer<typeof insertCreditHistorySchema>;
+export type InsertPointsHistory = z.infer<typeof insertPointsHistorySchema>;
+
 export type Appointment = typeof appointments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Toy = typeof toys.$inferSelect;
@@ -312,3 +404,6 @@ export type Message = typeof messages.$inferSelect;
 export type Referral = typeof referrals.$inferSelect;
 export type PointRedemption = typeof pointRedemptions.$inferSelect;
 export type CashOutTransaction = typeof cashOutTransactions.$inferSelect;
+export type PendingPurchase = typeof pendingPurchases.$inferSelect;
+export type CreditHistory = typeof creditHistory.$inferSelect;
+export type PointsHistory = typeof pointsHistory.$inferSelect;
