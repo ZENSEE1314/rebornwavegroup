@@ -474,7 +474,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPendingPurchasesByUserId(userId: string): Promise<any[]> {
-    return await db
+    console.log("*** STORAGE DEBUG: Getting purchases for userId:", userId);
+    const result = await db
       .select({
         id: pendingPurchases.id,
         listingId: pendingPurchases.listingId,
@@ -498,6 +499,9 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(toys, eq(pendingPurchases.toyId, toys.id))
       .where(or(eq(pendingPurchases.sellerId, userId), eq(pendingPurchases.buyerId, userId)))
       .orderBy(pendingPurchases.createdAt);
+    
+    console.log("*** STORAGE DEBUG: Found results:", result.length, result);
+    return result;
   }
 
   async confirmPendingPurchase(purchaseId: number): Promise<void> {
