@@ -267,9 +267,9 @@ export default function CompleteApp() {
     },
   });
 
-  // Fetch pending purchases for current user (as seller)
+  // Fetch pending purchases for current user (both buyer and seller)
   const { data: userPendingPurchases } = useQuery({
-    queryKey: ['/api/pending-purchases', user?.id],
+    queryKey: ['/api/pending-purchases'],
     enabled: !!user?.id,
   });
 
