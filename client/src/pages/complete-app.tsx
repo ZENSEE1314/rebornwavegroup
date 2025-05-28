@@ -1680,7 +1680,7 @@ export default function CompleteApp() {
                         {listing.toy?.rarity}
                       </Badge>
                       <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
-                        RP {formatCurrency(listing.price || 0)}
+                        RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
                       </p>
                       <p className="text-sm text-slate-500 mb-4">
                         {language === "id" ? "Dijual oleh" : "Sold by"}: {listing.seller?.firstName || "Unknown"}
