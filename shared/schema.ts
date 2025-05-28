@@ -155,6 +155,8 @@ export const pendingPurchases = pgTable("pending_purchases", {
   sellerId: varchar("seller_id").notNull(),
   toyId: integer("toy_id").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  adminFee: decimal("admin_fee", { precision: 10, scale: 2 }).default("0.00"),
+  sellerAmount: decimal("seller_amount", { precision: 10, scale: 2 }).notNull(),
   pointsEarned: integer("points_earned").default(0),
   status: varchar("status").default("pending_seller_confirmation").notNull(), // 'pending_seller_confirmation' | 'completed' | 'cancelled'
   createdAt: timestamp("created_at").defaultNow(),

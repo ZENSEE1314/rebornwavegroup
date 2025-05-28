@@ -466,9 +466,18 @@ export class DatabaseStorage implements IStorage {
 
   // Purchase confirmation operations
   async createPendingPurchase(purchaseData: InsertPendingPurchase): Promise<PendingPurchase> {
+    // Calculate admin fee (10% of the total amount)
+    const originalAmount = parseFloat(purchaseData.amount);
+    const adminFee = originalAmount * 0.1;
+    const sellerAmount = originalAmount - adminFee;
+    
     const [purchase] = await db
       .insert(pendingPurchases)
-      .values(purchaseData)
+      .values({
+        ...purchaseData,
+        adminFee: adminFee.toFixed(2),
+        sellerAmount: sellerAmount.toFixed(2)
+      })
       .returning();
     return purchase;
   }
