@@ -181,11 +181,7 @@ export default function CompleteApp() {
     return allUserToys;
   });
 
-  // All user marketplace listings (shared across all users)
-  const [marketplaceToys, setMarketplaceToys] = useState(() => {
-    const savedListings = localStorage.getItem('globalMarketplaceListings');
-    return savedListings ? JSON.parse(savedListings) : [];
-  });
+  // Remove localStorage usage - marketplace now uses database only
   
   // Transaction history state
   const [transactionHistory, setTransactionHistory] = useState([
@@ -1698,26 +1694,22 @@ export default function CompleteApp() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketplaceToys.length > 0 ? marketplaceToys.map((toy) => (
-                <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+              {marketplaceListings.length > 0 ? marketplaceListings.map((listing) => (
+                <Card key={listing.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="text-center">
-                      <div className="text-6xl mb-4">{toy.image}</div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                      <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                        {toy.rarity}
+                      <div className="text-6xl mb-4">{listing.toy?.imageUrl || "🎮"}</div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
+                      <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
+                        {listing.toy?.rarity}
                       </Badge>
                       <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
-                        RP {formatRupiah(toy.price)}
+                        RP {formatCurrency(listing.price || 0)}
                       </p>
                       <p className="text-sm text-slate-500 mb-4">
-                        {language === "id" ? "Dijual oleh" : "Sold by"}: {toy.sellerName || "Unknown"}
+                        {language === "id" ? "Dijual oleh" : "Sold by"}: {listing.seller?.firstName || "Unknown"}
                       </p>
-                      {toy.owned ? (
-                        <Badge variant="default" className="w-full">
-                          {language === "id" ? "Sudah Dimiliki" : "Owned"}
-                        </Badge>
-                      ) : toy.seller === (user?.id || "unknown") ? (
+                      {listing.seller?.id === user?.id ? (
                         <div className="space-y-2">
                           <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
                             {language === "id" ? "Milik Anda" : "Your Item"}
