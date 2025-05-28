@@ -533,6 +533,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Purchase confirmation routes
+  app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
+    try {
+      const purchase = await storage.createPendingPurchase(req.body);
+      res.json(purchase);
+    } catch (error) {
+      console.error("Error creating pending purchase:", error);
+      res.status(500).json({ message: "Failed to create pending purchase" });
+    }
+  });
+
+  app.get('/api/pending-purchases/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const purchases = await storage.getPendingPurchasesByUserId(userId);
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching pending purchases:", error);
+      res.status(500).json({ message: "Failed to fetch pending purchases" });
+    }
+  });
+
+  app.post('/api/pending-purchases/:id/confirm', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.confirmPendingPurchase(parseInt(id));
+      res.json({ message: "Purchase confirmed successfully" });
+    } catch (error) {
+      console.error("Error confirming purchase:", error);
+      res.status(500).json({ message: "Failed to confirm purchase" });
+    }
+  });
+
+  // Credit and points history routes
+  app.post('/api/credit-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const credit = await storage.createCreditHistory(req.body);
+      res.json(credit);
+    } catch (error) {
+      console.error("Error creating credit history:", error);
+      res.status(500).json({ message: "Failed to create credit history" });
+    }
+  });
+
+  app.get('/api/credit-history/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const history = await storage.getCreditHistoryByUserId(userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching credit history:", error);
+      res.status(500).json({ message: "Failed to fetch credit history" });
+    }
+  });
+
+  app.post('/api/points-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const points = await storage.createPointsHistory(req.body);
+      res.json(points);
+    } catch (error) {
+      console.error("Error creating points history:", error);
+      res.status(500).json({ message: "Failed to create points history" });
+    }
+  });
+
+  app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const history = await storage.getPointsHistoryByUserId(userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching points history:", error);
+      res.status(500).json({ message: "Failed to fetch points history" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
