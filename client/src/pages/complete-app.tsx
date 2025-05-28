@@ -572,40 +572,16 @@ export default function CompleteApp() {
       return;
     }
 
-    const newListing = {
-      id: Date.now(),
-      name: selectedToyForSale.name,
-      title: `${selectedToyForSale.name} (${selectedToyForSale.rarity})`,
-      description: `Original ${selectedToyForSale.name} from collection`,
-      price: parseInt(newListingPrice),
-      rarity: selectedToyForSale.rarity,
+    // Create listing using database mutation
+    createListingMutation.mutate({
       toyId: selectedToyForSale.id,
-      seller: user?.id || "unknown",
-      sellerName: user?.firstName || "User", 
-      status: "active",
-      createdDate: new Date().toISOString().split('T')[0],
-      image: selectedToyForSale.image,
-      owned: false
-    };
-
-    const updatedMarketplaceToys = [...marketplaceToys, newListing];
-    setUserListings([...userListings, newListing]);
-    setMarketplaceToys(updatedMarketplaceToys);
-    
-    // Save to global marketplace listings so all users can see
-    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
-    
-    // Remove toy from seller's collection when listing
-    setToyInventory(toyInventory.filter(toy => toy.id !== selectedToyForSale.id));
+      price: parseFloat(newListingPrice),
+      description: `Original ${selectedToyForSale.name} from collection`,
+    });
     
     setNewListingPrice("");
     setSelectedToyForSale(null);
     setShowCreateListingModal(false);
-
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Mainan berhasil dijual di marketplace" : "Toy listed in marketplace successfully",
-    });
   };
 
   const redeemReward = (reward) => {
