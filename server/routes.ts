@@ -269,6 +269,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/listings/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      await storage.updateListingStatus(parseInt(id), status);
+      res.json({ message: "Listing status updated successfully" });
+    } catch (error) {
+      console.error("Error updating listing status:", error);
+      res.status(500).json({ message: "Failed to update listing status" });
+    }
+  });
+
   app.put('/api/listings/:listingId/status', isAuthenticated, async (req: any, res) => {
     try {
       const { listingId } = req.params;

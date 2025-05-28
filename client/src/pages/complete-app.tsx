@@ -671,10 +671,25 @@ export default function CompleteApp() {
       return;
     }
 
-    // For now, show a coming soon message since we need to implement the purchase API
+    // Purchase the toy - transfer ownership and update credits
+    updateToyOwnerMutation.mutate({
+      toyId: listing.toyId,
+      newOwnerId: user?.id
+    });
+
+    // Update credits
+    const newCredits = userCredits - price;
+    setUserCredits(newCredits);
+
+    // Remove listing from marketplace
+    updateListingStatusMutation.mutate({
+      id: listing.id,
+      status: 'sold'
+    });
+
     toast({
-      title: language === "id" ? "Fitur Segera Hadir!" : "Feature Coming Soon!",
-      description: language === "id" ? "Sistem pembelian sedang dalam pengembangan" : "Purchase system is under development",
+      title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
+      description: language === "id" ? `Anda membeli ${listing.toy?.name} seharga RP ${price.toLocaleString('id-ID')}` : `You bought ${listing.toy?.name} for RP ${price.toLocaleString('id-ID')}`,
     });
   };
 

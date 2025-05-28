@@ -293,10 +293,34 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getAllListings(): Promise<Listing[]> {
+  async getAllListings(): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        id: listings.id,
+        toyId: listings.toyId,
+        sellerId: listings.sellerId,
+        price: listings.price,
+        description: listings.description,
+        status: listings.status,
+        createdAt: listings.createdAt,
+        updatedAt: listings.updatedAt,
+        toy: {
+          id: toys.id,
+          name: toys.name,
+          series: toys.series,
+          rarity: toys.rarity,
+          imageUrl: toys.imageUrl,
+        },
+        seller: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
       .from(listings)
+      .leftJoin(toys, eq(listings.toyId, toys.id))
+      .leftJoin(users, eq(listings.sellerId, users.id))
       .where(eq(listings.status, "active"))
       .orderBy(desc(listings.createdAt));
   }
