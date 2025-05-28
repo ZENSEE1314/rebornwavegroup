@@ -1691,7 +1691,7 @@ export default function CompleteApp() {
                             {language === "id" ? "Milik Anda" : "Your Item"}
                           </Badge>
                           <Button 
-                            onClick={() => cancelListing(toy.id)} 
+                            onClick={() => cancelListing(listing.id)} 
                             className="w-full bg-red-600 hover:bg-red-700"
                             variant="destructive"
                           >
@@ -1700,11 +1700,11 @@ export default function CompleteApp() {
                         </div>
                       ) : (
                         <Button 
-                          onClick={() => buyToy(toy)} 
+                          onClick={() => buyToy(listing)} 
                           className="w-full"
-                          disabled={userCredits < toy.price}
+                          disabled={userCredits < parseFloat(listing.price || '0')}
                         >
-                          {userCredits >= toy.price ? 
+                          {userCredits >= parseFloat(listing.price || '0') ? 
                             (language === "id" ? "Beli" : "Buy") : 
                             (language === "id" ? "Kredit Kurang" : "Not enough credits")
                           }
