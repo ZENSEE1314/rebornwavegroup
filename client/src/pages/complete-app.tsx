@@ -1837,6 +1837,7 @@ export default function CompleteApp() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Show pending purchases first */}
+              {console.log("userPendingPurchases:", userPendingPurchases, "user.id:", user?.id)}
               {userPendingPurchases?.filter(p => p.buyerId === user?.id && p.status === 'pending_seller_confirmation').map((purchase) => (
                 <Card key={`pending-${purchase.id}`} className="hover:shadow-lg transition-shadow border-yellow-200 bg-yellow-50">
                   <CardContent className="p-6">
