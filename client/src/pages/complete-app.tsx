@@ -650,9 +650,9 @@ export default function CompleteApp() {
     });
   };
 
-  const buyToy = (toy) => {
+  const buyToy = (listing) => {
     // Check if trying to buy own item
-    if (toy.seller === (user?.id || "unknown")) {
+    if (listing.seller?.id === user?.id) {
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Tidak bisa membeli item sendiri" : "Cannot buy your own item",
@@ -661,7 +661,8 @@ export default function CompleteApp() {
       return;
     }
 
-    if (userCredits < toy.price) {
+    const price = parseFloat(listing.price || '0');
+    if (userCredits < price) {
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
@@ -670,86 +671,11 @@ export default function CompleteApp() {
       return;
     }
 
-    // Deduct credits from buyer
-    setUserCredits(userCredits - toy.price);
-    
-    // Calculate and add points (1 point per 10,000 RP)
-    const pointsEarned = Math.floor(toy.price / 10000);
-    setLoyaltyPoints(prev => prev + pointsEarned);
-    setLifetimePoints(prev => prev + pointsEarned);
-    
-    // Create pending purchase (waiting for confirmation)
-    const pendingPurchase = {
-      id: Date.now(),
-      name: toy.name || toy.title,
-      rarity: toy.rarity || "common",
-      acquiredDate: new Date().toISOString().split('T')[0],
-      qrCode: `QR${Date.now()}`,
-      image: toy.image || "🧸",
-      status: "pending_confirmation",
-      price: toy.price,
-      seller: toy.seller
-    };
-    
-    // Remove toy from marketplace (user listings only, not default marketplace)
-    if (toy.seller && toy.seller !== "System") {
-      setMarketplaceToys(marketplaceToys.filter(item => item.id !== toy.id));
-      setUserListings(userListings.filter(item => item.id !== toy.id));
-    } else {
-      // No need to update marketplace since we removed the old marketplace array
-    }
-    
-    // Add transaction to history
-    const newTransaction = {
-      id: Date.now(),
-      type: "purchase",
-      description: `${language === "id" ? "Beli" : "Bought"} ${toy.name || toy.title} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
-      amount: -toy.price,
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString()
-    };
-    setTransactionHistory([newTransaction, ...transactionHistory]);
-
-    // Add to point history immediately
-    const newPointHistory = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      description: `${language === "id" ? "Beli" : "Purchase"} ${toy.name || toy.title} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
-      points: pointsEarned,
-      type: "earned"
-    };
-    setPointHistory([newPointHistory, ...pointHistory]);
-
-    // For user items, add to pending; for system items, add directly
-    if (toy.seller && toy.seller !== "System") {
-      // Create pending purchase state
-      const pendingPurchases = JSON.parse(localStorage.getItem('pendingPurchases') || '[]');
-      pendingPurchases.push({
-        ...pendingPurchase,
-        buyerId: user?.id,
-        sellerId: toy.sellerId || toy.seller
-      });
-      localStorage.setItem('pendingPurchases', JSON.stringify(pendingPurchases));
-      
-      toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? `Pembelian berhasil! Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Purchase successful! Waiting for seller confirmation. +${pointsEarned} points`,
-      });
-    } else {
-      const updatedInventory = [...toyInventory, pendingPurchase];
-      setToyInventory(updatedInventory);
-      localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(updatedInventory));
-      
-      // Update global toy database
-      const newGlobalToy = { ...pendingPurchase, ownerId: user?.id || 'guest' };
-      const updatedGlobalToys = [...allGlobalToys, newGlobalToy];
-      setAllGlobalToys(updatedGlobalToys);
-      localStorage.setItem('allGlobalToys', JSON.stringify(updatedGlobalToys));
-      toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? `Mainan berhasil dibeli! +${pointsEarned} poin` : `Toy purchased successfully! +${pointsEarned} points`,
-      });
-    }
+    // For now, show a coming soon message since we need to implement the purchase API
+    toast({
+      title: language === "id" ? "Fitur Segera Hadir!" : "Feature Coming Soon!",
+      description: language === "id" ? "Sistem pembelian sedang dalam pengembangan" : "Purchase system is under development",
+    });
   };
 
 
