@@ -575,7 +575,7 @@ export default function CompleteApp() {
     // Create listing using database mutation
     createListingMutation.mutate({
       toyId: selectedToyForSale.id,
-      price: parseFloat(newListingPrice),
+      price: newListingPrice, // Send as string to match database schema
       description: `Original ${selectedToyForSale.name} from collection`,
     });
     
