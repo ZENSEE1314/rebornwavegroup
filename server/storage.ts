@@ -473,11 +473,30 @@ export class DatabaseStorage implements IStorage {
     return purchase;
   }
 
-  async getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]> {
+  async getPendingPurchasesByUserId(userId: string): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        id: pendingPurchases.id,
+        listingId: pendingPurchases.listingId,
+        buyerId: pendingPurchases.buyerId,
+        sellerId: pendingPurchases.sellerId,
+        toyId: pendingPurchases.toyId,
+        amount: pendingPurchases.amount,
+        pointsEarned: pendingPurchases.pointsEarned,
+        status: pendingPurchases.status,
+        createdAt: pendingPurchases.createdAt,
+        toy: {
+          id: toys.id,
+          name: toys.name,
+          series: toys.series,
+          rarity: toys.rarity,
+          imageUrl: toys.imageUrl,
+          qrCode: toys.qrCode,
+        }
+      })
       .from(pendingPurchases)
-      .where(eq(pendingPurchases.sellerId, userId))
+      .leftJoin(toys, eq(pendingPurchases.toyId, toys.id))
+      .where(or(eq(pendingPurchases.sellerId, userId), eq(pendingPurchases.buyerId, userId)))
       .orderBy(pendingPurchases.createdAt);
   }
 
