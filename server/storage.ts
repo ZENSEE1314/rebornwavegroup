@@ -8,6 +8,9 @@ import {
   referrals,
   pointRedemptions,
   cashOutTransactions,
+  pendingPurchases,
+  creditHistory,
+  pointsHistory,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -16,6 +19,9 @@ import {
   type InsertListing,
   type InsertMessage,
   type InsertCashOutTransaction,
+  type InsertPendingPurchase,
+  type InsertCreditHistory,
+  type InsertPointsHistory,
   type Appointment,
   type Transaction,
   type Toy,
@@ -24,6 +30,9 @@ import {
   type Referral,
   type PointRedemption,
   type CashOutTransaction,
+  type PendingPurchase,
+  type CreditHistory,
+  type PointsHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or } from "drizzle-orm";
@@ -453,6 +462,108 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date() 
       })
       .where(eq(users.id, userId));
+  }
+
+  // Purchase confirmation operations
+  async createPendingPurchase(purchaseData: InsertPendingPurchase): Promise<PendingPurchase> {
+    const [purchase] = await db
+      .insert(pendingPurchases)
+      .values(purchaseData)
+      .returning();
+    return purchase;
+  }
+
+  async getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]> {
+    return await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.sellerId, userId))
+      .orderBy(pendingPurchases.createdAt);
+  }
+
+  async confirmPendingPurchase(purchaseId: number): Promise<void> {
+    // Get purchase details
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    
+    if (!purchase) throw new Error('Purchase not found');
+
+    // Transfer toy ownership
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.buyerId })
+      .where(eq(toys.id, purchase.toyId));
+
+    // Add credit to seller
+    const [seller] = await db.select().from(users).where(eq(users.id, purchase.sellerId));
+    const currentCredits = parseFloat(seller.credits || '0');
+    const newCredits = currentCredits + parseFloat(purchase.amount);
+    
+    await db
+      .update(users)
+      .set({ credits: newCredits.toString() })
+      .where(eq(users.id, purchase.sellerId));
+
+    // Update listing status to sold
+    await db
+      .update(listings)
+      .set({ status: 'sold' })
+      .where(eq(listings.id, purchase.listingId));
+
+    // Mark purchase as completed
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'completed',
+        confirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
+
+    // Add credit history for seller
+    await db
+      .insert(creditHistory)
+      .values({
+        userId: purchase.sellerId,
+        amount: purchase.amount,
+        type: 'sale',
+        description: `Sale confirmed - Toy ID ${purchase.toyId}`,
+        relatedId: purchase.listingId,
+      });
+  }
+
+  // Credit and points history operations
+  async createCreditHistory(creditData: InsertCreditHistory): Promise<CreditHistory> {
+    const [credit] = await db
+      .insert(creditHistory)
+      .values(creditData)
+      .returning();
+    return credit;
+  }
+
+  async getCreditHistoryByUserId(userId: string): Promise<CreditHistory[]> {
+    return await db
+      .select()
+      .from(creditHistory)
+      .where(eq(creditHistory.userId, userId))
+      .orderBy(desc(creditHistory.createdAt));
+  }
+
+  async createPointsHistory(pointsData: InsertPointsHistory): Promise<PointsHistory> {
+    const [points] = await db
+      .insert(pointsHistory)
+      .values(pointsData)
+      .returning();
+    return points;
+  }
+
+  async getPointsHistoryByUserId(userId: string): Promise<PointsHistory[]> {
+    return await db
+      .select()
+      .from(pointsHistory)
+      .where(eq(pointsHistory.userId, userId))
+      .orderBy(desc(pointsHistory.createdAt));
   }
 }
 
