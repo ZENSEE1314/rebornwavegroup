@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -251,7 +251,24 @@ export default function CompleteApp() {
     mutationFn: (purchaseData: any) => apiRequest('POST', '/api/pending-purchases', purchaseData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
     },
+  });
+
+  // Mutation to confirm pending purchase
+  const confirmPurchaseMutation = useMutation({
+    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/confirm`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+    },
+  });
+
+  // Fetch pending purchases for current user (as seller)
+  const { data: userPendingPurchases } = useQuery({
+    queryKey: ['/api/pending-purchases', user?.id],
+    enabled: !!user?.id,
   });
 
   // Mutation to create credit history entry
@@ -692,7 +709,7 @@ export default function CompleteApp() {
 
   const buyToy = (listing) => {
     // Check if trying to buy own item
-    if (listing.seller?.id === user?.id) {
+    if (listing.sellerId === user?.id) {
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Tidak bisa membeli item sendiri" : "Cannot buy your own item",
@@ -750,7 +767,16 @@ export default function CompleteApp() {
 
     toast({
       title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
-      description: language === "id" ? `Menunggu konfirmasi penjual. +${pointsEarned} poin` : `Waiting for seller confirmation. +${pointsEarned} points`,
+      description: language === "id" ? `Menunggu penjual menerima mainan dan konfirmasi. +${pointsEarned} poin` : `Waiting for seller to receive the toy and confirm it. +${pointsEarned} points`,
+    });
+  };
+
+  // Function to confirm purchase as seller
+  const confirmPurchase = (purchaseId) => {
+    confirmPurchaseMutation.mutate(purchaseId);
+    toast({
+      title: language === "id" ? "Konfirmasi Berhasil!" : "Confirmation Successful!",
+      description: language === "id" ? "Penjualan dikonfirmasi, kredit telah ditambahkan" : "Sale confirmed, credits have been added",
     });
   };
 
@@ -1672,50 +1698,78 @@ export default function CompleteApp() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketplaceListings.length > 0 ? marketplaceListings.map((listing) => (
-                <Card key={listing.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <div className="text-6xl mb-4">{listing.toy?.imageUrl || "🎮"}</div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
-                      <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
-                        {listing.toy?.rarity}
-                      </Badge>
-                      <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
-                        RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
-                      </p>
-                      <p className="text-sm text-slate-500 mb-4">
-                        {language === "id" ? "Dijual oleh" : "Sold by"}: {listing.seller?.firstName || "Unknown"}
-                      </p>
-                      {listing.seller?.id === user?.id ? (
-                        <div className="space-y-2">
-                          <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
-                            {language === "id" ? "Milik Anda" : "Your Item"}
+              {marketplaceListings.length > 0 ? marketplaceListings.map((listing) => {
+                // Check if there's a pending purchase for this listing
+                const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id && p.status === 'pending_seller_confirmation');
+                const isOwnListing = listing.sellerId === user?.id;
+                
+                return (
+                  <Card key={listing.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <div className="text-6xl mb-4">{listing.toy?.imageUrl || "🎮"}</div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
+                        <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
+                          {listing.toy?.rarity}
+                        </Badge>
+                        <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
+                          RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
+                        </p>
+                        <p className="text-sm text-slate-500 mb-4">
+                          {language === "id" ? "Dijual oleh" : "Sold by"}: {listing.seller?.firstName || listing.seller?.email?.split('@')[0] || "User"}
+                        </p>
+                        
+                        {isOwnListing ? (
+                          <div className="space-y-2">
+                            {pendingPurchase ? (
+                              <div className="space-y-2">
+                                <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
+                                  {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
+                                </Badge>
+                                <Button 
+                                  onClick={() => confirmPurchase(pendingPurchase.id)}
+                                  className="w-full bg-blue-600 hover:bg-blue-700"
+                                >
+                                  <Check className="w-4 h-4 mr-2" />
+                                  {language === "id" ? "Konfirmasi Penerimaan" : "Confirm Receipt"}
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
+                                  {language === "id" ? "Milik Anda" : "Your Item"}
+                                </Badge>
+                                <Button 
+                                  onClick={() => cancelListing(listing.id)} 
+                                  className="w-full bg-red-600 hover:bg-red-700"
+                                  variant="destructive"
+                                >
+                                  {language === "id" ? "Batalkan Penjualan" : "Cancel Sale"}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : pendingPurchase ? (
+                          <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
+                            {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
                           </Badge>
+                        ) : (
                           <Button 
-                            onClick={() => cancelListing(listing.id)} 
-                            className="w-full bg-red-600 hover:bg-red-700"
-                            variant="destructive"
+                            onClick={() => buyToy(listing)} 
+                            className="w-full"
+                            disabled={userCredits < parseFloat(listing.price || '0')}
                           >
-                            {language === "id" ? "Batalkan Penjualan" : "Cancel Sale"}
+                            {userCredits >= parseFloat(listing.price || '0') ? 
+                              (language === "id" ? "Beli" : "Buy") : 
+                              (language === "id" ? "Kredit Kurang" : "Not enough credits")
+                            }
                           </Button>
-                        </div>
-                      ) : (
-                        <Button 
-                          onClick={() => buyToy(listing)} 
-                          className="w-full"
-                          disabled={userCredits < parseFloat(listing.price || '0')}
-                        >
-                          {userCredits >= parseFloat(listing.price || '0') ? 
-                            (language === "id" ? "Beli" : "Buy") : 
-                            (language === "id" ? "Kredit Kurang" : "Not enough credits")
-                          }
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )) : (
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }) : (
                 <div className="col-span-full text-center py-12 text-slate-500">
                   <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                   <h3 className="text-lg font-medium mb-2">
