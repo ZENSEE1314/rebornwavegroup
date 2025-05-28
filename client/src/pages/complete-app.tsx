@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,6 +38,8 @@ export default function CompleteApp() {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
   const [newListingTitle, setNewListingTitle] = useState("");
+  const [showPurchaseConfirmation, setShowPurchaseConfirmation] = useState(false);
+  const [selectedPurchaseListing, setSelectedPurchaseListing] = useState(null);
   const [newListingPrice, setNewListingPrice] = useState("");
   const [newListingDescription, setNewListingDescription] = useState("");
   const [selectedToyForSale, setSelectedToyForSale] = useState(null);
@@ -728,6 +730,15 @@ export default function CompleteApp() {
       return;
     }
 
+    // Show confirmation dialog
+    setSelectedPurchaseListing(listing);
+    setShowPurchaseConfirmation(true);
+  };
+
+  const confirmPurchaseDialog = () => {
+    const listing = selectedPurchaseListing;
+    const price = parseFloat(listing.price || '0');
+    
     // Calculate points earned (1 point per 10,000 RP)
     const pointsEarned = Math.floor(price / 10000);
 
@@ -764,6 +775,9 @@ export default function CompleteApp() {
         relatedId: listing.id,
       });
     }
+
+    setShowPurchaseConfirmation(false);
+    setSelectedPurchaseListing(null);
 
     toast({
       title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
@@ -2236,6 +2250,59 @@ export default function CompleteApp() {
         )}
 
       </div>
+
+      {/* Purchase Confirmation Dialog */}
+      {showPurchaseConfirmation && selectedPurchaseListing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {language === "id" ? "Konfirmasi Pembelian" : "Confirm Purchase"}
+              </h3>
+              <p className="text-slate-600 mb-4">
+                {language === "id" ? "Apakah Anda yakin ingin membeli" : "Are you sure you want to buy"}
+              </p>
+              <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                <div className="text-4xl mb-2">{selectedPurchaseListing.toy?.imageUrl || "🎮"}</div>
+                <h4 className="font-bold text-slate-900">{selectedPurchaseListing.toy?.name}</h4>
+                <p className="text-xl font-bold text-green-600 mt-2">
+                  RP {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  +{Math.floor(parseFloat(selectedPurchaseListing.price || '0') / 10000)} {language === "id" ? "poin loyalitas" : "loyalty points"}
+                </p>
+              </div>
+              <p className="text-sm text-slate-600">
+                {language === "id" 
+                  ? "Kredit akan dipotong sekarang. Penjual harus mengkonfirmasi untuk menyelesaikan transaksi."
+                  : "Credits will be deducted now. Seller must confirm to complete the transaction."
+                }
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowPurchaseConfirmation(false);
+                  setSelectedPurchaseListing(null);
+                }}
+                className="flex-1"
+              >
+                <X className="w-4 h-4 mr-2" />
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+              <Button 
+                onClick={confirmPurchaseDialog}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                {language === "id" ? "Ya, Beli" : "Yes, Buy"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
