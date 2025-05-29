@@ -660,8 +660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return total + Math.floor(parseFloat(purchase.amount) / 10000);
       }, 0);
 
-      // Calculate referral earnings
+      // Calculate referral earnings and get referral data
       const referralEarnings = await storage.calculateReferralEarnings(userId);
+      const referrals = await storage.getReferralsByUserId(userId);
 
       // Get total appointments from database
       const appointments = await storage.getAppointmentsByUserId(userId);
@@ -677,7 +678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAppointments: appointments.length,
         totalRewards: pointRedemptions.length,
         appointments: appointments,
-        pointRedemptions: pointRedemptions
+        pointRedemptions: pointRedemptions,
+        referrals: referrals
       };
 
       console.log('*** USER STATS from DB:', stats);

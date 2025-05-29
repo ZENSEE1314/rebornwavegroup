@@ -39,6 +39,7 @@ export default function CompleteApp() {
   // Use real appointments and rewards from database
   const userAppointments = userStats?.appointments || [];
   const pointRedemptions = userStats?.pointRedemptions || [];
+  const userReferrals = userStats?.referrals || [];
   const [language, setLanguage] = useState("en");
   const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
   const [profileImage, setProfileImage] = useState(null);
@@ -672,7 +673,7 @@ export default function CompleteApp() {
     setShowCreateListingModal(false);
   };
 
-  const redeemReward = (reward: any) => {
+  const redeemReward = async (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
         title: language === "id" ? "Poin Tidak Cukup" : "Insufficient Points",
@@ -682,11 +683,35 @@ export default function CompleteApp() {
       return;
     }
 
-    // Since loyaltyPoints is now calculated from database, we need to invalidate and refetch
-    queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-    setRewards(rewards.map(r => 
-      r.id === reward.id ? { ...r, claimed: true } : r
-    ));
+    try {
+      // Create point redemption in database
+      await fetch('/api/points-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: user?.id,
+          points: -reward.pointsCost,
+          type: 'redeemed',
+          description: `Redeemed: ${reward.title}`,
+          relatedId: reward.id
+        })
+      });
+
+      // Refresh user stats to get updated points
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+
+      toast({
+        title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
+        description: language === "id" ? `${reward.title} berhasil ditukar` : `${reward.title} successfully redeemed`
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to redeem reward",
+        variant: "destructive"
+      });
+    }
 
     // Add to point history
     const newHistoryItem = {
