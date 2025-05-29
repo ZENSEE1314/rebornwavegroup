@@ -434,7 +434,7 @@ export default function CompleteApp() {
     });
   };
 
-  const bookAppointment = () => {
+  const bookAppointment = async () => {
     if (!newAppointment.category || !newAppointment.service || !newAppointment.date || !newAppointment.time) {
       toast({
         title: language === "id" ? "Error" : "Error",
@@ -462,45 +462,112 @@ export default function CompleteApp() {
     const selectedCategory = serviceCategories[newAppointment.category];
     const selectedService = selectedCategory.options.find(opt => opt.value === newAppointment.service);
     
-    const appointment = {
-      id: appointments.length + 1,
-      service: selectedService.label,
-      category: newAppointment.category,
-      date: newAppointment.date,
-      time: newAppointment.time,
-      cost: selectedService.cost,
-      status: "pending"
-    };
+    try {
+      // Create appointment in database
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: selectedService.label,
+          description: `${newAppointment.category} service booking`,
+          appointmentDate: `${newAppointment.date}T${newAppointment.time}:00.000Z`,
+          duration: 60,
+          cost: selectedService.cost.toString()
+        })
+      });
 
-    setAppointments([...appointments, appointment]);
-
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Reservasi berhasil dibuat! Menunggu persetujuan admin" : "Appointment booked! Waiting for admin approval",
-    });
-
-    setNewAppointment({ category: "", service: "", date: "", time: "" });
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Berhasil!" : "Success!",
+          description: language === "id" ? "Reservasi berhasil dibuat! Menunggu persetujuan admin" : "Appointment booked! Waiting for admin approval",
+        });
+        
+        // Refresh user data to show new appointment
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        setNewAppointment({ category: "", service: "", date: "", time: "" });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create appointment",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to create appointment",
+        variant: "destructive"
+      });
+    }
   };
 
-  const rescheduleAppointment = (appointmentId, newDate, newTime) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === appointmentId 
-        ? { ...apt, date: newDate, time: newTime }
-        : apt
-    ));
-    setEditingAppointment(null);
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Jadwal berhasil diubah" : "Appointment rescheduled successfully",
-    });
+  const rescheduleAppointment = async (appointmentId, newDate, newTime) => {
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          appointmentDate: `${newDate}T${newTime}:00.000Z`
+        })
+      });
+
+      if (response.ok) {
+        setEditingAppointment(null);
+        toast({
+          title: language === "id" ? "Berhasil!" : "Success!",
+          description: language === "id" ? "Jadwal berhasil diubah" : "Appointment rescheduled successfully",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to reschedule appointment",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error rescheduling appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reschedule appointment",
+        variant: "destructive"
+      });
+    }
   };
 
-  const deleteAppointment = (appointmentId) => {
-    setAppointments(appointments.filter(apt => apt.id !== appointmentId));
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Reservasi berhasil dihapus" : "Appointment deleted successfully",
-    });
+  const deleteAppointment = async (appointmentId) => {
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'cancelled' })
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Berhasil!" : "Success!",
+          description: language === "id" ? "Reservasi berhasil dihapus" : "Appointment deleted successfully",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to cancel appointment",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel appointment",
+        variant: "destructive"
+      });
+    }
   };
 
   const processPayment = (amount) => {
