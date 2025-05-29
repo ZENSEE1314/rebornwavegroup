@@ -261,10 +261,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sellerId: userId,
       });
       
-      // Check for existing listing of the same toy by the same seller
+      // Check for existing ACTIVE listing of the same toy by the same seller
       const existingListings = await storage.getAllListings();
       const duplicateListing = existingListings.find((listing: any) => 
-        listing.toyId === validatedData.toyId && listing.sellerId === userId
+        listing.toyId === validatedData.toyId && 
+        listing.sellerId === userId &&
+        listing.status === 'active'
       );
 
       if (duplicateListing) {
