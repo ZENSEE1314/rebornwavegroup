@@ -305,6 +305,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete listing route for cancel sale functionality
+  app.delete('/api/listings/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateListingStatus(parseInt(id), 'cancelled');
+      res.json({ message: "Listing cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling listing:", error);
+      res.status(500).json({ message: "Failed to cancel listing" });
+    }
+  });
+
   app.post('/api/toys/scan', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

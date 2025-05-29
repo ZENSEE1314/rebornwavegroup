@@ -1847,7 +1847,28 @@ export default function CompleteApp() {
                                   {language === "id" ? "Milik Anda" : "Your Item"}
                                 </Badge>
                                 <Button 
-                                  onClick={() => cancelSale(pendingPurchase.id)} 
+                                  onClick={async () => {
+                                    try {
+                                      const response = await fetch(`/api/listings/${listing.id}`, {
+                                        method: 'DELETE',
+                                        credentials: 'include'
+                                      });
+                                      if (response.ok) {
+                                        toast({
+                                          title: language === "id" ? "Penjualan Dibatalkan" : "Sale Cancelled",
+                                          description: language === "id" ? "Listing dihapus dari marketplace" : "Listing removed from marketplace"
+                                        });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                                      }
+                                    } catch (error) {
+                                      console.error('Error cancelling listing:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: "Failed to cancel listing",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }} 
                                   className="w-full bg-red-600 hover:bg-red-700"
                                   variant="destructive"
                                 >
