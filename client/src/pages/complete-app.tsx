@@ -2374,6 +2374,61 @@ export default function CompleteApp() {
           </div>
         </div>
       )}
+
+      {/* Credit History Modal */}
+      {showCreditHistory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Credit History</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreditHistory(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              {userPendingPurchases && userPendingPurchases.filter((p: any) => p.status === 'completed').length > 0 ? (
+                userPendingPurchases
+                  .filter((p: any) => p.status === 'completed')
+                  .map((purchase: any) => (
+                  <div key={purchase.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">
+                          {purchase.buyerId === user?.id 
+                            ? `Purchase - ${purchase.toy?.name}` 
+                            : `Sale - ${purchase.toy?.name} (Admin fee: RP ${(parseFloat(purchase.amount) * 0.1).toLocaleString('id-ID')})`
+                          }
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(purchase.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${purchase.buyerId === user?.id ? 'text-red-600' : 'text-green-600'}`}>
+                          {purchase.buyerId === user?.id 
+                            ? `-RP ${formatRupiah(parseFloat(purchase.amount))}` 
+                            : `+RP ${formatRupiah(parseFloat(purchase.amount) * 0.9)}`
+                          }
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {purchase.buyerId === user?.id ? 'Purchase' : 'Sale'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No transaction history yet</p>
+                  <p className="text-sm mt-2">Your purchases and sales will appear here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
