@@ -764,6 +764,36 @@ export default function CompleteApp() {
     });
   };
 
+  // Fixed cancel sale function using real API
+  const cancelSale = async (purchaseId: any) => {
+    try {
+      const response = await fetch(`/api/pending-purchases/${purchaseId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Penjualan Dibatalkan" : "Sale Cancelled",
+          description: language === "id" ? "Item dikembalikan ke marketplace dan kredit dikembalikan" : "Item returned to marketplace and credits refunded"
+        });
+        
+        // Refresh all data from database
+        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      }
+    } catch (error) {
+      console.error('Error cancelling sale:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel sale",
+        variant: "destructive"
+      });
+    }
+  };
+
   const buyToy = (listing) => {
     // Check if trying to buy own item
     if (listing.sellerId === user?.id) {
@@ -851,32 +881,31 @@ export default function CompleteApp() {
 
 
 
-  const confirmSale = (purchaseId) => {
-    const pendingPurchases = JSON.parse(localStorage.getItem('pendingPurchases') || '[]');
-    const purchase = pendingPurchases.find(p => p.id === purchaseId);
-    
-    if (purchase) {
-      // Remove from pending
-      const updatedPending = pendingPurchases.filter(p => p.id !== purchaseId);
-      localStorage.setItem('pendingPurchases', JSON.stringify(updatedPending));
-      
-      // Add seller's credit (you would need to implement cross-user credit transfer)
-      setUserCredits(prev => prev + purchase.price);
-      
-      // Add transaction for seller
-      const sellerTransaction = {
-        id: Date.now(),
-        type: "sale",
-        description: `${language === "id" ? "Jual" : "Sold"} ${purchase.name}`,
-        amount: purchase.price,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString()
-      };
-      setTransactionHistory([sellerTransaction, ...transactionHistory]);
-      
+  const confirmSale = async (purchaseId: any) => {
+    try {
+      const response = await fetch(`/api/pending-purchases/${purchaseId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Penjualan Dikonfirmasi!" : "Sale Confirmed!",
+          description: language === "id" ? "Kredit telah ditambahkan ke akun Anda" : "Credits have been added to your account"
+        });
+        
+        // Refresh all data from database
+        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      }
+    } catch (error) {
+      console.error('Error confirming sale:', error);
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Penjualan dikonfirmasi!" : "Sale confirmed!",
+        title: "Error",
+        description: "Failed to confirm sale",
+        variant: "destructive"
       });
     }
   };
