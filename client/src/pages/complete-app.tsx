@@ -1209,6 +1209,15 @@ export default function CompleteApp() {
                       <DollarSign className="w-3 h-3 mr-1" />
                       {language === "id" ? "Tarik ke Bank" : "Cash Out to Bank"}
                     </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleViewCredits()}
+                      className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      {language === "id" ? "Lihat Riwayat" : "View Credits"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
