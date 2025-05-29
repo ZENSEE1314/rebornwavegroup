@@ -25,11 +25,16 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
-  // User data
-  const [userCredits, setUserCredits] = useState(3500000); // In Indonesian Rupiah
-  const [loyaltyPoints, setLoyaltyPoints] = useState(125);
-  const [lifetimePoints, setLifetimePoints] = useState(235);
-  const [referralEarnings, setReferralEarnings] = useState(80000);
+  // User data - fetch from database
+  const { data: userStats } = useQuery({
+    queryKey: ['/api/user-stats'],
+    enabled: !!user?.id,
+  });
+
+  const userCredits = userStats ? parseFloat(userStats.credits) : 0;
+  const loyaltyPoints = userStats?.loyaltyPoints || 0;
+  const lifetimePoints = userStats?.loyaltyPoints || 0; // Using same value for now
+  const referralEarnings = userStats?.referralEarnings || 0;
   const [language, setLanguage] = useState("en");
   const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
   const [profileImage, setProfileImage] = useState(null);

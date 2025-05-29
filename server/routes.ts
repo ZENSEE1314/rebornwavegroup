@@ -639,6 +639,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user dashboard stats from database
+  app.get('/api/user-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      // Get actual user data from database
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Calculate loyalty points from completed purchases (1 point per RP 10,000)
+      const purchases = await storage.getPendingPurchasesByUserId(userId);
+      const completedPurchases = purchases.filter((p: any) => p.status === 'completed' && p.buyerId === userId);
+      const loyaltyPoints = completedPurchases.reduce((total: number, purchase: any) => {
+        return total + Math.floor(parseFloat(purchase.amount) / 10000);
+      }, 0);
+
+      // Calculate referral earnings
+      const referralEarnings = await storage.calculateReferralEarnings(userId);
+
+      // Get total appointments
+      const appointments = await storage.getAppointmentsByUserId(userId);
+
+      const stats = {
+        credits: user.credits || '0',
+        loyaltyPoints: loyaltyPoints,
+        referralEarnings: referralEarnings,
+        totalAppointments: appointments.length
+      };
+
+      console.log('*** USER STATS from DB:', stats);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ message: 'Failed to fetch user stats' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
