@@ -522,16 +522,21 @@ export class DatabaseStorage implements IStorage {
     
     if (!purchase) throw new Error('Purchase not found');
 
+    // Calculate seller amount (90% after 10% admin fee)
+    const totalAmount = parseFloat(purchase.amount);
+    const adminFee = totalAmount * 0.1;
+    const sellerAmount = totalAmount - adminFee;
+
     // Transfer toy ownership
     await db
       .update(toys)
       .set({ ownerId: purchase.buyerId })
       .where(eq(toys.id, purchase.toyId));
 
-    // Add credit to seller
+    // Add credit to seller (90% after admin fee)
     const [seller] = await db.select().from(users).where(eq(users.id, purchase.sellerId));
     const currentCredits = parseFloat(seller.credits || '0');
-    const newCredits = currentCredits + parseFloat(purchase.amount);
+    const newCredits = currentCredits + sellerAmount;
     
     await db
       .update(users)
@@ -558,9 +563,9 @@ export class DatabaseStorage implements IStorage {
       .insert(creditHistory)
       .values({
         userId: purchase.sellerId,
-        amount: purchase.amount,
+        amount: sellerAmount.toFixed(2),
         type: 'sale',
-        description: `Sale confirmed - Toy ID ${purchase.toyId}`,
+        description: `Sale confirmed - Admin fee: RP ${adminFee.toFixed(2)}`,
         relatedId: purchase.listingId,
       });
   }
