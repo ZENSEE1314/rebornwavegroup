@@ -663,14 +663,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate referral earnings
       const referralEarnings = await storage.calculateReferralEarnings(userId);
 
-      // Get total appointments
+      // Get total appointments from database
       const appointments = await storage.getAppointmentsByUserId(userId);
+
+      // Get point redemptions (rewards) from database
+      const pointRedemptions = await storage.getPointsHistoryByUserId ? 
+        await storage.getPointsHistoryByUserId(userId) : [];
 
       const stats = {
         credits: user.credits || '0',
         loyaltyPoints: loyaltyPoints,
         referralEarnings: referralEarnings,
-        totalAppointments: appointments.length
+        totalAppointments: appointments.length,
+        totalRewards: pointRedemptions.length,
+        appointments: appointments,
+        pointRedemptions: pointRedemptions
       };
 
       console.log('*** USER STATS from DB:', stats);

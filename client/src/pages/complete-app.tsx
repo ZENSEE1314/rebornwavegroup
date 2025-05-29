@@ -35,6 +35,10 @@ export default function CompleteApp() {
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
   const lifetimePoints = userStats?.loyaltyPoints || 0; // Using same value for now
   const referralEarnings = userStats?.referralEarnings || 0;
+  
+  // Use real appointments and rewards from database
+  const userAppointments = userStats?.appointments || [];
+  const pointRedemptions = userStats?.pointRedemptions || [];
   const [language, setLanguage] = useState("en");
   const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
   const [profileImage, setProfileImage] = useState(null);
@@ -668,7 +672,7 @@ export default function CompleteApp() {
     setShowCreateListingModal(false);
   };
 
-  const redeemReward = (reward) => {
+  const redeemReward = (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
         title: language === "id" ? "Poin Tidak Cukup" : "Insufficient Points",
@@ -678,7 +682,8 @@ export default function CompleteApp() {
       return;
     }
 
-    setLoyaltyPoints(prev => prev - reward.pointsCost);
+    // Since loyaltyPoints is now calculated from database, we need to invalidate and refetch
+    queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
     setRewards(rewards.map(r => 
       r.id === reward.id ? { ...r, claimed: true } : r
     ));
