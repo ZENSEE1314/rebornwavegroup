@@ -261,6 +261,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sellerId: userId,
       });
       
+      // Check for existing listing of the same toy by the same seller
+      const existingListings = await storage.getAllListings();
+      const duplicateListing = existingListings.find((listing: any) => 
+        listing.toyId === validatedData.toyId && listing.sellerId === userId
+      );
+
+      if (duplicateListing) {
+        return res.status(400).json({ message: "This toy is already listed in the marketplace" });
+      }
+      
       const listing = await storage.createListing(validatedData);
       res.json(listing);
     } catch (error) {
@@ -581,6 +591,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error confirming purchase:", error);
       res.status(500).json({ message: "Failed to confirm purchase" });
+    }
+  });
+
+  // Add cancel sale endpoint
+  app.post('/api/pending-purchases/:id/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.cancelPendingPurchase(parseInt(id));
+      res.json({ message: "Sale cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling sale:", error);
+      res.status(500).json({ message: "Failed to cancel sale" });
     }
   });
 
