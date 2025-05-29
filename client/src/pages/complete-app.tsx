@@ -2100,13 +2100,22 @@ export default function CompleteApp() {
                       {language === "id" ? "Pohon Rujukan Anda" : "Your Referral Tree"}
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Sarah Chen (Level 1)</span>
-                        <span className="text-green-600 font-medium">+RP {formatRupiah(80000)}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 ml-4">
-                        → {language === "id" ? "Belum ada rujukan Level 2" : "No Level 2 referrals yet"}
-                      </div>
+                      {userReferrals.length > 0 ? (
+                        userReferrals.map((referral: any) => (
+                          <div key={referral.id} className="flex justify-between">
+                            <span>
+                              {language === "id" ? "Rujukan" : "Referral"} #{referral.id} (Level {referral.level})
+                            </span>
+                            <span className="text-green-600 font-medium">
+                              +RP {formatRupiah(parseFloat(referral.totalEarnings || '0'))}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-gray-500">
+                          {language === "id" ? "Belum ada rujukan" : "No referrals yet"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
