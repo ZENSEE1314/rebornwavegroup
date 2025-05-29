@@ -1186,7 +1186,15 @@ export default function CompleteApp() {
                     <SelectValue placeholder={language === "id" ? "Pilih mainan untuk dijual" : "Select toy to sell"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {toyInventory.map((toy) => (
+                    {toyInventory.filter((toy) => {
+                      // Only show toys that are NOT already actively listed by this user
+                      const isAlreadyListed = marketplaceListings?.some((listing: any) => 
+                        listing.toyId === toy.id && 
+                        listing.sellerId === user?.id &&
+                        listing.status === 'active'
+                      );
+                      return !isAlreadyListed;
+                    }).map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
                         {toy.image} {toy.name} ({toy.rarity})
                       </SelectItem>
