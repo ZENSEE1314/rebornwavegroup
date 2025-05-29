@@ -1212,7 +1212,7 @@ export default function CompleteApp() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => handleViewCredits()}
+                      onClick={() => setShowCreditHistory(true)}
                       className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
                     >
                       <Eye className="w-3 h-3 mr-1" />
