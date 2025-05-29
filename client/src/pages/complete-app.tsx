@@ -1847,7 +1847,7 @@ export default function CompleteApp() {
                                   {language === "id" ? "Milik Anda" : "Your Item"}
                                 </Badge>
                                 <Button 
-                                  onClick={() => cancelListing(listing.id)} 
+                                  onClick={() => cancelSale(pendingPurchase.id)} 
                                   className="w-full bg-red-600 hover:bg-red-700"
                                   variant="destructive"
                                 >
