@@ -579,6 +579,52 @@ export class DatabaseStorage implements IStorage {
     return credit;
   }
 
+  async cancelPendingPurchase(purchaseId: number): Promise<void> {
+    // Get purchase details
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    
+    if (!purchase) throw new Error('Purchase not found');
+
+    // Refund credits to buyer
+    const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
+    const currentCredits = parseFloat(buyer.credits || '0');
+    const refundCredits = currentCredits + parseFloat(purchase.amount);
+    
+    await db
+      .update(users)
+      .set({ credits: refundCredits.toString() })
+      .where(eq(users.id, purchase.buyerId));
+
+    // Update listing back to active
+    await db
+      .update(listings)
+      .set({ status: 'active' })
+      .where(eq(listings.id, purchase.listingId));
+
+    // Mark purchase as cancelled
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'cancelled',
+        confirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
+
+    // Add credit history for buyer refund
+    await db
+      .insert(creditHistory)
+      .values({
+        userId: purchase.buyerId,
+        amount: purchase.amount,
+        type: 'refund',
+        description: `Sale cancelled - Refund for purchase ID ${purchaseId}`,
+        relatedId: purchase.listingId,
+      });
+  }
+
   async getCreditHistoryByUserId(userId: string): Promise<CreditHistory[]> {
     return await db
       .select()

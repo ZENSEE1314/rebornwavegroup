@@ -627,6 +627,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cancel pending purchase route
+  app.post('/api/pending-purchases/:purchaseId/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      const purchaseId = parseInt(req.params.purchaseId);
+      await storage.cancelPendingPurchase(purchaseId);
+      res.json({ message: 'Sale cancelled successfully' });
+    } catch (error) {
+      console.error("Error cancelling sale:", error);
+      res.status(500).json({ message: "Failed to cancel sale" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
