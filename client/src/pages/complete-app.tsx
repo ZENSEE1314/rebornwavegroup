@@ -463,7 +463,9 @@ export default function CompleteApp() {
     const selectedService = selectedCategory.options.find(opt => opt.value === newAppointment.service);
     
     try {
-      // Create appointment in database
+      // Create appointment in database with proper date format
+      const appointmentDateTime = new Date(`${newAppointment.date}T${newAppointment.time}:00`);
+      
       const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -471,7 +473,7 @@ export default function CompleteApp() {
         body: JSON.stringify({
           title: selectedService.label,
           description: `${newAppointment.category} service booking`,
-          appointmentDate: `${newAppointment.date}T${newAppointment.time}:00.000Z`,
+          appointmentDate: appointmentDateTime.toISOString(),
           duration: 60,
           cost: selectedService.cost.toString()
         })
@@ -505,12 +507,14 @@ export default function CompleteApp() {
 
   const rescheduleAppointment = async (appointmentId, newDate, newTime) => {
     try {
+      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`);
+      
       const response = await fetch(`/api/appointments/${appointmentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          appointmentDate: `${newDate}T${newTime}:00.000Z`
+          appointmentDate: appointmentDateTime.toISOString()
         })
       });
 
@@ -1793,16 +1797,16 @@ export default function CompleteApp() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {appointments.map((apt) => (
+                  {userAppointments.map((apt) => (
                     <div key={apt.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                       <div className="flex items-center space-x-4">
                         <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                           <Calendar className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-slate-900">{apt.service}</h4>
-                          <p className="text-sm text-slate-600">{apt.date} at {apt.time}</p>
-                          <p className="text-sm text-slate-500">RP {formatRupiah(apt.cost)}</p>
+                          <h4 className="font-semibold text-slate-900">{apt.title}</h4>
+                          <p className="text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
+                          <p className="text-sm text-slate-500">RP {formatRupiah(parseFloat(apt.cost))}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
