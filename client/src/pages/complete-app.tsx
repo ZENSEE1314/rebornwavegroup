@@ -48,6 +48,7 @@ export default function CompleteApp() {
 
   // Cash-out states
   const [showCashOutModal, setShowCashOutModal] = useState(false);
+  const [showCreditHistory, setShowCreditHistory] = useState(false);
   const [cashOutAmount, setCashOutAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
