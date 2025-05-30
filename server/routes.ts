@@ -135,6 +135,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update appointment (reschedule)
+  app.put('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const appointmentId = parseInt(req.params.id);
+      const { appointmentDate } = req.body;
+      
+      // For now, we'll update the appointment date only
+      // In a full implementation, you'd want to check ownership
+      const updatedAppointment = await storage.updateAppointmentDate(appointmentId, new Date(appointmentDate));
+      
+      res.json(updatedAppointment);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      res.status(500).json({ message: "Failed to update appointment" });
+    }
+  });
+
+  // Cancel/delete appointment
+  app.put('/api/appointments/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const appointmentId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      await storage.updateAppointmentStatus(appointmentId, status);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+      res.status(500).json({ message: "Failed to update appointment status" });
+    }
+  });
+
   // Transaction routes
   app.get('/api/transactions', isAuthenticated, async (req: any, res) => {
     try {

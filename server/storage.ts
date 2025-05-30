@@ -55,6 +55,7 @@ export interface IStorage {
   getAppointmentsByUserId(userId: string): Promise<Appointment[]>;
   getAllAppointments(): Promise<Appointment[]>;
   updateAppointmentStatus(id: number, status: string): Promise<void>;
+  updateAppointmentDate(id: number, appointmentDate: Date): Promise<Appointment>;
   
   // Transaction operations
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
@@ -245,6 +246,15 @@ export class DatabaseStorage implements IStorage {
       .update(appointments)
       .set({ status, updatedAt: new Date() })
       .where(eq(appointments.id, id));
+  }
+
+  async updateAppointmentDate(id: number, appointmentDate: Date): Promise<Appointment> {
+    const [updated] = await db
+      .update(appointments)
+      .set({ appointmentDate, updatedAt: new Date() })
+      .where(eq(appointments.id, id))
+      .returning();
+    return updated;
   }
 
   // Transaction operations
