@@ -1798,18 +1798,18 @@ export default function CompleteApp() {
               <CardContent>
                 <div className="space-y-4">
                   {userAppointments.map((apt) => (
-                    <div key={apt.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-6 h-6 text-blue-600" />
+                    <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
+                      <div className="flex items-center space-x-3 sm:space-x-4">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">{apt.title}</h4>
-                          <p className="text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
-                          <p className="text-sm text-slate-500">RP {formatRupiah(parseFloat(apt.cost))}</p>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
+                          <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
+                          <p className="text-xs sm:text-sm text-slate-500">RP {formatRupiah(parseFloat(apt.cost))}</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">
                         <Badge variant={apt.status === 'confirmed' ? 'default' : apt.status === 'pending' ? 'secondary' : 'destructive'}>
                           {apt.status}
                         </Badge>
@@ -1844,15 +1844,19 @@ export default function CompleteApp() {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
-                              <Edit3 className="w-4 h-4" />
-                              {language === "id" ? "Ubah" : "Reschedule"}
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
-                              <Trash2 className="w-4 h-4" />
-                              {language === "id" ? "Hapus" : "Delete"}
-                            </Button>
+                          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                            {apt.status !== 'cancelled' && (
+                              <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
+                                <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline ml-1">{language === "id" ? "Ubah" : "Reschedule"}</span>
+                              </Button>
+                            )}
+                            {apt.status !== 'cancelled' && (
+                              <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
+                                <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline ml-1">{language === "id" ? "Batal" : "Cancel"}</span>
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
