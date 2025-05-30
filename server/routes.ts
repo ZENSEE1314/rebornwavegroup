@@ -91,7 +91,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = {
         ...req.body,
         userId,
-        appointmentDate: new Date(req.body.appointmentDate)
+        appointmentDate: new Date(req.body.appointmentDate),
+        status: 'pending' // New appointments require admin confirmation
       };
       
       const appointment = await storage.createAppointment(validatedData);
