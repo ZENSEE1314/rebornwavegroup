@@ -163,6 +163,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedAppointment = await storage.updateAppointmentDate(appointmentId, newDate);
       
+      // Set status to pending for admin reconfirmation
+      await storage.updateAppointmentStatus(appointmentId, 'pending');
+      
       // Send reschedule email
       const user = await storage.getUser(userId);
       if (user && user.email) {
