@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail } from "./emailService";
+import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { 
   insertAppointmentSchema,
   insertTransactionSchema,
@@ -148,10 +148,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const appointmentId = parseInt(req.params.id);
       const { appointmentDate } = req.body;
+      const userId = req.user.claims.sub;
       
-      // For now, we'll update the appointment date only
-      // In a full implementation, you'd want to check ownership
-      const updatedAppointment = await storage.updateAppointmentDate(appointmentId, new Date(appointmentDate));
+      // Get appointment details before updating
+      const appointments = await storage.getAppointmentsByUserId(userId);
+      const appointment = appointments.find(apt => apt.id === appointmentId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      const oldDate = appointment.appointmentDate;
+      const newDate = new Date(appointmentDate);
+      
+      const updatedAppointment = await storage.updateAppointmentDate(appointmentId, newDate);
+      
+      // Send reschedule email
+      const user = await storage.getUser(userId);
+      if (user && user.email) {
+        const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
+        
+        try {
+          await sendAppointmentRescheduleEmail(
+            user.email,
+            userName,
+            appointment.title,
+            oldDate,
+            newDate,
+            appointment.duration
+          );
+          console.log(`Reschedule email sent to ${user.email} for appointment: ${appointment.title}`);
+        } catch (emailError) {
+          console.error('Failed to send reschedule email:', emailError);
+          // Don't fail the reschedule if email fails
+        }
+      }
       
       res.json(updatedAppointment);
     } catch (error) {

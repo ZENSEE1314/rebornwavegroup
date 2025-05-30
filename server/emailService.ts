@@ -74,12 +74,46 @@ export async function sendAppointmentConfirmationEmail(
     </div>
   `;
 
-  return await sendEmail({
-    to: userEmail,
-    from: 'noreply@rebornwavehouse.com',
-    subject,
-    html,
-  });
+  try {
+    // Send to user
+    await sendEmail({
+      to: userEmail,
+      from: 'noreply@rebornwavehouse.com',
+      subject,
+      html,
+    });
+
+    // Send notification to admin
+    const adminSubject = `New Appointment Booked - ${appointmentTitle}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">New Appointment Notification</h2>
+        <p>A new appointment has been booked:</p>
+        
+        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #1e40af;">${appointmentTitle}</h3>
+          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
+          <p><strong>Date:</strong> ${formattedDate}</p>
+          <p><strong>Time:</strong> ${formattedTime}</p>
+          <p><strong>Duration:</strong> ${duration} minutes</p>
+        </div>
+        
+        <p>Please ensure the appointment is properly scheduled in your system.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: 'admin@rebornwavegroup.com',
+      from: 'noreply@rebornwavehouse.com',
+      subject: adminSubject,
+      html: adminHtml,
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to send confirmation emails:', error);
+    return false;
+  }
 }
 
 export async function sendAppointmentCancellationEmail(
@@ -124,10 +158,145 @@ export async function sendAppointmentCancellationEmail(
     </div>
   `;
 
-  return await sendEmail({
-    to: userEmail,
-    from: 'noreply@rebornwavehouse.com',
-    subject,
-    html,
+  try {
+    // Send to user
+    await sendEmail({
+      to: userEmail,
+      from: 'noreply@rebornwavehouse.com',
+      subject,
+      html,
+    });
+
+    // Send notification to admin
+    const adminSubject = `Appointment Cancelled - ${appointmentTitle}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">Appointment Cancellation Notification</h2>
+        <p>An appointment has been cancelled:</p>
+        
+        <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
+          <h3 style="margin-top: 0; color: #991b1b;">${appointmentTitle}</h3>
+          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
+          <p><strong>Date:</strong> ${formattedDate}</p>
+          <p><strong>Time:</strong> ${formattedTime}</p>
+          <p style="color: #dc2626;"><strong>Status:</strong> Cancelled</p>
+        </div>
+        
+        <p>Please update your scheduling system accordingly.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: 'admin@rebornwavegroup.com',
+      from: 'noreply@rebornwavehouse.com',
+      subject: adminSubject,
+      html: adminHtml,
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to send cancellation emails:', error);
+    return false;
+  }
+}
+
+export async function sendAppointmentRescheduleEmail(
+  userEmail: string,
+  userName: string,
+  appointmentTitle: string,
+  oldDate: Date,
+  newDate: Date,
+  duration: number
+): Promise<boolean> {
+  const oldFormattedDate = oldDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
+  const oldFormattedTime = oldDate.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const newFormattedDate = newDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const newFormattedTime = newDate.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const subject = `Appointment Rescheduled - ${appointmentTitle}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #f59e0b;">Appointment Rescheduled</h2>
+      <p>Dear ${userName},</p>
+      <p>Your appointment has been successfully rescheduled.</p>
+      
+      <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <h3 style="margin-top: 0; color: #92400e;">${appointmentTitle}</h3>
+        <div style="margin: 15px 0;">
+          <p style="color: #dc2626;"><strong>Previous Date:</strong> ${oldFormattedDate} at ${oldFormattedTime}</p>
+          <p style="color: #059669;"><strong>New Date:</strong> ${newFormattedDate} at ${newFormattedTime}</p>
+          <p><strong>Duration:</strong> ${duration} minutes</p>
+        </div>
+      </div>
+      
+      <p>Please make note of your new appointment time and arrive 10 minutes early.</p>
+      <p>Thank you for choosing Reborn Wave House!</p>
+      
+      <hr style="margin: 30px 0;">
+      <p style="color: #64748b; font-size: 14px;">
+        Reborn Wave House - Your Oasis of Joy<br>
+        If you need to reschedule again or cancel, please contact us as soon as possible.
+      </p>
+    </div>
+  `;
+
+  try {
+    // Send to user
+    await sendEmail({
+      to: userEmail,
+      from: 'noreply@rebornwavehouse.com',
+      subject,
+      html,
+    });
+
+    // Send notification to admin
+    const adminSubject = `Appointment Rescheduled - ${appointmentTitle}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #f59e0b;">Appointment Reschedule Notification</h2>
+        <p>An appointment has been rescheduled:</p>
+        
+        <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h3 style="margin-top: 0; color: #92400e;">${appointmentTitle}</h3>
+          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
+          <div style="margin: 15px 0;">
+            <p style="color: #dc2626;"><strong>Previous Date:</strong> ${oldFormattedDate} at ${oldFormattedTime}</p>
+            <p style="color: #059669;"><strong>New Date:</strong> ${newFormattedDate} at ${newFormattedTime}</p>
+            <p><strong>Duration:</strong> ${duration} minutes</p>
+          </div>
+        </div>
+        
+        <p>Please update your scheduling system with the new appointment time.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: 'admin@rebornwavegroup.com',
+      from: 'noreply@rebornwavehouse.com',
+      subject: adminSubject,
+      html: adminHtml,
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to send reschedule emails:', error);
+    return false;
+  }
 }
