@@ -17,6 +17,10 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
+    console.log(`Attempting to send email to: ${params.to}`);
+    console.log(`From: ${params.from}`);
+    console.log(`Subject: ${params.subject}`);
+    
     await mailService.send({
       to: params.to,
       from: params.from,
@@ -24,9 +28,14 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       text: params.text,
       html: params.html,
     });
+    
+    console.log(`Email sent successfully to: ${params.to}`);
     return true;
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    console.error('SendGrid email error details:', error);
+    if (error.response && error.response.body) {
+      console.error('SendGrid response body:', error.response.body);
+    }
     return false;
   }
 }
@@ -78,7 +87,7 @@ export async function sendAppointmentConfirmationEmail(
     // Send to user
     await sendEmail({
       to: userEmail,
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject,
       html,
     });
@@ -104,7 +113,7 @@ export async function sendAppointmentConfirmationEmail(
 
     await sendEmail({
       to: 'admin@rebornwavegroup.com',
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject: adminSubject,
       html: adminHtml,
     });
@@ -162,7 +171,7 @@ export async function sendAppointmentCancellationEmail(
     // Send to user
     await sendEmail({
       to: userEmail,
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject,
       html,
     });
@@ -188,7 +197,7 @@ export async function sendAppointmentCancellationEmail(
 
     await sendEmail({
       to: 'admin@rebornwavegroup.com',
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject: adminSubject,
       html: adminHtml,
     });
@@ -261,7 +270,7 @@ export async function sendAppointmentRescheduleEmail(
     // Send to user
     await sendEmail({
       to: userEmail,
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject,
       html,
     });
@@ -289,7 +298,7 @@ export async function sendAppointmentRescheduleEmail(
 
     await sendEmail({
       to: 'admin@rebornwavegroup.com',
-      from: 'noreply@rebornwavehouse.com',
+      from: 'candyheng198088@gmail.com',
       subject: adminSubject,
       html: adminHtml,
     });
