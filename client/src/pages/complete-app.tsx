@@ -1806,7 +1806,7 @@ export default function CompleteApp() {
                         <div className="min-w-0 flex-1">
                           <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
                           <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
-                          <p className="text-xs sm:text-sm text-slate-500">RP {formatRupiah(parseFloat(apt.cost))}</p>
+                          <p className="text-xs sm:text-sm text-slate-500">{apt.description}</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">

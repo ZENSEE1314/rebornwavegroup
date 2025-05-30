@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail } from "./emailService";
 import { 
   insertAppointmentSchema,
   insertTransactionSchema,
@@ -95,19 +96,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointment = await storage.createAppointment(validatedData);
       
-      // Create transaction record
-      await storage.createTransaction({
-        userId,
-        type: "appointment_payment",
-        amount: validatedData.cost,
-        description: `Appointment: ${validatedData.title}`,
-        referenceId: appointment.id.toString(),
-        pointsEarned: Math.floor(Number(validatedData.cost) * 0.1), // 10% points
-      });
-      
-      // Update user credits and points
-      await storage.updateUserCredits(userId, `-${validatedData.cost}`);
-      await storage.updateUserPoints(userId, Math.floor(Number(validatedData.cost) * 0.1));
+      // Get user details for email
+      const user = await storage.getUser(userId);
+      if (user && user.email) {
+        const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
+        
+        // Send confirmation email
+        try {
+          await sendAppointmentConfirmationEmail(
+            user.email,
+            userName,
+            appointment.title,
+            appointment.appointmentDate,
+            appointment.duration
+          );
+          console.log(`Confirmation email sent to ${user.email} for appointment: ${appointment.title}`);
+        } catch (emailError) {
+          console.error('Failed to send confirmation email:', emailError);
+          // Don't fail the appointment creation if email fails
+        }
+      }
       
       res.json(appointment);
     } catch (error) {
@@ -157,8 +165,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const appointmentId = parseInt(req.params.id);
       const { status } = req.body;
+      const userId = req.user.claims.sub;
+      
+      // Get appointment details before updating
+      const appointments = await storage.getAppointmentsByUserId(userId);
+      const appointment = appointments.find(apt => apt.id === appointmentId);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
       
       await storage.updateAppointmentStatus(appointmentId, status);
+      
+      // Send cancellation email if status is cancelled
+      if (status === 'cancelled') {
+        const user = await storage.getUser(userId);
+        if (user && user.email) {
+          const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
+          
+          try {
+            await sendAppointmentCancellationEmail(
+              user.email,
+              userName,
+              appointment.title,
+              appointment.appointmentDate
+            );
+            console.log(`Cancellation email sent to ${user.email} for appointment: ${appointment.title}`);
+          } catch (emailError) {
+            console.error('Failed to send cancellation email:', emailError);
+            // Don't fail the cancellation if email fails
+          }
+        }
+      }
       
       res.json({ success: true });
     } catch (error) {
