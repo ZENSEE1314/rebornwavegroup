@@ -87,10 +87,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertAppointmentSchema.parse({
+      const validatedData = {
         ...req.body,
         userId,
-      });
+        appointmentDate: new Date(req.body.appointmentDate)
+      };
       
       const appointment = await storage.createAppointment(validatedData);
       
