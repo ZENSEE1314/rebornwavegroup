@@ -832,6 +832,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Points history routes
+  app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.params.userId;
+      const pointsHistory = await storage.getPointsHistoryByUserId(userId);
+      res.json(pointsHistory);
+    } catch (error) {
+      console.error("Error fetching points history:", error);
+      res.status(500).json({ message: "Failed to fetch points history" });
+    }
+  });
+
+  app.post('/api/points-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const validatedData = {
+        ...req.body,
+        userId
+      };
+      
+      const pointsHistory = await storage.createPointsHistory(validatedData);
+      
+      // Update user's loyalty points
+      const currentUser = await storage.getUser(userId);
+      if (currentUser) {
+        const newPoints = currentUser.loyaltyPoints + req.body.points;
+        await storage.updateUserPoints(userId, newPoints);
+      }
+      
+      res.json(pointsHistory);
+    } catch (error) {
+      console.error("Error creating points history:", error);
+      res.status(500).json({ message: "Failed to create points history" });
+    }
+  });
+
+  // Credit history routes
+  app.get('/api/credit-history/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.params.userId;
+      const creditHistory = await storage.getCreditHistoryByUserId(userId);
+      res.json(creditHistory);
+    } catch (error) {
+      console.error("Error fetching credit history:", error);
+      res.status(500).json({ message: "Failed to fetch credit history" });
+    }
+  });
+
+  app.post('/api/credit-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = {
+        ...req.body,
+        userId
+      };
+      
+      const creditHistory = await storage.createCreditHistory(validatedData);
+      res.json(creditHistory);
+    } catch (error) {
+      console.error("Error creating credit history:", error);
+      res.status(500).json({ message: "Failed to create credit history" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

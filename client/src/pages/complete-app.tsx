@@ -319,13 +319,11 @@ export default function CompleteApp() {
     },
   });
 
-  // Point and redemption history (dynamic)
-  const [pointHistory, setPointHistory] = useState([
-    { id: 1, date: "2025-05-25", description: language === "id" ? "Hair Spa - Pembelian" : "Hair Spa - Purchase", points: 20, type: "earned" },
-    { id: 2, date: "2025-05-20", description: language === "id" ? "Rujukan Baru" : "New Referral", points: 15, type: "earned" },
-    { id: 3, date: "2025-05-15", description: language === "id" ? "Tukar Lucky Cat" : "Redeemed Lucky Cat", points: -50, type: "redeemed" },
-    { id: 4, date: "2025-05-10", description: language === "id" ? "KTV Room - Pembelian" : "KTV Room - Purchase", points: 50, type: "earned" }
-  ]);
+  // Fetch points history from database
+  const { data: pointHistory = [] } = useQuery({
+    queryKey: ['/api/points-history', user?.id],
+    enabled: !!user?.id,
+  });
 
   const [redemptionHistory, setRedemptionHistory] = useState([
     { id: 1, date: "2025-05-15", reward: "Lucky Cat", pointsSpent: 50, status: "completed" },
@@ -761,7 +759,6 @@ export default function CompleteApp() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          userId: user?.id,
           points: -reward.pointsCost,
           type: 'redeemed',
           description: `Redeemed: ${reward.title}`,
@@ -769,8 +766,9 @@ export default function CompleteApp() {
         })
       });
 
-      // Refresh user stats to get updated points
+      // Refresh user stats and points history to get updated data
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/points-history', user?.id] });
 
       toast({
         title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
@@ -783,21 +781,6 @@ export default function CompleteApp() {
         variant: "destructive"
       });
     }
-
-    // Add to point history
-    const newHistoryItem = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      description: `${language === "id" ? "Tukar" : "Redeemed"} ${reward.name}`,
-      points: -reward.pointsCost,
-      type: "redeemed"
-    };
-    setPointHistory([newHistoryItem, ...pointHistory]);
-
-    toast({
-      title: language === "id" ? "Reward Ditukar!" : "Reward Claimed!",
-      description: language === "id" ? `Berhasil menukar ${reward.name}` : `Successfully redeemed ${reward.name}`,
-    });
   };
 
   // Function to cancel listing
@@ -1610,7 +1593,7 @@ export default function CompleteApp() {
                         <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
                             <p className="font-medium text-slate-900">{history.description}</p>
-                            <p className="text-sm text-slate-600">{history.date}</p>
+                            <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleDateString()}</p>
                           </div>
                           <div className="text-right">
                             <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
