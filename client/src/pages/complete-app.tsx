@@ -40,7 +40,109 @@ export default function CompleteApp() {
   const userAppointments = userStats?.appointments || [];
   const pointRedemptions = userStats?.pointRedemptions || [];
   const userReferrals = userStats?.referrals || [];
-  const [language, setLanguage] = useState("en");
+
+  // 5-Level Loyalty Program System
+  const loyaltyLevels = [
+    { 
+      level: 1, 
+      minPoints: 0, 
+      maxPoints: 499, 
+      discount: 0, 
+      name: language === "id" ? "Perunggu" : "Bronze",
+      color: "from-orange-600 to-amber-600",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+      icon: Award,
+      benefits: [
+        language === "id" ? "Akses ke platform" : "Platform access",
+        language === "id" ? "Program referral dasar" : "Basic referral program"
+      ]
+    },
+    { 
+      level: 2, 
+      minPoints: 500, 
+      maxPoints: 24999, 
+      discount: 2, 
+      name: language === "id" ? "Perak" : "Silver",
+      color: "from-gray-500 to-gray-600",
+      bgColor: "bg-gray-50",
+      borderColor: "border-gray-200",
+      icon: Medal,
+      benefits: [
+        language === "id" ? "Diskon 2% semua layanan" : "2% discount on all services",
+        language === "id" ? "Prioritas booking" : "Priority booking",
+        language === "id" ? "Bonus poin referral" : "Bonus referral points"
+      ]
+    },
+    { 
+      level: 3, 
+      minPoints: 25000, 
+      maxPoints: 249999, 
+      discount: 4, 
+      name: language === "id" ? "Emas" : "Gold",
+      color: "from-yellow-500 to-yellow-600",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      icon: Star,
+      benefits: [
+        language === "id" ? "Diskon 4% semua layanan" : "4% discount on all services",
+        language === "id" ? "Akses layanan eksklusif" : "Exclusive service access",
+        language === "id" ? "Dukungan prioritas" : "Priority support",
+        language === "id" ? "Hadiah ulang tahun" : "Birthday rewards"
+      ]
+    },
+    { 
+      level: 4, 
+      minPoints: 250000, 
+      maxPoints: 999999, 
+      discount: 6, 
+      name: language === "id" ? "Platinum" : "Platinum",
+      color: "from-purple-500 to-purple-600",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200",
+      icon: Crown,
+      benefits: [
+        language === "id" ? "Diskon 6% semua layanan" : "6% discount on all services",
+        language === "id" ? "Akses VIP room" : "VIP room access",
+        language === "id" ? "Personal account manager" : "Personal account manager",
+        language === "id" ? "Upgrade gratis" : "Free upgrades",
+        language === "id" ? "Event eksklusif" : "Exclusive events"
+      ]
+    },
+    { 
+      level: 5, 
+      minPoints: 1000000, 
+      maxPoints: Infinity, 
+      discount: 10, 
+      name: language === "id" ? "Berlian" : "Diamond",
+      color: "from-blue-600 to-indigo-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      icon: Trophy,
+      benefits: [
+        language === "id" ? "Diskon 10% semua layanan" : "10% discount on all services",
+        language === "id" ? "Layanan concierge pribadi" : "Personal concierge service",
+        language === "id" ? "Akses unlimited ke semua fasilitas" : "Unlimited access to all facilities",
+        language === "id" ? "Undangan acara VIP" : "VIP event invitations",
+        language === "id" ? "Hadiah tahunan eksklusif" : "Exclusive annual gifts"
+      ]
+    }
+  ];
+
+  const getCurrentLevel = (points) => {
+    return loyaltyLevels.find(level => points >= level.minPoints && points <= level.maxPoints) || loyaltyLevels[0];
+  };
+
+  const getNextLevel = (currentLevel) => {
+    return loyaltyLevels.find(level => level.level === currentLevel.level + 1);
+  };
+
+  const currentLevelInfo = getCurrentLevel(loyaltyPoints);
+  const nextLevelInfo = getNextLevel(currentLevelInfo);
+  
+  const pointsToNextLevel = nextLevelInfo ? nextLevelInfo.minPoints - loyaltyPoints : 0;
+  const progressPercentage = nextLevelInfo ? 
+    Math.min(100, ((loyaltyPoints - currentLevelInfo.minPoints) / (nextLevelInfo.minPoints - currentLevelInfo.minPoints)) * 100) : 100;
   const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -1737,6 +1839,50 @@ export default function CompleteApp() {
                 )}
               </CardContent>
             </Card>
+
+            {/* All Loyalty Levels Overview */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                {language === "id" ? "Semua Level Loyalitas" : "All Loyalty Levels"}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {loyaltyLevels.map((level) => (
+                  <Card 
+                    key={level.level} 
+                    className={`${currentLevelInfo.level === level.level ? level.bgColor + ' border-2 ' + level.borderColor : 'bg-white border border-gray-200'} transition-all hover:shadow-lg`}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <div className={`w-12 h-12 bg-gradient-to-br ${level.color} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                        <level.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h4 className="font-bold text-sm mb-1">{level.name}</h4>
+                      <p className="text-xs text-gray-600 mb-2">Level {level.level}</p>
+                      <p className="text-xs font-medium text-slate-900 mb-2">
+                        {level.minPoints === 0 ? 
+                          `0 - ${level.maxPoints.toLocaleString()}` : 
+                          level.maxPoints === Infinity ? 
+                            `${level.minPoints.toLocaleString()}+` : 
+                            `${level.minPoints.toLocaleString()} - ${level.maxPoints.toLocaleString()}`
+                        } {language === "id" ? "poin" : "points"}
+                      </p>
+                      {level.discount > 0 && (
+                        <div className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full mb-2">
+                          {level.discount}% {language === "id" ? "diskon" : "discount"}
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        {level.benefits.slice(0, 2).map((benefit, index) => (
+                          <p key={index} className="text-xs text-gray-600">{benefit}</p>
+                        ))}
+                        {level.benefits.length > 2 && (
+                          <p className="text-xs text-gray-500">+{level.benefits.length - 2} {language === "id" ? "lainnya" : "more"}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Rewards */}
