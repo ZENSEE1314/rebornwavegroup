@@ -709,33 +709,37 @@ export default function CompleteApp() {
     }
   };
 
-  const addToyByCode = () => {
+  const addToyByCode = async () => {
     if (!newToyCode) {
       toast({
         title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Masukkan kode mainan" : "Enter toy code",
+        description: language === "id" ? "Masukkan kode QR mainan" : "Enter toy QR code",
         variant: "destructive"
       });
       return;
     }
 
-    // Simulate adding toy by unique code
-    const newToy = {
-      id: toyInventory.length + 10,
-      name: "Special Edition Bear",
-      rarity: "rare",
-      acquiredDate: new Date().toISOString().split('T')[0],
-      qrCode: newToyCode,
-      image: "🧸"
-    };
+    try {
+      const response = await apiRequest('POST', '/api/toys/scan', {
+        qrCode: newToyCode
+      });
 
-    setToyInventory([...toyInventory, newToy]);
-    setNewToyCode("");
-    
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Mainan berhasil ditambahkan ke koleksi" : "Toy added to collection",
-    });
+      // Refresh toy inventory
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      
+      setNewToyCode("");
+      
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Mainan Doluruu berhasil diaktifkan dan ditambahkan ke koleksi!" : "Doluruu toy successfully activated and added to collection!",
+      });
+    } catch (error: any) {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal mengaktifkan mainan" : "Failed to activate toy"),
+        variant: "destructive"
+      });
+    }
   };
 
   const createMarketplaceListing = () => {
@@ -2009,27 +2013,57 @@ export default function CompleteApp() {
             </div>
 
 
-            {/* Add New Toy Section */}
-            <Card className="bg-blue-50 border-blue-200">
+            {/* QR Code Scanner Section */}
+            <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 text-blue-900">
-                  {language === "id" ? "Tambah Mainan Baru" : "Add New Toy"}
+                <h3 className="text-lg font-semibold mb-4 text-purple-900">
+                  {language === "id" ? "Aktifkan Mainan Doluruu" : "Activate Doluruu Toy"}
                 </h3>
-                <div className="flex space-x-2">
-                  <Input
-                    placeholder={language === "id" ? "Masukkan kode unik mainan" : "Enter unique toy code"}
-                    value={newToyCode}
-                    onChange={(e) => setNewToyCode(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={addToyByCode} className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {language === "id" ? "Tambah" : "Add"}
-                  </Button>
+                <div className="space-y-4">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder={language === "id" ? "Masukkan QR Code mainan (contoh: QR-DOL-RED-1000)" : "Enter toy QR Code (e.g. QR-DOL-RED-1000)"}
+                      value={newToyCode}
+                      onChange={(e) => setNewToyCode(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button onClick={addToyByCode} className="bg-purple-600 hover:bg-purple-700">
+                      <QrCode className="w-4 h-4 mr-2" />
+                      {language === "id" ? "Aktifkan" : "Activate"}
+                    </Button>
+                  </div>
+                  <div className="bg-purple-100 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">
+                      {language === "id" ? "Cara Mengaktifkan Mainan:" : "How to Activate Toys:"}
+                    </h4>
+                    <ol className="text-sm text-purple-700 space-y-1">
+                      <li>1. {language === "id" ? "Beli mainan Doluruu dari toko fisik" : "Purchase Doluruu toy from physical store"}</li>
+                      <li>2. {language === "id" ? "Temukan QR code di kemasan mainan" : "Find QR code on toy packaging"}</li>
+                      <li>3. {language === "id" ? "Masukkan kode QR di atas untuk mengaktifkan" : "Enter QR code above to activate"}</li>
+                      <li>4. {language === "id" ? "Mainan akan ditambahkan ke koleksi Anda!" : "Toy will be added to your collection!"}</li>
+                    </ol>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2 mt-4">
+                    {["red", "blue", "orange", "green", "white", "purple", "secret"].map(color => (
+                      <div key={color} className="text-center">
+                        <div className={`w-8 h-8 rounded-full mx-auto mb-1 ${
+                          color === "red" ? "bg-red-500" :
+                          color === "blue" ? "bg-blue-500" :
+                          color === "orange" ? "bg-orange-500" :
+                          color === "green" ? "bg-green-500" :
+                          color === "white" ? "bg-gray-200 border border-gray-400" :
+                          color === "purple" ? "bg-purple-500" :
+                          "bg-gradient-to-r from-purple-600 to-pink-600"
+                        }`}></div>
+                        <p className="text-xs text-gray-600 capitalize">{color}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-center text-sm text-purple-600">
+                    <p className="font-medium">Season 1 Collection - 7,000 toys available</p>
+                    <p className="text-xs mt-1">1,000 secret rarity • 6,000 common rarity</p>
+                  </div>
                 </div>
-                <p className="text-sm text-blue-600 mt-2">
-                  {language === "id" ? "Pindai QR code mainan untuk mendapatkan kode unik" : "Scan toy QR code to get the unique code"}
-                </p>
               </CardContent>
             </Card>
 
