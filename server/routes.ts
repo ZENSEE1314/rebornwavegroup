@@ -795,12 +795,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Calculate loyalty points from completed purchases (1 point per RP 10,000)
-      const purchases = await storage.getPendingPurchasesByUserId(userId);
-      const completedPurchases = purchases.filter((p: any) => p.status === 'completed' && p.buyerId === userId);
-      const loyaltyPoints = completedPurchases.reduce((total: number, purchase: any) => {
-        return total + Math.floor(parseFloat(purchase.amount) / 10000);
-      }, 0);
+      // Get loyalty points directly from user database record
+      const loyaltyPoints = user.loyaltyPoints || 0;
 
       // Calculate referral earnings and get referral data
       const referralEarnings = await storage.calculateReferralEarnings(userId);
