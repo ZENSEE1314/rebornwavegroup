@@ -209,22 +209,11 @@ export default function CompleteApp() {
     showNextAchievement();
   }, [achievementQueue]);
 
-  // Show achievements based on actual user progress
-  const showAvailableAchievements = () => {
-    const currentReferralCount = userReferrals.length;
-    const nextMilestone = allAchievements
-      .filter(achievement => achievement.type === 'referral')
-      .find(milestone => milestone.count > currentReferralCount);
-    
-    if (nextMilestone) {
-      setAchievementQueue(prev => [...prev, nextMilestone]);
-    } else {
-      // Show spending achievement if all referral milestones are completed
-      const spendingAchievement = allAchievements.find(a => a.type === 'spending');
-      if (spendingAchievement) {
-        setAchievementQueue(prev => [...prev, spendingAchievement]);
-      }
-    }
+  // Show achievement rules instead of pop-ups
+  const [showAchievementRules, setShowAchievementRules] = useState(false);
+  
+  const toggleAchievementRules = () => {
+    setShowAchievementRules(!showAchievementRules);
   };
 
   // Reset achievement tracking for testing
@@ -1582,7 +1571,7 @@ export default function CompleteApp() {
                   <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
                   <Button 
                     size="sm" 
-                    onClick={showAvailableAchievements}
+                    onClick={toggleAchievementRules}
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     <Trophy className="w-4 h-4 mr-1" />
@@ -1864,6 +1853,142 @@ export default function CompleteApp() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Achievement Rules Panel */}
+        {showAchievementRules && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {language === "id" ? "Aturan Pencapaian & Poin" : "Achievement Rules & Points"}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAchievementRules(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Referral Points Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                  <h4 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <Users className="w-5 h-5 mr-2" />
+                    {language === "id" ? "Poin Rujukan" : "Referral Points"}
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">
+                        {language === "id" ? "Setiap rujukan berhasil:" : "Each successful referral:"}
+                      </span>
+                      <span className="font-bold text-blue-600">+50 {language === "id" ? "poin" : "points"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">
+                        {language === "id" ? "Bonus setiap 5 rujukan:" : "Bonus every 5 referrals:"}
+                      </span>
+                      <span className="font-bold text-purple-600">+150 {language === "id" ? "poin" : "points"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Referral Milestones */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                  <h4 className="text-lg font-semibold text-green-800 mb-3 flex items-center">
+                    <Target className="w-5 h-5 mr-2" />
+                    {language === "id" ? "Target Rujukan" : "Referral Milestones"}
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {allAchievements.filter(a => a.type === 'referral').map((achievement, index) => (
+                      <div key={index} className="flex justify-between items-center bg-white rounded p-3 shadow-sm">
+                        <span className="text-gray-700 font-medium">{achievement.count} {language === "id" ? "rujukan" : "referrals"}</span>
+                        <span className="font-bold text-green-600">
+                          {achievement.count === 1 ? '50' : 
+                           achievement.count === 5 ? '400' :
+                           achievement.count === 10 ? '650' :
+                           achievement.count === 15 ? '900' :
+                           achievement.count === 20 ? '1150' :
+                           achievement.count === 25 ? '1400' :
+                           '2650'} {language === "id" ? "poin" : "points"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Spending Achievement */}
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
+                  <h4 className="text-lg font-semibold text-orange-800 mb-3 flex items-center">
+                    <Star className="w-5 h-5 mr-2" />
+                    {language === "id" ? "Pencapaian Belanja" : "Spending Achievement"}
+                  </h4>
+                  <div className="bg-white rounded p-3 shadow-sm">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {language === "id" ? "Mentor Belanja" : "Shopping Mentor"}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {language === "id" 
+                            ? "5 rujukan yang masing-masing belanja RP 10,000,000" 
+                            : "5 referrals each spending RP 10,000,000"}
+                        </p>
+                      </div>
+                      <span className="font-bold text-orange-600">+100 {language === "id" ? "poin" : "points"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Progress */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+                  <h4 className="text-lg font-semibold text-purple-800 mb-3 flex items-center">
+                    <Trophy className="w-5 h-5 mr-2" />
+                    {language === "id" ? "Progres Saat Ini" : "Current Progress"}
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">
+                        {language === "id" ? "Total Rujukan:" : "Total Referrals:"}
+                      </span>
+                      <span className="font-bold text-purple-600">{userReferrals.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">
+                        {language === "id" ? "Total Poin:" : "Total Points:"}
+                      </span>
+                      <span className="font-bold text-purple-600">{loyaltyPoints}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">
+                        {language === "id" ? "Target Berikutnya:" : "Next Milestone:"}
+                      </span>
+                      <span className="font-bold text-gray-800">
+                        {allAchievements.filter(a => a.type === 'referral').find(m => m.count > userReferrals.length)?.count || 
+                         (language === "id" ? "Semua tercapai!" : "All completed!")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* How Points Work */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                    {language === "id" ? "Cara Kerja Poin" : "How Points Work"}
+                  </h4>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p>• {language === "id" ? "Poin diperoleh otomatis saat rujukan berhasil" : "Points are earned automatically when referrals are successful"}</p>
+                    <p>• {language === "id" ? "Bonus milestone diberikan setiap kelipatan 5 rujukan" : "Milestone bonuses are given every 5 referrals"}</p>
+                    <p>• {language === "id" ? "Poin dapat ditukar dengan kredit atau hadiah" : "Points can be exchanged for credits or rewards"}</p>
+                    <p>• {language === "id" ? "Tidak ada batas waktu untuk menggunakan poin" : "No time limit for using points"}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
