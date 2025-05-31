@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   role: varchar("role").default("user").notNull(), // 'user' | 'admin'
   credits: decimal("credits", { precision: 10, scale: 2 }).default("0.00").notNull(),
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
+  lifetimePoints: integer("lifetime_points").default(0).notNull(),
   level: integer("level").default(1).notNull(),
   referralCode: varchar("referral_code").unique().notNull(),
   referredById: varchar("referred_by_id"),

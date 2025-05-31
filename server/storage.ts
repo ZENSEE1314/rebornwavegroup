@@ -475,13 +475,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserPoints(userId: string, points: number): Promise<void> {
-    await db
-      .update(users)
-      .set({ 
-        loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId));
+    // Only update lifetime points when earning points (positive values)
+    if (points > 0) {
+      await db
+        .update(users)
+        .set({ 
+          loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`,
+          lifetimePoints: sql`${users.lifetimePoints} + ${points}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+    } else {
+      // When spending points, only decrease available points, not lifetime points
+      await db
+        .update(users)
+        .set({ 
+          loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+    }
   }
 
   // Admin operations

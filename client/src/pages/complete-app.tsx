@@ -33,7 +33,7 @@ export default function CompleteApp() {
 
   const userCredits = userStats ? parseFloat(userStats.credits) : 0;
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
-  const lifetimePoints = userStats?.loyaltyPoints || 0; // Using same value for now
+  const lifetimePoints = userStats?.lifetimePoints || 0;
   const referralEarnings = userStats?.referralEarnings || 0;
   
   // Use real appointments and rewards from database
@@ -146,12 +146,12 @@ export default function CompleteApp() {
     return loyaltyLevels.find(level => level.level === currentLevel.level + 1);
   };
 
-  const currentLoyaltyLevel = getLoyaltyLevel(loyaltyPoints);
+  const currentLoyaltyLevel = getLoyaltyLevel(lifetimePoints);
   const nextLoyaltyLevel = getNextLoyaltyLevel(currentLoyaltyLevel);
   
-  const loyaltyPointsToNext = nextLoyaltyLevel ? nextLoyaltyLevel.minPoints - loyaltyPoints : 0;
+  const loyaltyPointsToNext = nextLoyaltyLevel ? nextLoyaltyLevel.minPoints - lifetimePoints : 0;
   const loyaltyProgress = nextLoyaltyLevel ? 
-    Math.min(100, ((loyaltyPoints - currentLoyaltyLevel.minPoints) / (nextLoyaltyLevel.minPoints - currentLoyaltyLevel.minPoints)) * 100) : 100;
+    Math.min(100, ((lifetimePoints - currentLoyaltyLevel.minPoints) / (nextLoyaltyLevel.minPoints - currentLoyaltyLevel.minPoints)) * 100) : 100;
   
   // Achievement system state
   const [showAchievement, setShowAchievement] = useState(false);
@@ -1597,7 +1597,7 @@ export default function CompleteApp() {
                 {language === "id" ? "Selamat datang kembali" : "Welcome back"}, {user?.firstName || 'Candy'}!
               </h2>
               <p className="text-blue-100">
-                Level {currentLevelInfo.level} • {loyaltyPoints} {language === "id" ? "poin" : "points"} • RP {formatRupiah(userCredits)}
+                Level {currentLoyaltyLevel.level} • {loyaltyPoints} {language === "id" ? "poin" : "points"} • RP {formatRupiah(userCredits)}
               </p>
             </div>
 
