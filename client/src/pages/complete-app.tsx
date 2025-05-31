@@ -1574,7 +1574,7 @@ export default function CompleteApp() {
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     <Trophy className="w-4 h-4 mr-1" />
-                    {language === "id" ? "Test Pencapaian" : "Test Achievement"}
+                    {language === "id" ? "Pencapaian" : "Achievement"}
                   </Button>
                 </CardContent>
               </Card>
