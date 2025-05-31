@@ -2022,7 +2022,7 @@ export default function CompleteApp() {
                 <div className="space-y-4">
                   <div className="flex space-x-2">
                     <Input
-                      placeholder={language === "id" ? "Masukkan QR Code mainan (contoh: QR-DOL-RED-1000)" : "Enter toy QR Code (e.g. QR-DOL-RED-1000)"}
+                      placeholder={language === "id" ? "Masukkan QR Code mainan (contoh: QR-87b4a03b003a-07377ac9-53d8fd)" : "Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)"}
                       value={newToyCode}
                       onChange={(e) => setNewToyCode(e.target.value)}
                       className="flex-1"
@@ -2038,10 +2038,16 @@ export default function CompleteApp() {
                     </h4>
                     <ol className="text-sm text-purple-700 space-y-1">
                       <li>1. {language === "id" ? "Beli mainan Doluruu dari toko fisik" : "Purchase Doluruu toy from physical store"}</li>
-                      <li>2. {language === "id" ? "Temukan QR code di kemasan mainan" : "Find QR code on toy packaging"}</li>
-                      <li>3. {language === "id" ? "Masukkan kode QR di atas untuk mengaktifkan" : "Enter QR code above to activate"}</li>
-                      <li>4. {language === "id" ? "Mainan akan ditambahkan ke koleksi Anda!" : "Toy will be added to your collection!"}</li>
+                      <li>2. {language === "id" ? "Temukan QR code unik di kemasan mainan" : "Find unique QR code on toy packaging"}</li>
+                      <li>3. {language === "id" ? "Masukkan kode QR yang aman di atas untuk mengaktifkan" : "Enter secure QR code above to activate"}</li>
+                      <li>4. {language === "id" ? "Mainan akan ditambahkan ke koleksi digital Anda!" : "Toy will be added to your digital collection!"}</li>
                     </ol>
+                    <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
+                      <span className="font-semibold">
+                        {language === "id" ? "🔒 Sistem Keamanan:" : "🔒 Security System:"}
+                      </span>
+                      {language === "id" ? " Setiap QR code adalah unik dan tidak dapat ditebak untuk mencegah penambahan mainan tanpa izin." : " Each QR code is unique and unpredictable to prevent unauthorized toy additions."}
+                    </div>
                   </div>
                   <div className="grid grid-cols-7 gap-2 mt-4">
                     {["red", "blue", "orange", "green", "white", "purple", "secret"].map(color => (
