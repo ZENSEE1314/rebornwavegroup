@@ -48,6 +48,132 @@ export default function CompleteApp() {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
   const [newListingTitle, setNewListingTitle] = useState("");
+  
+  // Achievement system state
+  const [showAchievement, setShowAchievement] = useState(false);
+  const [currentAchievement, setCurrentAchievement] = useState(null);
+  const [achievementQueue, setAchievementQueue] = useState([]);
+  
+  // Referral achievement milestones
+  const referralMilestones = [
+    {
+      id: "first_referral",
+      count: 1,
+      title: language === "id" ? "Pengundang Pertama" : "First Inviter",
+      description: language === "id" ? "Undang teman pertama Anda!" : "Invite your first friend!",
+      reward: language === "id" ? "50,000 Poin Bonus" : "50,000 Bonus Points",
+      icon: Users,
+      color: "from-blue-500 to-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200"
+    },
+    {
+      id: "social_butterfly",
+      count: 5,
+      title: language === "id" ? "Kupu-kupu Sosial" : "Social Butterfly",
+      description: language === "id" ? "Undang 5 teman bergabung!" : "Invite 5 friends to join!",
+      reward: language === "id" ? "100,000 Poin + Badge Khusus" : "100,000 Points + Special Badge",
+      icon: Star,
+      color: "from-purple-500 to-purple-600",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200"
+    },
+    {
+      id: "network_builder",
+      count: 10,
+      title: language === "id" ? "Pembangun Jaringan" : "Network Builder",
+      description: language === "id" ? "Bangun jaringan dengan 10 undangan!" : "Build network with 10 invites!",
+      reward: language === "id" ? "250,000 Poin + Kredit 50,000" : "250,000 Points + 50,000 Credits",
+      icon: Trophy,
+      color: "from-amber-500 to-amber-600",
+      bgColor: "bg-amber-50",
+      borderColor: "border-amber-200"
+    },
+    {
+      id: "referral_champion",
+      count: 25,
+      title: language === "id" ? "Juara Rujukan" : "Referral Champion",
+      description: language === "id" ? "Mencapai 25 undangan sukses!" : "Achieve 25 successful invites!",
+      reward: language === "id" ? "500,000 Poin + Kredit 100,000" : "500,000 Points + 100,000 Credits",
+      icon: Crown,
+      color: "from-yellow-500 to-yellow-600",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200"
+    },
+    {
+      id: "master_networker",
+      count: 50,
+      title: language === "id" ? "Master Networker" : "Master Networker",
+      description: language === "id" ? "Raja undangan dengan 50 rujukan!" : "Invitation king with 50 referrals!",
+      reward: language === "id" ? "1,000,000 Poin + Kredit 250,000" : "1,000,000 Points + 250,000 Credits",
+      icon: Award,
+      color: "from-pink-500 to-pink-600",
+      bgColor: "bg-pink-50",
+      borderColor: "border-pink-200"
+    },
+    {
+      id: "legendary_ambassador",
+      count: 100,
+      title: language === "id" ? "Duta Legendaris" : "Legendary Ambassador",
+      description: language === "id" ? "Status legendaris dengan 100 rujukan!" : "Legendary status with 100 referrals!",
+      reward: language === "id" ? "2,000,000 Poin + Kredit 500,000 + Hadiah Khusus" : "2,000,000 Points + 500,000 Credits + Special Gift",
+      icon: Medal,
+      color: "from-gradient-to-r from-purple-600 to-pink-600",
+      bgColor: "bg-gradient-to-r from-purple-50 to-pink-50",
+      borderColor: "border-gradient-to-r from-purple-200 to-pink-200"
+    }
+  ];
+
+  // Achievement tracking functions
+  const checkReferralAchievements = (referralCount) => {
+    const newAchievements = [];
+    referralMilestones.forEach(milestone => {
+      if (referralCount === milestone.count) {
+        newAchievements.push(milestone);
+      }
+    });
+    
+    if (newAchievements.length > 0) {
+      setAchievementQueue(prev => [...prev, ...newAchievements]);
+    }
+  };
+
+  const showNextAchievement = () => {
+    if (achievementQueue.length > 0 && !showAchievement) {
+      const nextAchievement = achievementQueue[0];
+      setCurrentAchievement(nextAchievement);
+      setShowAchievement(true);
+      setAchievementQueue(prev => prev.slice(1));
+    }
+  };
+
+  const closeAchievement = () => {
+    setShowAchievement(false);
+    setCurrentAchievement(null);
+    // Show next achievement after a delay
+    setTimeout(() => {
+      showNextAchievement();
+    }, 500);
+  };
+
+  // Watch for referral count changes
+  useEffect(() => {
+    if (userReferrals.length > 0) {
+      checkReferralAchievements(userReferrals.length);
+    }
+  }, [userReferrals.length]);
+
+  // Process achievement queue
+  useEffect(() => {
+    showNextAchievement();
+  }, [achievementQueue]);
+
+  // Test function to simulate achievement (for demonstration)
+  const triggerTestAchievement = () => {
+    const testAchievement = referralMilestones[0]; // First referral achievement
+    setAchievementQueue(prev => [...prev, testAchievement]);
+  };
+  
   const [showPurchaseConfirmation, setShowPurchaseConfirmation] = useState(false);
   const [selectedPurchaseListing, setSelectedPurchaseListing] = useState(null);
   const [newListingPrice, setNewListingPrice] = useState("");
@@ -1391,7 +1517,15 @@ export default function CompleteApp() {
                   <p className="text-sm text-blue-600 font-medium">
                     {language === "id" ? "Rujukan" : "Referrals"}
                   </p>
-                  <p className="text-2xl font-bold text-blue-800">1</p>
+                  <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
+                  <Button 
+                    size="sm" 
+                    onClick={triggerTestAchievement}
+                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                  >
+                    <Trophy className="w-4 h-4 mr-1" />
+                    {language === "id" ? "Test Pencapaian" : "Test Achievement"}
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -2644,6 +2778,75 @@ export default function CompleteApp() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gamified Achievement Pop-up */}
+      {showAchievement && currentAchievement && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] animate-in fade-in duration-300">
+          <div className="relative bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl transform animate-in zoom-in-50 duration-500">
+            {/* Decorative elements */}
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
+              <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${currentAchievement.color} flex items-center justify-center shadow-lg animate-bounce`}>
+                <currentAchievement.icon className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            
+            {/* Sparkle effects */}
+            <div className="absolute top-4 left-4 w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
+            <div className="absolute top-8 right-6 w-1 h-1 bg-yellow-400 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+            <div className="absolute bottom-8 left-8 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
+            <div className="absolute bottom-6 right-4 w-1 h-1 bg-yellow-400 rounded-full animate-ping" style={{animationDelay: '1.5s'}}></div>
+            
+            <div className="mt-8 mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                {language === "id" ? "🎉 Pencapaian Baru!" : "🎉 Achievement Unlocked!"}
+              </h2>
+              <div className={`inline-block px-4 py-2 rounded-full ${currentAchievement.bgColor} ${currentAchievement.borderColor} border-2 mb-4`}>
+                <h3 className="text-lg font-bold text-gray-800">{currentAchievement.title}</h3>
+              </div>
+              <p className="text-gray-600 mb-4">{currentAchievement.description}</p>
+              
+              {/* Reward section */}
+              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm font-semibold text-amber-800 mb-1">
+                  {language === "id" ? "🏆 Hadiah Anda:" : "🏆 Your Reward:"}
+                </p>
+                <p className="text-lg font-bold text-amber-900">{currentAchievement.reward}</p>
+              </div>
+              
+              {/* Progress indicator */}
+              <div className="bg-gray-100 rounded-lg p-3 mb-6">
+                <p className="text-sm text-gray-600 mb-2">
+                  {language === "id" ? "Progres Rujukan:" : "Referral Progress:"}
+                </p>
+                <div className="flex items-center justify-center space-x-2">
+                  <span className="text-2xl font-bold text-purple-600">{userReferrals.length}</span>
+                  <span className="text-gray-500">/</span>
+                  <span className="text-lg text-gray-400">
+                    {referralMilestones.find(m => m.count > userReferrals.length)?.count || "∞"}
+                  </span>
+                  <Users className="w-5 h-5 text-purple-600 ml-2" />
+                </div>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={closeAchievement}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transform transition-all duration-200 hover:scale-105"
+            >
+              {language === "id" ? "Luar Biasa!" : "Awesome!"}
+            </Button>
+            
+            {/* Queue indicator */}
+            {achievementQueue.length > 0 && (
+              <p className="text-xs text-gray-500 mt-3">
+                {language === "id" 
+                  ? `${achievementQueue.length} pencapaian lagi menunggu...` 
+                  : `${achievementQueue.length} more achievements waiting...`}
+              </p>
+            )}
           </div>
         </div>
       )}
