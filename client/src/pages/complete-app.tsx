@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,73 +54,105 @@ export default function CompleteApp() {
   const [currentAchievement, setCurrentAchievement] = useState(null);
   const [achievementQueue, setAchievementQueue] = useState([]);
   
-  // Referral achievement milestones
-  const referralMilestones = [
+  // All achievement milestones
+  const allAchievements = [
+    // Referral Achievements (50 points each + 150 bonus every 5)
     {
-      id: "first_referral",
+      id: "referral_1",
+      type: "referral",
       count: 1,
       title: language === "id" ? "Pengundang Pertama" : "First Inviter",
       description: language === "id" ? "Undang teman pertama Anda!" : "Invite your first friend!",
-      reward: language === "id" ? "50 Poin Bonus" : "50 Bonus Points",
+      reward: language === "id" ? "50 Poin" : "50 Points",
       icon: Users,
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200"
     },
     {
-      id: "social_butterfly",
+      id: "referral_5",
+      type: "referral",
       count: 5,
       title: language === "id" ? "Kupu-kupu Sosial" : "Social Butterfly",
       description: language === "id" ? "Undang 5 teman bergabung!" : "Invite 5 friends to join!",
-      reward: language === "id" ? "150 Poin Tambahan + Badge Khusus" : "150 Additional Points + Special Badge",
+      reward: language === "id" ? "250 Poin + 150 Bonus" : "250 Points + 150 Bonus",
       icon: Star,
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
       borderColor: "border-purple-200"
     },
     {
-      id: "network_builder",
+      id: "referral_10",
+      type: "referral",
       count: 10,
       title: language === "id" ? "Pembangun Jaringan" : "Network Builder",
-      description: language === "id" ? "Bangun jaringan dengan 10 undangan!" : "Build network with 10 invites!",
-      reward: language === "id" ? "250,000 Poin + Kredit 50,000" : "250,000 Points + 50,000 Credits",
+      description: language === "id" ? "Bangun jaringan 10 referral!" : "Build a network of 10 referrals!",
+      reward: language === "id" ? "500 Poin + 300 Bonus" : "500 Points + 300 Bonus",
       icon: Trophy,
-      color: "from-amber-500 to-amber-600",
-      bgColor: "bg-amber-50",
-      borderColor: "border-amber-200"
+      color: "from-green-500 to-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200"
     },
     {
-      id: "referral_champion",
-      count: 25,
+      id: "referral_15",
+      type: "referral",
+      count: 15,
+      title: language === "id" ? "Agen Aktif" : "Active Agent",
+      description: language === "id" ? "Capai 15 referral aktif!" : "Reach 15 active referrals!",
+      reward: language === "id" ? "750 Poin + 450 Bonus" : "750 Points + 450 Bonus",
+      icon: UserCheck,
+      color: "from-indigo-500 to-indigo-600",
+      bgColor: "bg-indigo-50",
+      borderColor: "border-indigo-200"
+    },
+    {
+      id: "referral_20",
+      type: "referral",
+      count: 20,
       title: language === "id" ? "Juara Rujukan" : "Referral Champion",
-      description: language === "id" ? "Mencapai 25 undangan sukses!" : "Achieve 25 successful invites!",
-      reward: language === "id" ? "500,000 Poin + Kredit 100,000" : "500,000 Points + 100,000 Credits",
+      description: language === "id" ? "Mencapai 20 undangan sukses!" : "Achieve 20 successful invites!",
+      reward: language === "id" ? "1,000 Poin + 600 Bonus" : "1,000 Points + 600 Bonus",
       icon: Crown,
       color: "from-yellow-500 to-yellow-600",
       bgColor: "bg-yellow-50",
       borderColor: "border-yellow-200"
     },
     {
-      id: "master_networker",
-      count: 50,
+      id: "referral_25",
+      type: "referral",
+      count: 25,
       title: language === "id" ? "Master Networker" : "Master Networker",
-      description: language === "id" ? "Raja undangan dengan 50 rujukan!" : "Invitation king with 50 referrals!",
-      reward: language === "id" ? "1,000,000 Poin + Kredit 250,000" : "1,000,000 Points + 250,000 Credits",
+      description: language === "id" ? "Raja undangan dengan 25 rujukan!" : "Invitation king with 25 referrals!",
+      reward: language === "id" ? "1,250 Poin + 750 Bonus" : "1,250 Points + 750 Bonus",
       icon: Award,
       color: "from-pink-500 to-pink-600",
       bgColor: "bg-pink-50",
       borderColor: "border-pink-200"
     },
     {
-      id: "legendary_ambassador",
-      count: 100,
+      id: "referral_50",
+      type: "referral",
+      count: 50,
       title: language === "id" ? "Duta Legendaris" : "Legendary Ambassador",
-      description: language === "id" ? "Status legendaris dengan 100 rujukan!" : "Legendary status with 100 referrals!",
-      reward: language === "id" ? "2,000,000 Poin + Kredit 500,000 + Hadiah Khusus" : "2,000,000 Points + 500,000 Credits + Special Gift",
+      description: language === "id" ? "Status legendaris dengan 50 rujukan!" : "Legendary status with 50 referrals!",
+      reward: language === "id" ? "2,500 Poin + 1,500 Bonus" : "2,500 Points + 1,500 Bonus",
       icon: Medal,
-      color: "from-gradient-to-r from-purple-600 to-pink-600",
+      color: "from-purple-600 to-pink-600",
       bgColor: "bg-gradient-to-r from-purple-50 to-pink-50",
       borderColor: "border-gradient-to-r from-purple-200 to-pink-200"
+    },
+    // Spending Achievement
+    {
+      id: "spending_milestone",
+      type: "spending",
+      count: 5,
+      title: language === "id" ? "Mentor Belanja" : "Shopping Mentor",
+      description: language === "id" ? "5 referral Anda menghabiskan 10,000,000 RP masing-masing" : "5 of your referrals spend 10,000,000 RP each",
+      reward: language === "id" ? "100 Poin Bonus" : "100 Bonus Points",
+      icon: DollarSign,
+      color: "from-emerald-500 to-emerald-600",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-200"
     }
   ];
 
@@ -129,7 +161,7 @@ export default function CompleteApp() {
     const seenAchievements = JSON.parse(localStorage.getItem('seenAchievements') || '[]');
     const newAchievements = [];
     
-    referralMilestones.forEach(milestone => {
+    allAchievements.filter(achievement => achievement.type === 'referral').forEach(milestone => {
       if (referralCount === milestone.count && !seenAchievements.includes(milestone.id)) {
         newAchievements.push(milestone);
       }
@@ -179,7 +211,7 @@ export default function CompleteApp() {
 
   // Test function to simulate achievement (for demonstration)
   const triggerTestAchievement = () => {
-    const testAchievement = referralMilestones[0]; // First referral achievement
+    const testAchievement = allAchievements[0]; // First referral achievement
     setAchievementQueue(prev => [...prev, testAchievement]);
   };
 
@@ -2843,7 +2875,7 @@ export default function CompleteApp() {
                   <span className="text-2xl font-bold text-purple-600">{userReferrals.length}</span>
                   <span className="text-gray-500">/</span>
                   <span className="text-lg text-gray-400">
-                    {referralMilestones.find(m => m.count > userReferrals.length)?.count || "∞"}
+                    {allAchievements.filter(a => a.type === 'referral').find(m => m.count > userReferrals.length)?.count || "∞"}
                   </span>
                   <Users className="w-5 h-5 text-purple-600 ml-2" />
                 </div>
