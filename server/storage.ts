@@ -159,6 +159,24 @@ export class DatabaseStorage implements IStorage {
     throw new Error("Failed to generate unique referral code");
   }
 
+  // Generate secure random QR code for toys
+  private generateSecureQRCode(): string {
+    return `QR-${nanoid(12)}-${nanoid(8)}-${nanoid(6)}`;
+  }
+
+  // Update all toys with secure random QR codes
+  async updateAllToysWithSecureQRCodes(): Promise<void> {
+    const allToys = await db.select().from(toys);
+    
+    for (const toy of allToys) {
+      const newQRCode = this.generateSecureQRCode();
+      await db
+        .update(toys)
+        .set({ qrCode: newQRCode })
+        .where(eq(toys.id, toy.id));
+    }
+  }
+
   async getReferralsByUserId(userId: string): Promise<Referral[]> {
     return await db
       .select()

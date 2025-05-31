@@ -792,6 +792,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Migration route to update all toys with secure random QR codes
+  app.post('/api/toys/migrate-qr-codes', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.updateAllToysWithSecureQRCodes();
+      res.json({ message: 'All toys updated with secure random QR codes' });
+    } catch (error) {
+      console.error("Error migrating QR codes:", error);
+      res.status(500).json({ message: "Failed to migrate QR codes" });
+    }
+  });
+
   // Cancel pending purchase route
   app.post('/api/pending-purchases/:purchaseId/cancel', isAuthenticated, async (req: any, res) => {
     try {
