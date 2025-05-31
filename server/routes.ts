@@ -425,27 +425,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available toys for purchase (not yet purchased)
+  app.get("/api/toys/available", async (req, res) => {
+    try {
+      const toys = await storage.getAvailableToysForPurchase();
+      res.json(toys);
+    } catch (error) {
+      console.error("Error fetching available toys:", error);
+      res.status(500).json({ message: "Failed to fetch available toys" });
+    }
+  });
+
+  // Purchase a toy
+  app.post("/api/toys/:toyId/purchase", isAuthenticated, async (req: any, res) => {
+    try {
+      const toyId = parseInt(req.params.toyId);
+      const userId = req.user.claims.sub;
+      
+      await storage.purchaseToy(toyId, userId);
+      res.json({ message: "Toy purchased successfully" });
+    } catch (error) {
+      console.error("Error purchasing toy:", error);
+      res.status(500).json({ message: "Failed to purchase toy" });
+    }
+  });
+
+  // Activate toy with QR code (replaces the old scan functionality)
   app.post('/api/toys/scan', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { qrCode } = req.body;
       
-      const toy = await storage.getToyByQrCode(qrCode);
-      if (!toy) {
-        return res.status(404).json({ message: "Invalid QR code" });
+      const activatedToy = await storage.activateToyByQrCode(qrCode, userId);
+      
+      if (!activatedToy) {
+        return res.status(400).json({ message: "Failed to activate toy" });
       }
-      
-      if (toy.ownerId) {
-        return res.status(400).json({ message: "Toy already claimed" });
-      }
-      
-      // Assign toy to user
-      await storage.updateToyOwner(toy.id, userId);
-      
-      res.json({ message: "Toy added to your collection!", toy });
-    } catch (error) {
-      console.error("Error scanning QR code:", error);
-      res.status(500).json({ message: "Failed to scan QR code" });
+
+      res.json({ 
+        message: "Toy activated successfully!", 
+        toy: activatedToy 
+      });
+    } catch (error: any) {
+      console.error("Error activating toy:", error);
+      res.status(400).json({ message: error.message || "Failed to activate toy" });
     }
   });
 
