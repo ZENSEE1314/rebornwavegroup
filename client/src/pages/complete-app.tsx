@@ -325,10 +325,28 @@ export default function CompleteApp() {
     enabled: !!user?.id,
   });
 
-  const [redemptionHistory, setRedemptionHistory] = useState([
-    { id: 1, date: "2025-05-15", reward: "Lucky Cat", pointsSpent: 50, status: "completed" },
-    { id: 2, date: "2025-05-01", reward: language === "id" ? "Diskon 10%" : "10% Discount", pointsSpent: 25, status: "used" }
-  ]);
+  // Fetch redemption history from database (filter for 'redeemed' type)
+  const { data: redemptionHistory = [] } = useQuery({
+    queryKey: ['/api/points-history', user?.id, 'redeemed'],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const response = await fetch(`/api/points-history/${user?.id}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch redemption history');
+      const data = await response.json();
+      // Filter for only redeemed items and format for redemption display
+      return data
+        .filter((item: any) => item.type === 'redeemed')
+        .map((item: any) => ({
+          id: item.id,
+          date: new Date(item.createdAt).toLocaleDateString(),
+          reward: item.description.replace('Redeemed: ', ''),
+          pointsSpent: Math.abs(item.points),
+          status: "completed"
+        }));
+    }
+  });
 
   // Marketplace listings (user-created)
   const [userListings, setUserListings] = useState([
