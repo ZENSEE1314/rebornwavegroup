@@ -209,10 +209,22 @@ export default function CompleteApp() {
     showNextAchievement();
   }, [achievementQueue]);
 
-  // Test function to simulate achievement (for demonstration)
-  const triggerTestAchievement = () => {
-    const testAchievement = allAchievements[0]; // First referral achievement
-    setAchievementQueue(prev => [...prev, testAchievement]);
+  // Show achievements based on actual user progress
+  const showAvailableAchievements = () => {
+    const currentReferralCount = userReferrals.length;
+    const nextMilestone = allAchievements
+      .filter(achievement => achievement.type === 'referral')
+      .find(milestone => milestone.count > currentReferralCount);
+    
+    if (nextMilestone) {
+      setAchievementQueue(prev => [...prev, nextMilestone]);
+    } else {
+      // Show spending achievement if all referral milestones are completed
+      const spendingAchievement = allAchievements.find(a => a.type === 'spending');
+      if (spendingAchievement) {
+        setAchievementQueue(prev => [...prev, spendingAchievement]);
+      }
+    }
   };
 
   // Reset achievement tracking for testing
@@ -1570,7 +1582,7 @@ export default function CompleteApp() {
                   <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
                   <Button 
                     size="sm" 
-                    onClick={triggerTestAchievement}
+                    onClick={showAvailableAchievements}
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     <Trophy className="w-4 h-4 mr-1" />
