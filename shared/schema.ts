@@ -89,11 +89,14 @@ export const toys = pgTable("toys", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   series: varchar("series").notNull(),
-  rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare'
+  rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare' | 'secret'
+  color: varchar("color"), // 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'pink'
   qrCode: varchar("qr_code").unique().notNull(),
   imageUrl: varchar("image_url"),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   ownerId: varchar("owner_id"),
+  isActivated: boolean("is_activated").default(false),
+  purchasedBy: varchar("purchased_by"),
   isForSale: boolean("is_for_sale").default(false),
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),

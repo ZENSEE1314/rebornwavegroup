@@ -35,7 +35,7 @@ import {
   type PointsHistory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, or } from "drizzle-orm";
+import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 // Interface for storage operations
@@ -67,6 +67,9 @@ export interface IStorage {
   getAllToys(): Promise<Toy[]>;
   getToyByQrCode(qrCode: string): Promise<Toy | undefined>;
   updateToyOwner(toyId: number, newOwnerId: string): Promise<void>;
+  activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null>;
+  getAvailableToysForPurchase(): Promise<Toy[]>;
+  purchaseToy(toyId: number, userId: string): Promise<void>;
   
   // Marketplace operations
   createListing(listing: InsertListing): Promise<Listing>;
@@ -311,6 +314,61 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(toys)
       .set({ ownerId: newOwnerId, updatedAt: new Date() })
+      .where(eq(toys.id, toyId));
+  }
+
+  async activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null> {
+    const [toy] = await db
+      .select()
+      .from(toys)
+      .where(eq(toys.qrCode, qrCode));
+
+    if (!toy) {
+      throw new Error("Invalid QR code");
+    }
+
+    if (toy.isActivated) {
+      throw new Error("This toy has already been activated");
+    }
+
+    if (!toy.purchasedBy) {
+      throw new Error("This toy has not been purchased yet");
+    }
+
+    if (toy.purchasedBy !== userId) {
+      throw new Error("You can only activate toys you have purchased");
+    }
+
+    const [updatedToy] = await db
+      .update(toys)
+      .set({ 
+        isActivated: true, 
+        ownerId: userId,
+        updatedAt: new Date() 
+      })
+      .where(eq(toys.qrCode, qrCode))
+      .returning();
+
+    return updatedToy;
+  }
+
+  async getAvailableToysForPurchase(): Promise<Toy[]> {
+    return await db
+      .select()
+      .from(toys)
+      .where(and(
+        sql`${toys.purchasedBy} IS NULL`,
+        eq(toys.isActivated, false)
+      ));
+  }
+
+  async purchaseToy(toyId: number, userId: string): Promise<void> {
+    await db
+      .update(toys)
+      .set({ 
+        purchasedBy: userId,
+        updatedAt: new Date() 
+      })
       .where(eq(toys.id, toyId));
   }
 
