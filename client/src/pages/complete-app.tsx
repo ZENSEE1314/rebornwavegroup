@@ -41,6 +41,15 @@ export default function CompleteApp() {
   const pointRedemptions = userStats?.pointRedemptions || [];
   const userReferrals = userStats?.referrals || [];
 
+  const [language, setLanguage] = useState("en");
+  const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
+  const [profileImage, setProfileImage] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [newToyCode, setNewToyCode] = useState("");
+  const [newListingTitle, setNewListingTitle] = useState("");
+
   // 5-Level Loyalty Program System
   const loyaltyLevels = [
     { 
@@ -129,27 +138,20 @@ export default function CompleteApp() {
     }
   ];
 
-  const getCurrentLevel = (points) => {
+  const getLoyaltyLevel = (points) => {
     return loyaltyLevels.find(level => points >= level.minPoints && points <= level.maxPoints) || loyaltyLevels[0];
   };
 
-  const getNextLevel = (currentLevel) => {
+  const getNextLoyaltyLevel = (currentLevel) => {
     return loyaltyLevels.find(level => level.level === currentLevel.level + 1);
   };
 
-  const currentLevelInfo = getCurrentLevel(loyaltyPoints);
-  const nextLevelInfo = getNextLevel(currentLevelInfo);
+  const currentLoyaltyLevel = getLoyaltyLevel(loyaltyPoints);
+  const nextLoyaltyLevel = getNextLoyaltyLevel(currentLoyaltyLevel);
   
-  const pointsToNextLevel = nextLevelInfo ? nextLevelInfo.minPoints - loyaltyPoints : 0;
-  const progressPercentage = nextLevelInfo ? 
-    Math.min(100, ((loyaltyPoints - currentLevelInfo.minPoints) / (nextLevelInfo.minPoints - currentLevelInfo.minPoints)) * 100) : 100;
-  const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
-  const [profileImage, setProfileImage] = useState(null);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [newToyCode, setNewToyCode] = useState("");
-  const [newListingTitle, setNewListingTitle] = useState("");
+  const loyaltyPointsToNext = nextLoyaltyLevel ? nextLoyaltyLevel.minPoints - loyaltyPoints : 0;
+  const loyaltyProgress = nextLoyaltyLevel ? 
+    Math.min(100, ((loyaltyPoints - currentLoyaltyLevel.minPoints) / (nextLoyaltyLevel.minPoints - currentLoyaltyLevel.minPoints)) * 100) : 100;
   
   // Achievement system state
   const [showAchievement, setShowAchievement] = useState(false);
@@ -1806,16 +1808,19 @@ export default function CompleteApp() {
             </div>
 
             {/* Current Status */}
-            <Card className={`${currentLevelInfo.bgColor} border-2`}>
+            <Card className={`${currentLoyaltyLevel.bgColor} border-2`}>
               <CardContent className="p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-4">
-                    <div className={`w-16 h-16 bg-gradient-to-br ${currentLevelInfo.color} rounded-full flex items-center justify-center`}>
-                      <currentLevelInfo.icon className="w-8 h-8 text-white" />
+                    <div className={`w-16 h-16 bg-gradient-to-br ${currentLoyaltyLevel.color} rounded-full flex items-center justify-center`}>
+                      <currentLoyaltyLevel.icon className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-slate-900">{currentLevelInfo.name}</h3>
-                      <p className="text-slate-600">Level {currentLevelInfo.level}</p>
+                      <h3 className="text-2xl font-bold text-slate-900">{currentLoyaltyLevel.name}</h3>
+                      <p className="text-slate-600">Level {currentLoyaltyLevel.level}</p>
+                      {currentLoyaltyLevel.discount > 0 && (
+                        <p className="text-green-600 font-semibold">{currentLoyaltyLevel.discount}% {language === "id" ? "diskon aktif" : "discount active"}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -1824,17 +1829,17 @@ export default function CompleteApp() {
                   </div>
                 </div>
 
-                {nextLevelInfo && (
+                {nextLoyaltyLevel && (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-slate-700">
-                        {language === "id" ? `Progress ke ${nextLevelInfo.name}` : `Progress to ${nextLevelInfo.name}`}
+                        {language === "id" ? `Progress ke ${nextLoyaltyLevel.name}` : `Progress to ${nextLoyaltyLevel.name}`}
                       </span>
                       <span className="text-sm text-slate-600">
-                        {pointsToNextLevel} {language === "id" ? "poin dibutuhkan" : "points needed"}
+                        {loyaltyPointsToNext} {language === "id" ? "poin dibutuhkan" : "points needed"}
                       </span>
                     </div>
-                    <Progress value={progressPercentage} className="h-3" />
+                    <Progress value={loyaltyProgress} className="h-3" />
                   </div>
                 )}
               </CardContent>
