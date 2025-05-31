@@ -61,7 +61,7 @@ export default function CompleteApp() {
       count: 1,
       title: language === "id" ? "Pengundang Pertama" : "First Inviter",
       description: language === "id" ? "Undang teman pertama Anda!" : "Invite your first friend!",
-      reward: language === "id" ? "50,000 Poin Bonus" : "50,000 Bonus Points",
+      reward: language === "id" ? "50 Poin Bonus" : "50 Bonus Points",
       icon: Users,
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-50",
@@ -72,7 +72,7 @@ export default function CompleteApp() {
       count: 5,
       title: language === "id" ? "Kupu-kupu Sosial" : "Social Butterfly",
       description: language === "id" ? "Undang 5 teman bergabung!" : "Invite 5 friends to join!",
-      reward: language === "id" ? "100,000 Poin + Badge Khusus" : "100,000 Points + Special Badge",
+      reward: language === "id" ? "150 Poin Tambahan + Badge Khusus" : "150 Additional Points + Special Badge",
       icon: Star,
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
@@ -126,9 +126,11 @@ export default function CompleteApp() {
 
   // Achievement tracking functions
   const checkReferralAchievements = (referralCount) => {
+    const seenAchievements = JSON.parse(localStorage.getItem('seenAchievements') || '[]');
     const newAchievements = [];
+    
     referralMilestones.forEach(milestone => {
-      if (referralCount === milestone.count) {
+      if (referralCount === milestone.count && !seenAchievements.includes(milestone.id)) {
         newAchievements.push(milestone);
       }
     });
@@ -148,6 +150,13 @@ export default function CompleteApp() {
   };
 
   const closeAchievement = () => {
+    if (currentAchievement) {
+      // Mark achievement as seen in localStorage
+      const seenAchievements = JSON.parse(localStorage.getItem('seenAchievements') || '[]');
+      seenAchievements.push(currentAchievement.id);
+      localStorage.setItem('seenAchievements', JSON.stringify(seenAchievements));
+    }
+    
     setShowAchievement(false);
     setCurrentAchievement(null);
     // Show next achievement after a delay
@@ -172,6 +181,15 @@ export default function CompleteApp() {
   const triggerTestAchievement = () => {
     const testAchievement = referralMilestones[0]; // First referral achievement
     setAchievementQueue(prev => [...prev, testAchievement]);
+  };
+
+  // Reset achievement tracking for testing
+  const resetAchievements = () => {
+    localStorage.removeItem('seenAchievements');
+    toast({
+      title: language === "id" ? "Reset Berhasil" : "Reset Successful",
+      description: language === "id" ? "Tracking pencapaian telah direset" : "Achievement tracking has been reset",
+    });
   };
   
   const [showPurchaseConfirmation, setShowPurchaseConfirmation] = useState(false);
