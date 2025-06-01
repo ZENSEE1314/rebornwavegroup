@@ -119,6 +119,7 @@ export default function EnhancedAdminDashboard() {
     type: "item",
     pointsCost: 0,
     stockQuantity: null,
+    creditAmount: "",
     imageUrl: "",
     isActive: true
   });
@@ -496,6 +497,7 @@ export default function EnhancedAdminDashboard() {
         type: "item",
         pointsCost: 0,
         stockQuantity: null,
+        creditAmount: "",
         imageUrl: "",
         isActive: true
       });
@@ -522,6 +524,7 @@ export default function EnhancedAdminDashboard() {
           type: "item",
           pointsCost: 0,
           stockQuantity: null,
+          creditAmount: "",
           imageUrl: "",
           isActive: true
         });
@@ -554,6 +557,7 @@ export default function EnhancedAdminDashboard() {
       type: reward.type,
       pointsCost: reward.pointsCost,
       stockQuantity: reward.stockQuantity,
+      creditAmount: reward.creditAmount || "",
       imageUrl: reward.imageUrl,
       isActive: reward.isActive
     });
@@ -2384,6 +2388,7 @@ export default function EnhancedAdminDashboard() {
                   <option value="service">Service</option>
                   <option value="discount">Discount</option>
                   <option value="voucher">Voucher</option>
+                  <option value="credit">Credit Reward</option>
                 </select>
               </div>
               <div>
@@ -2406,6 +2411,20 @@ export default function EnhancedAdminDashboard() {
                   className="bg-gray-800 border-gray-600 text-white"
                 />
               </div>
+              
+              {rewardForm.type === 'credit' && (
+                <div>
+                  <Label htmlFor="credit-amount" className="text-gray-300">Credit Amount (RP)</Label>
+                  <Input
+                    id="credit-amount"
+                    type="number"
+                    value={rewardForm.creditAmount || ""}
+                    onChange={(e) => setRewardForm({...rewardForm, creditAmount: e.target.value})}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="Enter credit amount in RP"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor="reward-image" className="text-gray-300">Image URL</Label>
                 <Input
@@ -2466,6 +2485,7 @@ export default function EnhancedAdminDashboard() {
                     type: "item",
                     pointsCost: 0,
                     stockQuantity: null,
+                    creditAmount: "",
                     imageUrl: "",
                     isActive: true
                   });
