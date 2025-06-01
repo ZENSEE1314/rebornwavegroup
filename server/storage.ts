@@ -99,6 +99,7 @@ export interface IStorage {
   // Purchase confirmation operations
   createPendingPurchase(purchase: InsertPendingPurchase): Promise<PendingPurchase>;
   getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]>;
+  getPendingPurchasesByListingId(listingId: number): Promise<PendingPurchase[]>;
   confirmPendingPurchase(purchaseId: number): Promise<void>;
   
   // Credit and points history operations
@@ -705,6 +706,33 @@ export class DatabaseStorage implements IStorage {
       .values(creditData)
       .returning();
     return credit;
+  }
+
+  async getPendingPurchasesByListingId(listingId: number): Promise<any[]> {
+    return await db
+      .select({
+        id: pendingPurchases.id,
+        listingId: pendingPurchases.listingId,
+        buyerId: pendingPurchases.buyerId,
+        sellerId: pendingPurchases.sellerId,
+        toyId: pendingPurchases.toyId,
+        amount: pendingPurchases.amount,
+        pointsEarned: pendingPurchases.pointsEarned,
+        status: pendingPurchases.status,
+        createdAt: pendingPurchases.createdAt,
+        toy: {
+          id: toys.id,
+          name: toys.name,
+          series: toys.series,
+          rarity: toys.rarity,
+          imageUrl: toys.imageUrl,
+          qrCode: toys.qrCode,
+        }
+      })
+      .from(pendingPurchases)
+      .leftJoin(toys, eq(pendingPurchases.toyId, toys.id))
+      .where(eq(pendingPurchases.listingId, listingId))
+      .orderBy(desc(pendingPurchases.createdAt));
   }
 
   async cancelPendingPurchase(purchaseId: number): Promise<void> {

@@ -417,7 +417,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/listings/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.updateListingStatus(parseInt(id), 'cancelled');
+      const listingId = parseInt(id);
+      
+      // First, check if there are any pending purchases for this listing
+      const pendingPurchases = await storage.getPendingPurchasesByListingId(listingId);
+      
+      // Cancel any pending purchases and refund credits
+      for (const purchase of pendingPurchases) {
+        if (purchase.status === 'pending_seller_confirmation') {
+          // Refund credits to buyer
+          const currentUser = await storage.getUser(purchase.buyerId);
+          if (currentUser) {
+            const currentCredits = parseFloat(currentUser.credits || '0');
+            const refundAmount = parseFloat(purchase.amount);
+            const newCredits = (currentCredits + refundAmount).toFixed(2);
+            await storage.updateUserCredits(purchase.buyerId, newCredits);
+            
+            // Create credit history for refund
+            await storage.createCreditHistory({
+              userId: purchase.buyerId,
+              amount: refundAmount.toFixed(2),
+              type: 'refund',
+              description: `Refund for cancelled listing: ${purchase.toy?.name || 'Toy'}`
+            });
+          }
+          
+          // Cancel the pending purchase
+          await storage.cancelPendingPurchase(purchase.id);
+        }
+      }
+      
+      // Cancel the listing
+      await storage.updateListingStatus(listingId, 'cancelled');
       res.json({ message: "Listing cancelled successfully" });
     } catch (error) {
       console.error("Error cancelling listing:", error);

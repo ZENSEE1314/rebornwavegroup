@@ -2526,7 +2526,6 @@ export default function CompleteApp() {
                 const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id && p.status === 'pending_seller_confirmation');
                 const isOwnListing = listing.sellerId === user?.id;
                 
-                console.log(`Listing ${listing.id}: pendingPurchase=`, pendingPurchase, `user.id=${user?.id}`);
                 
                 return (
                   <Card key={listing.id} className="hover:shadow-lg transition-shadow">
