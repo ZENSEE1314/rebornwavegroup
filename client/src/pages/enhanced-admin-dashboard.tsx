@@ -490,6 +490,10 @@ export default function EnhancedAdminDashboard() {
                 <FileText className="h-4 w-4 mr-2" />
                 Reports
               </TabsTrigger>
+              <TabsTrigger value="content" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Settings className="h-4 w-4 mr-2" />
+                Content Management
+              </TabsTrigger>
             </TabsList>
           </div>
 

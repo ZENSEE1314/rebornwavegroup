@@ -95,6 +95,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Promotion banner management routes
+  app.get('/api/admin/banners', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const banners = await storage.getAllPromotionBanners();
+      res.json(banners);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+      res.status(500).json({ message: "Failed to fetch banners" });
+    }
+  });
+
+  app.post('/api/admin/banners', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const banner = await storage.createPromotionBanner(req.body);
+      res.json(banner);
+    } catch (error) {
+      console.error("Error creating banner:", error);
+      res.status(500).json({ message: "Failed to create banner" });
+    }
+  });
+
+  app.put('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.updatePromotionBanner(parseInt(req.params.id), req.body);
+      res.json({ message: "Banner updated successfully" });
+    } catch (error) {
+      console.error("Error updating banner:", error);
+      res.status(500).json({ message: "Failed to update banner" });
+    }
+  });
+
+  app.delete('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deletePromotionBanner(parseInt(req.params.id));
+      res.json({ message: "Banner deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting banner:", error);
+      res.status(500).json({ message: "Failed to delete banner" });
+    }
+  });
+
+  // Appointment events management routes
+  app.get('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const events = await storage.getAllAppointmentEvents();
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching appointment events:", error);
+      res.status(500).json({ message: "Failed to fetch appointment events" });
+    }
+  });
+
+  app.post('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const event = await storage.createAppointmentEvent(req.body);
+      res.json(event);
+    } catch (error) {
+      console.error("Error creating appointment event:", error);
+      res.status(500).json({ message: "Failed to create appointment event" });
+    }
+  });
+
+  app.put('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.updateAppointmentEvent(parseInt(req.params.id), req.body);
+      res.json({ message: "Appointment event updated successfully" });
+    } catch (error) {
+      console.error("Error updating appointment event:", error);
+      res.status(500).json({ message: "Failed to update appointment event" });
+    }
+  });
+
+  app.delete('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deleteAppointmentEvent(parseInt(req.params.id));
+      res.json({ message: "Appointment event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting appointment event:", error);
+      res.status(500).json({ message: "Failed to delete appointment event" });
+    }
+  });
+
+  // Reward items management routes
+  app.get('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const items = await storage.getAllRewardItems();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching reward items:", error);
+      res.status(500).json({ message: "Failed to fetch reward items" });
+    }
+  });
+
+  app.post('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const item = await storage.createRewardItem(req.body);
+      res.json(item);
+    } catch (error) {
+      console.error("Error creating reward item:", error);
+      res.status(500).json({ message: "Failed to create reward item" });
+    }
+  });
+
+  app.put('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.updateRewardItem(parseInt(req.params.id), req.body);
+      res.json({ message: "Reward item updated successfully" });
+    } catch (error) {
+      console.error("Error updating reward item:", error);
+      res.status(500).json({ message: "Failed to update reward item" });
+    }
+  });
+
+  app.delete('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deleteRewardItem(parseInt(req.params.id));
+      res.json({ message: "Reward item deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting reward item:", error);
+      res.status(500).json({ message: "Failed to delete reward item" });
+    }
+  });
+
   app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

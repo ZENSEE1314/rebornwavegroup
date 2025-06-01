@@ -11,6 +11,9 @@ import {
   pendingPurchases,
   creditHistory,
   pointsHistory,
+  promotionBanners,
+  appointmentEvents,
+  rewardItems,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -22,6 +25,9 @@ import {
   type InsertPendingPurchase,
   type InsertCreditHistory,
   type InsertPointsHistory,
+  type InsertPromotionBanner,
+  type InsertAppointmentEvent,
+  type InsertRewardItem,
   type Appointment,
   type Transaction,
   type Toy,
@@ -33,6 +39,9 @@ import {
   type PendingPurchase,
   type CreditHistory,
   type PointsHistory,
+  type PromotionBanner,
+  type AppointmentEvent,
+  type RewardItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
