@@ -1277,8 +1277,8 @@ export default function CompleteApp() {
     // Add credit transaction to history
     createCreditHistoryMutation.mutate({
       userId: user?.id,
-      amount: `-${price}`,
-      type: 'purchase',
+      amount: price.toFixed(2),
+      type: 'debit',
       description: `${language === "id" ? "Beli" : "Purchase"} ${listing.toy?.name} (${language === "id" ? "Menunggu konfirmasi penjual" : "Pending seller confirmation"})`,
       relatedId: listing.id,
     });
