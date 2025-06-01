@@ -52,6 +52,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/users/genealogy-tree', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const genealogyTree = await storage.buildReferralGenealogyTree(userId);
+      res.json(genealogyTree);
+    } catch (error) {
+      console.error("Error building genealogy tree:", error);
+      res.status(500).json({ message: "Failed to build genealogy tree" });
+    }
+  });
+
   app.post('/api/users/apply-referral', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

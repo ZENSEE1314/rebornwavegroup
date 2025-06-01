@@ -16,6 +16,7 @@ import {
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import GenealogyTree from "@/components/genealogy-tree";
 
 export default function CompleteApp() {
   const { user } = useAuth();
@@ -3116,28 +3117,8 @@ export default function CompleteApp() {
                     </div>
                   </div>
                   
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold mb-2">
-                      {language === "id" ? "Pohon Rujukan Anda" : "Your Referral Tree"}
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      {userStats?.referrals?.length > 0 ? (
-                        userStats.referrals.map((referral: any) => (
-                          <div key={referral.id} className="flex justify-between">
-                            <span>
-                              {language === "id" ? "Rujukan" : "Referral"} #{referral.id}
-                            </span>
-                            <span className="text-green-600 font-medium">
-                              +RP {formatRupiah(parseFloat(referral.totalEarnings || '0'))}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-gray-500">
-                          {language === "id" ? "Belum ada rujukan" : "No referrals yet"}
-                        </div>
-                      )}
-                    </div>
+                  <div className="mt-6">
+                    <GenealogyTree />
                   </div>
                 </CardContent>
               </Card>
