@@ -11,13 +11,339 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
+
+// Pet Care Component
+function PetCareSection({ language, user }: { language: string; user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
+
+  // Fetch user's pets
+  const { data: pets = [], isLoading: petsLoading } = useQuery({
+    queryKey: ["/api/pets"],
+    retry: false,
+  });
+
+  const currentPet = pets[currentPetIndex];
+
+  // Fetch care status for current pet
+  const { data: careStatus } = useQuery({
+    queryKey: ["/api/pets", currentPet?.id, "care-status"],
+    enabled: !!currentPet?.id,
+    retry: false,
+  });
+
+  // Mutation for performing care activities
+  const careActivityMutation = useMutation({
+    mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
+      return apiRequest("POST", `/api/pets/${petId}/care/${careType}`, {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets", currentPet?.id, "care-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
+      if (data.allCompleted) {
+        toast({
+          title: "Daily Care Complete! 🎉",
+          description: "You've earned 1 token for completing all care activities today!",
+        });
+      } else {
+        toast({
+          title: "Care Activity Complete",
+          description: "Your pet feels better!",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Care Failed",
+        description: "Unable to perform care activity. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create new pet mutation
+  const createPetMutation = useMutation({
+    mutationFn: async (petData: { name: string; type: string }) => {
+      return apiRequest("POST", "/api/pets", {
+        ...petData,
+        happiness: 100,
+        hunger: 100,
+        cleanliness: 100,
+        energy: 100,
+        currentAge: 0,
+        growthStage: "baby",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: "Pet Created!",
+        description: "Your new digital pet is ready for care!",
+      });
+    },
+  });
+
+  const handleCareActivity = (careType: string) => {
+    if (!currentPet) return;
+    careActivityMutation.mutate({ petId: currentPet.id, careType });
+  };
+
+  const navigatePet = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : pets.length - 1));
+    } else {
+      setCurrentPetIndex((prev) => (prev < pets.length - 1 ? prev + 1 : 0));
+    }
+  };
+
+  const createSamplePet = () => {
+    createPetMutation.mutate({
+      name: `Pet ${pets.length + 1}`,
+      type: "dragon",
+    });
+  };
+
+  const getGrowthStageInfo = (stage: string) => {
+    const stages: any = {
+      baby: { label: "Baby", color: "bg-pink-100 text-pink-800" },
+      child: { label: "Child", color: "bg-blue-100 text-blue-800" },
+      teen: { label: "Teen", color: "bg-purple-100 text-purple-800" },
+      adult: { label: "Adult", color: "bg-green-100 text-green-800" },
+      elder: { label: "Elder", color: "bg-gray-100 text-gray-800" },
+    };
+    return stages[stage] || stages.baby;
+  };
+
+  if (petsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!pets.length) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+          </h2>
+          <p className="text-slate-600">
+            {language === "id" ? "Belum ada hewan peliharaan. Buat hewan digital pertama Anda!" : "You don't have any pets yet. Create your first digital pet!"}
+          </p>
+        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <Button onClick={createSamplePet} disabled={createPetMutation.isPending}>
+              <Plus className="w-4 h-4 mr-2" />
+              {language === "id" ? "Buat Hewan Pertama" : "Create Your First Pet"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const stageInfo = getGrowthStageInfo(currentPet?.growthStage || "baby");
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+        </h2>
+        <p className="text-slate-600">
+          {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
+        </p>
+      </div>
+
+      {/* Pet Navigation */}
+      {pets.length > 1 && (
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigatePet('prev')}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-gray-600">
+              Pet {currentPetIndex + 1} of {pets.length}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigatePet('next')}
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentPet && (
+        <>
+          {/* Pet Info */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl">{currentPet.name}</CardTitle>
+                <Badge className={stageInfo.color}>
+                  {stageInfo.label}
+                </Badge>
+              </div>
+              <p className="text-gray-600">
+                Age: {currentPet.currentAge} days • Type: {currentPet.type}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-red-500" />
+                    <span className="text-sm font-medium">Happiness</span>
+                  </div>
+                  <Progress value={currentPet.happiness} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.happiness}%</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 text-orange-500">🍎</span>
+                    <span className="text-sm font-medium">Hunger</span>
+                  </div>
+                  <Progress value={currentPet.hunger} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.hunger}%</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Cleanliness</span>
+                  </div>
+                  <Progress value={currentPet.cleanliness} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.cleanliness}%</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Bed className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm font-medium">Energy</span>
+                  </div>
+                  <Progress value={currentPet.energy} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.energy}%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily Care Activities */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === "id" ? "Aktivitas Perawatan Harian" : "Daily Care Activities"}</CardTitle>
+              <p className="text-sm text-gray-600">
+                {language === "id" ? "Selesaikan semua aktivitas untuk mendapatkan 1 token hari ini!" : "Complete all activities to earn 1 token today!"}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Button
+                  variant={careStatus?.fed ? "default" : "outline"}
+                  className="h-20 flex-col gap-2"
+                  onClick={() => handleCareActivity('fed')}
+                  disabled={careStatus?.fed || careActivityMutation.isPending}
+                >
+                  <span className="text-2xl">🍎</span>
+                  <span className="text-sm">Feed</span>
+                  {careStatus?.fed && <span className="text-xs">✓ Done</span>}
+                </Button>
+                <Button
+                  variant={careStatus?.bathed ? "default" : "outline"}
+                  className="h-20 flex-col gap-2"
+                  onClick={() => handleCareActivity('bathed')}
+                  disabled={careStatus?.bathed || careActivityMutation.isPending}
+                >
+                  <Droplets className="w-6 h-6" />
+                  <span className="text-sm">Bath</span>
+                  {careStatus?.bathed && <span className="text-xs">✓ Done</span>}
+                </Button>
+                <Button
+                  variant={careStatus?.slept ? "default" : "outline"}
+                  className="h-20 flex-col gap-2"
+                  onClick={() => handleCareActivity('slept')}
+                  disabled={careStatus?.slept || careActivityMutation.isPending}
+                >
+                  <Bed className="w-6 h-6" />
+                  <span className="text-sm">Sleep</span>
+                  {careStatus?.slept && <span className="text-xs">✓ Done</span>}
+                </Button>
+                <Button
+                  variant={careStatus?.cleaned ? "default" : "outline"}
+                  className="h-20 flex-col gap-2"
+                  onClick={() => handleCareActivity('cleaned')}
+                  disabled={careStatus?.cleaned || careActivityMutation.isPending}
+                >
+                  <Sparkles className="w-6 h-6" />
+                  <span className="text-sm">Clean</span>
+                  {careStatus?.cleaned && <span className="text-xs">✓ Done</span>}
+                </Button>
+              </div>
+
+              {careStatus?.allCareCompleted && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                  <div className="text-green-600 font-semibold mb-2">
+                    🎉 All Care Activities Complete!
+                  </div>
+                  <div className="text-sm text-green-700">
+                    {careStatus.tokenEarned 
+                      ? "You've earned your daily token!" 
+                      : "Daily token will be awarded shortly!"}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Progress Info */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-gray-600">
+                  Current Tokens: {user?.loyaltyPoints || 0}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Complete daily care to earn 1 token per day. Pets generate tokens for 100 days.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Create New Pet Button */}
+      <div className="text-center">
+        <Button
+          variant="outline"
+          onClick={createSamplePet}
+          disabled={createPetMutation.isPending}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          {language === "id" ? "Tambah Hewan Lain" : "Add Another Pet"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function CompleteApp() {
   const { user } = useAuth();
@@ -1750,6 +2076,7 @@ export default function CompleteApp() {
           <div className="flex space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide pb-2">
             {[
               { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
+              { id: "petcare", label: language === "id" ? "Perawatan Hewan" : "Pet Care", icon: Heart },
               { id: "loyalty", label: language === "id" ? "Loyalitas" : "Loyalty", icon: Star },
               { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
               { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
@@ -3416,6 +3743,11 @@ export default function CompleteApp() {
               </Card>
             </div>
           </div>
+        )}
+
+        {/* Pet Care Tab */}
+        {activeTab === "petcare" && (
+          <PetCareSection language={language} user={user} />
         )}
 
         {/* Profile Tab */}
