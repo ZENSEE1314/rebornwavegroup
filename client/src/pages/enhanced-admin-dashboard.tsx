@@ -66,6 +66,8 @@ export default function EnhancedAdminDashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const toysPerPage = 100;
   
   // Bulk upload states
   const [bulkToyData, setBulkToyData] = useState("");
@@ -157,6 +159,12 @@ export default function EnhancedAdminDashboard() {
       (ownerFilter === "unowned" && !toy.owner);
     return searchMatch && rarityMatch && ownerMatch;
   });
+
+  // Calculate pagination for toys
+  const totalPages = Math.ceil(filteredToys.length / toysPerPage);
+  const startIndex = (currentPage - 1) * toysPerPage;
+  const endIndex = startIndex + toysPerPage;
+  const paginatedToys = filteredToys.slice(startIndex, endIndex);
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
@@ -965,7 +973,7 @@ export default function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredToys.map((toy: any) => (
+                      {paginatedToys.map((toy: any) => (
                         <TableRow key={toy.id} className="border-white/10">
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-gray-300">{toy.series}</TableCell>
@@ -1052,6 +1060,64 @@ export default function EnhancedAdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
+                      <div className="text-sm text-gray-300">
+                        Showing {startIndex + 1} to {Math.min(endIndex, filteredToys.length)} of {filteredToys.length} toys
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={
+                                  currentPage === pageNum
+                                    ? "bg-blue-600 text-white border-blue-500"
+                                    : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
