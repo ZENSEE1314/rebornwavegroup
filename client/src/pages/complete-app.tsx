@@ -3148,7 +3148,7 @@ export default function CompleteApp() {
                     ) : (
                       <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                         <span className="text-white text-2xl font-bold">
-                          {(user?.firstName || 'C')[0].toUpperCase()}
+                          {(user?.firstName || user?.email?.split('@')[0] || 'U')[0].toUpperCase()}
                         </span>
                       </div>
                     )}
