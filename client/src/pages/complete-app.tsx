@@ -149,7 +149,9 @@ export default function CompleteApp() {
   const userReferrals = userStats?.referrals || [];
 
   const [language, setLanguage] = useState("en");
-  const [phoneNumber, setPhoneNumber] = useState("+62 812-3456-7890");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "+62 812-3456-7890");
+  const [firstName, setFirstName] = useState(user?.firstName || "");
+  const [lastName, setLastName] = useState(user?.lastName || "");
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
@@ -1483,12 +1485,46 @@ export default function CompleteApp() {
     }
   };
 
-  const saveProfile = () => {
-    setEditingProfile(false);
-    toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? "Profil berhasil diperbarui" : "Profile updated successfully",
-    });
+  const saveProfile = async () => {
+    try {
+      const response = await fetch('/api/auth/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          phoneNumber
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setEditingProfile(false);
+        
+        // Refresh user data
+        queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        
+        toast({
+          title: language === "id" ? "Berhasil!" : "Success!",
+          description: language === "id" ? "Profil berhasil diperbarui" : "Profile updated successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update profile",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      });
+    }
   };
 
   const getRarityColor = (rarity) => {
@@ -3222,7 +3258,8 @@ export default function CompleteApp() {
                           {language === "id" ? "Nama Depan" : "First Name"}
                         </label>
                         <Input 
-                          defaultValue={user?.firstName || 'Candy'} 
+                          value={firstName || user?.firstName || ''}
+                          onChange={(e) => setFirstName(e.target.value)}
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
                         />
@@ -3232,7 +3269,8 @@ export default function CompleteApp() {
                           {language === "id" ? "Nama Belakang" : "Last Name"}
                         </label>
                         <Input 
-                          defaultValue={user?.lastName || 'Heng'} 
+                          value={lastName || user?.lastName || ''}
+                          onChange={(e) => setLastName(e.target.value)}
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
                         />
