@@ -1907,7 +1907,7 @@ export default function EnhancedAdminDashboard() {
                 <Label htmlFor="banner-active" className="text-gray-300">Active</Label>
               </div>
             </div>
-            <DialogFooter>
+            <div className="flex justify-end space-x-2 mt-6">
               <Button variant="outline" onClick={() => setShowBannerDialog(false)}>
                 Cancel
               </Button>
@@ -1918,7 +1918,7 @@ export default function EnhancedAdminDashboard() {
               >
                 {createBannerMutation.isPending ? "Creating..." : "Create Banner"}
               </Button>
-            </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -1994,7 +1994,7 @@ export default function EnhancedAdminDashboard() {
                 <Label htmlFor="event-active" className="text-gray-300">Active</Label>
               </div>
             </div>
-            <DialogFooter>
+            <div className="flex justify-end space-x-2 mt-6">
               <Button variant="outline" onClick={() => setShowEventDialog(false)}>
                 Cancel
               </Button>
@@ -2005,7 +2005,7 @@ export default function EnhancedAdminDashboard() {
               >
                 {createEventMutation.isPending ? "Creating..." : "Create Event"}
               </Button>
-            </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -2092,7 +2092,7 @@ export default function EnhancedAdminDashboard() {
                 <Label htmlFor="reward-active" className="text-gray-300">Active</Label>
               </div>
             </div>
-            <DialogFooter>
+            <div className="flex justify-end space-x-2 mt-6">
               <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
                 Cancel
               </Button>
@@ -2103,7 +2103,7 @@ export default function EnhancedAdminDashboard() {
               >
                 {createRewardMutation.isPending ? "Creating..." : "Create Reward"}
               </Button>
-            </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
