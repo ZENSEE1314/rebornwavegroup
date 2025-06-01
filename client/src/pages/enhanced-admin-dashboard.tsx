@@ -425,7 +425,8 @@ export default function EnhancedAdminDashboard() {
         type: "banner",
         backgroundColor: "blue",
         displayOrder: 0,
-        isActive: true
+        isActive: true,
+        iconSymbol: ""
       });
     },
     onError: () => {
@@ -1789,7 +1790,8 @@ export default function EnhancedAdminDashboard() {
                                             type: banner.type || "banner",
                                             backgroundColor: banner.backgroundColor || "blue",
                                             displayOrder: banner.displayOrder,
-                                            isActive: banner.isActive
+                                            isActive: banner.isActive,
+                                            iconSymbol: banner.iconSymbol || ""
                                           });
                                           setShowBannerDialog(true);
                                         }}
