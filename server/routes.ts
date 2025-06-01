@@ -721,91 +721,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { amount, buyerId, listingId, sellerId, toyId, pointsEarned } = req.body;
-      
-      console.log("*** PURCHASE DEBUG: Request body:", req.body);
-      console.log("*** PURCHASE DEBUG: Authenticated user ID:", userId);
-      
-      // Verify the buyer ID matches the authenticated user
-      if (buyerId !== userId) {
-        console.log("*** PURCHASE DEBUG: Buyer ID mismatch");
-        return res.status(403).json({ message: "Unauthorized purchase attempt" });
-      }
+      const { amount, buyerId } = req.body;
       
       // Check if buyer has sufficient credits
       const buyer = await storage.getUser(buyerId);
       if (!buyer) {
-        console.log("*** PURCHASE DEBUG: Buyer not found");
         return res.status(404).json({ message: "Buyer not found" });
       }
       
       const buyerCredits = parseFloat(buyer.credits || '0');
       const purchaseAmount = parseFloat(amount);
       
-      console.log("*** PURCHASE DEBUG: Buyer credits:", buyerCredits, "Purchase amount:", purchaseAmount);
-      
       if (buyerCredits < purchaseAmount) {
-        console.log("*** PURCHASE DEBUG: Insufficient credits");
         return res.status(400).json({ message: "Insufficient credits" });
       }
-
-      // Calculate platform fee and seller amount  
-      const platformFeeRate = 0.05; // 5% platform fee
-      const sellerAmount = purchaseAmount * (1 - platformFeeRate);
       
-      // Create the purchase with completed status for immediate transfer
-      const purchaseData = {
-        listingId: parseInt(listingId),
-        buyerId,
-        sellerId,
-        toyId: parseInt(toyId),
-        amount: purchaseAmount.toFixed(2),
-        sellerAmount: sellerAmount.toFixed(2),
-        pointsEarned: parseInt(pointsEarned),
-        status: 'completed'
-      };
-      
-      console.log("*** PURCHASE DEBUG: Creating purchase with data:", purchaseData);
-      const purchase = await storage.createPendingPurchase(purchaseData);
-      console.log("*** PURCHASE DEBUG: Purchase created:", purchase);
-      
-      // Deduct credits from buyer
+      // Deduct credits from buyer immediately
       const newBuyerCredits = buyerCredits - purchaseAmount;
       await storage.updateUserCredits(buyerId, newBuyerCredits.toString());
-      console.log("*** PURCHASE DEBUG: Credits deducted successfully");
       
-      // Add credits to seller
-      const seller = await storage.getUser(sellerId);
-      const sellerCredits = parseFloat(seller?.credits || '0');
-      await storage.updateUserCredits(sellerId, (sellerCredits + sellerAmount).toString());
-      console.log("*** PURCHASE DEBUG: Credits added to seller");
-      
-      // Transfer toy ownership immediately
-      await storage.updateToyOwner(parseInt(toyId), buyerId);
-      console.log("*** PURCHASE DEBUG: Toy ownership transferred");
-      
-      // Add loyalty points to buyer
-      await storage.updateUserPoints(buyerId, parseInt(pointsEarned));
-      console.log("*** PURCHASE DEBUG: Loyalty points added");
-      
-      // Update listing status to sold to hide it from marketplace
-      await storage.updateListingStatus(listingId, 'sold');
-      console.log("*** PURCHASE DEBUG: Listing status updated to sold for listing ID:", listingId);
+      // Create the pending purchase
+      const purchase = await storage.createPendingPurchase(req.body);
       
       // Create credit history for the deduction
       await storage.createCreditHistory({
         userId: buyerId,
         amount: purchaseAmount.toFixed(2),
         type: 'debit',
-        description: `Purchase pending seller confirmation - Listing ID: ${listingId}`,
-        relatedId: parseInt(listingId),
+        description: `Purchase pending seller confirmation - Listing ID: ${req.body.listingId}`,
+        relatedId: req.body.listingId,
       });
-      console.log("*** PURCHASE DEBUG: Credit history created");
       
       res.json(purchase);
     } catch (error) {
-      console.error("*** PURCHASE DEBUG: Error creating pending purchase:", error);
-      res.status(500).json({ message: "Failed to create pending purchase", error: error.message });
+      console.error("Error creating pending purchase:", error);
+      res.status(500).json({ message: "Failed to create pending purchase" });
     }
   });
 
