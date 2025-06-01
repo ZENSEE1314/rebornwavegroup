@@ -742,6 +742,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create the pending purchase
       const purchase = await storage.createPendingPurchase(req.body);
+      
+      // Create credit history for the deduction
+      await storage.createCreditHistory({
+        userId: buyerId,
+        amount: purchaseAmount.toFixed(2),
+        type: 'debit',
+        description: `Purchase pending seller confirmation - Listing ID: ${req.body.listingId}`,
+        relatedId: req.body.listingId,
+      });
+      
       res.json(purchase);
     } catch (error) {
       console.error("Error creating pending purchase:", error);

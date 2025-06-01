@@ -646,8 +646,8 @@ export default function CompleteApp() {
         ? `Purchase - ${p.toy?.name}` 
         : `Sale - ${p.toy?.name}`,
       amount: p.buyerId === user?.id 
-        ? parseFloat(p.amount) 
-        : parseFloat(p.amount) * 0.9, // 90% after 10% platform fee
+        ? -parseFloat(p.amount)  // Negative for purchases (debit)
+        : parseFloat(p.amount) * 0.9, // 90% after 10% platform fee (credit)
       type: p.buyerId === user?.id ? 'spent' : 'earned',
       createdAt: p.createdAt
     })),
@@ -1263,6 +1263,7 @@ export default function CompleteApp() {
     const pointsEarned = Math.floor(price / 10000);
 
     // Create pending purchase - buyer pays, seller must confirm
+    // The backend will handle both credit deduction and credit history creation
     createPendingPurchaseMutation.mutate({
       listingId: listing.id,
       buyerId: user?.id,
@@ -1270,17 +1271,6 @@ export default function CompleteApp() {
       toyId: listing.toyId,
       amount: listing.price,
       pointsEarned: pointsEarned,
-    });
-
-    // Credits will be managed through the database
-
-    // Add credit transaction to history
-    createCreditHistoryMutation.mutate({
-      userId: user?.id,
-      amount: price.toFixed(2),
-      type: 'debit',
-      description: `${language === "id" ? "Beli" : "Purchase"} ${listing.toy?.name} (${language === "id" ? "Menunggu konfirmasi penjual" : "Pending seller confirmation"})`,
-      relatedId: listing.id,
     });
 
     // Points will be added when seller confirms the purchase
