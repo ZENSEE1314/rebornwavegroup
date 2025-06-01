@@ -2158,26 +2158,7 @@ export default function EnhancedAdminDashboard() {
                   <option value="restaurant">Restaurant</option>
                 </select>
               </div>
-              <div>
-                <Label htmlFor="event-duration" className="text-gray-300">Duration (minutes)</Label>
-                <Input
-                  id="event-duration"
-                  type="number"
-                  value={eventForm.duration}
-                  onChange={(e) => setEventForm({...eventForm, duration: parseInt(e.target.value) || 60})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="event-price" className="text-gray-300">Base Price (IDR)</Label>
-                <Input
-                  id="event-price"
-                  type="number"
-                  value={eventForm.basePrice}
-                  onChange={(e) => setEventForm({...eventForm, basePrice: parseFloat(e.target.value) || 0})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
+
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -2190,7 +2171,19 @@ export default function EnhancedAdminDashboard() {
               </div>
             </div>
             <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline" onClick={() => setShowEventDialog(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowEventDialog(false);
+                  setEditingEvent(null);
+                  setEventForm({
+                    title: "",
+                    description: "",
+                    category: "beauty",
+                    isActive: true
+                  });
+                }}
+              >
                 Cancel
               </Button>
               <Button 
@@ -2198,7 +2191,10 @@ export default function EnhancedAdminDashboard() {
                 disabled={createEventMutation.isPending}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {createEventMutation.isPending ? "Creating..." : "Create Event"}
+                {createEventMutation.isPending 
+                  ? (editingEvent ? "Updating..." : "Creating...") 
+                  : (editingEvent ? "Update Event" : "Create Event")
+                }
               </Button>
             </div>
           </DialogContent>
