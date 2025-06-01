@@ -1802,7 +1802,15 @@ export default function CompleteApp() {
                         listing.sellerId === user?.id &&
                         listing.status === 'active'
                       );
-                      return !isAlreadyListed;
+                      
+                      // Also hide toys that have pending transactions
+                      const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
+                        purchase.toyId === toy.id && 
+                        (purchase.status === 'pending_seller_confirmation' || 
+                         purchase.status === 'pending_buyer_confirmation')
+                      );
+                      
+                      return !isAlreadyListed && !hasPendingTransaction;
                     }).map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
                         {toy.image} {toy.name} ({toy.rarity})
