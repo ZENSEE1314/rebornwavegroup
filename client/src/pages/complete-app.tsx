@@ -2000,10 +2000,13 @@ export default function CompleteApp() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activePromotionBanners.map((banner: any) => (
                   <Card key={banner.id} className={`text-white ${
-                    banner.type === 'hero' ? 'bg-gradient-to-r from-blue-600 to-purple-600' :
-                    banner.type === 'promotion' ? 'bg-gradient-to-r from-green-500 to-blue-500' :
-                    banner.type === 'announcement' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
-                    'bg-gradient-to-r from-gray-600 to-gray-700'
+                    banner.backgroundColor === 'blue' ? 'bg-gradient-to-r from-blue-600 to-blue-800' :
+                    banner.backgroundColor === 'green' ? 'bg-gradient-to-r from-green-500 to-green-700' :
+                    banner.backgroundColor === 'orange' ? 'bg-gradient-to-r from-orange-500 to-orange-700' :
+                    banner.backgroundColor === 'purple' ? 'bg-gradient-to-r from-purple-500 to-purple-700' :
+                    banner.backgroundColor === 'red' ? 'bg-gradient-to-r from-red-500 to-red-700' :
+                    banner.backgroundColor === 'gray' ? 'bg-gradient-to-r from-gray-600 to-gray-800' :
+                    'bg-gradient-to-r from-blue-600 to-blue-800'
                   }`}>
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-4">

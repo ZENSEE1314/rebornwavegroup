@@ -1649,6 +1649,7 @@ export default function EnhancedAdminDashboard() {
                             <TableRow className="border-white/20">
                               <TableHead className="text-gray-300">Title</TableHead>
                               <TableHead className="text-gray-300">Type</TableHead>
+                              <TableHead className="text-gray-300">Color</TableHead>
                               <TableHead className="text-gray-300">Order</TableHead>
                               <TableHead className="text-gray-300">Active</TableHead>
                               <TableHead className="text-gray-300">Actions</TableHead>
@@ -1686,7 +1687,8 @@ export default function EnhancedAdminDashboard() {
                                             imageUrl: banner.imageUrl || "",
                                             ctaText: banner.ctaText || "",
                                             ctaUrl: banner.ctaUrl || "",
-                                            type: banner.type,
+                                            type: banner.type || "banner",
+                                            backgroundColor: banner.backgroundColor || "blue",
                                             displayOrder: banner.displayOrder,
                                             isActive: banner.isActive
                                           });
@@ -1994,6 +1996,22 @@ export default function EnhancedAdminDashboard() {
                 </select>
               </div>
               <div>
+                <Label htmlFor="banner-color" className="text-gray-300">Background Color</Label>
+                <select
+                  id="banner-color"
+                  value={bannerForm.backgroundColor}
+                  onChange={(e) => setBannerForm({...bannerForm, backgroundColor: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                >
+                  <option value="blue">Blue</option>
+                  <option value="green">Green</option>
+                  <option value="orange">Orange</option>
+                  <option value="purple">Purple</option>
+                  <option value="red">Red</option>
+                  <option value="gray">Gray</option>
+                </select>
+              </div>
+              <div>
                 <Label htmlFor="banner-order" className="text-gray-300">Display Order</Label>
                 <Input
                   id="banner-order"
@@ -2027,6 +2045,7 @@ export default function EnhancedAdminDashboard() {
                     ctaText: "",
                     ctaUrl: "",
                     type: "banner",
+                    backgroundColor: "blue",
                     displayOrder: 0,
                     isActive: true
                   });
