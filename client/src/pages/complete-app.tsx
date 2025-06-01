@@ -789,6 +789,13 @@ export default function CompleteApp() {
     return statusMatch && dateMatch;
   });
 
+  // Fetch credit history from database
+  const { data: creditHistoryData = [] } = useQuery({
+    queryKey: ['/api/credit-history', user?.id],
+    enabled: !!user?.id,
+    retry: false,
+  });
+
   // Create credit history from various sources and sort by newest first
   const allCreditHistory = [
     // From completed purchases (both buying and selling)
@@ -827,12 +834,6 @@ export default function CompleteApp() {
     const dateMatch = !creditDateFilter || 
       new Date(entry.createdAt).toISOString().split('T')[0] === creditDateFilter;
     return typeMatch && dateMatch;
-  });
-
-  // Fetch credit history from database
-  const { data: creditHistoryData = [] } = useQuery({
-    queryKey: ['/api/credit-history', user?.id],
-    enabled: !!user?.id,
   });
 
   // Fetch redemption history from database (filter for 'redeemed' type)
