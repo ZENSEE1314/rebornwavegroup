@@ -27,7 +27,12 @@ import {
   Package,
   ShoppingCart,
   Calendar,
-  Award
+  Award,
+  Search,
+  Download,
+  Upload,
+  FileText,
+  Filter
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -41,6 +46,21 @@ export default function AdminDashboard() {
     imageUrl: "",
     qrCode: ""
   });
+  
+  // Search and filter states
+  const [userSearch, setUserSearch] = useState("");
+  const [cashOutSearch, setCashOutSearch] = useState("");
+  const [transactionSearch, setTransactionSearch] = useState("");
+  const [toySearch, setToySearch] = useState("");
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [rarityFilter, setRarityFilter] = useState("all");
+  
+  // Bulk upload states
+  const [bulkToyData, setBulkToyData] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Check if user is admin
   if (!user || user.role !== 'admin') {

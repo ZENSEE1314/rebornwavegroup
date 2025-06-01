@@ -1018,6 +1018,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint - Get all appointments
+  app.get('/api/admin/appointments', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const appointments = await storage.getAllAppointments();
+      res.json(appointments);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      res.status(500).json({ message: 'Failed to fetch appointments' });
+    }
+  });
+
+  // Admin endpoint - Approve/Cancel appointment
+  app.patch('/api/admin/appointments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status } = req.body;
+      await storage.updateAppointmentStatus(parseInt(id), status);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      res.status(500).json({ message: 'Failed to update appointment' });
+    }
+  });
+
+  // Admin endpoint - Bulk toy upload
+  app.post('/api/admin/toys/bulk', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { toys } = req.body;
+      const createdToys = [];
+      
+      for (const toyData of toys) {
+        const toy = await storage.createToy(toyData);
+        createdToys.push(toy);
+      }
+      
+      res.json({ success: true, toys: createdToys });
+    } catch (error) {
+      console.error('Error bulk creating toys:', error);
+      res.status(500).json({ message: 'Failed to create toys' });
+    }
+  });
+
+  // Admin endpoint - Get admin fees report
+  app.get('/api/admin/fees-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const transactions = await storage.getAllTransactions();
+      
+      // Calculate admin fees (assuming 5% on marketplace transactions)
+      const adminFees = transactions
+        .filter((t: any) => t.type === 'marketplace_purchase')
+        .reduce((total: number, t: any) => total + (parseFloat(t.amount) * 0.05), 0);
+      
+      const totalTransactions = transactions.length;
+      const totalVolume = transactions.reduce((total: number, t: any) => total + parseFloat(t.amount), 0);
+      
+      res.json({
+        totalAdminFees: adminFees,
+        totalTransactions,
+        totalVolume,
+        averageTransactionValue: totalVolume / totalTransactions || 0
+      });
+    } catch (error) {
+      console.error('Error generating fees report:', error);
+      res.status(500).json({ message: 'Failed to generate report' });
+    }
+  });
+
   app.post('/api/admin/update-credits', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user.claims.sub;
