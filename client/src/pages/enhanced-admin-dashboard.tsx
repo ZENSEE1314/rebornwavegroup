@@ -1920,7 +1920,9 @@ export default function EnhancedAdminDashboard() {
         <Dialog open={showBannerDialog} onOpenChange={setShowBannerDialog}>
           <DialogContent className="bg-gray-900 border-gray-700">
             <DialogHeader>
-              <DialogTitle className="text-white">Create Promotion Banner</DialogTitle>
+              <DialogTitle className="text-white">
+                {editingBanner ? "Edit Promotion Banner" : "Create Promotion Banner"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -1955,6 +1957,40 @@ export default function EnhancedAdminDashboard() {
                 />
               </div>
               <div>
+                <Label htmlFor="banner-cta-text" className="text-gray-300">CTA Button Text</Label>
+                <Input
+                  id="banner-cta-text"
+                  value={bannerForm.ctaText}
+                  onChange={(e) => setBannerForm({...bannerForm, ctaText: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter button text (optional)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-cta-url" className="text-gray-300">CTA Button URL</Label>
+                <Input
+                  id="banner-cta-url"
+                  value={bannerForm.ctaUrl}
+                  onChange={(e) => setBannerForm({...bannerForm, ctaUrl: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter button URL (optional)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-type" className="text-gray-300">Banner Type</Label>
+                <select
+                  id="banner-type"
+                  value={bannerForm.type}
+                  onChange={(e) => setBannerForm({...bannerForm, type: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                >
+                  <option value="banner">Banner</option>
+                  <option value="hero">Hero</option>
+                  <option value="promotion">Promotion</option>
+                  <option value="announcement">Announcement</option>
+                </select>
+              </div>
+              <div>
                 <Label htmlFor="banner-order" className="text-gray-300">Display Order</Label>
                 <Input
                   id="banner-order"
@@ -1976,15 +2012,39 @@ export default function EnhancedAdminDashboard() {
               </div>
             </div>
             <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline" onClick={() => setShowBannerDialog(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowBannerDialog(false);
+                  setEditingBanner(null);
+                  setBannerForm({
+                    title: "",
+                    description: "",
+                    imageUrl: "",
+                    ctaText: "",
+                    ctaUrl: "",
+                    type: "banner",
+                    displayOrder: 0,
+                    isActive: true
+                  });
+                }}
+              >
                 Cancel
               </Button>
               <Button 
-                onClick={() => createBannerMutation.mutate(bannerForm)}
-                disabled={createBannerMutation.isPending}
+                onClick={() => {
+                  if (editingBanner) {
+                    updateBannerMutation.mutate({ id: editingBanner.id, bannerData: bannerForm });
+                  } else {
+                    createBannerMutation.mutate(bannerForm);
+                  }
+                }}
+                disabled={createBannerMutation.isPending || updateBannerMutation.isPending}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {createBannerMutation.isPending ? "Creating..." : "Create Banner"}
+                {(createBannerMutation.isPending || updateBannerMutation.isPending) 
+                  ? (editingBanner ? "Updating..." : "Creating...") 
+                  : (editingBanner ? "Update Banner" : "Create Banner")}
               </Button>
             </div>
           </DialogContent>
