@@ -600,11 +600,8 @@ export default function CompleteApp() {
     },
   });
 
-  // Fetch points history from database
-  const { data: pointHistory = [] } = useQuery({
-    queryKey: ['/api/points-history', user?.id],
-    enabled: !!user?.id,
-  });
+  // Fetch points history from database - using same source as user stats
+  const pointHistory = userStats?.pointRedemptions || [];
 
   // Fetch redemption history from database (filter for 'redeemed' type)
   const { data: redemptionHistory = [] } = useQuery({
