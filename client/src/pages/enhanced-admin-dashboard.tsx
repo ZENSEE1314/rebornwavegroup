@@ -34,7 +34,8 @@ import {
   Upload,
   FileText,
   Trash2,
-  Filter
+  Filter,
+  Settings
 } from "lucide-react";
 
 export default function EnhancedAdminDashboard() {
@@ -127,6 +128,22 @@ export default function EnhancedAdminDashboard() {
 
   const { data: feesReport = {} } = useQuery({
     queryKey: ['/api/admin/fees-report'],
+    retry: false,
+  });
+
+  // Content management queries
+  const { data: promotionBanners = [] } = useQuery({
+    queryKey: ['/api/admin/banners'],
+    retry: false,
+  });
+
+  const { data: appointmentEvents = [] } = useQuery({
+    queryKey: ['/api/admin/appointment-events'],
+    retry: false,
+  });
+
+  const { data: rewardItems = [] } = useQuery({
+    queryKey: ['/api/admin/reward-items'],
     retry: false,
   });
 
@@ -1443,6 +1460,209 @@ export default function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          <TabsContent value="content">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Content Management</CardTitle>
+                <p className="text-gray-300">Manage promotion banners, appointment events, and reward items</p>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="banners" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 bg-white/10">
+                    <TabsTrigger value="banners" className="data-[state=active]:bg-white/30 text-white">
+                      Promotion Banners
+                    </TabsTrigger>
+                    <TabsTrigger value="events" className="data-[state=active]:bg-white/30 text-white">
+                      Appointment Events
+                    </TabsTrigger>
+                    <TabsTrigger value="rewards" className="data-[state=active]:bg-white/30 text-white">
+                      Reward Items
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="banners" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-white">Promotion Banners ({(promotionBanners as any[]).length})</h3>
+                        <Button className="bg-blue-600 hover:bg-blue-700">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Banner
+                        </Button>
+                      </div>
+                      
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-white/20">
+                              <TableHead className="text-gray-300">Title</TableHead>
+                              <TableHead className="text-gray-300">Type</TableHead>
+                              <TableHead className="text-gray-300">Order</TableHead>
+                              <TableHead className="text-gray-300">Active</TableHead>
+                              <TableHead className="text-gray-300">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(promotionBanners as any[]).length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                                  No promotion banners found. Create your first banner to get started.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              (promotionBanners as any[]).map((banner: any) => (
+                                <TableRow key={banner.id} className="border-white/10">
+                                  <TableCell className="text-white">{banner.title}</TableCell>
+                                  <TableCell className="text-gray-300">{banner.type}</TableCell>
+                                  <TableCell className="text-gray-300">{banner.displayOrder}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={banner.isActive ? "default" : "secondary"}>
+                                      {banner.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-2">
+                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                      <Button size="sm" variant="destructive">
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="events" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-white">Appointment Events ({(appointmentEvents as any[]).length})</h3>
+                        <Button className="bg-green-600 hover:bg-green-700">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Event
+                        </Button>
+                      </div>
+                      
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-white/20">
+                              <TableHead className="text-gray-300">Title</TableHead>
+                              <TableHead className="text-gray-300">Category</TableHead>
+                              <TableHead className="text-gray-300">Duration</TableHead>
+                              <TableHead className="text-gray-300">Price</TableHead>
+                              <TableHead className="text-gray-300">Active</TableHead>
+                              <TableHead className="text-gray-300">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(appointmentEvents as any[]).length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                                  No appointment events found. Create your first event to get started.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              (appointmentEvents as any[]).map((event: any) => (
+                                <TableRow key={event.id} className="border-white/10">
+                                  <TableCell className="text-white">{event.title}</TableCell>
+                                  <TableCell className="text-gray-300">{event.category}</TableCell>
+                                  <TableCell className="text-gray-300">{event.duration} min</TableCell>
+                                  <TableCell className="text-gray-300">RP {formatMoney(event.basePrice)}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={event.isActive ? "default" : "secondary"}>
+                                      {event.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-2">
+                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                      <Button size="sm" variant="destructive">
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="rewards" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-white">Reward Items ({(rewardItems as any[]).length})</h3>
+                        <Button className="bg-purple-600 hover:bg-purple-700">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Reward
+                        </Button>
+                      </div>
+                      
+                      <div className="bg-white/5 rounded-lg p-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-white/20">
+                              <TableHead className="text-gray-300">Name</TableHead>
+                              <TableHead className="text-gray-300">Type</TableHead>
+                              <TableHead className="text-gray-300">Points Cost</TableHead>
+                              <TableHead className="text-gray-300">Stock</TableHead>
+                              <TableHead className="text-gray-300">Active</TableHead>
+                              <TableHead className="text-gray-300">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(rewardItems as any[]).length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                                  No reward items found. Create your first reward to get started.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              (rewardItems as any[]).map((reward: any) => (
+                                <TableRow key={reward.id} className="border-white/10">
+                                  <TableCell className="text-white">{reward.name}</TableCell>
+                                  <TableCell className="text-gray-300">{reward.type}</TableCell>
+                                  <TableCell className="text-gray-300">{reward.pointsCost} pts</TableCell>
+                                  <TableCell className="text-gray-300">{reward.stockQuantity || 'Unlimited'}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={reward.isActive ? "default" : "secondary"}>
+                                      {reward.isActive ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-2">
+                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                      <Button size="sm" variant="destructive">
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
