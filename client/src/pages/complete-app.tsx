@@ -811,7 +811,14 @@ export default function CompleteApp() {
       type: 'spent',
       createdAt: cashOut.createdAt
     })),
-    // Add any other credit transactions here if available
+    // From credit history database (reward redemptions, etc.)
+    ...(creditHistoryData || []).map((credit: any) => ({
+      id: `credit-${credit.id}`,
+      description: credit.description,
+      amount: parseFloat(credit.amount),
+      type: credit.type,
+      createdAt: credit.createdAt,
+    })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Filter credit history
@@ -820,6 +827,12 @@ export default function CompleteApp() {
     const dateMatch = !creditDateFilter || 
       new Date(entry.createdAt).toISOString().split('T')[0] === creditDateFilter;
     return typeMatch && dateMatch;
+  });
+
+  // Fetch credit history from database
+  const { data: creditHistoryData = [] } = useQuery({
+    queryKey: ['/api/credit-history', user?.id],
+    enabled: !!user?.id,
   });
 
   // Fetch redemption history from database (filter for 'redeemed' type)
