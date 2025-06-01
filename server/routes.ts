@@ -1249,6 +1249,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet care routes
+  app.post('/api/pets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const petData = {
+        ...req.body,
+        userId
+      };
+      
+      const pet = await storage.createPet(petData);
+      res.json(pet);
+    } catch (error) {
+      console.error("Error creating pet:", error);
+      res.status(500).json({ message: "Failed to create pet" });
+    }
+  });
+
+  app.get('/api/pets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const pets = await storage.getPetsByUserId(userId);
+      res.json(pets);
+    } catch (error) {
+      console.error("Error fetching pets:", error);
+      res.status(500).json({ message: "Failed to fetch pets" });
+    }
+  });
+
+  app.get('/api/pets/:petId/care-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { petId } = req.params;
+      const careStatus = await storage.getTodaysCareStatus(parseInt(petId));
+      res.json(careStatus || {
+        petId: parseInt(petId),
+        fed: false,
+        bathed: false,
+        slept: false,
+        cleaned: false,
+        allCareCompleted: false,
+        tokenEarned: false
+      });
+    } catch (error) {
+      console.error("Error fetching care status:", error);
+      res.status(500).json({ message: "Failed to fetch care status" });
+    }
+  });
+
+  app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const { petId, careType } = req.params;
+      
+      if (!['fed', 'bathed', 'slept', 'cleaned'].includes(careType)) {
+        return res.status(400).json({ message: "Invalid care type" });
+      }
+      
+      await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
+      
+      // Check if all care is completed and award token
+      const allCompleted = await storage.checkAllCareCompleted(parseInt(petId));
+      if (allCompleted) {
+        await storage.awardDailyToken(userId, parseInt(petId));
+      }
+      
+      res.json({ success: true, allCompleted });
+    } catch (error) {
+      console.error("Error updating care status:", error);
+      res.status(500).json({ message: "Failed to update care status" });
+    }
+  });
+
+  app.patch('/api/pets/:petId/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const { petId } = req.params;
+      const { happiness, hunger, cleanliness, energy } = req.body;
+      
+      await storage.updatePetStats(parseInt(petId), {
+        happiness,
+        hunger,
+        cleanliness,
+        energy
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating pet stats:", error);
+      res.status(500).json({ message: "Failed to update pet stats" });
+    }
+  });
+
   // Admin routes
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {

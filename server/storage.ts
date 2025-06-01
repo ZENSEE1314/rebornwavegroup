@@ -14,6 +14,9 @@ import {
   promotionBanners,
   appointmentEvents,
   rewardItems,
+  pets,
+  petCareActivities,
+  dailyCareStatus,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -28,6 +31,12 @@ import {
   type InsertPromotionBanner,
   type InsertAppointmentEvent,
   type InsertRewardItem,
+  type InsertPet,
+  type InsertPetCareActivity,
+  type InsertDailyCareStatus,
+  type Pet,
+  type PetCareActivity,
+  type DailyCareStatus,
   type Appointment,
   type Transaction,
   type Toy,
@@ -42,6 +51,9 @@ import {
   type PromotionBanner,
   type AppointmentEvent,
   type RewardItem,
+  type Pet,
+  type PetCareActivity,
+  type DailyCareStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
@@ -145,6 +157,20 @@ export interface IStorage {
   createRewardItem(item: InsertRewardItem): Promise<RewardItem>;
   updateRewardItem(id: number, item: Partial<InsertRewardItem>): Promise<void>;
   deleteRewardItem(id: number): Promise<void>;
+  
+  // Pet care operations
+  createPet(pet: InsertPet): Promise<Pet>;
+  getPetsByUserId(userId: string): Promise<Pet[]>;
+  getPetById(id: number): Promise<Pet | undefined>;
+  updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
+  updatePetAge(id: number, age: number): Promise<void>;
+  
+  // Daily care operations
+  getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
+  updateCareStatus(petId: number, userId: string, careType: 'fed' | 'bathed' | 'slept' | 'cleaned', completed: boolean): Promise<void>;
+  createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
+  checkAllCareCompleted(petId: number): Promise<boolean>;
+  awardDailyToken(userId: string, petId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1220,6 +1246,135 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRewardItem(id: number): Promise<void> {
     await db.delete(rewardItems).where(eq(rewardItems.id, id));
+  }
+
+  // Pet care operations
+  async createPet(petData: InsertPet): Promise<Pet> {
+    const [pet] = await db.insert(pets).values(petData).returning();
+    return pet;
+  }
+
+  async getPetsByUserId(userId: string): Promise<Pet[]> {
+    return await db.select().from(pets)
+      .where(and(eq(pets.userId, userId), eq(pets.isActive, true)))
+      .orderBy(pets.createdAt);
+  }
+
+  async getPetById(id: number): Promise<Pet | undefined> {
+    const [pet] = await db.select().from(pets).where(eq(pets.id, id));
+    return pet;
+  }
+
+  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void> {
+    await db.update(pets).set({
+      ...stats,
+      updatedAt: new Date(),
+    }).where(eq(pets.id, id));
+  }
+
+  async updatePetAge(id: number, age: number): Promise<void> {
+    const growthStage = this.calculateGrowthStage(age);
+    await db.update(pets).set({
+      currentAge: age,
+      growthStage,
+      updatedAt: new Date(),
+    }).where(eq(pets.id, id));
+  }
+
+  private calculateGrowthStage(age: number): string {
+    if (age < 10) return "baby";
+    if (age < 30) return "child";
+    if (age < 60) return "teen";
+    if (age < 90) return "adult";
+    return "elder";
+  }
+
+  // Daily care operations
+  async getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined> {
+    const today = new Date().toISOString().split('T')[0];
+    const [careStatus] = await db.select().from(dailyCareStatus)
+      .where(and(eq(dailyCareStatus.petId, petId), eq(dailyCareStatus.careDate, today)));
+    return careStatus;
+  }
+
+  async updateCareStatus(petId: number, userId: string, careType: 'fed' | 'bathed' | 'slept' | 'cleaned', completed: boolean): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if care status exists for today
+    const existingStatus = await this.getTodaysCareStatus(petId);
+    
+    if (existingStatus) {
+      // Update existing status
+      await db.update(dailyCareStatus).set({
+        [careType]: completed,
+        updatedAt: new Date(),
+      }).where(eq(dailyCareStatus.id, existingStatus.id));
+    } else {
+      // Create new status
+      await db.insert(dailyCareStatus).values({
+        petId,
+        userId,
+        careDate: today,
+        [careType]: completed,
+        fed: careType === 'fed' ? completed : false,
+        bathed: careType === 'bathed' ? completed : false,
+        slept: careType === 'slept' ? completed : false,
+        cleaned: careType === 'cleaned' ? completed : false,
+      });
+    }
+
+    // Check if all care is completed and update accordingly
+    const allCompleted = await this.checkAllCareCompleted(petId);
+    if (allCompleted) {
+      await db.update(dailyCareStatus).set({
+        allCareCompleted: true,
+        updatedAt: new Date(),
+      }).where(and(eq(dailyCareStatus.petId, petId), eq(dailyCareStatus.careDate, today)));
+    }
+  }
+
+  async createCareActivity(activityData: InsertPetCareActivity): Promise<PetCareActivity> {
+    const [activity] = await db.insert(petCareActivities).values(activityData).returning();
+    return activity;
+  }
+
+  async checkAllCareCompleted(petId: number): Promise<boolean> {
+    const today = new Date().toISOString().split('T')[0];
+    const careStatus = await this.getTodaysCareStatus(petId);
+    
+    if (!careStatus) return false;
+    
+    return careStatus.fed && careStatus.bathed && careStatus.slept && careStatus.cleaned;
+  }
+
+  async awardDailyToken(userId: string, petId: number): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if token already awarded today
+    const careStatus = await this.getTodaysCareStatus(petId);
+    if (careStatus?.tokenEarned) return;
+    
+    // Award 1 token (using loyalty points as tokens for now)
+    await db.update(users).set({
+      loyaltyPoints: sql`${users.loyaltyPoints} + 1`,
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId));
+
+    // Mark token as earned
+    if (careStatus) {
+      await db.update(dailyCareStatus).set({
+        tokenEarned: true,
+        updatedAt: new Date(),
+      }).where(eq(dailyCareStatus.id, careStatus.id));
+    }
+
+    // Create care activity record
+    await this.createCareActivity({
+      petId,
+      userId,
+      careType: 'daily_complete',
+      tokenEarned: true,
+    });
   }
 }
 
