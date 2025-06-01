@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatMoney, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, 
@@ -330,7 +331,7 @@ export default function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Admin Fees</p>
-                  <p className="text-3xl font-bold text-white">RP {(feesReport as any).totalAdminFees?.toFixed(2) || '0.00'}</p>
+                  <p className="text-3xl font-bold text-white">RP {formatMoney((feesReport as any).totalAdminFees || 0)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-green-400" />
               </div>
@@ -354,7 +355,7 @@ export default function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Volume</p>
-                  <p className="text-3xl font-bold text-white">RP {(feesReport as any).totalVolume?.toFixed(2) || '0.00'}</p>
+                  <p className="text-3xl font-bold text-white">RP {formatMoney((feesReport as any).totalVolume || 0)}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-orange-400" />
               </div>
