@@ -663,6 +663,12 @@ export class DatabaseStorage implements IStorage {
     const adminFee = totalAmount * 0.1;
     const sellerAmount = totalAmount - adminFee;
 
+    // Transfer toy ownership to buyer (this is when the buyer actually receives the toy)
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.buyerId })
+      .where(eq(toys.id, purchase.toyId));
+
     // Add credit to seller (90% after admin fee)
     const [seller] = await db.select().from(users).where(eq(users.id, purchase.sellerId));
     const currentCredits = parseFloat(seller.credits || '0');
