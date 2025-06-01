@@ -3216,6 +3216,14 @@ export default function CompleteApp() {
                 <p className="text-sm text-slate-500 mt-1">
                   +{Math.floor(parseFloat(selectedPurchaseListing.price || '0') / 10000)} {language === "id" ? "poin loyalitas" : "loyalty points"}
                 </p>
+                <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
+                  <p className="text-xs text-blue-600">
+                    <strong>{language === "id" ? "Catatan:" : "Note:"}</strong> {language === "id" 
+                      ? "Termasuk biaya admin 10%. Penjual menerima 90% dari harga jual."
+                      : "Includes 10% admin fee. Seller receives 90% of the sale price."
+                    }
+                  </p>
+                </div>
               </div>
               <p className="text-sm text-slate-600">
                 {language === "id" 

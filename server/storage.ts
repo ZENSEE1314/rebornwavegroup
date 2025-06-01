@@ -667,6 +667,24 @@ export class DatabaseStorage implements IStorage {
         description: `Sale confirmed - Admin fee: RP ${adminFee.toFixed(2)}`,
         relatedId: purchase.listingId,
       });
+
+    // Add points to buyer's account
+    if (purchase.pointsEarned && purchase.pointsEarned > 0) {
+      const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
+      const currentPoints = parseInt(buyer.loyaltyPoints || '0');
+      const currentLifetimePoints = parseInt(buyer.lifetimePoints || '0');
+      
+      const newPoints = currentPoints + purchase.pointsEarned;
+      const newLifetimePoints = currentLifetimePoints + purchase.pointsEarned;
+      
+      await db
+        .update(users)
+        .set({ 
+          loyaltyPoints: newPoints,
+          lifetimePoints: newLifetimePoints
+        })
+        .where(eq(users.id, purchase.buyerId));
+    }
   }
 
   // Credit and points history operations

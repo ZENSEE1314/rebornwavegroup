@@ -689,6 +689,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Purchase confirmation routes
   app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const { amount, buyerId } = req.body;
+      
+      // Check if buyer has sufficient credits
+      const buyer = await storage.getUser(buyerId);
+      if (!buyer) {
+        return res.status(404).json({ message: "Buyer not found" });
+      }
+      
+      const buyerCredits = parseFloat(buyer.credits || '0');
+      const purchaseAmount = parseFloat(amount);
+      
+      if (buyerCredits < purchaseAmount) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+      
+      // Deduct credits from buyer immediately
+      const newBuyerCredits = buyerCredits - purchaseAmount;
+      await storage.updateUserCredits(buyerId, newBuyerCredits.toString());
+      
+      // Create the pending purchase
       const purchase = await storage.createPendingPurchase(req.body);
       res.json(purchase);
     } catch (error) {
