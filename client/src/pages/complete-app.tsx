@@ -1854,7 +1854,7 @@ export default function CompleteApp() {
                 {loyaltyLevels.map((level) => (
                   <Card 
                     key={level.level} 
-                    className={`${currentLevelInfo.level === level.level ? level.bgColor + ' border-2 ' + level.borderColor : 'bg-white border border-gray-200'} transition-all hover:shadow-lg`}
+                    className={`${currentLoyaltyLevel.level === level.level ? level.bgColor + ' border-2 ' + level.borderColor : 'bg-white border border-gray-200'} transition-all hover:shadow-lg`}
                   >
                     <CardContent className="p-4 text-center">
                       <div className={`w-12 h-12 bg-gradient-to-br ${level.color} rounded-full flex items-center justify-center mx-auto mb-3`}>

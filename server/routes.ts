@@ -889,12 +889,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pointsHistory = await storage.createPointsHistory(validatedData);
       
-      // Update user's loyalty points
-      const currentUser = await storage.getUser(userId);
-      if (currentUser) {
-        const newPoints = currentUser.loyaltyPoints + req.body.points;
-        await storage.updateUserPoints(userId, newPoints);
-      }
+      // Update user's loyalty points using the points difference
+      await storage.updateUserPoints(userId, req.body.points);
       
       res.json(pointsHistory);
     } catch (error) {
