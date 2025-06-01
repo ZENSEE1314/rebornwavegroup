@@ -2070,10 +2070,39 @@ export default function CompleteApp() {
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle>{language === "id" ? "Riwayat Penukaran" : "Redemption History"}</CardTitle>
+                    <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                      <select
+                        value={redemptionFilter}
+                        onChange={(e) => setRedemptionFilter(e.target.value as 'all' | 'completed' | 'used')}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                        <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
+                        <option value="used">{language === "id" ? "Digunakan" : "Used"}</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={redemptionDateFilter}
+                        onChange={(e) => setRedemptionDateFilter(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                      />
+                      {(redemptionFilter !== 'all' || redemptionDateFilter) && (
+                        <button
+                          onClick={() => {
+                            setRedemptionFilter('all');
+                            setRedemptionDateFilter('');
+                          }}
+                          className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                        </button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {redemptionHistory.map((redemption) => (
+                      {filteredRedemptionHistory.map((redemption) => (
                         <div key={redemption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-sm">{redemption.reward}</p>
@@ -3190,33 +3219,54 @@ export default function CompleteApp() {
               </Button>
             </div>
             
+            {/* Credit History Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <select
+                value={creditFilter}
+                onChange={(e) => setCreditFilter(e.target.value as 'all' | 'earned' | 'spent')}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
+                <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
+              </select>
+              <input
+                type="date"
+                value={creditDateFilter}
+                onChange={(e) => setCreditDateFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+              />
+              {(creditFilter !== 'all' || creditDateFilter) && (
+                <button
+                  onClick={() => {
+                    setCreditFilter('all');
+                    setCreditDateFilter('');
+                  }}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                </button>
+              )}
+            </div>
+            
             <div className="space-y-4">
-              {userPendingPurchases && userPendingPurchases.filter((p: any) => p.status === 'completed').length > 0 ? (
-                userPendingPurchases
-                  .filter((p: any) => p.status === 'completed')
-                  .map((purchase: any) => (
-                  <div key={purchase.id} className="border rounded-lg p-4">
+              {filteredCreditHistory.length > 0 ? (
+                filteredCreditHistory.map((entry: any) => (
+                  <div key={entry.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">
-                          {purchase.buyerId === user?.id 
-                            ? `Purchase - ${purchase.toy?.name}` 
-                            : `Sale - ${purchase.toy?.name} (Admin fee: RP ${(parseFloat(purchase.amount) * 0.1).toLocaleString('id-ID')})`
-                          }
-                        </p>
+                        <p className="font-medium">{entry.description}</p>
                         <p className="text-sm text-gray-600">
-                          {new Date(purchase.createdAt).toLocaleDateString()}
+                          {new Date(entry.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-bold ${purchase.buyerId === user?.id ? 'text-red-600' : 'text-green-600'}`}>
-                          {purchase.buyerId === user?.id 
-                            ? `-RP ${formatRupiah(parseFloat(purchase.amount))}` 
-                            : `+RP ${formatRupiah(parseFloat(purchase.amount) * 0.9)}`
-                          }
+                        <p className={`font-bold ${entry.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {entry.amount < 0 ? '-' : '+'}RP {Math.abs(entry.amount).toLocaleString('id-ID')}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          {purchase.buyerId === user?.id ? 'Purchase' : 'Sale'}
+                        <p className="text-sm text-gray-600 capitalize">
+                          {entry.type}
                         </p>
                       </div>
                     </div>
