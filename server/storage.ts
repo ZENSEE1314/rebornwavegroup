@@ -1201,6 +1201,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(rewardItems.pointsCost);
   }
 
+  async getRewardItemById(id: number): Promise<RewardItem | undefined> {
+    const [item] = await db.select().from(rewardItems).where(eq(rewardItems.id, id));
+    return item;
+  }
+
   async createRewardItem(itemData: InsertRewardItem): Promise<RewardItem> {
     const [item] = await db.insert(rewardItems).values(itemData).returning();
     return item;

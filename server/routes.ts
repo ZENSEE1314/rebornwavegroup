@@ -1684,7 +1684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check stock availability
-      if (reward.stockQuantity && reward.stockQuantity <= 0) {
+      if (reward.stock && reward.stock <= 0) {
         return res.status(400).json({ message: 'Reward out of stock' });
       }
 
@@ -1692,9 +1692,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserPoints(userId, user.loyaltyPoints - pointsCost);
       
       // Decrease stock if applicable
-      if (reward.stockQuantity) {
+      if (reward.stock) {
         await storage.updateRewardItem(rewardId, { 
-          stockQuantity: reward.stockQuantity - 1 
+          stock: reward.stock - 1 
         });
       }
 
