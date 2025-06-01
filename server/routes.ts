@@ -32,12 +32,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { firstName, lastName, phoneNumber } = req.body;
+      const { firstName, lastName, phoneNumber, gender, dateOfBirth } = req.body;
       
       await storage.updateUserProfile(userId, {
         firstName,
         lastName,
-        phoneNumber
+        phoneNumber,
+        gender,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined
       });
       
       res.json({ message: "Profile updated successfully" });
@@ -1239,13 +1241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId } = req.params;
-      const { firstName, lastName, email, phoneNumber, role } = req.body;
+      const { firstName, lastName, email, phoneNumber, gender, dateOfBirth, role } = req.body;
       
       await storage.updateUserProfile(userId, {
         firstName,
         lastName,
         email,
         phoneNumber,
+        gender,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
         role
       });
       
