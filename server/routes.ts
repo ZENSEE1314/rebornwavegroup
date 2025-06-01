@@ -721,43 +721,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { amount, buyerId } = req.body;
+      const { amount, buyerId, listingId } = req.body;
+      
+      console.log("*** PURCHASE DEBUG: Request body:", req.body);
       
       // Check if buyer has sufficient credits
       const buyer = await storage.getUser(buyerId);
       if (!buyer) {
+        console.log("*** PURCHASE DEBUG: Buyer not found");
         return res.status(404).json({ message: "Buyer not found" });
       }
       
       const buyerCredits = parseFloat(buyer.credits || '0');
       const purchaseAmount = parseFloat(amount);
       
+      console.log("*** PURCHASE DEBUG: Buyer credits:", buyerCredits, "Purchase amount:", purchaseAmount);
+      
       if (buyerCredits < purchaseAmount) {
+        console.log("*** PURCHASE DEBUG: Insufficient credits");
         return res.status(400).json({ message: "Insufficient credits" });
       }
       
       // Deduct credits from buyer immediately
       const newBuyerCredits = buyerCredits - purchaseAmount;
       await storage.updateUserCredits(buyerId, newBuyerCredits.toString());
+      console.log("*** PURCHASE DEBUG: Credits deducted successfully");
       
       // Create the pending purchase
       const purchase = await storage.createPendingPurchase(req.body);
+      console.log("*** PURCHASE DEBUG: Pending purchase created:", purchase);
       
       // Update listing status to sold to hide it from marketplace
-      await storage.updateListingStatus(req.body.listingId, 'sold');
+      await storage.updateListingStatus(listingId, 'sold');
+      console.log("*** PURCHASE DEBUG: Listing status updated to sold for listing ID:", listingId);
       
       // Create credit history for the deduction
       await storage.createCreditHistory({
         userId: buyerId,
         amount: purchaseAmount.toFixed(2),
         type: 'debit',
-        description: `Purchase pending seller confirmation - Listing ID: ${req.body.listingId}`,
-        relatedId: req.body.listingId,
+        description: `Purchase pending seller confirmation - Listing ID: ${listingId}`,
+        relatedId: listingId,
       });
+      console.log("*** PURCHASE DEBUG: Credit history created");
       
       res.json(purchase);
     } catch (error) {
-      console.error("Error creating pending purchase:", error);
+      console.error("*** PURCHASE DEBUG: Error creating pending purchase:", error);
       res.status(500).json({ message: "Failed to create pending purchase" });
     }
   });
