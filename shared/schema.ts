@@ -201,7 +201,10 @@ export const promotionBanners = pgTable("promotion_banners", {
   title: varchar("title").notNull(),
   description: text("description"),
   imageUrl: varchar("image_url"),
-  linkUrl: varchar("link_url"),
+  ctaText: varchar("cta_text"),
+  ctaUrl: varchar("cta_url"),
+  type: varchar("type").notNull().default("banner"), // hero, promotion, announcement, banner
+  backgroundColor: varchar("background_color").default("blue"), // blue, green, orange, purple, red, gray
   isActive: boolean("is_active").default(true),
   displayOrder: integer("display_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),

@@ -100,6 +100,7 @@ export default function EnhancedAdminDashboard() {
     ctaText: "",
     ctaUrl: "",
     type: "banner",
+    backgroundColor: "blue",
     displayOrder: 0,
     isActive: true
   });
@@ -392,6 +393,7 @@ export default function EnhancedAdminDashboard() {
         ctaText: "",
         ctaUrl: "",
         type: "banner",
+        backgroundColor: "blue",
         displayOrder: 0,
         isActive: true
       });
@@ -417,6 +419,7 @@ export default function EnhancedAdminDashboard() {
         ctaText: "",
         ctaUrl: "",
         type: "banner",
+        backgroundColor: "blue",
         displayOrder: 0,
         isActive: true
       });
