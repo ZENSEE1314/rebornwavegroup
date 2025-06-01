@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
-  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target
+  QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -3014,13 +3014,13 @@ export default function CompleteApp() {
               ))}
               
               {/* Show regular toy inventory */}
-              {toyInventory.map((toy) => {
+              {Array.isArray(toyInventory) && toyInventory.map((toy) => {
                 // Check if this toy has a pending transaction
-                const pendingTransaction = userPendingPurchases?.find((purchase: any) => 
-                  purchase.toyId === toy.id && 
-                  (purchase.status === 'pending_seller_confirmation' || 
-                   purchase.status === 'pending_buyer_confirmation')
-                );
+                const pendingTransaction = Array.isArray(userPendingPurchases) ? userPendingPurchases.find((purchase: any) => 
+                  purchase?.toyId === toy?.id && 
+                  (purchase?.status === 'pending_seller_confirmation' || 
+                   purchase?.status === 'pending_buyer_confirmation')
+                ) : null;
                 
                 return (
                   <Card key={toy.id} className="hover:shadow-lg transition-shadow">
