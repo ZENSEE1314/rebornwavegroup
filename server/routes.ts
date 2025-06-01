@@ -749,25 +749,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Insufficient credits" });
       }
 
-      // Create the pending purchase first
+      // Calculate platform fee and seller amount  
+      const platformFeeRate = 0.05; // 5% platform fee
+      const sellerAmount = purchaseAmount * (1 - platformFeeRate);
+      
+      // Create the purchase with completed status for immediate transfer
       const purchaseData = {
         listingId: parseInt(listingId),
         buyerId,
         sellerId,
         toyId: parseInt(toyId),
         amount: purchaseAmount.toFixed(2),
+        sellerAmount: sellerAmount.toFixed(2),
         pointsEarned: parseInt(pointsEarned),
-        status: 'pending'
+        status: 'completed'
       };
       
       console.log("*** PURCHASE DEBUG: Creating purchase with data:", purchaseData);
       const purchase = await storage.createPendingPurchase(purchaseData);
-      console.log("*** PURCHASE DEBUG: Pending purchase created:", purchase);
+      console.log("*** PURCHASE DEBUG: Purchase created:", purchase);
       
-      // Only deduct credits after purchase is successfully created
+      // Deduct credits from buyer
       const newBuyerCredits = buyerCredits - purchaseAmount;
       await storage.updateUserCredits(buyerId, newBuyerCredits.toString());
       console.log("*** PURCHASE DEBUG: Credits deducted successfully");
+      
+      // Add credits to seller
+      const seller = await storage.getUser(sellerId);
+      const sellerCredits = parseFloat(seller?.credits || '0');
+      await storage.updateUserCredits(sellerId, (sellerCredits + sellerAmount).toString());
+      console.log("*** PURCHASE DEBUG: Credits added to seller");
+      
+      // Transfer toy ownership immediately
+      await storage.updateToyOwner(parseInt(toyId), buyerId);
+      console.log("*** PURCHASE DEBUG: Toy ownership transferred");
+      
+      // Add loyalty points to buyer
+      await storage.updateUserPoints(buyerId, parseInt(pointsEarned));
+      console.log("*** PURCHASE DEBUG: Loyalty points added");
       
       // Update listing status to sold to hide it from marketplace
       await storage.updateListingStatus(listingId, 'sold');
