@@ -1995,25 +1995,43 @@ export default function CompleteApp() {
               </p>
             </div>
 
-            {/* Events and Ads */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {events.map((event) => (
-                <Card key={event.id} className="bg-gradient-to-r from-green-500 to-blue-500 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-4xl">{event.image}</div>
-                      <div>
-                        <h3 className="text-xl font-bold">{event.title}</h3>
-                        <p className="text-green-100">{event.description}</p>
-                        <p className="text-sm text-green-200 mt-2">
-                          {language === "id" ? "Berlaku hingga" : "Valid until"}: {event.validUntil}
-                        </p>
+            {/* Promotion Banners */}
+            {activePromotionBanners.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {activePromotionBanners.map((banner: any) => (
+                  <Card key={banner.id} className={`text-white ${
+                    banner.type === 'hero' ? 'bg-gradient-to-r from-blue-600 to-purple-600' :
+                    banner.type === 'promotion' ? 'bg-gradient-to-r from-green-500 to-blue-500' :
+                    banner.type === 'announcement' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                    'bg-gradient-to-r from-gray-600 to-gray-700'
+                  }`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-4">
+                        {banner.imageUrl && (
+                          <div className="text-4xl">
+                            <img src={banner.imageUrl} alt={banner.title} className="w-16 h-16 object-cover rounded-lg" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold">{banner.title}</h3>
+                          <p className="text-white/90 mb-2">{banner.description}</p>
+                          {banner.ctaText && banner.ctaUrl && (
+                            <a 
+                              href={banner.ctaUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-block bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              {banner.ctaText}
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
