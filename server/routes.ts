@@ -1048,7 +1048,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const { status } = req.body;
+      
+      // Get appointment details before updating for email notification
+      const allAppointments = await storage.getAllAppointments();
+      const appointment = allAppointments.find(apt => apt.id === parseInt(id));
+      
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      // Update appointment status
       await storage.updateAppointmentStatus(parseInt(id), status);
+      
+      // Send email notification based on status change
+      const user = await storage.getUser(appointment.userId);
+      if (user && user.email) {
+        const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
+        
+        try {
+          if (status === 'scheduled') {
+            // Send confirmation email for approved appointment
+            await sendAppointmentConfirmationEmail(
+              user.email,
+              userName,
+              appointment.title,
+              appointment.appointmentDate,
+              appointment.duration
+            );
+            console.log(`Approval email sent to ${user.email} for appointment: ${appointment.title}`);
+          } else if (status === 'cancelled') {
+            // Send cancellation email for cancelled appointment
+            await sendAppointmentCancellationEmail(
+              user.email,
+              userName,
+              appointment.title,
+              appointment.appointmentDate
+            );
+            console.log(`Cancellation email sent to ${user.email} for appointment: ${appointment.title}`);
+          }
+        } catch (emailError) {
+          console.error(`Failed to send ${status} email:`, emailError);
+          // Don't fail the status update if email fails
+        }
+      }
+      
       res.json({ success: true });
     } catch (error) {
       console.error('Error updating appointment:', error);

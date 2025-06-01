@@ -707,28 +707,32 @@ export default function EnhancedAdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm"
-                              onClick={() => updateAppointmentMutation.mutate({ 
-                                id: appointment.id, 
-                                status: 'confirmed' 
-                              })}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => updateAppointmentMutation.mutate({ 
-                                id: appointment.id, 
-                                status: 'cancelled' 
-                              })}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          {appointment.status === 'pending' ? (
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm"
+                                onClick={() => updateAppointmentMutation.mutate({ 
+                                  id: appointment.id, 
+                                  status: 'scheduled' 
+                                })}
+                                className="bg-green-600 hover:bg-green-700 h-10 w-10 p-0"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => updateAppointmentMutation.mutate({ 
+                                  id: appointment.id, 
+                                  status: 'cancelled' 
+                                })}
+                                className="bg-red-600 hover:bg-red-700 h-10 w-10 p-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">No actions available</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
