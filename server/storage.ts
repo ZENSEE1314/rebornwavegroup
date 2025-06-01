@@ -68,7 +68,7 @@ export interface IStorage {
   getToysByOwnerId(ownerId: string): Promise<Toy[]>;
   getAllToys(): Promise<Toy[]>;
   getToyByQrCode(qrCode: string): Promise<Toy | undefined>;
-  updateToyOwner(toyId: number, newOwnerId: string): Promise<void>;
+  updateToyOwner(toyId: number, newOwnerId: string | null): Promise<void>;
   activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null>;
   getAvailableToysForPurchase(): Promise<Toy[]>;
   purchaseToy(toyId: number, userId: string): Promise<void>;
@@ -500,7 +500,7 @@ export class DatabaseStorage implements IStorage {
     return toy;
   }
 
-  async updateToyOwner(toyId: number, newOwnerId: string): Promise<void> {
+  async updateToyOwner(toyId: number, newOwnerId: string | null): Promise<void> {
     await db
       .update(toys)
       .set({ ownerId: newOwnerId, updatedAt: new Date() })
