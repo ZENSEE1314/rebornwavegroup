@@ -773,7 +773,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/points-history', isAuthenticated, async (req: any, res) => {
     try {
-      const points = await storage.createPointsHistory(req.body);
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const validatedData = {
+        ...req.body,
+        userId
+      };
+      
+      const points = await storage.createPointsHistory(validatedData);
+      
+      // Update user's loyalty points using the points difference
+      await storage.updateUserPoints(userId, req.body.points);
+      
       res.json(points);
     } catch (error) {
       console.error("Error creating points history:", error);
