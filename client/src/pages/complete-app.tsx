@@ -2714,7 +2714,13 @@ export default function CompleteApp() {
                 <Card key={`pending-${purchase.id}`} className="hover:shadow-lg transition-shadow border-yellow-200 bg-yellow-50">
                   <CardContent className="p-6">
                     <div className="text-center">
-                      <div className="text-6xl mb-4">{purchase.toy?.imageUrl || "🎮"}</div>
+                      <div className="mb-4">
+                        <img 
+                          src={toyImage} 
+                          alt={purchase.toy?.name || "Toy"} 
+                          className="w-24 h-24 mx-auto object-contain"
+                        />
+                      </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
                       <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
                         {purchase.toy?.rarity}
