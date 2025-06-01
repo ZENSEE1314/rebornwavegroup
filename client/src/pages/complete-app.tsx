@@ -28,6 +28,29 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
+  // Global error handler for unhandled promise rejections
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Prevent Vite HMR connection errors from showing in console
+      if (event.reason && typeof event.reason === 'object' && 
+          (event.reason.message?.includes('vite') || 
+           event.reason.toString().includes('WebSocket') ||
+           event.reason.toString().includes('connection'))) {
+        event.preventDefault();
+        return;
+      }
+      
+      // Allow other genuine errors to show
+      console.warn('Unhandled promise rejection:', event.reason);
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // Real-time updates disabled temporarily to resolve connection issues
   // TODO: Re-enable WebSocket functionality once connection issues are resolved
   
