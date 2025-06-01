@@ -577,23 +577,22 @@ export default function CompleteApp() {
 
   const [editingAppointment, setEditingAppointment] = useState(null);
 
-  // Events and Ads
-  const [events] = useState([
-    {
-      id: 1,
-      title: language === "id" ? "Promo Akhir Tahun" : "Year End Promotion",
-      description: language === "id" ? "Diskon 30% untuk semua layanan kecantikan" : "30% discount on all beauty services",
-      validUntil: "2025-12-31",
-      image: "🎉"
-    },
-    {
-      id: 2,
-      title: language === "id" ? "Grand Opening KTV VIP" : "KTV VIP Grand Opening",
-      description: language === "id" ? "Ruang VIP baru dengan sistem audio terbaru" : "New VIP rooms with latest audio system",
-      validUntil: "2025-06-30",
-      image: "🎤"
+  // Fetch promotion banners from content management system
+  const { data: promotionBanners = [] } = useQuery({
+    queryKey: ['/api/promotion-banners'],
+    queryFn: async () => {
+      const response = await fetch('/api/promotion-banners', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch promotion banners');
+      return response.json();
     }
-  ]);
+  });
+
+  // Filter and sort active banners for display
+  const activePromotionBanners = promotionBanners
+    .filter((banner: any) => banner.isActive)
+    .sort((a: any, b: any) => a.displayOrder - b.displayOrder);
 
   // Remove this old marketplace array - we only use marketplaceToys now
 
