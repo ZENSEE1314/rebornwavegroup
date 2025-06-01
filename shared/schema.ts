@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   phoneNumber: varchar("phone_number"),
   profileImageUrl: varchar("profile_image_url"),
+  gender: varchar("gender"),
+  dateOfBirth: timestamp("date_of_birth"),
   role: varchar("role").default("user").notNull(), // 'user' | 'admin'
   credits: decimal("credits", { precision: 10, scale: 2 }).default("0.00").notNull(),
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
