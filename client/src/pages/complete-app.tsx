@@ -132,6 +132,12 @@ export default function CompleteApp() {
     enabled: !!user?.id,
   });
 
+  // Genealogy tree data
+  const { data: genealogyData } = useQuery({
+    queryKey: ['/api/users/genealogy-tree'],
+    enabled: !!user?.id,
+  });
+
   const userCredits = userStats ? parseFloat(userStats.credits) : 0;
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
   const lifetimePoints = userStats?.lifetimePoints || 0;
@@ -3018,7 +3024,7 @@ export default function CompleteApp() {
               <Card className="bg-green-50 border-green-200">
                 <CardContent className="p-6 text-center">
                   <Users className="h-8 w-8 mx-auto text-green-600 mb-2" />
-                  <p className="text-2xl font-bold text-green-800">1</p>
+                  <p className="text-2xl font-bold text-green-800">{genealogyData?.totalDirectReferrals || 0}</p>
                   <p className="text-sm text-green-600">
                     {language === "id" ? "Rujukan Langsung" : "Direct Referrals"}
                   </p>
