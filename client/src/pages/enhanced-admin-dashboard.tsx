@@ -1646,7 +1646,10 @@ export default function EnhancedAdminDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-white">Appointment Events ({(appointmentEvents as any[]).length})</h3>
-                        <Button className="bg-green-600 hover:bg-green-700">
+                        <Button 
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => setShowEventDialog(true)}
+                        >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Event
                         </Button>
@@ -1706,7 +1709,10 @@ export default function EnhancedAdminDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-white">Reward Items ({(rewardItems as any[]).length})</h3>
-                        <Button className="bg-purple-600 hover:bg-purple-700">
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700"
+                          onClick={() => setShowRewardDialog(true)}
+                        >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Reward
                         </Button>
@@ -1841,6 +1847,265 @@ export default function EnhancedAdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* Banner Creation Dialog */}
+        <Dialog open={showBannerDialog} onOpenChange={setShowBannerDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Create Promotion Banner</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="banner-title" className="text-gray-300">Title</Label>
+                <Input
+                  id="banner-title"
+                  value={bannerForm.title}
+                  onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter banner title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-description" className="text-gray-300">Description</Label>
+                <textarea
+                  id="banner-description"
+                  value={bannerForm.description}
+                  onChange={(e) => setBannerForm({...bannerForm, description: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                  placeholder="Enter banner description"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-image" className="text-gray-300">Image URL</Label>
+                <Input
+                  id="banner-image"
+                  value={bannerForm.imageUrl}
+                  onChange={(e) => setBannerForm({...bannerForm, imageUrl: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter image URL"
+                />
+              </div>
+              <div>
+                <Label htmlFor="banner-order" className="text-gray-300">Display Order</Label>
+                <Input
+                  id="banner-order"
+                  type="number"
+                  value={bannerForm.displayOrder}
+                  onChange={(e) => setBannerForm({...bannerForm, displayOrder: parseInt(e.target.value) || 0})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="banner-active"
+                  checked={bannerForm.isActive}
+                  onChange={(e) => setBannerForm({...bannerForm, isActive: e.target.checked})}
+                  className="rounded"
+                />
+                <Label htmlFor="banner-active" className="text-gray-300">Active</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBannerDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => createBannerMutation.mutate(bannerForm)}
+                disabled={createBannerMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {createBannerMutation.isPending ? "Creating..." : "Create Banner"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Event Creation Dialog */}
+        <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Create Appointment Event</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="event-title" className="text-gray-300">Title</Label>
+                <Input
+                  id="event-title"
+                  value={eventForm.title}
+                  onChange={(e) => setEventForm({...eventForm, title: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter event title"
+                />
+              </div>
+              <div>
+                <Label htmlFor="event-description" className="text-gray-300">Description</Label>
+                <textarea
+                  id="event-description"
+                  value={eventForm.description}
+                  onChange={(e) => setEventForm({...eventForm, description: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                  placeholder="Enter event description"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="event-category" className="text-gray-300">Category</Label>
+                <select
+                  id="event-category"
+                  value={eventForm.category}
+                  onChange={(e) => setEventForm({...eventForm, category: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                >
+                  <option value="beauty">Beauty</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="restaurant">Restaurant</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="event-duration" className="text-gray-300">Duration (minutes)</Label>
+                <Input
+                  id="event-duration"
+                  type="number"
+                  value={eventForm.duration}
+                  onChange={(e) => setEventForm({...eventForm, duration: parseInt(e.target.value) || 60})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="event-price" className="text-gray-300">Base Price (IDR)</Label>
+                <Input
+                  id="event-price"
+                  type="number"
+                  value={eventForm.basePrice}
+                  onChange={(e) => setEventForm({...eventForm, basePrice: parseFloat(e.target.value) || 0})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="event-active"
+                  checked={eventForm.isActive}
+                  onChange={(e) => setEventForm({...eventForm, isActive: e.target.checked})}
+                  className="rounded"
+                />
+                <Label htmlFor="event-active" className="text-gray-300">Active</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEventDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => createEventMutation.mutate(eventForm)}
+                disabled={createEventMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {createEventMutation.isPending ? "Creating..." : "Create Event"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reward Creation Dialog */}
+        <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Create Reward Item</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="reward-name" className="text-gray-300">Name</Label>
+                <Input
+                  id="reward-name"
+                  value={rewardForm.name}
+                  onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter reward name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="reward-description" className="text-gray-300">Description</Label>
+                <textarea
+                  id="reward-description"
+                  value={rewardForm.description}
+                  onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                  placeholder="Enter reward description"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="reward-type" className="text-gray-300">Type</Label>
+                <select
+                  id="reward-type"
+                  value={rewardForm.type}
+                  onChange={(e) => setRewardForm({...rewardForm, type: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                >
+                  <option value="item">Physical Item</option>
+                  <option value="service">Service</option>
+                  <option value="discount">Discount</option>
+                  <option value="voucher">Voucher</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="reward-points" className="text-gray-300">Points Cost</Label>
+                <Input
+                  id="reward-points"
+                  type="number"
+                  value={rewardForm.pointsCost}
+                  onChange={(e) => setRewardForm({...rewardForm, pointsCost: parseInt(e.target.value) || 0})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="reward-stock" className="text-gray-300">Stock Quantity (leave empty for unlimited)</Label>
+                <Input
+                  id="reward-stock"
+                  type="number"
+                  value={rewardForm.stockQuantity || ""}
+                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="reward-image" className="text-gray-300">Image URL</Label>
+                <Input
+                  id="reward-image"
+                  value={rewardForm.imageUrl}
+                  onChange={(e) => setRewardForm({...rewardForm, imageUrl: e.target.value})}
+                  className="bg-gray-800 border-gray-600 text-white"
+                  placeholder="Enter image URL"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="reward-active"
+                  checked={rewardForm.isActive}
+                  onChange={(e) => setRewardForm({...rewardForm, isActive: e.target.checked})}
+                  className="rounded"
+                />
+                <Label htmlFor="reward-active" className="text-gray-300">Active</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => createRewardMutation.mutate(rewardForm)}
+                disabled={createRewardMutation.isPending}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {createRewardMutation.isPending ? "Creating..." : "Create Reward"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
