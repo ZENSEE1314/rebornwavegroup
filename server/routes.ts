@@ -788,14 +788,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/pending-purchases/:id/confirm', isAuthenticated, async (req: any, res) => {
+  // Seller confirms purchase (step 1)
+  app.post('/api/pending-purchases/:id/seller-confirm', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.confirmPendingPurchase(parseInt(id));
-      res.json({ message: "Purchase confirmed successfully" });
+      await storage.sellerConfirmPurchase(parseInt(id));
+      res.json({ message: "Purchase confirmed by seller - awaiting buyer confirmation" });
     } catch (error) {
-      console.error("Error confirming purchase:", error);
+      console.error("Error confirming purchase (seller):", error);
       res.status(500).json({ message: "Failed to confirm purchase" });
+    }
+  });
+
+  // Buyer confirms purchase (step 2)
+  app.post('/api/pending-purchases/:id/buyer-confirm', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.buyerConfirmPurchase(parseInt(id));
+      res.json({ message: "Purchase completed successfully" });
+    } catch (error) {
+      console.error("Error confirming purchase (buyer):", error);
+      res.status(500).json({ message: "Failed to complete purchase" });
     }
   });
 

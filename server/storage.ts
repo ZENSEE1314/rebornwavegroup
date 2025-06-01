@@ -100,7 +100,8 @@ export interface IStorage {
   createPendingPurchase(purchase: InsertPendingPurchase): Promise<PendingPurchase>;
   getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]>;
   getPendingPurchasesByListingId(listingId: number): Promise<PendingPurchase[]>;
-  confirmPendingPurchase(purchaseId: number): Promise<void>;
+  sellerConfirmPurchase(purchaseId: number): Promise<void>;
+  buyerConfirmPurchase(purchaseId: number): Promise<void>;
   
   // Credit and points history operations
   createCreditHistory(credit: InsertCreditHistory): Promise<CreditHistory>;
@@ -613,7 +614,8 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async confirmPendingPurchase(purchaseId: number): Promise<void> {
+  // Seller confirms the purchase (step 1)
+  async sellerConfirmPurchase(purchaseId: number): Promise<void> {
     // Get purchase details
     const [purchase] = await db
       .select()
@@ -621,17 +623,49 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pendingPurchases.id, purchaseId));
     
     if (!purchase) throw new Error('Purchase not found');
+    if (purchase.status !== 'pending_seller_confirmation') {
+      throw new Error('Purchase is not pending seller confirmation');
+    }
+
+    // Transfer toy ownership to buyer
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.buyerId })
+      .where(eq(toys.id, purchase.toyId));
+
+    // Update purchase status to pending buyer confirmation
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'pending_buyer_confirmation',
+        sellerConfirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
+
+    // Update listing status to pending (not available for other buyers)
+    await db
+      .update(listings)
+      .set({ status: 'pending' })
+      .where(eq(listings.id, purchase.listingId));
+  }
+
+  // Buyer confirms receipt (step 2 - completes the deal)
+  async buyerConfirmPurchase(purchaseId: number): Promise<void> {
+    // Get purchase details
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    
+    if (!purchase) throw new Error('Purchase not found');
+    if (purchase.status !== 'pending_buyer_confirmation') {
+      throw new Error('Purchase is not pending buyer confirmation');
+    }
 
     // Calculate seller amount (90% after 10% admin fee)
     const totalAmount = parseFloat(purchase.amount);
     const adminFee = totalAmount * 0.1;
     const sellerAmount = totalAmount - adminFee;
-
-    // Transfer toy ownership
-    await db
-      .update(toys)
-      .set({ ownerId: purchase.buyerId })
-      .where(eq(toys.id, purchase.toyId));
 
     // Add credit to seller (90% after admin fee)
     const [seller] = await db.select().from(users).where(eq(users.id, purchase.sellerId));
@@ -665,7 +699,7 @@ export class DatabaseStorage implements IStorage {
         userId: purchase.sellerId,
         amount: sellerAmount.toFixed(2),
         type: 'sale',
-        description: `Sale confirmed - Admin fee: RP ${adminFee.toFixed(2)}`,
+        description: `Sale completed - Admin fee: RP ${adminFee.toFixed(2)}`,
         relatedId: purchase.listingId,
       });
 
@@ -693,7 +727,7 @@ export class DatabaseStorage implements IStorage {
           userId: purchase.buyerId,
           points: purchase.pointsEarned,
           type: 'earned',
-          description: `Purchase confirmed - Earned ${purchase.pointsEarned} points`,
+          description: `Purchase completed - Earned ${purchase.pointsEarned} points`,
           relatedId: purchase.listingId,
         });
     }
