@@ -205,7 +205,7 @@ export default function EnhancedAdminDashboard() {
   });
 
   const updateToyOwnerMutation = useMutation({
-    mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string }) => {
+    mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string | null }) => {
       return apiRequest('PATCH', `/api/admin/toys/${toyId}/owner`, { newOwnerId });
     },
     onSuccess: () => {
@@ -982,22 +982,37 @@ export default function EnhancedAdminDashboard() {
                                     <div>
                                       <Label className="text-gray-300">Current Owner</Label>
                                       <p className="text-white">
-                                        {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'No Owner'}
+                                        {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName} (${toy.owner.email})` : 'No Owner'}
                                       </p>
                                     </div>
                                     <div>
-                                      <Label className="text-gray-300">New Owner (User ID)</Label>
-                                      <Input
-                                        placeholder="Enter user ID or leave empty to remove owner"
-                                        className="bg-gray-800 border-gray-600 text-white"
-                                        id={`owner-${toy.id}`}
-                                      />
+                                      <Label className="text-gray-300">Select New Owner</Label>
+                                      <Select 
+                                        value={newOwnerId} 
+                                        onValueChange={setNewOwnerId}
+                                      >
+                                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                                          <SelectValue placeholder="Select a user or leave empty to remove owner" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-800 border-gray-600">
+                                          <SelectItem value="" className="text-white">
+                                            Remove Owner
+                                          </SelectItem>
+                                          {(allUsers as any[])?.map((user: any) => (
+                                            <SelectItem key={user.id} value={user.id} className="text-white">
+                                              {user.firstName} {user.lastName} ({user.email})
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
                                     <Button
                                       onClick={() => {
-                                        const input = document.getElementById(`owner-${toy.id}`) as HTMLInputElement;
-                                        const newOwnerId = input?.value.trim() || null;
-                                        updateToyOwnerMutation.mutate({ toyId: toy.id, newOwnerId });
+                                        updateToyOwnerMutation.mutate({ 
+                                          toyId: toy.id, 
+                                          newOwnerId: newOwnerId || null 
+                                        });
+                                        setNewOwnerId("");
                                       }}
                                       className="bg-blue-600 hover:bg-blue-700"
                                     >
