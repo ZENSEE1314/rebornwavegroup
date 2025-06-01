@@ -157,6 +157,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointment events management routes
+  // Public endpoint for active appointment events (for booking system)
+  app.get('/api/appointment-events', async (req, res) => {
+    try {
+      const events = await storage.getAllAppointmentEvents();
+      // Only return active events for public booking
+      const activeEvents = events.filter(event => event.isActive);
+      res.json(activeEvents);
+    } catch (error) {
+      console.error("Error fetching appointment events:", error);
+      res.status(500).json({ message: "Failed to fetch appointment events" });
+    }
+  });
+
   app.get('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
     try {
       const currentUser = await storage.getUser(req.user.claims.sub);

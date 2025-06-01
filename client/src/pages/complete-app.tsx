@@ -493,7 +493,7 @@ export default function CompleteApp() {
 
   // Fetch appointment events from database
   const { data: appointmentEvents } = useQuery({
-    queryKey: ['/api/admin/appointment-events']
+    queryKey: ['/api/appointment-events']
   });
 
   // Transform appointment events into service categories format
