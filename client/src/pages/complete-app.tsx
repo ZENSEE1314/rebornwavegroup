@@ -2765,7 +2765,7 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <div className="mb-4">
                         <img 
-                          src={dinoImagePath} 
+                          src={toyImage} 
                           alt={toy.name} 
                           className="w-32 h-32 mx-auto object-contain"
                         />
