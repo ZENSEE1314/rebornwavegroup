@@ -12,7 +12,7 @@ import Referrals from "@/pages/referrals-working";
 import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
-import AdminDashboard from "@/pages/admin-dashboard";
+import AdminDashboard from "@/pages/enhanced-admin-dashboard";
 import NotFound from "@/pages/not-found";
 import Navigation from "@/components/navigation";
 import MobileNav from "@/components/mobile-nav";
