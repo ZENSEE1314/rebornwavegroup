@@ -1540,7 +1540,7 @@ export default function CompleteApp() {
                 {language === "en" ? "ID" : "EN"}
               </Button>
               <span className="text-sm text-gray-600">
-                {language === "id" ? "Halo" : "Welcome"}, {user?.firstName || 'Candy'}!
+                {language === "id" ? "Halo" : "Welcome"}, {user?.firstName || user?.email?.split('@')[0] || 'User'}!
               </span>
               <Button variant="outline" size="sm" onClick={() => window.location.href = '/api/logout'}>
                 <LogOut className="w-4 h-4 mr-2" />
