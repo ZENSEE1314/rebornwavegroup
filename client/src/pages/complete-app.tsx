@@ -2732,17 +2732,25 @@ export default function CompleteApp() {
                           </div>
                         ) : pendingPurchase && pendingPurchase.buyerId === user?.id ? (
                           <div className="space-y-2">
-                            <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
-                              {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
-                            </Badge>
-                            <Button 
-                              onClick={() => cancelPurchase(pendingPurchase.id)}
-                              variant="outline"
-                              className="w-full border-red-600 text-red-600 hover:bg-red-50"
-                            >
-                              <X className="w-4 h-4 mr-2" />
-                              {language === "id" ? "Batalkan Pembelian" : "Cancel Purchase"}
-                            </Button>
+                            {pendingPurchase.status === 'pending_seller_confirmation' ? (
+                              <>
+                                <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
+                                  {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
+                                </Badge>
+                                <Button 
+                                  onClick={() => cancelPurchase(pendingPurchase.id)}
+                                  variant="outline"
+                                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                                >
+                                  <X className="w-4 h-4 mr-2" />
+                                  {language === "id" ? "Batalkan Pembelian" : "Cancel Purchase"}
+                                </Button>
+                              </>
+                            ) : (
+                              <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
+                                {language === "id" ? "Menunggu Konfirmasi Diterima" : "Awaiting Delivery Confirmation"}
+                              </Badge>
+                            )}
                           </div>
                         ) : (
                           <Button 
