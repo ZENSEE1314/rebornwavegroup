@@ -441,17 +441,19 @@ export default function EnhancedAdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/20">
-                      <TableHead className="text-blue-200">User</TableHead>
-                      <TableHead className="text-blue-200">Email</TableHead>
-                      <TableHead className="text-blue-200">Credits</TableHead>
-                      <TableHead className="text-blue-200">Points</TableHead>
-                      <TableHead className="text-blue-200">Role</TableHead>
-                      <TableHead className="text-blue-200">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-blue-200 min-w-[150px]">User</TableHead>
+                        <TableHead className="text-blue-200 min-w-[180px]">Email</TableHead>
+                        <TableHead className="text-blue-200 min-w-[140px]">Phone</TableHead>
+                        <TableHead className="text-blue-200 min-w-[100px]">Credits</TableHead>
+                        <TableHead className="text-blue-200 min-w-[80px]">Points</TableHead>
+                        <TableHead className="text-blue-200 min-w-[80px]">Role</TableHead>
+                        <TableHead className="text-blue-200 min-w-[150px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user: any) => (
                       <TableRow key={user.id} className="border-white/10">
@@ -485,6 +487,18 @@ export default function EnhancedAdminDashboard() {
                             />
                           ) : (
                             user.email
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {editingUser?.id === user.id ? (
+                            <Input
+                              placeholder="Phone Number"
+                              value={editedUserData.phoneNumber || user.phoneNumber || ''}
+                              onChange={(e) => setEditedUserData({...editedUserData, phoneNumber: e.target.value})}
+                              className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[140px]"
+                            />
+                          ) : (
+                            user.phoneNumber || 'Not set'
                           )}
                         </TableCell>
                         <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
@@ -616,7 +630,8 @@ export default function EnhancedAdminDashboard() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
