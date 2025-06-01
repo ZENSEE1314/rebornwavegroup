@@ -2636,7 +2636,15 @@ export default function CompleteApp() {
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">
-                        <Badge variant={apt.status === 'confirmed' ? 'default' : apt.status === 'pending' ? 'secondary' : 'destructive'}>
+                        <Badge 
+                          className={
+                            apt.status === 'scheduled' ? 'bg-blue-500 text-white hover:bg-blue-600' :
+                            apt.status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
+                            apt.status === 'cancelled' ? 'bg-red-500 text-white hover:bg-red-600' :
+                            apt.status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
+                            'bg-gray-500 text-white hover:bg-gray-600'
+                          }
+                        >
                           {apt.status}
                         </Badge>
                         {editingAppointment === apt.id ? (

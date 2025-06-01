@@ -179,6 +179,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check appointment availability for a specific date and service
+  app.get('/api/appointments/availability', async (req, res) => {
+    try {
+      const { date, service } = req.query;
+      
+      if (!date || !service) {
+        return res.status(400).json({ message: "Date and service are required" });
+      }
+
+      // Get all appointments for the specified date
+      const allAppointments = await storage.getAllAppointments();
+      
+      // Filter appointments for the same date and service that are not cancelled
+      const conflictingAppointments = allAppointments.filter(apt => {
+        const aptDate = new Date(apt.appointmentDate).toISOString().split('T')[0];
+        const requestDate = new Date(date as string).toISOString().split('T')[0];
+        
+        return aptDate === requestDate && 
+               apt.title === service && 
+               apt.status !== 'cancelled';
+      });
+
+      // Extract the booked time slots
+      const bookedTimes = conflictingAppointments.map(apt => {
+        const aptTime = new Date(apt.appointmentDate);
+        return aptTime.getHours().toString().padStart(2, '0') + ':' + 
+               aptTime.getMinutes().toString().padStart(2, '0');
+      });
+
+      res.json({ bookedTimes });
+    } catch (error) {
+      console.error("Error checking appointment availability:", error);
+      res.status(500).json({ message: "Failed to check availability" });
+    }
+  });
+
   // Update appointment (reschedule)
   app.put('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
     try {
