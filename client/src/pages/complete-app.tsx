@@ -651,11 +651,12 @@ export default function CompleteApp() {
 
   // Mutation to confirm pending purchase
   const confirmPurchaseMutation = useMutation({
-    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/confirm`, {}),
+    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/buyer-confirm`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
     },
   });
 
