@@ -1046,6 +1046,10 @@ export default function CompleteApp() {
   };
 
   const redeemReward = async (reward: any) => {
+    console.log("*** REWARD REDEMPTION: Starting redemption for:", reward);
+    console.log("*** REWARD REDEMPTION: Current points:", loyaltyPoints);
+    console.log("*** REWARD REDEMPTION: Reward cost:", reward.pointsCost);
+    
     if (loyaltyPoints < reward.pointsCost) {
       toast({
         title: language === "id" ? "Poin Tidak Cukup" : "Insufficient Points",
@@ -1056,8 +1060,9 @@ export default function CompleteApp() {
     }
 
     try {
-      // Create point redemption in database
-      await fetch('/api/points-history', {
+      console.log("*** REWARD REDEMPTION: Making API call to /api/points-history");
+      
+      const response = await fetch('/api/points-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1069,6 +1074,17 @@ export default function CompleteApp() {
         })
       });
 
+      console.log("*** REWARD REDEMPTION: API response status:", response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("*** REWARD REDEMPTION: API error:", errorData);
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("*** REWARD REDEMPTION: API success result:", result);
+
       // Refresh user stats and points history to get updated data
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/points-history', user?.id] });
@@ -1078,6 +1094,7 @@ export default function CompleteApp() {
         description: language === "id" ? `${reward.name} berhasil ditukar` : `${reward.name} successfully redeemed`
       });
     } catch (error) {
+      console.error("*** REWARD REDEMPTION: Error occurred:", error);
       toast({
         title: "Error",
         description: "Failed to redeem reward",
