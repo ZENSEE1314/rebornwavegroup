@@ -550,13 +550,32 @@ export default function CompleteApp() {
     },
   });
 
-  // Mutation to confirm pending purchase
-  const confirmPurchaseMutation = useMutation({
-    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/confirm`, {}),
+  // Mutation for seller to confirm purchase (step 1)
+  const sellerConfirmMutation = useMutation({
+    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/seller-confirm`, {}),
     onSuccess: () => {
+      toast({
+        title: language === "id" ? "Pesanan Dikonfirmasi" : "Order Confirmed",
+        description: language === "id" ? "Menunggu konfirmasi penerimaan dari pembeli" : "Awaiting buyer confirmation of receipt"
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
       queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+    },
+  });
+
+  // Mutation for buyer to confirm purchase (step 2)
+  const buyerConfirmMutation = useMutation({
+    mutationFn: (purchaseId: number) => apiRequest('POST', `/api/pending-purchases/${purchaseId}/buyer-confirm`, {}),
+    onSuccess: () => {
+      toast({
+        title: language === "id" ? "Transaksi Selesai" : "Transaction Complete",
+        description: language === "id" ? "Pembayaran berhasil dan poin telah ditambahkan" : "Payment completed and points have been added"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
     },
   });
 
@@ -2573,26 +2592,35 @@ export default function CompleteApp() {
                           <div className="space-y-2">
                             {pendingPurchase ? (
                               <div className="space-y-2">
-                                <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
-                                  {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
-                                </Badge>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    onClick={() => confirmPurchase(pendingPurchase.id)}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                  >
-                                    <Check className="w-4 h-4 mr-2" />
-                                    {language === "id" ? "Konfirmasi" : "Confirm"}
-                                  </Button>
-                                  <Button 
-                                    onClick={() => cancelSale(pendingPurchase.id)}
-                                    variant="outline"
-                                    className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
-                                  >
-                                    <X className="w-4 h-4 mr-2" />
-                                    {language === "id" ? "Tolak" : "Cancel"}
-                                  </Button>
-                                </div>
+                                {pendingPurchase.status === 'pending_seller_confirmation' ? (
+                                  <>
+                                    <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
+                                      {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
+                                    </Badge>
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={() => sellerConfirmMutation.mutate(pendingPurchase.id)}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                        disabled={sellerConfirmMutation.isPending}
+                                      >
+                                        <Check className="w-4 h-4 mr-2" />
+                                        {language === "id" ? "Kirim Item" : "Send Item"}
+                                      </Button>
+                                      <Button 
+                                        onClick={() => cancelSale(pendingPurchase.id)}
+                                        variant="outline"
+                                        className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
+                                      >
+                                        <X className="w-4 h-4 mr-2" />
+                                        {language === "id" ? "Tolak" : "Reject"}
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
+                                    {language === "id" ? "Menunggu Konfirmasi Pembeli" : "Awaiting Buyer Confirmation"}
+                                  </Badge>
+                                )}
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -2751,7 +2779,7 @@ export default function CompleteApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Show pending purchases first */}
               {console.log("userPendingPurchases:", userPendingPurchases, "user.id:", user?.id)}
-              {userPendingPurchases?.filter(p => p.buyerId === user?.id && p.status === 'pending_seller_confirmation').map((purchase) => (
+              {userPendingPurchases?.filter(p => p.buyerId === user?.id && (p.status === 'pending_seller_confirmation' || p.status === 'pending_buyer_confirmation')).map((purchase) => (
                 <Card key={`pending-${purchase.id}`} className="hover:shadow-lg transition-shadow border-yellow-200 bg-yellow-50">
                   <CardContent className="p-6">
                     <div className="text-center">
@@ -2766,9 +2794,17 @@ export default function CompleteApp() {
                       <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
                         {purchase.toy?.rarity}
                       </Badge>
-                      <Badge className="mt-2 w-full bg-yellow-100 text-yellow-800 border-yellow-300">
-                        {language === "id" ? "Menunggu Diterima" : "Awaiting Delivery"}
-                      </Badge>
+                      
+                      {purchase.status === 'pending_seller_confirmation' ? (
+                        <Badge className="mt-2 w-full bg-yellow-100 text-yellow-800 border-yellow-300">
+                          {language === "id" ? "Menunggu Pengiriman" : "Awaiting Shipment"}
+                        </Badge>
+                      ) : (
+                        <Badge className="mt-2 w-full bg-blue-100 text-blue-800 border-blue-300">
+                          {language === "id" ? "Sudah Dikirim" : "Item Shipped"}
+                        </Badge>
+                      )}
+                      
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-slate-600">
                           {language === "id" ? "Dibeli" : "Purchased"}: {new Date(purchase.createdAt).toLocaleDateString()}
@@ -2776,20 +2812,31 @@ export default function CompleteApp() {
                         <p className="text-lg font-bold text-green-600">
                           RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
                         </p>
-                        <Button 
-                          onClick={() => {
-                            // Mark as received by buyer - this completes the transaction
-                            confirmPurchaseMutation.mutate(purchase.id);
-                            toast({
-                              title: language === "id" ? "Transaksi Selesai!" : "Transaction Complete!",
-                              description: language === "id" ? "Mainan telah ditambahkan ke koleksi Anda" : "Toy has been added to your collection",
-                            });
-                          }}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          {language === "id" ? "Konfirmasi Diterima" : "Confirm Received"}
-                        </Button>
+                        
+                        {purchase.status === 'pending_buyer_confirmation' ? (
+                          <div className="space-y-2">
+                            <Button 
+                              onClick={() => buyerConfirmMutation.mutate(purchase.id)}
+                              className="w-full bg-green-600 hover:bg-green-700"
+                              disabled={buyerConfirmMutation.isPending}
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              {language === "id" ? "Konfirmasi Diterima" : "Confirm Received"}
+                            </Button>
+                            <Button 
+                              onClick={() => cancelPurchase(purchase.id)}
+                              variant="outline"
+                              className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              {language === "id" ? "Laporkan Masalah" : "Report Issue"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">
+                            {language === "id" ? "Menunggu penjual mengirim item" : "Waiting for seller to ship item"}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
