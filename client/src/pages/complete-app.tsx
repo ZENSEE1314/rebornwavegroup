@@ -600,8 +600,62 @@ export default function CompleteApp() {
     },
   });
 
-  // Fetch points history from database - using same source as user stats
-  const pointHistory = userStats?.pointRedemptions || [];
+  // Filter and sorting states
+  const [pointsFilter, setPointsFilter] = useState<'all' | 'earned' | 'redeemed'>('all');
+  const [pointsDateFilter, setPointsDateFilter] = useState('');
+  const [appointmentsFilter, setAppointmentsFilter] = useState<'all' | 'pending' | 'scheduled' | 'completed' | 'cancelled'>('all');
+  const [appointmentsDateFilter, setAppointmentsDateFilter] = useState('');
+  const [creditFilter, setCreditFilter] = useState<'all' | 'earned' | 'spent'>('all');
+  const [creditDateFilter, setCreditDateFilter] = useState('');
+
+  // Get points history from user stats and sort by newest first
+  const allPointHistory = userStats?.pointRedemptions || [];
+  const sortedPointHistory = [...allPointHistory].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // Filter points history
+  const filteredPointHistory = sortedPointHistory.filter(entry => {
+    const typeMatch = pointsFilter === 'all' || entry.type === pointsFilter;
+    const dateMatch = !pointsDateFilter || 
+      new Date(entry.createdAt).toISOString().split('T')[0] === pointsDateFilter;
+    return typeMatch && dateMatch;
+  });
+
+  // Get appointments from user stats and sort by newest first
+  const allAppointments = userStats?.appointments || [];
+  const sortedAppointments = [...allAppointments].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // Filter appointments
+  const filteredAppointments = sortedAppointments.filter(appointment => {
+    const statusMatch = appointmentsFilter === 'all' || appointment.status === appointmentsFilter;
+    const dateMatch = !appointmentsDateFilter || 
+      new Date(appointment.createdAt).toISOString().split('T')[0] === appointmentsDateFilter;
+    return statusMatch && dateMatch;
+  });
+
+  // Create credit history from various sources and sort by newest first
+  const allCreditHistory = [
+    // Add cash-out requests as credit transactions
+    ...cashOutHistory.map((cashOut: any) => ({
+      id: `cashout-${cashOut.id}`,
+      description: `Cash out request: ${cashOut.bankName} ${cashOut.accountNumber}`,
+      amount: -parseFloat(cashOut.amount),
+      type: 'spent',
+      createdAt: cashOut.createdAt
+    })),
+    // Add any other credit transactions here if available
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Filter credit history
+  const filteredCreditHistory = allCreditHistory.filter(entry => {
+    const typeMatch = creditFilter === 'all' || entry.type === creditFilter;
+    const dateMatch = !creditDateFilter || 
+      new Date(entry.createdAt).toISOString().split('T')[0] === creditDateFilter;
+    return typeMatch && dateMatch;
+  });
 
   // Fetch redemption history from database (filter for 'redeemed' type)
   const { data: redemptionHistory = [] } = useQuery({
@@ -1944,10 +1998,39 @@ export default function CompleteApp() {
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle>{language === "id" ? "Riwayat Poin" : "Point History"}</CardTitle>
+                    <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                      <select
+                        value={pointsFilter}
+                        onChange={(e) => setPointsFilter(e.target.value as 'all' | 'earned' | 'redeemed')}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                        <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
+                        <option value="redeemed">{language === "id" ? "Ditukar" : "Redeemed"}</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={pointsDateFilter}
+                        onChange={(e) => setPointsDateFilter(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                      />
+                      {(pointsFilter !== 'all' || pointsDateFilter) && (
+                        <button
+                          onClick={() => {
+                            setPointsFilter('all');
+                            setPointsDateFilter('');
+                          }}
+                          className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                        </button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {pointHistory.map((history) => (
+                      {filteredPointHistory.map((history) => (
                         <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
                             <p className="font-medium text-slate-900">{history.description}</p>
@@ -2271,10 +2354,41 @@ export default function CompleteApp() {
             <Card>
               <CardHeader>
                 <CardTitle>{language === "id" ? "Reservasi Anda" : "Your Appointments"}</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  <select
+                    value={appointmentsFilter}
+                    onChange={(e) => setAppointmentsFilter(e.target.value as 'all' | 'pending' | 'scheduled' | 'completed' | 'cancelled')}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                    <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
+                    <option value="scheduled">{language === "id" ? "Terjadwal" : "Scheduled"}</option>
+                    <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
+                    <option value="cancelled">{language === "id" ? "Dibatalkan" : "Cancelled"}</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={appointmentsDateFilter}
+                    onChange={(e) => setAppointmentsDateFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                  />
+                  {(appointmentsFilter !== 'all' || appointmentsDateFilter) && (
+                    <button
+                      onClick={() => {
+                        setAppointmentsFilter('all');
+                        setAppointmentsDateFilter('');
+                      }}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                    </button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {userAppointments.map((apt) => (
+                  {filteredAppointments.map((apt) => (
                     <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
                       <div className="flex items-center space-x-3 sm:space-x-4">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
