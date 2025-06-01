@@ -530,7 +530,7 @@ export class DatabaseStorage implements IStorage {
 
   // Marketplace operations
   async createListing(listing: InsertListing): Promise<Listing> {
-    // Check if this toy is already listed and active
+    // Check if this toy is already listed and active, or has pending transactions
     const existingListing = await db
       .select()
       .from(listings)
@@ -546,6 +546,24 @@ export class DatabaseStorage implements IStorage {
 
     if (existingListing.length > 0) {
       throw new Error('This toy is already listed for sale or in a pending transaction');
+    }
+
+    // Also check if there are any pending purchases for this toy
+    const pendingPurchases = await db
+      .select()
+      .from(pendingPurchases)
+      .where(
+        and(
+          eq(pendingPurchases.toyId, listing.toyId),
+          or(
+            eq(pendingPurchases.status, 'pending_seller_confirmation'),
+            eq(pendingPurchases.status, 'pending_buyer_confirmation')
+          )
+        )
+      );
+
+    if (pendingPurchases.length > 0) {
+      throw new Error('This toy has pending transactions and cannot be listed again');
     }
 
     // Verify the user owns this toy
