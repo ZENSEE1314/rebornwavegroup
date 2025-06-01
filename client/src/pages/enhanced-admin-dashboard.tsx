@@ -381,32 +381,34 @@ export default function EnhancedAdminDashboard() {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="bg-white/20 backdrop-blur border-gray-300/30">
-            <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white">
-              <Users className="h-4 w-4 mr-2" />
-              User Management
-            </TabsTrigger>
-            <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white">
-              <Calendar className="h-4 w-4 mr-2" />
-              Appointments
-            </TabsTrigger>
-            <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Cash Outs
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="data-[state=active]:bg-white/30 text-white">
-              <History className="h-4 w-4 mr-2" />
-              Transactions
-            </TabsTrigger>
-            <TabsTrigger value="toys" className="data-[state=active]:bg-white/30 text-white">
-              <Package className="h-4 w-4 mr-2" />
-              Toy Management
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-white/30 text-white">
-              <FileText className="h-4 w-4 mr-2" />
-              Reports
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-hide">
+            <TabsList className="bg-white/20 backdrop-blur border-gray-300/30 flex min-w-max">
+              <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Users className="h-4 w-4 mr-2" />
+                User Management
+              </TabsTrigger>
+              <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Calendar className="h-4 w-4 mr-2" />
+                Appointments
+              </TabsTrigger>
+              <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Cash Outs
+              </TabsTrigger>
+              <TabsTrigger value="transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <History className="h-4 w-4 mr-2" />
+                Transactions
+              </TabsTrigger>
+              <TabsTrigger value="toys" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Package className="h-4 w-4 mr-2" />
+                Toy Management
+              </TabsTrigger>
+              <TabsTrigger value="reports" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <FileText className="h-4 w-4 mr-2" />
+                Reports
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* User Management Tab */}
           <TabsContent value="users">
@@ -454,19 +456,19 @@ export default function EnhancedAdminDashboard() {
                     {filteredUsers.map((user: any) => (
                       <TableRow key={user.id} className="border-white/10">
                         <TableCell className="text-white">
-                          {editingUser?.id === user.id ? (
-                            <div className="flex gap-1">
+                {editingUser?.id === user.id ? (
+                            <div className="flex flex-col sm:flex-row gap-1 min-w-0">
                               <Input
                                 placeholder="First Name"
                                 value={editedUserData.firstName || user.firstName || ''}
                                 onChange={(e) => setEditedUserData({...editedUserData, firstName: e.target.value})}
-                                className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                                className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[120px]"
                               />
                               <Input
                                 placeholder="Last Name"
                                 value={editedUserData.lastName || user.lastName || ''}
                                 onChange={(e) => setEditedUserData({...editedUserData, lastName: e.target.value})}
-                                className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                                className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[120px]"
                               />
                             </div>
                           ) : (
@@ -479,7 +481,7 @@ export default function EnhancedAdminDashboard() {
                               placeholder="Email"
                               value={editedUserData.email || user.email || ''}
                               onChange={(e) => setEditedUserData({...editedUserData, email: e.target.value})}
-                              className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                              className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[180px]"
                             />
                           ) : (
                             user.email
@@ -493,7 +495,7 @@ export default function EnhancedAdminDashboard() {
                               value={editedUserData.role || user.role || 'user'} 
                               onValueChange={(value) => setEditedUserData({...editedUserData, role: value})}
                             >
-                              <SelectTrigger className="bg-gray-800 border-gray-600 text-white text-xs h-8 w-20">
+                              <SelectTrigger className="bg-gray-800 border-gray-600 text-white text-sm h-10 w-24">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -517,9 +519,9 @@ export default function EnhancedAdminDashboard() {
                                     userId: user.id, 
                                     userData: editedUserData 
                                   })}
-                                  className="bg-green-600 hover:bg-green-700 h-8 w-8 p-0"
+                                  className="bg-green-600 hover:bg-green-700 h-10 w-10 p-0"
                                 >
-                                  <Check className="h-3 w-3" />
+                                  <Check className="h-4 w-4" />
                                 </Button>
                                 <Button 
                                   size="sm" 
@@ -528,9 +530,9 @@ export default function EnhancedAdminDashboard() {
                                     setEditedUserData({});
                                   }}
                                   variant="outline"
-                                  className="h-8 w-8 p-0"
+                                  className="h-10 w-10 p-0"
                                 >
-                                  <X className="h-3 w-3" />
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </>
                             ) : (
@@ -542,12 +544,13 @@ export default function EnhancedAdminDashboard() {
                                     firstName: user.firstName,
                                     lastName: user.lastName,
                                     email: user.email,
+                                    phoneNumber: user.phoneNumber,
                                     role: user.role
                                   });
                                 }}
-                                className="bg-blue-600 hover:bg-blue-700 h-8 w-8 p-0"
+                                className="bg-blue-600 hover:bg-blue-700 h-10 w-10 p-0"
                               >
-                                <Edit className="h-3 w-3" />
+                                <Edit className="h-4 w-4" />
                               </Button>
                             )}
                             <Dialog>
@@ -555,9 +558,9 @@ export default function EnhancedAdminDashboard() {
                                 <Button 
                                   size="sm" 
                                   onClick={() => setSelectedUser(user)}
-                                  className="bg-purple-600 hover:bg-purple-700 h-8 w-8 p-0"
+                                  className="bg-purple-600 hover:bg-purple-700 h-10 w-10 p-0"
                                 >
-                                  <DollarSign className="h-3 w-3" />
+                                  <DollarSign className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="bg-gray-900 border-gray-700">
