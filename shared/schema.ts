@@ -230,10 +230,10 @@ export const rewardItems = pgTable("reward_items", {
   name: varchar("name").notNull(),
   description: text("description"),
   pointsCost: integer("points_cost").notNull(),
-  category: varchar("category"), // 'discount', 'freebie', 'merchandise'
+  type: varchar("type"), // 'item', 'service', 'discount', 'voucher'
   imageUrl: varchar("image_url"),
   isActive: boolean("is_active").default(true),
-  stock: integer("stock").default(999),
+  stockQuantity: integer("stock_quantity"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
