@@ -110,6 +110,8 @@ export default function EnhancedAdminDashboard() {
     category: "beauty",
     isActive: true
   });
+  const [useCustomCategory, setUseCustomCategory] = useState(false);
+  const [customCategory, setCustomCategory] = useState("");
   const [rewardForm, setRewardForm] = useState({
     name: "",
     description: "",
@@ -459,6 +461,8 @@ export default function EnhancedAdminDashboard() {
         category: "beauty",
         isActive: true
       });
+      setUseCustomCategory(false);
+      setCustomCategory("");
     },
     onError: () => {
       toast({ title: editingEvent ? "Failed to update event" : "Failed to create event", variant: "destructive" });
@@ -1792,12 +1796,17 @@ export default function EnhancedAdminDashboard() {
                                         className="bg-white/10 border-white/20"
                                         onClick={() => {
                                           setEditingEvent(event);
+                                          const predefinedCategories = ['beauty', 'entertainment', 'restaurant'];
+                                          const isCustomCategory = !predefinedCategories.includes(event.category);
+                                          
                                           setEventForm({
                                             title: event.title,
                                             description: event.description,
-                                            category: event.category,
+                                            category: isCustomCategory ? 'beauty' : event.category,
                                             isActive: event.isActive
                                           });
+                                          setUseCustomCategory(isCustomCategory);
+                                          setCustomCategory(isCustomCategory ? event.category : '');
                                           setShowEventDialog(true);
                                         }}
                                       >
@@ -2147,16 +2156,52 @@ export default function EnhancedAdminDashboard() {
               </div>
               <div>
                 <Label htmlFor="event-category" className="text-gray-300">Category</Label>
-                <select
-                  id="event-category"
-                  value={eventForm.category}
-                  onChange={(e) => setEventForm({...eventForm, category: e.target.value})}
-                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
-                >
-                  <option value="beauty">Beauty</option>
-                  <option value="entertainment">Entertainment</option>
-                  <option value="restaurant">Restaurant</option>
-                </select>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="predefined-category"
+                      checked={!useCustomCategory}
+                      onChange={() => setUseCustomCategory(false)}
+                      className="text-blue-600"
+                    />
+                    <Label htmlFor="predefined-category" className="text-gray-300">Use existing category</Label>
+                  </div>
+                  
+                  {!useCustomCategory && (
+                    <select
+                      id="event-category"
+                      value={eventForm.category}
+                      onChange={(e) => setEventForm({...eventForm, category: e.target.value})}
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                    >
+                      <option value="beauty">Beauty</option>
+                      <option value="entertainment">Entertainment</option>
+                      <option value="restaurant">Restaurant</option>
+                    </select>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="custom-category"
+                      checked={useCustomCategory}
+                      onChange={() => setUseCustomCategory(true)}
+                      className="text-blue-600"
+                    />
+                    <Label htmlFor="custom-category" className="text-gray-300">Create new category</Label>
+                  </div>
+                  
+                  {useCustomCategory && (
+                    <Input
+                      id="custom-category-input"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white"
+                      placeholder="Enter new category name"
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -2182,12 +2227,20 @@ export default function EnhancedAdminDashboard() {
                     category: "beauty",
                     isActive: true
                   });
+                  setUseCustomCategory(false);
+                  setCustomCategory("");
                 }}
               >
                 Cancel
               </Button>
               <Button 
-                onClick={() => createEventMutation.mutate(eventForm)}
+                onClick={() => {
+                  const finalCategory = useCustomCategory ? customCategory : eventForm.category;
+                  createEventMutation.mutate({
+                    ...eventForm,
+                    category: finalCategory
+                  });
+                }}
                 disabled={createEventMutation.isPending}
                 className="bg-green-600 hover:bg-green-700"
               >
