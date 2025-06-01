@@ -152,6 +152,8 @@ export default function CompleteApp() {
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "+62 812-3456-7890");
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
+  const [gender, setGender] = useState(user?.gender || "");
+  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
@@ -1525,7 +1527,9 @@ export default function CompleteApp() {
         body: JSON.stringify({
           firstName,
           lastName,
-          phoneNumber
+          phoneNumber,
+          gender,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
         }),
         credentials: 'include'
       });
@@ -3395,6 +3399,34 @@ export default function CompleteApp() {
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
                           placeholder="+62 812-3456-7890"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          {language === "id" ? "Jenis Kelamin" : "Gender"}
+                        </label>
+                        <select 
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          disabled={!editingProfile}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-md ${editingProfile ? "" : "bg-gray-50"}`}
+                        >
+                          <option value="">{language === "id" ? "Pilih jenis kelamin" : "Select gender"}</option>
+                          <option value="male">{language === "id" ? "Laki-laki" : "Male"}</option>
+                          <option value="female">{language === "id" ? "Perempuan" : "Female"}</option>
+                          <option value="other">{language === "id" ? "Lainnya" : "Other"}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          {language === "id" ? "Tanggal Lahir" : "Date of Birth"}
+                        </label>
+                        <Input 
+                          type="date"
+                          value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(e.target.value)}
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
                         />
                       </div>
                     </div>

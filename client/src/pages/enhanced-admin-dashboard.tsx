@@ -509,6 +509,8 @@ export default function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200 min-w-[150px]">User</TableHead>
                         <TableHead className="text-blue-200 min-w-[180px]">Email</TableHead>
                         <TableHead className="text-blue-200 min-w-[140px]">Phone</TableHead>
+                        <TableHead className="text-blue-200 min-w-[100px]">Gender</TableHead>
+                        <TableHead className="text-blue-200 min-w-[120px]">Date of Birth</TableHead>
                         <TableHead className="text-blue-200 min-w-[100px]">Credits</TableHead>
                         <TableHead className="text-blue-200 min-w-[80px]">Points</TableHead>
                         <TableHead className="text-blue-200 min-w-[80px]">Role</TableHead>
@@ -565,6 +567,34 @@ export default function EnhancedAdminDashboard() {
                             />
                           ) : (
                             user.phoneNumber || 'Not set'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {editingUser?.id === user.id ? (
+                            <select
+                              value={editedUserData.gender || user.gender || ''}
+                              onChange={(e) => setEditedUserData({...editedUserData, gender: e.target.value})}
+                              className="bg-gray-800 border border-gray-600 text-white text-sm h-10 min-w-[100px] rounded-md px-2"
+                            >
+                              <option value="">Select</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                              <option value="other">Other</option>
+                            </select>
+                          ) : (
+                            user.gender ? (user.gender.charAt(0).toUpperCase() + user.gender.slice(1)) : 'Not set'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {editingUser?.id === user.id ? (
+                            <Input
+                              type="date"
+                              value={editedUserData.dateOfBirth || (user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '')}
+                              onChange={(e) => setEditedUserData({...editedUserData, dateOfBirth: e.target.value})}
+                              className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[120px]"
+                            />
+                          ) : (
+                            user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'Not set'
                           )}
                         </TableCell>
                         <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
