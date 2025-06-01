@@ -935,7 +935,8 @@ export default function CompleteApp() {
         category: reward.type || 'general',
         claimed: false,
         description: reward.description,
-        stockQuantity: reward.stock
+        stockQuantity: reward.stockQuantity,
+        imageUrl: reward.imageUrl
       }));
   }, [adminRewards]);
 
