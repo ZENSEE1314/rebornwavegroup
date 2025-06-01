@@ -2708,7 +2708,7 @@ export default function CompleteApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {marketplaceListings.length > 0 ? marketplaceListings.map((listing) => {
                 // Check if there's a pending purchase for this listing
-                const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id && p.status === 'pending_seller_confirmation');
+                const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id);
                 const isOwnListing = listing.sellerId === user?.id;
                 
                 
@@ -2736,7 +2736,7 @@ export default function CompleteApp() {
                         
                         {isOwnListing ? (
                           <div className="space-y-2">
-                            {pendingPurchase ? (
+                            {pendingPurchase && pendingPurchase.status === 'pending_seller_confirmation' ? (
                               <div className="space-y-2">
                                 <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
                                   {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
