@@ -3022,6 +3022,13 @@ export default function CompleteApp() {
                    purchase?.status === 'pending_buyer_confirmation')
                 ) : null;
                 
+                // Check if this toy is currently listed in marketplace
+                const activeListing = Array.isArray(marketplaceListings) ? marketplaceListings.find((listing: any) => 
+                  listing?.toyId === toy?.id && 
+                  listing?.sellerId === user?.id &&
+                  listing?.status === 'active'
+                ) : null;
+                
                 return (
                   <Card key={toy.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="p-6">
@@ -3038,6 +3045,19 @@ export default function CompleteApp() {
                             </div>
                             <p className="text-xs text-yellow-700 mt-1">
                               {language === "id" ? "Transaksi sedang berlangsung" : "Transaction in progress"}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Marketplace Listing Status Banner */}
+                        {activeListing && (
+                          <div className="mb-4 p-2 bg-green-100 border border-green-300 rounded-lg">
+                            <div className="flex items-center justify-center text-green-800 text-sm font-medium">
+                              <ShoppingBag className="w-4 h-4 mr-2" />
+                              {language === "id" ? "Sedang dijual di marketplace" : "Listed in marketplace"}
+                            </div>
+                            <p className="text-xs text-green-700 mt-1">
+                              {language === "id" ? `Harga: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}` : `Price: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}`}
                             </p>
                           </div>
                         )}
