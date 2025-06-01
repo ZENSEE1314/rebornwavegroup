@@ -513,8 +513,11 @@ export default function CompleteApp() {
               ? (language === "id" ? "Layanan Kecantikan" : "Beauty Services")
               : event.category === 'entertainment'
               ? (language === "id" ? "Hiburan" : "Entertainment") 
-              : (language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant"),
-            options: []
+              : event.category === 'restaurant'
+              ? (language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant")
+              : event.category.charAt(0).toUpperCase() + event.category.slice(1), // Use custom category name as-is
+            options: [],
+            startingPrice: "0"
           };
         }
         
