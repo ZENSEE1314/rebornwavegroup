@@ -3198,7 +3198,13 @@ export default function CompleteApp() {
                 {language === "id" ? "Apakah Anda yakin ingin membeli" : "Are you sure you want to buy"}
               </p>
               <div className="bg-slate-50 rounded-lg p-4 mb-4">
-                <div className="text-4xl mb-2">{selectedPurchaseListing.toy?.imageUrl || "🎮"}</div>
+                <div className="mb-2">
+                  <img 
+                    src={toyImage} 
+                    alt={selectedPurchaseListing.toy?.name || "Toy"} 
+                    className="w-16 h-16 mx-auto object-contain"
+                  />
+                </div>
                 <h4 className="font-bold text-slate-900">{selectedPurchaseListing.toy?.name}</h4>
                 <p className="text-xl font-bold text-green-600 mt-2">
                   RP {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
