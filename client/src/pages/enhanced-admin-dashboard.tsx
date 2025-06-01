@@ -65,6 +65,7 @@ export default function EnhancedAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState("all");
   
   // Bulk upload states
   const [bulkToyData, setBulkToyData] = useState("");
@@ -151,7 +152,10 @@ export default function EnhancedAdminDashboard() {
       toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
       toy.series?.toLowerCase().includes(toySearch.toLowerCase());
     const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
-    return searchMatch && rarityMatch;
+    const ownerMatch = ownerFilter === "all" || 
+      (ownerFilter === "owned" && toy.owner) ||
+      (ownerFilter === "unowned" && !toy.owner);
+    return searchMatch && rarityMatch && ownerMatch;
   });
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
@@ -932,6 +936,16 @@ export default function EnhancedAdminDashboard() {
                         <SelectItem value="epic">Epic</SelectItem>
                         <SelectItem value="legendary">Legendary</SelectItem>
                         <SelectItem value="secret">Secret</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                      <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+                        <SelectValue placeholder="Filter by owner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Toys</SelectItem>
+                        <SelectItem value="owned">With Owner</SelectItem>
+                        <SelectItem value="unowned">No Owner</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
