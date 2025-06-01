@@ -160,6 +160,9 @@ export default function CompleteApp() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
@@ -1567,6 +1570,42 @@ export default function CompleteApp() {
         toast({
           title: "Error",
           description: error.message || (language === "id" ? "Gagal mengubah password" : "Failed to change password"),
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: language === "id" ? "Terjadi kesalahan" : "An error occurred",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const saveNotificationSettings = async () => {
+    try {
+      const response = await fetch('/api/auth/notification-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailNotifications,
+          smsNotifications
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Berhasil" : "Success",
+          description: language === "id" ? "Pengaturan notifikasi berhasil disimpan" : "Notification settings saved successfully"
+        });
+        setShowEmailModal(false);
+      } else {
+        toast({
+          title: "Error",
+          description: language === "id" ? "Gagal menyimpan pengaturan" : "Failed to save settings",
           variant: "destructive"
         });
       }
@@ -3509,23 +3548,11 @@ export default function CompleteApp() {
                             {language === "id" ? "Terima update tentang janji dan promosi" : "Receive updates about appointments and promotions"}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => setShowEmailModal(true)}>
                           {language === "id" ? "Kelola" : "Manage"}
                         </Button>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">
-                            {language === "id" ? "Komunikasi Marketing" : "Marketing Communications"}
-                          </p>
-                          <p className="text-sm text-slate-600">
-                            {language === "id" ? "Penawaran promosi dan promo khusus" : "Promotional offers and special deals"}
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          {language === "id" ? "Kelola" : "Manage"}
-                        </Button>
-                      </div>
+
                     </div>
                   </div>
 
@@ -3558,9 +3585,6 @@ export default function CompleteApp() {
                       )}
                       <Button variant="outline" className="w-full" onClick={() => setShowPasswordModal(true)}>
                         {language === "id" ? "Ubah Password" : "Change Password"}
-                      </Button>
-                      <Button variant="outline" className="w-full">
-                        {language === "id" ? "Unduh Data Akun" : "Download Account Data"}
                       </Button>
                     </div>
                   </div>
@@ -3877,6 +3901,66 @@ export default function CompleteApp() {
                   setNewPassword("");
                   setConfirmPassword("");
                 }}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Notification Settings Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Pengaturan Notifikasi" : "Notification Settings"}
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {language === "id" ? "Notifikasi Email" : "Email Notifications"}
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    {language === "id" ? "Terima update melalui email" : "Receive updates via email"}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={emailNotifications}
+                  onChange={(e) => setEmailNotifications(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {language === "id" ? "Notifikasi SMS" : "SMS Notifications"}
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    {language === "id" ? "Terima update melalui SMS" : "Receive updates via SMS"}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={smsNotifications}
+                  onChange={(e) => setSmsNotifications(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button
+                onClick={saveNotificationSettings}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                {language === "id" ? "Simpan" : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEmailModal(false)}
                 className="flex-1"
               >
                 {language === "id" ? "Batal" : "Cancel"}

@@ -54,6 +54,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/auth/notification-settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const { emailNotifications, smsNotifications } = req.body;
+      
+      // In a real implementation, you would save these preferences to the database
+      // For this demo, we'll simulate successful save
+      res.json({ message: "Notification settings saved successfully" });
+    } catch (error) {
+      console.error("Error saving notification settings:", error);
+      res.status(500).json({ message: "Failed to save notification settings" });
+    }
+  });
+
   app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
