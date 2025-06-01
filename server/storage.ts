@@ -549,7 +549,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Also check if there are any pending purchases for this toy
-    const pendingPurchases = await db
+    const existingPendingPurchases = await db
       .select()
       .from(pendingPurchases)
       .where(
@@ -562,7 +562,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    if (pendingPurchases.length > 0) {
+    if (existingPendingPurchases.length > 0) {
       throw new Error('This toy has pending transactions and cannot be listed again');
     }
 
