@@ -1918,7 +1918,7 @@ export default function EnhancedAdminDashboard() {
 
         {/* Banner Creation Dialog */}
         <Dialog open={showBannerDialog} onOpenChange={setShowBannerDialog}>
-          <DialogContent className="bg-gray-900 border-gray-700">
+          <DialogContent className="bg-gray-900 border-gray-700 max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white">
                 {editingBanner ? "Edit Promotion Banner" : "Create Promotion Banner"}
