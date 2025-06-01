@@ -2375,7 +2375,7 @@ export default function CompleteApp() {
                         <div key={reward.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <span className="text-3xl">{getCategorySymbol(reward.category, reward.id)}</span>
+                              <span className="text-3xl">{reward.imageUrl || getCategorySymbol(reward.category, reward.id)}</span>
                               <div>
                                 <h4 className="font-semibold text-slate-900">{reward.name}</h4>
                                 <Badge className={getCategoryColor(reward.category)}>
