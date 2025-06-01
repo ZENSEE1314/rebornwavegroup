@@ -791,13 +791,8 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Purchase is not pending seller confirmation');
     }
 
-    // Transfer toy ownership immediately when seller confirms
-    await db
-      .update(toys)
-      .set({ ownerId: purchase.buyerId })
-      .where(eq(toys.id, purchase.toyId));
-
     // Update purchase status to pending buyer confirmation
+    // DON'T transfer toy ownership yet - wait for buyer confirmation
     await db
       .update(pendingPurchases)
       .set({ 
