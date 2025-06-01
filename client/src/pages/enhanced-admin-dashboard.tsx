@@ -269,6 +269,8 @@ export default function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Appointment updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       setSelectedAppointment(null);
     },
     onError: () => {
