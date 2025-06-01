@@ -232,7 +232,7 @@ export class DatabaseStorage implements IStorage {
   async calculateReferralEarnings(userId: string): Promise<number> {
     const result = await db
       .select({
-        total: sql<number>`sum(${referrals.totalEarnings})`,
+        total: sql<string>`COALESCE(SUM(CAST(${referrals.totalEarnings} AS DECIMAL)), 0)`,
       })
       .from(referrals)
       .where(eq(referrals.referrerId, userId));
