@@ -721,9 +721,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { amount, buyerId, listingId } = req.body;
+      const { amount, buyerId, listingId, sellerId, toyId, pointsEarned } = req.body;
       
       console.log("*** PURCHASE DEBUG: Request body:", req.body);
+      console.log("*** PURCHASE DEBUG: Authenticated user ID:", userId);
+      
+      // Verify the buyer ID matches the authenticated user
+      if (buyerId !== userId) {
+        console.log("*** PURCHASE DEBUG: Buyer ID mismatch");
+        return res.status(403).json({ message: "Unauthorized purchase attempt" });
+      }
       
       // Check if buyer has sufficient credits
       const buyer = await storage.getUser(buyerId);
@@ -741,15 +748,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("*** PURCHASE DEBUG: Insufficient credits");
         return res.status(400).json({ message: "Insufficient credits" });
       }
+
+      // Create the pending purchase first
+      const purchaseData = {
+        listingId: parseInt(listingId),
+        buyerId,
+        sellerId,
+        toyId: parseInt(toyId),
+        amount: purchaseAmount.toFixed(2),
+        pointsEarned: parseInt(pointsEarned),
+        status: 'pending'
+      };
       
-      // Deduct credits from buyer immediately
+      console.log("*** PURCHASE DEBUG: Creating purchase with data:", purchaseData);
+      const purchase = await storage.createPendingPurchase(purchaseData);
+      console.log("*** PURCHASE DEBUG: Pending purchase created:", purchase);
+      
+      // Only deduct credits after purchase is successfully created
       const newBuyerCredits = buyerCredits - purchaseAmount;
       await storage.updateUserCredits(buyerId, newBuyerCredits.toString());
       console.log("*** PURCHASE DEBUG: Credits deducted successfully");
-      
-      // Create the pending purchase
-      const purchase = await storage.createPendingPurchase(req.body);
-      console.log("*** PURCHASE DEBUG: Pending purchase created:", purchase);
       
       // Update listing status to sold to hide it from marketplace
       await storage.updateListingStatus(listingId, 'sold');
@@ -761,14 +779,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: purchaseAmount.toFixed(2),
         type: 'debit',
         description: `Purchase pending seller confirmation - Listing ID: ${listingId}`,
-        relatedId: listingId,
+        relatedId: parseInt(listingId),
       });
       console.log("*** PURCHASE DEBUG: Credit history created");
       
       res.json(purchase);
     } catch (error) {
       console.error("*** PURCHASE DEBUG: Error creating pending purchase:", error);
-      res.status(500).json({ message: "Failed to create pending purchase" });
+      res.status(500).json({ message: "Failed to create pending purchase", error: error.message });
     }
   });
 
