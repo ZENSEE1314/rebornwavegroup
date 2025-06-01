@@ -45,6 +45,8 @@ export default function EnhancedAdminDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editedUserData, setEditedUserData] = useState<any>({});
+  const [activeTab, setActiveTab] = useState("overview");
+  const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
   const [newToy, setNewToy] = useState({
     name: "",
     series: "",
@@ -321,6 +323,17 @@ export default function EnhancedAdminDashboard() {
     }
   };
 
+  // Function to handle clicking on username in appointments
+  const handleUserNameClick = (userId: string) => {
+    setActiveTab("users");
+    setHighlightedUserId(userId);
+    setUserSearch(""); // Clear search to show all users
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedUserId(null);
+    }, 3000);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto p-6">
@@ -380,7 +393,7 @@ export default function EnhancedAdminDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="users" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide">
             <TabsList className="bg-white/20 backdrop-blur border-gray-300/30 flex min-w-max">
               <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
@@ -456,7 +469,12 @@ export default function EnhancedAdminDashboard() {
                     </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user: any) => (
-                      <TableRow key={user.id} className="border-white/10">
+                      <TableRow 
+                        key={user.id} 
+                        className={`border-white/10 transition-colors ${
+                          highlightedUserId === user.id ? 'bg-blue-500/20 border-blue-400/50' : ''
+                        }`}
+                      >
                         <TableCell className="text-white">
                 {editingUser?.id === user.id ? (
                             <div className="flex flex-col sm:flex-row gap-1 min-w-0">
@@ -692,7 +710,12 @@ export default function EnhancedAdminDashboard() {
                     {filteredAppointments.map((appointment: any) => (
                       <TableRow key={appointment.id} className="border-white/10">
                         <TableCell className="text-white">
-                          {appointment.user?.firstName} {appointment.user?.lastName}
+                          <button
+                            onClick={() => handleUserNameClick(appointment.userId)}
+                            className="text-blue-300 hover:text-blue-100 underline cursor-pointer transition-colors"
+                          >
+                            {appointment.user?.firstName} {appointment.user?.lastName}
+                          </button>
                         </TableCell>
                         <TableCell className="text-gray-300">{appointment.service}</TableCell>
                         <TableCell className="text-gray-300">
