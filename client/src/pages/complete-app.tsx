@@ -557,11 +557,26 @@ export default function CompleteApp() {
     },
     onError: (error) => {
       console.error("Purchase failed:", error);
-      toast({
-        title: "Error",
-        description: "Failed to complete purchase",
-        variant: "destructive"
-      });
+      console.log("Full error details:", JSON.stringify(error, null, 2));
+      
+      // Check if it's an authentication error
+      if (error.message && error.message.includes('401')) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to continue",
+          variant: "destructive"
+        });
+        // Redirect to login after showing error
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 2000);
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to complete purchase: ${error.message || 'Unknown error'}`,
+          variant: "destructive"
+        });
+      }
     }
   });
 
