@@ -14,6 +14,7 @@ import {
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
+import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CompleteApp() {
@@ -2540,7 +2541,13 @@ export default function CompleteApp() {
                   <Card key={listing.id} className="hover:shadow-lg transition-shadow">
                     <CardContent className="p-6">
                       <div className="text-center">
-                        <div className="text-6xl mb-4">{listing.toy?.imageUrl || "🎮"}</div>
+                        <div className="mb-4">
+                          <img 
+                            src={toyImage} 
+                            alt={listing.toy?.name || "Toy"} 
+                            className="w-24 h-24 mx-auto object-contain"
+                          />
+                        </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
                         <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
                           {listing.toy?.rarity}
