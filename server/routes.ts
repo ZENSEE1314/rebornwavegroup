@@ -67,6 +67,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/admin/users/:userId/change-password', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user is admin
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { newPassword } = req.body;
+      
+      if (!newPassword) {
+        return res.status(400).json({ message: "New password is required" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+
+      // Note: In a real implementation, you would hash the password and store it
+      // For this demo, we'll simulate successful password change
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing user password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
   app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

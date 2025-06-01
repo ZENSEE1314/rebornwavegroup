@@ -78,6 +78,12 @@ export default function EnhancedAdminDashboard() {
   const [editOwnerDialog, setEditOwnerDialog] = useState(false);
   const [selectedToyForEdit, setSelectedToyForEdit] = useState<any>(null);
   const [newOwnerId, setNewOwnerId] = useState("");
+  
+  // Password change dialog states
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Check if user is admin
   if (!user || user.role !== 'admin') {
@@ -298,6 +304,22 @@ export default function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to update user", variant: "destructive" });
+    }
+  });
+
+  const changeUserPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      return apiRequest('POST', `/api/admin/users/${userId}/change-password`, { newPassword });
+    },
+    onSuccess: () => {
+      toast({ title: "Password changed successfully" });
+      setShowPasswordDialog(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      setSelectedUserForPassword(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to change password", variant: "destructive" });
     }
   });
 
@@ -665,6 +687,19 @@ export default function EnhancedAdminDashboard() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                             )}
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedUserForPassword(user);
+                                setShowPasswordDialog(true);
+                                setNewPassword("");
+                                setConfirmPassword("");
+                              }}
+                              className="bg-orange-600 hover:bg-orange-700 h-10 w-10 p-0"
+                              title="Change Password"
+                            >
+                              🔑
+                            </Button>
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button 
@@ -1406,6 +1441,81 @@ export default function EnhancedAdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Password Change Dialog */}
+        {showPasswordDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Change Password for {selectedUserForPassword?.firstName} {selectedUserForPassword?.lastName}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">New Password</Label>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Confirm New Password</Label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <Button
+                  onClick={() => {
+                    if (newPassword !== confirmPassword) {
+                      toast({
+                        title: "Error",
+                        description: "Passwords don't match",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    if (newPassword.length < 6) {
+                      toast({
+                        title: "Error",
+                        description: "Password must be at least 6 characters",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    changeUserPasswordMutation.mutate({
+                      userId: selectedUserForPassword.id,
+                      newPassword
+                    });
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  disabled={changeUserPasswordMutation.isPending}
+                >
+                  Change Password
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordDialog(false);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setSelectedUserForPassword(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
