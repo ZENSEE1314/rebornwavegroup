@@ -240,6 +240,56 @@ export const rewardItems = pgTable("reward_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Pet care system tables
+export const pets = pgTable("pets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  toyId: integer("toy_id").notNull(),
+  name: varchar("name").notNull(),
+  species: varchar("species").default("Doluruu"),
+  birthDate: timestamp("birth_date").defaultNow(),
+  currentAge: integer("current_age").default(0), // days since birth
+  growthStage: varchar("growth_stage").default("baby"), // baby, child, teen, adult, elder
+  happiness: integer("happiness").default(50), // 0-100
+  hunger: integer("hunger").default(50), // 0-100 (100 = full)
+  cleanliness: integer("cleanliness").default(50), // 0-100
+  energy: integer("energy").default(50), // 0-100
+  isActive: boolean("is_active").default(true),
+  lastCareDate: timestamp("last_care_date"),
+  totalTokensEarned: integer("total_tokens_earned").default(0),
+  dailyTokensAvailable: integer("daily_tokens_available").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const petCareActivities = pgTable("pet_care_activities", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  careDate: timestamp("care_date").defaultNow(),
+  careType: varchar("care_type").notNull(), // 'feed', 'bathe', 'sleep', 'clean'
+  completedAt: timestamp("completed_at").defaultNow(),
+  tokenEarned: boolean("token_earned").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const dailyCareStatus = pgTable("daily_care_status", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  careDate: varchar("care_date").notNull(), // YYYY-MM-DD format
+  fed: boolean("fed").default(false),
+  bathed: boolean("bathed").default(false),
+  slept: boolean("slept").default(false),
+  cleaned: boolean("cleaned").default(false),
+  allCareCompleted: boolean("all_care_completed").default(false),
+  tokenEarned: boolean("token_earned").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_pet_care_date").on(table.petId, table.careDate)
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   referrals: many(referrals, { relationName: "referrer" }),
@@ -256,6 +306,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   receivedMessages: many(messages, { relationName: "receiver" }),
   pointRedemptions: many(pointRedemptions),
   cashOutTransactions: many(cashOutTransactions),
+  pets: many(pets),
+  petCareActivities: many(petCareActivities),
+  dailyCareStatus: many(dailyCareStatus),
 }));
 
 export const referralsRelations = relations(referrals, ({ one }) => ({
@@ -367,6 +420,41 @@ export const creditHistoryRelations = relations(creditHistory, ({ one }) => ({
 export const pointsHistoryRelations = relations(pointsHistory, ({ one }) => ({
   user: one(users, {
     fields: [pointsHistory.userId],
+    references: [users.id],
+  }),
+}));
+
+export const petsRelations = relations(pets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [pets.userId],
+    references: [users.id],
+  }),
+  toy: one(toys, {
+    fields: [pets.toyId],
+    references: [toys.id],
+  }),
+  careActivities: many(petCareActivities),
+  dailyCareStatus: many(dailyCareStatus),
+}));
+
+export const petCareActivitiesRelations = relations(petCareActivities, ({ one }) => ({
+  pet: one(pets, {
+    fields: [petCareActivities.petId],
+    references: [pets.id],
+  }),
+  user: one(users, {
+    fields: [petCareActivities.userId],
+    references: [users.id],
+  }),
+}));
+
+export const dailyCareStatusRelations = relations(dailyCareStatus, ({ one }) => ({
+  pet: one(pets, {
+    fields: [dailyCareStatus.petId],
+    references: [pets.id],
+  }),
+  user: one(users, {
+    fields: [dailyCareStatus.userId],
     references: [users.id],
   }),
 }));
@@ -494,3 +582,30 @@ export const insertRewardItemSchema = createInsertSchema(rewardItems).omit({
 export type InsertPromotionBanner = z.infer<typeof insertPromotionBannerSchema>;
 export type InsertAppointmentEvent = z.infer<typeof insertAppointmentEventSchema>;
 export type InsertRewardItem = z.infer<typeof insertRewardItemSchema>;
+
+// Pet care table types
+export type Pet = typeof pets.$inferSelect;
+export type PetCareActivity = typeof petCareActivities.$inferSelect;
+export type DailyCareStatus = typeof dailyCareStatus.$inferSelect;
+
+// Pet care insert schemas
+export const insertPetSchema = createInsertSchema(pets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPetCareActivitySchema = createInsertSchema(petCareActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDailyCareStatusSchema = createInsertSchema(dailyCareStatus).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPet = z.infer<typeof insertPetSchema>;
+export type InsertPetCareActivity = z.infer<typeof insertPetCareActivitySchema>;
+export type InsertDailyCareStatus = z.infer<typeof insertDailyCareStatusSchema>;
