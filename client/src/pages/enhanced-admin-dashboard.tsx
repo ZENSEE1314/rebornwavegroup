@@ -683,6 +683,7 @@ export default function EnhancedAdminDashboard() {
                       <TableHead className="text-blue-200">User</TableHead>
                       <TableHead className="text-blue-200">Service</TableHead>
                       <TableHead className="text-blue-200">Date</TableHead>
+                      <TableHead className="text-blue-200">Time</TableHead>
                       <TableHead className="text-blue-200">Status</TableHead>
                       <TableHead className="text-blue-200">Actions</TableHead>
                     </TableRow>
@@ -696,6 +697,9 @@ export default function EnhancedAdminDashboard() {
                         <TableCell className="text-gray-300">{appointment.service}</TableCell>
                         <TableCell className="text-gray-300">
                           {new Date(appointment.appointmentDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(appointment.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </TableCell>
                         <TableCell>
                           <Badge className={
