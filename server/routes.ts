@@ -1081,6 +1081,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint - Update user profile
+  app.put('/api/admin/users/:userId/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { firstName, lastName, email, phoneNumber, role } = req.body;
+      
+      await storage.updateUserProfile(userId, {
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        role
+      });
+      
+      res.json({ message: "User profile updated successfully" });
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ message: "Failed to update user profile" });
+    }
+  });
+
   // Admin endpoint - Get admin fees report
   app.get('/api/admin/fees-report', isAuthenticated, async (req: any, res) => {
     try {

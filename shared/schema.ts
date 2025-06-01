@@ -64,7 +64,9 @@ export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   title: varchar("title").notNull(),
+  service: varchar("service").notNull(),
   description: text("description"),
+  notes: text("notes"),
   appointmentDate: timestamp("appointment_date").notNull(),
   duration: integer("duration").default(60).notNull(), // minutes
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),

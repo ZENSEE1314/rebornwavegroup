@@ -144,7 +144,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string }): Promise<void> {
+  async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; email?: string; role?: string }): Promise<void> {
     await db
       .update(users)
       .set({
@@ -398,26 +398,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllAppointments(): Promise<any[]> {
-    return await db
-      .select({
-        id: appointments.id,
-        userId: appointments.userId,
-        title: appointments.title,
-        service: appointments.service,
-        appointmentDate: appointments.appointmentDate,
-        status: appointments.status,
-        notes: appointments.notes,
-        createdAt: appointments.createdAt,
-        user: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email
-        }
-      })
+    const appointmentsList = await db
+      .select()
       .from(appointments)
-      .leftJoin(users, eq(appointments.userId, users.id))
       .orderBy(desc(appointments.appointmentDate));
+
+    const appointmentsWithUsers = [];
+    for (const appointment of appointmentsList) {
+      const user = await this.getUser(appointment.userId);
+      appointmentsWithUsers.push({
+        ...appointment,
+        user: user ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email
+        } : null
+      });
+    }
+    
+    return appointmentsWithUsers;
   }
 
   async updateAppointmentStatus(id: number, status: string): Promise<void> {
