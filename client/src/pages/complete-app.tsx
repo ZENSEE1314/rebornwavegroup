@@ -899,10 +899,11 @@ export default function CompleteApp() {
     : 100;
 
   const copyReferralCode = () => {
-    navigator.clipboard.writeText(referralCode);
+    const referralLink = `${window.location.origin}?ref=${referralCode}`;
+    navigator.clipboard.writeText(referralLink);
     toast({
       title: language === "id" ? "Disalin!" : "Copied!",
-      description: language === "id" ? "Kode rujukan disalin" : "Referral code copied",
+      description: language === "id" ? "Link rujukan disalin" : "Referral link copied",
     });
   };
 
