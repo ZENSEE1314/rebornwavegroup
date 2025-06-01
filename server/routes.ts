@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
@@ -1017,5 +1018,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  // WebSocket server for real-time marketplace updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store all connected clients
+  const wsClients = new Set();
+  
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    wsClients.add(ws);
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+      wsClients.delete(ws);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      wsClients.delete(ws);
+    });
+  });
+  
+  // Function to broadcast marketplace updates to all clients
+  function broadcastMarketplaceUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+  
+  // Export broadcast function for use in routes
+  (app as any).broadcastMarketplaceUpdate = broadcastMarketplaceUpdate;
+
   return httpServer;
 }
