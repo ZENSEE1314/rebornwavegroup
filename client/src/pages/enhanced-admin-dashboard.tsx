@@ -995,7 +995,7 @@ export default function EnhancedAdminDashboard() {
                                           <SelectValue placeholder="Select a user or leave empty to remove owner" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-gray-800 border-gray-600">
-                                          <SelectItem value="" className="text-white">
+                                          <SelectItem value="REMOVE_OWNER" className="text-white">
                                             Remove Owner
                                           </SelectItem>
                                           {(allUsers as any[])?.map((user: any) => (
@@ -1008,9 +1008,10 @@ export default function EnhancedAdminDashboard() {
                                     </div>
                                     <Button
                                       onClick={() => {
+                                        const ownerIdToSend = newOwnerId === "REMOVE_OWNER" ? null : newOwnerId;
                                         updateToyOwnerMutation.mutate({ 
                                           toyId: toy.id, 
-                                          newOwnerId: newOwnerId || null 
+                                          newOwnerId: ownerIdToSend
                                         });
                                         setNewOwnerId("");
                                       }}
