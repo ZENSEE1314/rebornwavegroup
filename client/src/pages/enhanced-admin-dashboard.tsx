@@ -108,8 +108,6 @@ export default function EnhancedAdminDashboard() {
     title: "",
     description: "",
     category: "beauty",
-    duration: 60,
-    basePrice: 0,
     isActive: true
   });
   const [rewardForm, setRewardForm] = useState({
@@ -444,25 +442,40 @@ export default function EnhancedAdminDashboard() {
 
   const createEventMutation = useMutation({
     mutationFn: async (eventData: any) => {
-      return apiRequest('POST', '/api/admin/appointment-events', eventData);
+      if (editingEvent) {
+        return apiRequest('PUT', `/api/admin/appointment-events/${editingEvent.id}`, eventData);
+      } else {
+        return apiRequest('POST', '/api/admin/appointment-events', eventData);
+      }
     },
     onSuccess: () => {
-      toast({ title: "Event created successfully" });
+      toast({ title: editingEvent ? "Event updated successfully" : "Event created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/appointment-events'] });
       setShowEventDialog(false);
+      setEditingEvent(null);
       setEventForm({
         title: "",
         description: "",
         category: "beauty",
-        duration: 60,
-        basePrice: 0,
         isActive: true
       });
     },
     onError: () => {
-      toast({ title: "Failed to create event", variant: "destructive" });
+      toast({ title: editingEvent ? "Failed to update event" : "Failed to create event", variant: "destructive" });
     }
   });
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (confirm('Are you sure you want to delete this appointment event?')) {
+      try {
+        await apiRequest('DELETE', `/api/admin/appointment-events/${eventId}`);
+        toast({ title: "Event deleted successfully" });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/appointment-events'] });
+      } catch (error) {
+        toast({ title: "Failed to delete event", variant: "destructive" });
+      }
+    }
+  };
 
   const createRewardMutation = useMutation({
     mutationFn: async (rewardData: any) => {
@@ -1748,8 +1761,7 @@ export default function EnhancedAdminDashboard() {
                             <TableRow className="border-white/20">
                               <TableHead className="text-gray-300">Title</TableHead>
                               <TableHead className="text-gray-300">Category</TableHead>
-                              <TableHead className="text-gray-300">Duration</TableHead>
-                              <TableHead className="text-gray-300">Price</TableHead>
+                              <TableHead className="text-gray-300">Description</TableHead>
                               <TableHead className="text-gray-300">Active</TableHead>
                               <TableHead className="text-gray-300">Actions</TableHead>
                             </TableRow>
@@ -1757,7 +1769,7 @@ export default function EnhancedAdminDashboard() {
                           <TableBody>
                             {(appointmentEvents as any[]).length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                                <TableCell colSpan={5} className="text-center text-gray-400 py-8">
                                   No appointment events found. Create your first event to get started.
                                 </TableCell>
                               </TableRow>
@@ -1765,9 +1777,8 @@ export default function EnhancedAdminDashboard() {
                               (appointmentEvents as any[]).map((event: any) => (
                                 <TableRow key={event.id} className="border-white/10">
                                   <TableCell className="text-white">{event.title}</TableCell>
-                                  <TableCell className="text-gray-300">{event.category}</TableCell>
-                                  <TableCell className="text-gray-300">{event.duration} min</TableCell>
-                                  <TableCell className="text-gray-300">RP {formatMoney(event.basePrice)}</TableCell>
+                                  <TableCell className="text-gray-300 capitalize">{event.category}</TableCell>
+                                  <TableCell className="text-gray-300">{event.description}</TableCell>
                                   <TableCell>
                                     <Badge variant={event.isActive ? "default" : "secondary"}>
                                       {event.isActive ? "Active" : "Inactive"}
@@ -1775,10 +1786,28 @@ export default function EnhancedAdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex gap-2">
-                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="bg-white/10 border-white/20"
+                                        onClick={() => {
+                                          setEditingEvent(event);
+                                          setEventForm({
+                                            title: event.title,
+                                            description: event.description,
+                                            category: event.category,
+                                            isActive: event.isActive
+                                          });
+                                          setShowEventDialog(true);
+                                        }}
+                                      >
                                         <Edit className="h-3 w-3" />
                                       </Button>
-                                      <Button size="sm" variant="destructive">
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={() => handleDeleteEvent(event.id)}
+                                      >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
@@ -2086,11 +2115,13 @@ export default function EnhancedAdminDashboard() {
           </DialogContent>
         </Dialog>
 
-        {/* Event Creation Dialog */}
+        {/* Event Creation/Edit Dialog */}
         <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
           <DialogContent className="bg-gray-900 border-gray-700">
             <DialogHeader>
-              <DialogTitle className="text-white">Create Appointment Event</DialogTitle>
+              <DialogTitle className="text-white">
+                {editingEvent ? "Edit Appointment Event" : "Create Appointment Event"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
