@@ -43,6 +43,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string }): Promise<void>;
   
   // Referral operations
   createReferralCode(): Promise<string>;
@@ -137,6 +138,16 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string }): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        ...profile,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async createReferralCode(): Promise<string> {
