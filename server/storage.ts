@@ -72,6 +72,7 @@ export interface IStorage {
   activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null>;
   getAvailableToysForPurchase(): Promise<Toy[]>;
   purchaseToy(toyId: number, userId: string): Promise<void>;
+  deleteToy(toyId: number): Promise<void>;
   
   // Marketplace operations
   createListing(listing: InsertListing): Promise<Listing>;
@@ -558,6 +559,12 @@ export class DatabaseStorage implements IStorage {
         purchasedBy: userId,
         updatedAt: new Date() 
       })
+      .where(eq(toys.id, toyId));
+  }
+
+  async deleteToy(toyId: number): Promise<void> {
+    await db
+      .delete(toys)
       .where(eq(toys.id, toyId));
   }
 

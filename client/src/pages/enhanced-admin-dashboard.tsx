@@ -70,6 +70,11 @@ export default function EnhancedAdminDashboard() {
   const [bulkToyData, setBulkToyData] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Edit toy owner dialog states
+  const [editOwnerDialog, setEditOwnerDialog] = useState(false);
+  const [selectedToyForEdit, setSelectedToyForEdit] = useState<any>(null);
+  const [newOwnerId, setNewOwnerId] = useState("");
 
   // Check if user is admin
   if (!user || user.role !== 'admin') {
@@ -199,6 +204,32 @@ export default function EnhancedAdminDashboard() {
     }
   });
 
+  const updateToyOwnerMutation = useMutation({
+    mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string }) => {
+      return apiRequest('PATCH', `/api/admin/toys/${toyId}/owner`, { newOwnerId });
+    },
+    onSuccess: () => {
+      toast({ title: "Toy owner updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update toy owner", variant: "destructive" });
+    }
+  });
+
+  const deleteToyMutation = useMutation({
+    mutationFn: async (toyId: number) => {
+      return apiRequest('DELETE', `/api/admin/toys/${toyId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Toy deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete toy", variant: "destructive" });
+    }
+  });
+
   const createToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
       return apiRequest('POST', '/api/admin/create-toy', toyData);
@@ -256,31 +287,7 @@ export default function EnhancedAdminDashboard() {
     }
   });
 
-  const updateToyOwnerMutation = useMutation({
-    mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string | null }) => {
-      return apiRequest('PATCH', `/api/admin/toys/${toyId}/owner`, { newOwnerId });
-    },
-    onSuccess: () => {
-      toast({ title: "Toy owner updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to update toy owner", variant: "destructive" });
-    }
-  });
 
-  const deleteToyMutation = useMutation({
-    mutationFn: async (toyId: number) => {
-      return apiRequest('DELETE', `/api/admin/toys/${toyId}`);
-    },
-    onSuccess: () => {
-      toast({ title: "Toy deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete toy", variant: "destructive" });
-    }
-  });
 
   // Download functions
   const downloadCSV = (data: any[], filename: string) => {
