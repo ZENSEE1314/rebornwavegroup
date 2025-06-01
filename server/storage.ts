@@ -684,6 +684,17 @@ export class DatabaseStorage implements IStorage {
           lifetimePoints: newLifetimePoints
         })
         .where(eq(users.id, purchase.buyerId));
+
+      // Add points history for buyer
+      await db
+        .insert(pointsHistory)
+        .values({
+          userId: purchase.buyerId,
+          points: purchase.pointsEarned,
+          type: 'earned',
+          description: `Purchase confirmed - Earned ${purchase.pointsEarned} points`,
+          relatedId: purchase.listingId,
+        });
     }
   }
 

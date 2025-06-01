@@ -1283,23 +1283,14 @@ export default function CompleteApp() {
       relatedId: listing.id,
     });
 
-    // Add points to buyer's history (earned immediately)
-    if (pointsEarned > 0) {
-      createPointsHistoryMutation.mutate({
-        userId: user?.id,
-        points: pointsEarned,
-        type: 'earned',
-        description: `${language === "id" ? "Pembelian" : "Purchase"} ${listing.toy?.name} (+${pointsEarned} ${language === "id" ? "poin" : "points"})`,
-        relatedId: listing.id,
-      });
-    }
+    // Points will be added when seller confirms the purchase
 
     setShowPurchaseConfirmation(false);
     setSelectedPurchaseListing(null);
 
     toast({
       title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
-      description: language === "id" ? `Menunggu penjual menerima mainan dan konfirmasi. +${pointsEarned} poin` : `Waiting for seller to receive the toy and confirm it. +${pointsEarned} points`,
+      description: language === "id" ? `Kredit telah dipotong. Menunggu penjual konfirmasi untuk mendapat ${pointsEarned} poin.` : `Credits deducted. Waiting for seller confirmation to earn ${pointsEarned} points.`,
     });
   };
 
