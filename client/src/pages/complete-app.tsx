@@ -46,6 +46,7 @@ export default function CompleteApp() {
           case 'listing_created':
             // Refresh marketplace listings
             queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
             toast({
               title: "New Item Listed",
               description: "A new item has been added to the marketplace",
@@ -53,15 +54,52 @@ export default function CompleteApp() {
             break;
             
           case 'purchase_created':
-            // Refresh pending purchases and marketplace
+            // Refresh pending purchases, marketplace, and user stats
             queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
             queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+            break;
+            
+          case 'seller_confirmed':
+            // Refresh all data when seller confirms
+            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+            break;
+            
+          case 'buyer_confirmed':
+            // Refresh all data when buyer confirms (purchase completed)
+            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+            toast({
+              title: "Purchase Completed",
+              description: "A purchase has been completed successfully",
+            });
             break;
             
           case 'purchase_cancelled':
             // Refresh all relevant data
             queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
             queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+            toast({
+              title: "Purchase Cancelled",
+              description: "A purchase has been cancelled and credits refunded",
+            });
+            break;
+            
+          case 'credits_updated':
+            // Refresh user stats when credits are updated
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            break;
+            
+          case 'appointment_created':
+            // Refresh user stats when new appointment is created
             queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
             break;
             

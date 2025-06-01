@@ -119,6 +119,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Broadcast appointment creation to all connected clients
+      (app as any).broadcastMarketplaceUpdate('appointment_created', { userId });
+      
       res.json(appointment);
     } catch (error) {
       console.error("Error creating appointment:", error);
@@ -273,6 +276,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user credits and points
       await storage.updateUserCredits(userId, validAmount);
       await storage.updateUserPoints(userId, Math.floor(Number(validAmount) * 0.05));
+      
+      // Broadcast credit update to all connected clients
+      (app as any).broadcastMarketplaceUpdate('credits_updated', { userId });
       
       res.json({ message: "Credits added successfully" });
     } catch (error) {
@@ -801,6 +807,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.sellerConfirmPurchase(parseInt(id));
+      
+      // Broadcast seller confirmation to all connected clients
+      (app as any).broadcastMarketplaceUpdate('seller_confirmed', { id: parseInt(id) });
+      
       res.json({ message: "Purchase confirmed by seller - awaiting buyer confirmation" });
     } catch (error) {
       console.error("Error confirming purchase (seller):", error);
@@ -813,6 +823,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.buyerConfirmPurchase(parseInt(id));
+      
+      // Broadcast buyer confirmation to all connected clients
+      (app as any).broadcastMarketplaceUpdate('buyer_confirmed', { id: parseInt(id) });
+      
       res.json({ message: "Purchase completed successfully" });
     } catch (error) {
       console.error("Error confirming purchase (buyer):", error);
