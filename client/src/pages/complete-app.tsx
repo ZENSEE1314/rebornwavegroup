@@ -1417,7 +1417,7 @@ export default function CompleteApp() {
   // Function to confirm purchase as seller
   const confirmPurchase = async (purchaseId) => {
     try {
-      const response = await fetch(`/api/pending-purchases/${purchaseId}/confirm`, {
+      const response = await fetch(`/api/pending-purchases/${purchaseId}/seller-confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
