@@ -37,7 +37,14 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
-          <Route path="/" component={CompleteApp} />
+          {/* Admin users automatically go to admin dashboard */}
+          {user?.role === 'admin' ? (
+            <Route path="/" component={AdminDashboard} />
+          ) : (
+            <Route path="/" component={CompleteApp} />
+          )}
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/app" component={CompleteApp} />
         </>
       )}
       <Route component={NotFound} />
