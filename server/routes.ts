@@ -1778,6 +1778,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Public route for fetching promotion banners (no authentication required)
+  app.get('/api/promotion-banners', async (req, res) => {
+    try {
+      const banners = await storage.getAllPromotionBanners();
+      res.json(banners);
+    } catch (error) {
+      console.error("Error fetching promotion banners:", error);
+      res.status(500).json({ message: "Failed to fetch promotion banners" });
+    }
+  });
+
   // Function to broadcast marketplace updates to all clients
   function broadcastMarketplaceUpdate(type: string, data: any) {
     const message = JSON.stringify({ type, data });
