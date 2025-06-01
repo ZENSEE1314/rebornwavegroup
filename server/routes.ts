@@ -1700,7 +1700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct points from user
-      await storage.updateUserPoints(userId, user.loyaltyPoints - pointsCost);
+      await storage.updateUserPoints(userId, -pointsCost);
       
       // If it's a credit reward, add credits to user account
       if (reward.type === 'credit' && reward.creditAmount) {
