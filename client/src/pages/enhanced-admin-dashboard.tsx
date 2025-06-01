@@ -513,15 +513,18 @@ export default function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
       setShowRewardDialog(false);
       setEditingReward(null);
-      setRewardForm({
-        name: "",
-        description: "",
-        type: "item",
-        pointsCost: 0,
-        stockQuantity: null,
-        imageUrl: "",
-        isActive: true
-      });
+      // Don't reset form immediately - let it close naturally
+      setTimeout(() => {
+        setRewardForm({
+          name: "",
+          description: "",
+          type: "item",
+          pointsCost: 0,
+          stockQuantity: null,
+          imageUrl: "",
+          isActive: true
+        });
+      }, 100);
     },
     onError: () => {
       toast({ title: "Failed to update reward", variant: "destructive" });
