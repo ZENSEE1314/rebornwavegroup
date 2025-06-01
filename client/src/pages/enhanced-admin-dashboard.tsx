@@ -2162,7 +2162,10 @@ export default function EnhancedAdminDashboard() {
                       type="radio"
                       id="predefined-category"
                       checked={!useCustomCategory}
-                      onChange={() => setUseCustomCategory(false)}
+                      onChange={() => {
+                        setUseCustomCategory(false);
+                        setCustomCategory("");
+                      }}
                       className="text-blue-600"
                     />
                     <Label htmlFor="predefined-category" className="text-gray-300">Use existing category</Label>
@@ -2235,7 +2238,22 @@ export default function EnhancedAdminDashboard() {
               </Button>
               <Button 
                 onClick={() => {
-                  const finalCategory = useCustomCategory ? customCategory : eventForm.category;
+                  const finalCategory = useCustomCategory ? customCategory.trim() : eventForm.category;
+                  
+                  // Validation
+                  if (!eventForm.title.trim()) {
+                    toast({ title: "Please enter event title", variant: "destructive" });
+                    return;
+                  }
+                  if (!eventForm.description.trim()) {
+                    toast({ title: "Please enter event description", variant: "destructive" });
+                    return;
+                  }
+                  if (useCustomCategory && !customCategory.trim()) {
+                    toast({ title: "Please enter custom category name", variant: "destructive" });
+                    return;
+                  }
+                  
                   createEventMutation.mutate({
                     ...eventForm,
                     category: finalCategory
