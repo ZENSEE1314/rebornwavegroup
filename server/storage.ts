@@ -469,7 +469,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(users)
       .set({ 
-        credits: sql`${users.credits} + ${amount}`,
+        credits: amount,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
