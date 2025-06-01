@@ -3103,23 +3103,17 @@ export default function CompleteApp() {
                     </div>
                     <span className="font-bold text-green-600 text-xl">10%</span>
                   </div>
-                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
-                      <span className="font-medium">
-                        {language === "id" ? "Rujukan Level 2" : "Level 2 Referrals"}
-                      </span>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <p className="text-lg font-semibold text-slate-700">
+                        {language === "id" ? "Total Rujukan: " : "Total Referrals: "}
+                        <span className="text-green-600">{userStats?.referrals?.length || 0}</span>
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {language === "id" ? "Total Pendapatan: " : "Total Earnings: "}
+                        <span className="font-bold text-green-600">RP {formatRupiah(userStats?.referralEarnings || 0)}</span>
+                      </p>
                     </div>
-                    <span className="font-bold text-blue-600 text-xl">3%</span>
-                  </div>
-                  <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
-                      <span className="font-medium">
-                        {language === "id" ? "Rujukan Level 3" : "Level 3 Referrals"}
-                      </span>
-                    </div>
-                    <span className="font-bold text-purple-600 text-xl">2%</span>
                   </div>
                   
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">
@@ -3127,11 +3121,11 @@ export default function CompleteApp() {
                       {language === "id" ? "Pohon Rujukan Anda" : "Your Referral Tree"}
                     </h4>
                     <div className="space-y-2 text-sm">
-                      {userReferrals.length > 0 ? (
-                        userReferrals.map((referral: any) => (
+                      {userStats?.referrals?.length > 0 ? (
+                        userStats.referrals.map((referral: any) => (
                           <div key={referral.id} className="flex justify-between">
                             <span>
-                              {language === "id" ? "Rujukan" : "Referral"} #{referral.id} (Level {referral.level})
+                              {language === "id" ? "Rujukan" : "Referral"} #{referral.id}
                             </span>
                             <span className="text-green-600 font-medium">
                               +RP {formatRupiah(parseFloat(referral.totalEarnings || '0'))}
