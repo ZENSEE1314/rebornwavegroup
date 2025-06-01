@@ -1658,7 +1658,7 @@ export default function EnhancedAdminDashboard() {
                           <TableBody>
                             {(promotionBanners as any[]).length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center text-gray-400 py-8">
+                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
                                   No promotion banners found. Create your first banner to get started.
                                 </TableCell>
                               </TableRow>
@@ -1667,6 +1667,20 @@ export default function EnhancedAdminDashboard() {
                                 <TableRow key={banner.id} className="border-white/10">
                                   <TableCell className="text-white">{banner.title}</TableCell>
                                   <TableCell className="text-gray-300">{banner.type}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-4 h-4 rounded-full ${
+                                        banner.backgroundColor === 'blue' ? 'bg-blue-500' :
+                                        banner.backgroundColor === 'green' ? 'bg-green-500' :
+                                        banner.backgroundColor === 'orange' ? 'bg-orange-500' :
+                                        banner.backgroundColor === 'purple' ? 'bg-purple-500' :
+                                        banner.backgroundColor === 'red' ? 'bg-red-500' :
+                                        banner.backgroundColor === 'gray' ? 'bg-gray-500' :
+                                        'bg-blue-500'
+                                      }`}></div>
+                                      <span className="text-gray-300 capitalize">{banner.backgroundColor || 'blue'}</span>
+                                    </div>
+                                  </TableCell>
                                   <TableCell className="text-gray-300">{banner.displayOrder}</TableCell>
                                   <TableCell>
                                     <Badge variant={banner.isActive ? "default" : "secondary"}>
