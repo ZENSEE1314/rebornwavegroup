@@ -3258,7 +3258,7 @@ export default function CompleteApp() {
                           {language === "id" ? "Nama Depan" : "First Name"}
                         </label>
                         <Input 
-                          value={firstName || user?.firstName || ''}
+                          value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
@@ -3269,7 +3269,7 @@ export default function CompleteApp() {
                           {language === "id" ? "Nama Belakang" : "Last Name"}
                         </label>
                         <Input 
-                          value={lastName || user?.lastName || ''}
+                          value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
