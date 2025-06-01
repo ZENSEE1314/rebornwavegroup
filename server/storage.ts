@@ -110,6 +110,10 @@ export interface IStorage {
   getCreditHistoryByUserId(userId: string): Promise<CreditHistory[]>;
   createPointsHistory(points: InsertPointsHistory): Promise<PointsHistory>;
   getPointsHistoryByUserId(userId: string): Promise<PointsHistory[]>;
+  
+  // Admin-specific operations
+  getAllTransactions(): Promise<Transaction[]>;
+  getAllToysWithOwners(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1026,6 +1030,50 @@ export class DatabaseStorage implements IStorage {
       .from(pointsHistory)
       .where(eq(pointsHistory.userId, userId))
       .orderBy(desc(pointsHistory.createdAt));
+  }
+
+  // Admin-specific operations
+  async getAllTransactions(): Promise<Transaction[]> {
+    return await db.select({
+      id: transactions.id,
+      userId: transactions.userId,
+      type: transactions.type,
+      amount: transactions.amount,
+      description: transactions.description,
+      status: transactions.status,
+      createdAt: transactions.createdAt,
+      user: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+    .from(transactions)
+    .leftJoin(users, eq(transactions.userId, users.id))
+    .orderBy(desc(transactions.createdAt));
+  }
+
+  async getAllToysWithOwners(): Promise<any[]> {
+    return await db.select({
+      id: toys.id,
+      name: toys.name,
+      series: toys.series,
+      rarity: toys.rarity,
+      imageUrl: toys.imageUrl,
+      qrCode: toys.qrCode,
+      ownerId: toys.ownerId,
+      createdAt: toys.createdAt,
+      owner: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+    .from(toys)
+    .leftJoin(users, eq(toys.ownerId, users.id))
+    .orderBy(desc(toys.createdAt));
   }
 }
 
