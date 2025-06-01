@@ -1715,8 +1715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           type: 'earned',
           amount: reward.creditAmount,
-          description: `Redeemed: ${reward.name}`,
-          status: 'completed'
+          description: `Redeemed: ${reward.name}`
         });
       }
       
@@ -1725,8 +1724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         points: -pointsCost,
         type: 'redeemed',
-        description: `Redeemed: ${reward.name}`,
-        relatedId: rewardId
+        description: `Redeemed: ${reward.name}`
       });
       
       // Decrease stock if applicable

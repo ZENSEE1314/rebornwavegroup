@@ -465,6 +465,11 @@ export default function CompleteApp() {
   const [accountHolderName, setAccountHolderName] = useState("");
   const [cashOutHistory, setCashOutHistory] = useState([]);
   
+  // Reward redemption confirmation states
+  const [showRedeemConfirmation, setShowRedeemConfirmation] = useState(false);
+  const [selectedReward, setSelectedReward] = useState(null);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  
   // Indonesian banks with account validation
   const indonesianBanks = [
     { code: "BCA", name: "Bank Central Asia (BCA)", minDigits: 10, maxDigits: 10, icon: "🏦" },
@@ -1309,7 +1314,7 @@ export default function CompleteApp() {
     setShowCreateListingModal(false);
   };
 
-  const redeemReward = async (reward: any) => {
+  const initiateRedemption = (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
         title: language === "id" ? "Poin Tidak Cukup" : "Insufficient Points",
@@ -1329,40 +1334,51 @@ export default function CompleteApp() {
       return;
     }
 
+    // Show confirmation dialog
+    setSelectedReward(reward);
+    setShowRedeemConfirmation(true);
+  };
+
+  const confirmRedemption = async () => {
+    if (!selectedReward || isRedeeming) return;
+    
+    setIsRedeeming(true);
+    
     try {
-      // First, redeem the reward and update stock
       const redeemResponse = await apiRequest('POST', '/api/redeem-reward', {
-        rewardId: reward.id,
-        pointsCost: reward.pointsCost
+        rewardId: selectedReward.id,
+        pointsCost: selectedReward.pointsCost
       });
 
       if (!redeemResponse.ok) {
         throw new Error('Failed to redeem reward');
       }
 
-      // Add points history entry
-      await apiRequest('POST', '/api/points-history', {
-        points: -reward.pointsCost,
-        type: 'redeemed',
-        description: `Redeemed: ${reward.name}`,
-        referenceId: reward.id.toString()
-      });
+      const result = await redeemResponse.json();
 
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/points-history', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/credit-history', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/rewards'] });
 
       toast({
         title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
-        description: language === "id" ? `${reward.name} berhasil ditukar` : `${reward.name} successfully redeemed`
+        description: result.creditAdded 
+          ? (language === "id" ? `${selectedReward.name} berhasil ditukar! +RP ${result.creditAdded} ditambahkan` : `${selectedReward.name} successfully redeemed! +RP ${result.creditAdded} added`)
+          : (language === "id" ? `${selectedReward.name} berhasil ditukar` : `${selectedReward.name} successfully redeemed`)
       });
+      
+      setShowRedeemConfirmation(false);
+      setSelectedReward(null);
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to redeem reward",
         variant: "destructive"
       });
+    } finally {
+      setIsRedeeming(false);
     }
   };
 
@@ -2400,7 +2416,7 @@ export default function CompleteApp() {
                             </span>
                             <Button
                               size="sm"
-                              onClick={() => redeemReward(reward)}
+                              onClick={() => initiateRedemption(reward)}
                               disabled={loyaltyPoints < reward.pointsCost}
                               className={loyaltyPoints >= reward.pointsCost ? 
                                 "bg-blue-600 hover:bg-blue-700" : 
@@ -4035,6 +4051,61 @@ export default function CompleteApp() {
               <Button
                 variant="outline"
                 onClick={() => setShowEmailModal(false)}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reward Redemption Confirmation Modal */}
+      {showRedeemConfirmation && selectedReward && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Konfirmasi Tukar Reward" : "Confirm Reward Redemption"}
+            </h3>
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-4xl mb-2">
+                  {getRewardIcon(selectedReward.imageUrl)}
+                </div>
+                <h4 className="font-medium text-lg">{selectedReward.name}</h4>
+                {selectedReward.description && (
+                  <p className="text-sm text-gray-600 mt-1">{selectedReward.description}</p>
+                )}
+                <div className="bg-blue-50 rounded-lg p-3 mt-3">
+                  <p className="text-sm text-gray-700">
+                    {language === "id" ? "Biaya" : "Cost"}: <span className="font-bold text-blue-600">{selectedReward.pointsCost} {language === "id" ? "poin" : "points"}</span>
+                  </p>
+                  {selectedReward.type === 'credit' && selectedReward.creditAmount && (
+                    <p className="text-sm text-green-700 mt-1">
+                      {language === "id" ? "Anda akan menerima" : "You will receive"}: <span className="font-bold text-green-600">RP {selectedReward.creditAmount}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button
+                onClick={confirmRedemption}
+                disabled={isRedeeming}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                {isRedeeming ? 
+                  (language === "id" ? "Menukar..." : "Redeeming...") : 
+                  (language === "id" ? "Ya, Tukar" : "Yes, Redeem")
+                }
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRedeemConfirmation(false);
+                  setSelectedReward(null);
+                }}
+                disabled={isRedeeming}
                 className="flex-1"
               >
                 {language === "id" ? "Batal" : "Cancel"}
