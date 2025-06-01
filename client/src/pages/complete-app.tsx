@@ -26,6 +26,67 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
+  // WebSocket for real-time marketplace updates
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(wsUrl);
+    
+    socket.onopen = () => {
+      console.log('WebSocket connected for real-time marketplace updates');
+    };
+    
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('Received WebSocket message:', message);
+        
+        // Handle different types of marketplace updates
+        switch (message.type) {
+          case 'listing_created':
+            // Refresh marketplace listings
+            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            toast({
+              title: "New Item Listed",
+              description: "A new item has been added to the marketplace",
+            });
+            break;
+            
+          case 'purchase_created':
+            // Refresh pending purchases and marketplace
+            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            break;
+            
+          case 'purchase_cancelled':
+            // Refresh all relevant data
+            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+            break;
+            
+          default:
+            console.log('Unknown WebSocket message type:', message.type);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    socket.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+    
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    // Cleanup on component unmount
+    return () => {
+      socket.close();
+    };
+  }, [queryClient, toast]);
+  
   // User data - fetch from database
   const { data: userStats } = useQuery({
     queryKey: ['/api/user-stats'],

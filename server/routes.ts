@@ -524,6 +524,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const listing = await storage.createListing(validatedData);
+      
+      // Broadcast new listing to all connected clients
+      (app as any).broadcastMarketplaceUpdate('listing_created', listing);
+      
       res.json(listing);
     } catch (error) {
       console.error("Error creating listing:", error);
@@ -753,6 +757,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relatedId: req.body.listingId,
       });
       
+      // Broadcast purchase creation to all connected clients
+      (app as any).broadcastMarketplaceUpdate('purchase_created', purchase);
+      
       res.json(purchase);
     } catch (error) {
       console.error("Error creating pending purchase:", error);
@@ -818,6 +825,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.cancelPendingPurchase(parseInt(id));
+      
+      // Broadcast cancellation to all connected clients
+      (app as any).broadcastMarketplaceUpdate('purchase_cancelled', { id: parseInt(id) });
+      
       res.json({ message: "Sale cancelled successfully" });
     } catch (error) {
       console.error("Error cancelling sale:", error);
