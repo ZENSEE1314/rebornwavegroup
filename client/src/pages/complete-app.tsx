@@ -680,6 +680,17 @@ export default function CompleteApp() {
     }
   });
 
+  // Filter and sort redemption history
+  const [redemptionFilter, setRedemptionFilter] = useState<'all' | 'completed' | 'used'>('all');
+  const [redemptionDateFilter, setRedemptionDateFilter] = useState('');
+  
+  const filteredRedemptionHistory = redemptionHistory.filter((redemption: any) => {
+    const statusMatch = redemptionFilter === 'all' || redemption.status === redemptionFilter;
+    const dateMatch = !redemptionDateFilter || 
+      redemption.date === new Date(redemptionDateFilter).toLocaleDateString();
+    return statusMatch && dateMatch;
+  });
+
   // Marketplace listings (user-created)
   const [userListings, setUserListings] = useState([
     { id: 1, title: "Rare Teddy Bear", description: "Collectible bear from limited edition", price: 750000, toyId: 2, seller: "Candy", status: "active", createdDate: "2025-05-20" }
