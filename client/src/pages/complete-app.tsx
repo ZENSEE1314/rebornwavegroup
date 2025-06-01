@@ -791,7 +791,7 @@ export default function CompleteApp() {
 
   // Fetch credit history from database
   const { data: creditHistoryData = [] } = useQuery({
-    queryKey: ['/api/credit-history', user?.id],
+    queryKey: [`/api/credit-history/${user?.id}`],
     enabled: !!user?.id,
     retry: false,
   });
