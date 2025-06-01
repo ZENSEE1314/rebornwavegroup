@@ -397,10 +397,26 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(appointments.appointmentDate));
   }
 
-  async getAllAppointments(): Promise<Appointment[]> {
+  async getAllAppointments(): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        id: appointments.id,
+        userId: appointments.userId,
+        title: appointments.title,
+        service: appointments.service,
+        appointmentDate: appointments.appointmentDate,
+        status: appointments.status,
+        notes: appointments.notes,
+        createdAt: appointments.createdAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email
+        }
+      })
       .from(appointments)
+      .leftJoin(users, eq(appointments.userId, users.id))
       .orderBy(desc(appointments.appointmentDate));
   }
 
