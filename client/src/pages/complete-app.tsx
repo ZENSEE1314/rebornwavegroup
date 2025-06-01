@@ -545,9 +545,24 @@ export default function CompleteApp() {
   const createPendingPurchaseMutation = useMutation({
     mutationFn: (purchaseData: any) => apiRequest('POST', '/api/pending-purchases', purchaseData),
     onSuccess: () => {
+      toast({
+        title: language === "id" ? "Pembelian Berhasil" : "Purchase Successful",
+        description: language === "id" ? "Menunggu konfirmasi penjual" : "Awaiting seller confirmation"
+      });
+      // Refresh all relevant queries
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
     },
+    onError: (error) => {
+      console.error("Purchase failed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to complete purchase",
+        variant: "destructive"
+      });
+    }
   });
 
   // Mutation for seller to confirm purchase (step 1)
