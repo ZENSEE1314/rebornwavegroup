@@ -30,102 +30,129 @@ export default function CompleteApp() {
   
   // WebSocket for real-time marketplace updates
   useEffect(() => {
+    if (!user) return; // Only connect when user is authenticated
+    
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
     
-    socket.onopen = () => {
-      console.log('WebSocket connected for real-time marketplace updates');
-    };
-    
-    socket.onmessage = (event) => {
+    const connect = () => {
       try {
-        const message = JSON.parse(event.data);
-        console.log('Received WebSocket message:', message);
+        socket = new WebSocket(wsUrl);
         
-        // Handle different types of marketplace updates
-        switch (message.type) {
-          case 'listing_created':
-            // Refresh marketplace listings
-            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-            toast({
-              title: "New Item Listed",
-              description: "A new item has been added to the marketplace",
-            });
-            break;
+        socket.onopen = () => {
+          console.log('WebSocket connected for real-time marketplace updates');
+        };
+        
+        socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('Received WebSocket message:', message);
             
-          case 'purchase_created':
-            // Refresh pending purchases, marketplace, and user stats
-            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-            break;
-            
-          case 'seller_confirmed':
-            // Refresh all data when seller confirms
-            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-            break;
-            
-          case 'buyer_confirmed':
-            // Refresh all data when buyer confirms (purchase completed)
-            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-            toast({
-              title: "Purchase Completed",
-              description: "A purchase has been completed successfully",
-            });
-            break;
-            
-          case 'purchase_cancelled':
-            // Refresh all relevant data
-            queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-            toast({
-              title: "Purchase Cancelled",
-              description: "A purchase has been cancelled and credits refunded",
-            });
-            break;
-            
-          case 'credits_updated':
-            // Refresh user stats when credits are updated
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            break;
-            
-          case 'appointment_created':
-            // Refresh user stats when new appointment is created
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            break;
-            
-          default:
-            console.log('Unknown WebSocket message type:', message.type);
-        }
+            // Handle different types of marketplace updates
+            switch (message.type) {
+              case 'listing_created':
+                // Refresh marketplace listings
+                queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+                toast({
+                  title: "New Item Listed",
+                  description: "A new item has been added to the marketplace",
+                });
+                break;
+                
+              case 'purchase_created':
+                // Refresh pending purchases, marketplace, and user stats
+                queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+                break;
+                
+              case 'seller_confirmed':
+                // Refresh all data when seller confirms
+                queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+                break;
+                
+              case 'buyer_confirmed':
+                // Refresh all data when buyer confirms (purchase completed)
+                queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+                toast({
+                  title: "Purchase Completed",
+                  description: "A purchase has been completed successfully",
+                });
+                break;
+                
+              case 'purchase_cancelled':
+                // Refresh all relevant data
+                queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+                toast({
+                  title: "Purchase Cancelled",
+                  description: "A purchase has been cancelled and credits refunded",
+                });
+                break;
+                
+              case 'credits_updated':
+                // Refresh user stats when credits are updated
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                break;
+                
+              case 'appointment_created':
+                // Refresh user stats when new appointment is created
+                queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+                break;
+                
+              default:
+                console.log('Unknown WebSocket message type:', message.type);
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+        
+        socket.onclose = (event) => {
+          console.log('WebSocket disconnected', event.code, event.reason);
+          socket = null;
+          
+          // Attempt to reconnect after 3 seconds if not intentionally closed
+          if (event.code !== 1000) {
+            reconnectTimeout = setTimeout(() => {
+              console.log('Attempting to reconnect WebSocket...');
+              connect();
+            }, 3000);
+          }
+        };
+        
+        socket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('Failed to create WebSocket connection:', error);
       }
     };
     
-    socket.onclose = () => {
-      console.log('WebSocket disconnected');
-    };
-    
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    connect();
     
     // Cleanup on component unmount
     return () => {
-      socket.close();
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (socket) {
+        socket.close(1000, 'Component unmounting');
+      }
     };
-  }, [queryClient, toast]);
+  }, [user, queryClient, toast]);
   
   // User data - fetch from database
   const { data: userStats } = useQuery({
