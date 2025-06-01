@@ -17,6 +17,7 @@ import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GenealogyTree from "@/components/genealogy-tree";
+import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 
 export default function CompleteApp() {
   const { user } = useAuth();
@@ -914,15 +915,29 @@ export default function CompleteApp() {
     }
   ];
 
-  // Available rewards
-  const [rewards, setRewards] = useState([
-    { id: 1, name: "RP 100,000 Service Credit", pointsCost: 100, category: "credit", claimed: false },
-    { id: 2, name: "Free Basic Facial", pointsCost: 200, category: "beauty", claimed: false },
-    { id: 3, name: "Priority Booking Pass", pointsCost: 150, category: "perk", claimed: false },
-    { id: 4, name: "RP 250,000 Service Credit", pointsCost: 250, category: "credit", claimed: false },
-    { id: 5, name: "Free Gaming Session", pointsCost: 180, category: "entertainment", claimed: false },
-    { id: 6, name: "Spa Upgrade", pointsCost: 300, category: "beauty", claimed: false }
-  ]);
+  // Fetch rewards from admin-created rewards
+  const { data: adminRewards } = useQuery({
+    queryKey: ['/api/admin/reward-items']
+  });
+
+  // Transform admin rewards to match the expected format
+  const rewards = useMemo(() => {
+    if (!adminRewards || !Array.isArray(adminRewards)) {
+      return [];
+    }
+    
+    return adminRewards
+      .filter(reward => reward.isActive)
+      .map(reward => ({
+        id: reward.id,
+        name: reward.name,
+        pointsCost: reward.pointsCost,
+        category: reward.type || 'general',
+        claimed: false,
+        description: reward.description,
+        stockQuantity: reward.stockQuantity
+      }));
+  }, [adminRewards]);
 
   // Functions
   const getCurrentLevel = () => {
@@ -2329,12 +2344,20 @@ export default function CompleteApp() {
                         <div key={reward.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <span className="text-2xl">{getCategoryIcon(reward.category)}</span>
+                              <span className="text-3xl">{getCategorySymbol(reward.category, reward.id)}</span>
                               <div>
                                 <h4 className="font-semibold text-slate-900">{reward.name}</h4>
                                 <Badge className={getCategoryColor(reward.category)}>
                                   {reward.category}
                                 </Badge>
+                                {reward.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{reward.description}</p>
+                                )}
+                                {reward.stockQuantity && (
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    {language === "id" ? "Stok tersisa" : "Stock left"}: {reward.stockQuantity}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
