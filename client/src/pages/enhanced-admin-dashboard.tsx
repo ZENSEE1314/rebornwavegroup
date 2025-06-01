@@ -103,7 +103,8 @@ export default function EnhancedAdminDashboard() {
     type: "banner",
     backgroundColor: "blue",
     displayOrder: 0,
-    isActive: true
+    isActive: true,
+    iconSymbol: ""
   });
   const [eventForm, setEventForm] = useState({
     title: "",
@@ -397,7 +398,8 @@ export default function EnhancedAdminDashboard() {
         type: "banner",
         backgroundColor: "blue",
         displayOrder: 0,
-        isActive: true
+        isActive: true,
+        iconSymbol: ""
       });
     },
     onError: () => {
@@ -2139,6 +2141,37 @@ export default function EnhancedAdminDashboard() {
                 </select>
               </div>
               <div>
+                <Label htmlFor="banner-icon" className="text-gray-300">Icon Symbol</Label>
+                <select
+                  id="banner-icon"
+                  value={bannerForm.iconSymbol}
+                  onChange={(e) => setBannerForm({...bannerForm, iconSymbol: e.target.value})}
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-md p-2"
+                >
+                  <option value="">No Icon</option>
+                  <option value="🎉">🎉 Party</option>
+                  <option value="🎊">🎊 Celebration</option>
+                  <option value="⭐">⭐ Star</option>
+                  <option value="🔥">🔥 Fire</option>
+                  <option value="💎">💎 Diamond</option>
+                  <option value="🎯">🎯 Target</option>
+                  <option value="🏆">🏆 Trophy</option>
+                  <option value="💰">💰 Money</option>
+                  <option value="🎁">🎁 Gift</option>
+                  <option value="⚡">⚡ Lightning</option>
+                  <option value="🌟">🌟 Sparkle</option>
+                  <option value="💥">💥 Boom</option>
+                  <option value="🚀">🚀 Rocket</option>
+                  <option value="📢">📢 Announcement</option>
+                  <option value="🎪">🎪 Entertainment</option>
+                  <option value="💄">💄 Beauty</option>
+                  <option value="🍽️">🍽️ Restaurant</option>
+                  <option value="🎮">🎮 Gaming</option>
+                  <option value="🛍️">🛍️ Shopping</option>
+                  <option value="📅">📅 Calendar</option>
+                </select>
+              </div>
+              <div>
                 <Label htmlFor="banner-order" className="text-gray-300">Display Order</Label>
                 <Input
                   id="banner-order"
@@ -2174,7 +2207,8 @@ export default function EnhancedAdminDashboard() {
                     type: "banner",
                     backgroundColor: "blue",
                     displayOrder: 0,
-                    isActive: true
+                    isActive: true,
+                    iconSymbol: ""
                   });
                 }}
               >
