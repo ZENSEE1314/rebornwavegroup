@@ -2343,9 +2343,11 @@ export default function EnhancedAdminDashboard() {
 
         {/* Reward Creation Dialog */}
         <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
-          <DialogContent className="bg-gray-900 border-gray-700">
+          <DialogContent className="bg-gray-900 border-gray-700 max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white">Create Reward Item</DialogTitle>
+              <DialogTitle className="text-white">
+                {editingReward ? "Edit Reward Item" : "Create Reward Item"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -2412,6 +2414,33 @@ export default function EnhancedAdminDashboard() {
                   className="bg-gray-800 border-gray-600 text-white"
                   placeholder="Enter image URL"
                 />
+              </div>
+              
+              <div>
+                <Label className="text-gray-300">Icon Symbol</Label>
+                <div className="bg-gray-800 border border-gray-600 rounded-md p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-white text-sm">Selected: {rewardForm.imageUrl || "None"}</span>
+                    <div className="text-2xl">{rewardForm.imageUrl || "🎁"}</div>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto border border-gray-700 rounded p-2 bg-gray-700">
+                    <div className="grid grid-cols-8 gap-1">
+                      {rewardSymbols.map((symbol, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => setRewardForm({...rewardForm, imageUrl: symbol})}
+                          className={`p-2 text-lg hover:bg-gray-600 rounded transition-colors ${
+                            rewardForm.imageUrl === symbol ? 'bg-blue-600' : ''
+                          }`}
+                          title={`Symbol ${index + 1}`}
+                        >
+                          {symbol}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <input
