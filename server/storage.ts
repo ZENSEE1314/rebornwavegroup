@@ -399,7 +399,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAppointments(): Promise<any[]> {
     const appointmentsList = await db
-      .select()
+      .select({
+        id: appointments.id,
+        userId: appointments.userId,
+        title: appointments.title,
+        description: appointments.description,
+        appointmentDate: appointments.appointmentDate,
+        duration: appointments.duration,
+        cost: appointments.cost,
+        status: appointments.status,
+        createdAt: appointments.createdAt,
+        updatedAt: appointments.updatedAt
+      })
       .from(appointments)
       .orderBy(desc(appointments.appointmentDate));
 
@@ -408,6 +419,8 @@ export class DatabaseStorage implements IStorage {
       const user = await this.getUser(appointment.userId);
       appointmentsWithUsers.push({
         ...appointment,
+        service: appointment.title, // Use title as service for now
+        notes: appointment.description, // Use description as notes
         user: user ? {
           id: user.id,
           firstName: user.firstName,

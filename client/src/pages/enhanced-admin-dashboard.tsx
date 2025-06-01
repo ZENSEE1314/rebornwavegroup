@@ -43,6 +43,8 @@ export default function EnhancedAdminDashboard() {
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editedUserData, setEditedUserData] = useState<any>({});
   const [newToy, setNewToy] = useState({
     name: "",
     series: "",
@@ -233,6 +235,21 @@ export default function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to update appointment", variant: "destructive" });
+    }
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ userId, userData }: { userId: string; userData: any }) => {
+      return apiRequest('PATCH', `/api/admin/users/${userId}`, userData);
+    },
+    onSuccess: () => {
+      toast({ title: "User updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setEditingUser(null);
+      setEditedUserData({});
+    },
+    onError: () => {
+      toast({ title: "Failed to update user", variant: "destructive" });
     }
   });
 
@@ -437,75 +454,161 @@ export default function EnhancedAdminDashboard() {
                     {filteredUsers.map((user: any) => (
                       <TableRow key={user.id} className="border-white/10">
                         <TableCell className="text-white">
-                          {user.firstName} {user.lastName}
+                          {editingUser?.id === user.id ? (
+                            <div className="flex gap-1">
+                              <Input
+                                placeholder="First Name"
+                                value={editedUserData.firstName || user.firstName || ''}
+                                onChange={(e) => setEditedUserData({...editedUserData, firstName: e.target.value})}
+                                className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                              />
+                              <Input
+                                placeholder="Last Name"
+                                value={editedUserData.lastName || user.lastName || ''}
+                                onChange={(e) => setEditedUserData({...editedUserData, lastName: e.target.value})}
+                                className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                              />
+                            </div>
+                          ) : (
+                            `${user.firstName || ''} ${user.lastName || ''}`
+                          )}
                         </TableCell>
-                        <TableCell className="text-gray-300">{user.email}</TableCell>
-                        <TableCell className="text-green-300">RP {user.credits}</TableCell>
-                        <TableCell className="text-purple-300">{user.loyaltyPoints}</TableCell>
+                        <TableCell className="text-gray-300">
+                          {editingUser?.id === user.id ? (
+                            <Input
+                              placeholder="Email"
+                              value={editedUserData.email || user.email || ''}
+                              onChange={(e) => setEditedUserData({...editedUserData, email: e.target.value})}
+                              className="bg-gray-800 border-gray-600 text-white text-xs h-8"
+                            />
+                          ) : (
+                            user.email
+                          )}
+                        </TableCell>
+                        <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
+                        <TableCell className="text-purple-300">{user.loyaltyPoints || 0}</TableCell>
                         <TableCell>
-                          <Badge className={user.role === 'admin' ? 'bg-red-500' : 'bg-blue-500'}>
-                            {user.role || 'user'}
-                          </Badge>
+                          {editingUser?.id === user.id ? (
+                            <Select 
+                              value={editedUserData.role || user.role || 'user'} 
+                              onValueChange={(value) => setEditedUserData({...editedUserData, role: value})}
+                            >
+                              <SelectTrigger className="bg-gray-800 border-gray-600 text-white text-xs h-8 w-20">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge className={user.role === 'admin' ? 'bg-red-500' : 'bg-blue-500'}>
+                              {user.role || 'user'}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Dialog>
-                            <DialogTrigger asChild>
+                          <div className="flex gap-1">
+                            {editingUser?.id === user.id ? (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => updateUserMutation.mutate({ 
+                                    userId: user.id, 
+                                    userData: editedUserData 
+                                  })}
+                                  className="bg-green-600 hover:bg-green-700 h-8 w-8 p-0"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setEditingUser(null);
+                                    setEditedUserData({});
+                                  }}
+                                  variant="outline"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </>
+                            ) : (
                               <Button 
                                 size="sm" 
-                                onClick={() => setSelectedUser(user)}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={() => {
+                                  setEditingUser(user);
+                                  setEditedUserData({
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    email: user.email,
+                                    role: user.role
+                                  });
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 h-8 w-8 p-0"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-3 w-3" />
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-gray-900 border-gray-700">
-                              <DialogHeader>
-                                <DialogTitle className="text-white">Edit User</DialogTitle>
-                              </DialogHeader>
-                              {selectedUser && (
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label className="text-gray-300">Credits</Label>
-                                    <Input
-                                      type="number"
-                                      defaultValue={selectedUser.credits}
-                                      onChange={(e) => setSelectedUser({...selectedUser, credits: e.target.value})}
-                                      className="bg-gray-800 border-gray-600 text-white"
-                                    />
+                            )}
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => setSelectedUser(user)}
+                                  className="bg-purple-600 hover:bg-purple-700 h-8 w-8 p-0"
+                                >
+                                  <DollarSign className="h-3 w-3" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-gray-900 border-gray-700">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white">Manage Credits & Points</DialogTitle>
+                                </DialogHeader>
+                                {selectedUser && (
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label className="text-gray-300">Credits</Label>
+                                      <Input
+                                        type="number"
+                                        defaultValue={selectedUser.credits}
+                                        onChange={(e) => setSelectedUser({...selectedUser, credits: e.target.value})}
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-gray-300">Points</Label>
+                                      <Input
+                                        type="number"
+                                        defaultValue={selectedUser.loyaltyPoints}
+                                        onChange={(e) => setSelectedUser({...selectedUser, loyaltyPoints: e.target.value})}
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={() => updateCreditsMutation.mutate({ 
+                                          userId: selectedUser.id, 
+                                          amount: selectedUser.credits 
+                                        })}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        Update Credits
+                                      </Button>
+                                      <Button 
+                                        onClick={() => updatePointsMutation.mutate({ 
+                                          userId: selectedUser.id, 
+                                          points: parseInt(selectedUser.loyaltyPoints) 
+                                        })}
+                                        className="bg-purple-600 hover:bg-purple-700"
+                                      >
+                                        Update Points
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <Label className="text-gray-300">Points</Label>
-                                    <Input
-                                      type="number"
-                                      defaultValue={selectedUser.loyaltyPoints}
-                                      onChange={(e) => setSelectedUser({...selectedUser, loyaltyPoints: e.target.value})}
-                                      className="bg-gray-800 border-gray-600 text-white"
-                                    />
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button 
-                                      onClick={() => updateCreditsMutation.mutate({ 
-                                        userId: selectedUser.id, 
-                                        amount: selectedUser.credits 
-                                      })}
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      Update Credits
-                                    </Button>
-                                    <Button 
-                                      onClick={() => updatePointsMutation.mutate({ 
-                                        userId: selectedUser.id, 
-                                        points: parseInt(selectedUser.loyaltyPoints) 
-                                      })}
-                                      className="bg-purple-600 hover:bg-purple-700"
-                                    >
-                                      Update Points
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </DialogContent>
-                          </Dialog>
+                                )}
+                              </DialogContent>
+                            </Dialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
