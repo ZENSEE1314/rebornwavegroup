@@ -2100,7 +2100,12 @@ export default function CompleteApp() {
                   }`}>
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-4">
-                        {banner.imageUrl && (
+                        {banner.iconSymbol && (
+                          <div className="text-4xl">
+                            {banner.iconSymbol}
+                          </div>
+                        )}
+                        {banner.imageUrl && !banner.iconSymbol && (
                           <div className="text-4xl">
                             <img src={banner.imageUrl} alt={banner.title} className="w-16 h-16 object-cover rounded-lg" />
                           </div>
