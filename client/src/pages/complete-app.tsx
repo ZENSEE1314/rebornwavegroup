@@ -917,7 +917,7 @@ export default function CompleteApp() {
 
   // Fetch rewards from admin-created rewards
   const { data: adminRewards } = useQuery({
-    queryKey: ['/api/admin/reward-items']
+    queryKey: ['/api/rewards']
   });
 
   // Transform admin rewards to match the expected format
@@ -1350,7 +1350,7 @@ export default function CompleteApp() {
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/points-history', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rewards'] });
 
       toast({
         title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",

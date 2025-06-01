@@ -1657,6 +1657,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Redeem reward endpoint
+  // Public endpoint for users to get available rewards
+  app.get('/api/rewards', isAuthenticated, async (req, res) => {
+    try {
+      const rewards = await storage.getActiveRewardItems();
+      res.json(rewards);
+    } catch (error) {
+      console.error("Error fetching rewards:", error);
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
   app.post('/api/redeem-reward', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
