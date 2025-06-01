@@ -1,510 +1,626 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, 
-  Calendar, 
-  Store, 
-  Gift, 
-  Plus, 
-  Shield, 
-  Settings,
-  TrendingUp,
-  DollarSign,
-  Star
+  DollarSign, 
+  CreditCard, 
+  TrendingUp, 
+  Eye, 
+  Check, 
+  X, 
+  Plus,
+  Edit,
+  History,
+  Package,
+  ShoppingCart,
+  Calendar,
+  Award
 } from "lucide-react";
-import { formatCurrency, formatDateTime, generateAvatarUrl, getStatusColor, getRarityColor } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [isCreateToyOpen, setIsCreateToyOpen] = useState(false);
-  const [toyData, setToyData] = useState({
+  const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [newToy, setNewToy] = useState({
     name: "",
     series: "",
     rarity: "common",
-    qrCode: "",
-    originalPrice: "",
+    imageUrl: "",
+    qrCode: ""
   });
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Redirect if not admin
-  if (user?.role !== 'admin') {
+  // Check if user is admin
+  if (!user || user.role !== 'admin') {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Shield className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h2>
-            <p className="text-slate-600">You need administrator privileges to access this page.</p>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <Card className="p-8">
+          <CardContent className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
+            <p>You don't have admin privileges to access this page.</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const { data: allUsers, isLoading: usersLoading } = useQuery({
+  // Fetch all users
+  const { data: allUsers = [] } = useQuery({
     queryKey: ["/api/admin/users"],
   });
 
-  const { data: appointments, isLoading: appointmentsLoading } = useQuery({
-    queryKey: ["/api/appointments"],
+  // Fetch all cash out requests
+  const { data: cashOutRequests = [] } = useQuery({
+    queryKey: ["/api/admin/cash-outs"],
   });
 
-  const { data: listings } = useQuery({
-    queryKey: ["/api/marketplace/listings"],
+  // Fetch all transactions
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["/api/admin/transactions"],
   });
 
-  const createToyMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/admin/toys", data);
+  // Fetch all toys
+  const { data: allToys = [] } = useQuery({
+    queryKey: ["/api/admin/all-toys"],
+  });
+
+  // Update user credits mutation
+  const updateCreditsMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: string }) => {
+      return apiRequest("POST", "/api/admin/update-credits", { userId, amount });
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Toy created successfully!",
-      });
-      setIsCreateToyOpen(false);
-      setToyData({
-        name: "",
-        series: "",
-        rarity: "common",
-        qrCode: "",
-        originalPrice: "",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create toy",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateUserRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return await apiRequest("PATCH", `/api/admin/users/${userId}/role`, { role });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "User role updated successfully!",
-      });
+      toast({ title: "Success", description: "User credits updated successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update user role",
-        variant: "destructive",
-      });
-    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update credits", variant: "destructive" });
+    }
   });
 
-  const handleCreateToy = (e: React.FormEvent) => {
-    e.preventDefault();
-    createToyMutation.mutate(toyData);
+  // Update user points mutation
+  const updatePointsMutation = useMutation({
+    mutationFn: async ({ userId, points }: { userId: string; points: number }) => {
+      return apiRequest("POST", "/api/admin/update-points", { userId, points });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "User points updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update points", variant: "destructive" });
+    }
+  });
+
+  // Update cash out status mutation
+  const updateCashOutMutation = useMutation({
+    mutationFn: async ({ id, status, adminNotes }: { id: number; status: string; adminNotes?: string }) => {
+      return apiRequest("PUT", `/api/admin/cash-out/${id}`, { status, adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Cash out request updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cash-outs"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update cash out request", variant: "destructive" });
+    }
+  });
+
+  // Add new toy mutation
+  const addToyMutation = useMutation({
+    mutationFn: async (toyData: any) => {
+      return apiRequest("POST", "/api/admin/toys", toyData);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "New toy added successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/all-toys"] });
+      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add new toy", variant: "destructive" });
+    }
+  });
+
+  const handleUpdateCredits = (userId: string, amount: string) => {
+    updateCreditsMutation.mutate({ userId, amount });
   };
 
-  const handleUpdateUserRole = (userId: string, role: string) => {
-    updateUserRoleMutation.mutate({ userId, role });
+  const handleUpdatePoints = (userId: string, points: number) => {
+    updatePointsMutation.mutate({ userId, points });
   };
 
-  // Calculate stats
-  const totalUsers = allUsers?.length || 0;
-  const totalAppointments = appointments?.length || 0;
-  const totalListings = listings?.length || 0;
-  const totalRevenue = appointments?.reduce((sum: number, apt: any) => sum + Number(apt.cost), 0) || 0;
+  const handleCashOutAction = (id: number, status: string, adminNotes?: string) => {
+    updateCashOutMutation.mutate({ id, status, adminNotes });
+  };
 
-  if (usersLoading || appointmentsLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-slate-200 rounded w-48"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleAddToy = () => {
+    if (!newToy.name || !newToy.series) {
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    addToyMutation.mutate(newToy);
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    return `Rp ${parseInt(amount.toString()).toLocaleString('id-ID')}`;
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-        <div className="flex space-x-4">
-          <Dialog open={isCreateToyOpen} onOpenChange={setIsCreateToyOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Toy
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Toy</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateToy} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Toy Name</Label>
-                  <Input
-                    id="name"
-                    value={toyData.name}
-                    onChange={(e) => setToyData({ ...toyData, name: e.target.value })}
-                    placeholder="e.g., Rainbow Unicorn"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="series">Series</Label>
-                  <Input
-                    id="series"
-                    value={toyData.series}
-                    onChange={(e) => setToyData({ ...toyData, series: e.target.value })}
-                    placeholder="e.g., Magical Series #4"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="rarity">Rarity</Label>
-                  <Select
-                    value={toyData.rarity}
-                    onValueChange={(value) => setToyData({ ...toyData, rarity: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="common">Common</SelectItem>
-                      <SelectItem value="rare">Rare</SelectItem>
-                      <SelectItem value="ultra_rare">Ultra Rare</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="qrCode">QR Code</Label>
-                  <Input
-                    id="qrCode"
-                    value={toyData.qrCode}
-                    onChange={(e) => setToyData({ ...toyData, qrCode: e.target.value })}
-                    placeholder="Unique QR code for this toy"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="originalPrice">Original Price ($)</Label>
-                  <Input
-                    id="originalPrice"
-                    type="number"
-                    step="0.01"
-                    value={toyData.originalPrice}
-                    onChange={(e) => setToyData({ ...toyData, originalPrice: e.target.value })}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-
-                <Button type="submit" className="w-full" disabled={createToyMutation.isPending}>
-                  {createToyMutation.isPending ? "Creating..." : "Create Toy"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
+          <p className="text-purple-200">Complete system administration and control panel</p>
         </div>
-      </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Total Users</p>
-                <p className="text-2xl font-bold text-slate-800">{totalUsers}</p>
-                <p className="text-emerald-600 text-sm font-medium">Registered members</p>
-              </div>
-              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Total Appointments</p>
-                <p className="text-2xl font-bold text-slate-800">{totalAppointments}</p>
-                <p className="text-primary-600 text-sm font-medium">All time bookings</p>
-              </div>
-              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-primary-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Active Listings</p>
-                <p className="text-2xl font-bold text-slate-800">{totalListings}</p>
-                <p className="text-amber-600 text-sm font-medium">Marketplace items</p>
-              </div>
-              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Store className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl font-bold text-slate-800">{formatCurrency(totalRevenue)}</p>
-                <p className="text-purple-600 text-sm font-medium">From appointments</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="appointments">Appointments</TabsTrigger>
-          <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {allUsers && allUsers.length > 0 ? (
-                  allUsers.map((userItem: any) => (
-                    <div key={userItem.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <img 
-                          src={userItem.profileImageUrl || generateAvatarUrl(`${userItem.firstName} ${userItem.lastName}`)}
-                          alt="User" 
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <p className="font-medium text-slate-800">
-                            {userItem.firstName} {userItem.lastName}
-                          </p>
-                          <p className="text-sm text-slate-600">{userItem.email}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Badge variant={userItem.role === 'admin' ? 'default' : 'secondary'}>
-                              {userItem.role}
-                            </Badge>
-                            <span className="text-xs text-slate-500">
-                              Level {userItem.level} • {userItem.loyaltyPoints} pts
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right text-sm">
-                          <p className="font-medium">{formatCurrency(userItem.credits)}</p>
-                          <p className="text-slate-500">Credits</p>
-                        </div>
-                        <Select
-                          value={userItem.role}
-                          onValueChange={(role) => handleUpdateUserRole(userItem.id, role)}
-                          disabled={updateUserRoleMutation.isPending}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-slate-500">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No users found</p>
-                  </div>
-                )}
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200 text-sm">Total Users</p>
+                  <p className="text-2xl font-bold text-white">{allUsers.length}</p>
+                </div>
+                <Users className="w-8 h-8 text-purple-300" />
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="appointments">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appointment Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {appointments && appointments.length > 0 ? (
-                  appointments.map((appointment: any) => (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-slate-900">{appointment.title}</h3>
-                          <Badge className={getStatusColor(appointment.status)}>
-                            {appointment.status}
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200 text-sm">Pending Cash Outs</p>
+                  <p className="text-2xl font-bold text-white">
+                    {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                  </p>
+                </div>
+                <CreditCard className="w-8 h-8 text-yellow-300" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200 text-sm">Total Transactions</p>
+                  <p className="text-2xl font-bold text-white">{allTransactions.length}</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-green-300" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200 text-sm">Total Toys</p>
+                  <p className="text-2xl font-bold text-white">{allToys.length}</p>
+                </div>
+                <Package className="w-8 h-8 text-blue-300" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-md">
+            <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
+              <Users className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/20">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Cash Outs
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-white/20">
+              <History className="w-4 h-4 mr-2" />
+              Transactions
+            </TabsTrigger>
+            <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
+              <Package className="w-4 h-4 mr-2" />
+              Toys
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
+              <Award className="w-4 h-4 mr-2" />
+              Reports
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Users Management */}
+          <TabsContent value="users">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">User Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Email</TableHead>
+                      <TableHead className="text-purple-200">Credits</TableHead>
+                      <TableHead className="text-purple-200">Points</TableHead>
+                      <TableHead className="text-purple-200">Role</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allUsers.map((user: any) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="text-white">
+                          {user.firstName} {user.lastName}
+                        </TableCell>
+                        <TableCell className="text-purple-200">{user.email}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(user.credits || 0)}</TableCell>
+                        <TableCell className="text-blue-300">{user.loyaltyPoints || 0}</TableCell>
+                        <TableCell>
+                          <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                            {user.role}
                           </Badge>
-                        </div>
-                        {appointment.description && (
-                          <p className="text-sm text-slate-600 mb-2">{appointment.description}</p>
-                        )}
-                        <div className="flex items-center space-x-4 text-sm text-slate-500">
-                          <span>User ID: {appointment.userId}</span>
-                          <span>{formatDateTime(appointment.appointmentDate)}</span>
-                          <span>{appointment.duration} minutes</span>
-                          <span className="font-medium text-slate-800">{formatCurrency(appointment.cost)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-slate-500">
-                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No appointments found</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        </TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setSelectedUser(user)}
+                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-gray-900 border-gray-700">
+                              <DialogHeader>
+                                <DialogTitle className="text-white">
+                                  Edit User: {selectedUser?.firstName} {selectedUser?.lastName}
+                                </DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <Label className="text-gray-300">Update Credits</Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="Amount"
+                                      className="bg-gray-800 border-gray-600 text-white"
+                                      id="creditAmount"
+                                    />
+                                    <Button
+                                      onClick={() => {
+                                        const amount = (document.getElementById('creditAmount') as HTMLInputElement)?.value;
+                                        if (amount && selectedUser) {
+                                          handleUpdateCredits(selectedUser.id, amount);
+                                        }
+                                      }}
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      Update
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-gray-300">Update Points</Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="Points"
+                                      type="number"
+                                      className="bg-gray-800 border-gray-600 text-white"
+                                      id="pointAmount"
+                                    />
+                                    <Button
+                                      onClick={() => {
+                                        const points = (document.getElementById('pointAmount') as HTMLInputElement)?.value;
+                                        if (points && selectedUser) {
+                                          handleUpdatePoints(selectedUser.id, parseInt(points));
+                                        }
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      Update
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="marketplace">
-          <Card>
-            <CardHeader>
-              <CardTitle>Marketplace Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {listings && listings.length > 0 ? (
-                  listings.map((listing: any) => (
-                    <div key={listing.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-slate-900">
-                            {listing.toy?.name || 'Unknown Toy'}
-                          </h3>
-                          <div className="flex items-center space-x-2">
-                            <Badge className={getRarityColor(listing.toy?.rarity || 'common')}>
-                              {listing.toy?.rarity || 'common'}
-                            </Badge>
-                            <Badge className={getStatusColor(listing.status)}>
-                              {listing.status}
-                            </Badge>
+          {/* Cash Out Requests */}
+          <TabsContent value="cashouts">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Cash Out Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Bank Details</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cashOutRequests.map((request: any) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="text-white">{request.user?.firstName} {request.user?.lastName}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(request.amount)}</TableCell>
+                        <TableCell className="text-purple-200">
+                          <div className="text-sm">
+                            <div>{request.bankName}</div>
+                            <div>{request.accountNumber}</div>
+                            <div>{request.accountHolderName}</div>
                           </div>
-                        </div>
-                        {listing.description && (
-                          <p className="text-sm text-slate-600 mb-2">{listing.description}</p>
-                        )}
-                        <div className="flex items-center space-x-4 text-sm text-slate-500">
-                          <span>Seller ID: {listing.sellerId}</span>
-                          <span>Series: {listing.toy?.series || 'Unknown'}</span>
-                          <span className="font-medium text-slate-800">{formatCurrency(listing.price)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-slate-500">
-                    <Store className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No listings found</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Growth</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">User Growth Rate</span>
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
-                      <span className="font-medium text-emerald-600">12.5%</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Monthly Active Users</span>
-                    <span className="font-medium">{Math.floor(totalUsers * 0.75)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Average Session Duration</span>
-                    <span className="font-medium">8.2 minutes</span>
-                  </div>
-                </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            request.status === 'approved' ? 'default' :
+                            request.status === 'rejected' ? 'destructive' : 'secondary'
+                          }>
+                            {request.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {request.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleCashOutAction(request.id, 'approved')}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleCashOutAction(request.id, 'rejected', 'Rejected by admin')}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            <Card>
+          {/* Transactions */}
+          <TabsContent value="transactions">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
               <CardHeader>
-                <CardTitle>Revenue Analytics</CardTitle>
+                <CardTitle className="text-white">All Transactions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Average Order Value</span>
-                    <span className="font-medium">
-                      {formatCurrency(totalAppointments > 0 ? totalRevenue / totalAppointments : 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Monthly Recurring Revenue</span>
-                    <span className="font-medium">{formatCurrency(totalRevenue * 0.4)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Conversion Rate</span>
-                    <span className="font-medium">3.2%</span>
-                  </div>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allTransactions.map((transaction: any) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="text-white">{transaction.user?.firstName} {transaction.user?.lastName}</TableCell>
+                        <TableCell>
+                          <Badge variant={transaction.type === 'credit' ? 'default' : 'secondary'}>
+                            {transaction.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(transaction.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.description}</TableCell>
+                        <TableCell className="text-purple-200">
+                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+
+          {/* Toys Management */}
+          <TabsContent value="toys">
+            <div className="space-y-6">
+              {/* Add New Toy */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Add New Toy</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-purple-200">Toy Name</Label>
+                      <Input
+                        value={newToy.name}
+                        onChange={(e) => setNewToy({...newToy, name: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Enter toy name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-purple-200">Series</Label>
+                      <Input
+                        value={newToy.series}
+                        onChange={(e) => setNewToy({...newToy, series: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Enter series name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-purple-200">Rarity</Label>
+                      <Select value={newToy.rarity} onValueChange={(value) => setNewToy({...newToy, rarity: value})}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="common">Common</SelectItem>
+                          <SelectItem value="uncommon">Uncommon</SelectItem>
+                          <SelectItem value="rare">Rare</SelectItem>
+                          <SelectItem value="epic">Epic</SelectItem>
+                          <SelectItem value="legendary">Legendary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-purple-200">Image URL</Label>
+                      <Input
+                        value={newToy.imageUrl}
+                        onChange={(e) => setNewToy({...newToy, imageUrl: e.target.value})}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Enter image URL"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleAddToy}
+                    className="mt-4 bg-purple-600 hover:bg-purple-700"
+                    disabled={addToyMutation.isPending}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Toy
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* All Toys */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">All Toys</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Name</TableHead>
+                        <TableHead className="text-purple-200">Series</TableHead>
+                        <TableHead className="text-purple-200">Rarity</TableHead>
+                        <TableHead className="text-purple-200">Owner</TableHead>
+                        <TableHead className="text-purple-200">QR Code</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allToys.map((toy: any) => (
+                        <TableRow key={toy.id}>
+                          <TableCell className="text-white">{toy.name}</TableCell>
+                          <TableCell className="text-purple-200">{toy.series}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              toy.rarity === 'legendary' ? 'default' :
+                              toy.rarity === 'epic' ? 'secondary' : 'outline'
+                            }>
+                              {toy.rarity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
+                          </TableCell>
+                          <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Reports */}
+          <TabsContent value="reports">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">User Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Total Credits in System:</span>
+                      <span className="text-green-300 font-bold">
+                        {formatCurrency(allUsers.reduce((sum: number, user: any) => sum + parseInt(user.credits || 0), 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Total Points in System:</span>
+                      <span className="text-blue-300 font-bold">
+                        {allUsers.reduce((sum: number, user: any) => sum + parseInt(user.loyaltyPoints || 0), 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Active Users:</span>
+                      <span className="text-white font-bold">{allUsers.length}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Transaction Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Total Transactions:</span>
+                      <span className="text-white font-bold">{allTransactions.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Pending Cash Outs:</span>
+                      <span className="text-yellow-300 font-bold">
+                        {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-purple-200">Total Cash Out Amount:</span>
+                      <span className="text-red-300 font-bold">
+                        {formatCurrency(cashOutRequests.reduce((sum: number, req: any) => sum + parseInt(req.amount || 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

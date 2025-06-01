@@ -949,6 +949,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes
+  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get('/api/admin/cash-outs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const cashOuts = await storage.getAllCashOuts();
+      res.json(cashOuts);
+    } catch (error) {
+      console.error("Error fetching cash outs:", error);
+      res.status(500).json({ message: "Failed to fetch cash outs" });
+    }
+  });
+
+  app.get('/api/admin/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const transactions = await storage.getAllTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toys = await storage.getAllToysWithOwners();
+      res.json(toys);
+    } catch (error) {
+      console.error("Error fetching toys:", error);
+      res.status(500).json({ message: "Failed to fetch toys" });
+    }
+  });
+
+  app.post('/api/admin/update-credits', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId, amount } = req.body;
+      await storage.updateUserCredits(userId, amount);
+      
+      // Create transaction record
+      await storage.createTransaction({
+        userId,
+        type: 'credit',
+        amount,
+        description: `Admin credit adjustment by ${currentUser.firstName} ${currentUser.lastName}`,
+        relatedId: null
+      });
+
+      res.json({ message: "Credits updated successfully" });
+    } catch (error) {
+      console.error("Error updating credits:", error);
+      res.status(500).json({ message: "Failed to update credits" });
+    }
+  });
+
+  app.post('/api/admin/update-points', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId, points } = req.body;
+      await storage.updateUserPoints(userId, points);
+
+      res.json({ message: "Points updated successfully" });
+    } catch (error) {
+      console.error("Error updating points:", error);
+      res.status(500).json({ message: "Failed to update points" });
+    }
+  });
+
+  app.put('/api/admin/cash-out/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+      
+      await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
+      res.json({ message: "Cash out request updated successfully" });
+    } catch (error) {
+      console.error("Error updating cash out:", error);
+      res.status(500).json({ message: "Failed to update cash out request" });
+    }
+  });
+
+  app.post('/api/admin/toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toyData = req.body;
+      // Generate QR code if not provided
+      if (!toyData.qrCode) {
+        toyData.qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+      
+      const newToy = await storage.createToy(toyData);
+      res.json(newToy);
+    } catch (error) {
+      console.error("Error creating toy:", error);
+      res.status(500).json({ message: "Failed to create toy" });
+    }
+  });
+
   // Cancel pending purchase route
   app.post('/api/pending-purchases/:purchaseId/cancel', isAuthenticated, async (req: any, res) => {
     try {
