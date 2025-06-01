@@ -1064,7 +1064,7 @@ export default function CompleteApp() {
         body: JSON.stringify({
           points: -reward.pointsCost,
           type: 'redeemed',
-          description: `Redeemed: ${reward.title}`,
+          description: `Redeemed: ${reward.name}`,
           relatedId: reward.id
         })
       });
@@ -1075,7 +1075,7 @@ export default function CompleteApp() {
 
       toast({
         title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
-        description: language === "id" ? `${reward.title} berhasil ditukar` : `${reward.title} successfully redeemed`
+        description: language === "id" ? `${reward.name} berhasil ditukar` : `${reward.name} successfully redeemed`
       });
     } catch (error) {
       toast({
