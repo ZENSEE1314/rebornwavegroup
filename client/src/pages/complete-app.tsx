@@ -3282,12 +3282,6 @@ export default function CompleteApp() {
                           </p>
                           <div className="bg-gray-100 p-2 rounded">
                             <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
-                            <div className="mt-2 bg-white p-2 rounded border-2 border-dashed border-gray-300">
-                              <QrCode className="w-16 h-16 mx-auto text-gray-400" />
-                              <p className="text-xs text-gray-500 mt-1">
-                                {language === "id" ? "Pindai untuk verifikasi" : "Scan to verify"}
-                              </p>
-                            </div>
                           </div>
                         </div>
                       </div>
