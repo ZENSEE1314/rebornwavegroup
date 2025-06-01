@@ -939,6 +939,32 @@ export default function CompleteApp() {
       }));
   }, [adminRewards]);
 
+  // Helper functions for reward display
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'credit':
+      case 'money':
+        return "bg-green-100 text-green-800";
+      case 'beauty':
+      case 'spa':
+        return "bg-pink-100 text-pink-800";
+      case 'entertainment':
+      case 'gaming':
+        return "bg-blue-100 text-blue-800";
+      case 'food':
+      case 'dining':
+        return "bg-orange-100 text-orange-800";
+      case 'health':
+      case 'fitness':
+        return "bg-red-100 text-red-800";
+      case 'premium':
+      case 'vip':
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
   // Functions
   const getCurrentLevel = () => {
     return levels.find(level => 
@@ -1292,26 +1318,39 @@ export default function CompleteApp() {
       return;
     }
 
-    try {
-      const response = await fetch('/api/points-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          points: -reward.pointsCost,
-          type: 'redeemed',
-          description: `Redeemed: ${reward.name}`,
-          relatedId: reward.id
-        })
+    // Check stock availability
+    if (reward.stockQuantity && reward.stockQuantity <= 0) {
+      toast({
+        title: language === "id" ? "Stok Habis" : "Out of Stock",
+        description: language === "id" ? "Reward ini sedang tidak tersedia" : "This reward is currently unavailable",
+        variant: "destructive"
       });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      return;
+    }
+
+    try {
+      // First, redeem the reward and update stock
+      const redeemResponse = await apiRequest('POST', '/api/redeem-reward', {
+        rewardId: reward.id,
+        pointsCost: reward.pointsCost
+      });
+
+      if (!redeemResponse.ok) {
+        throw new Error('Failed to redeem reward');
       }
 
-      // Refresh user stats and points history to get updated data
+      // Add points history entry
+      await apiRequest('POST', '/api/points-history', {
+        points: -reward.pointsCost,
+        type: 'redeemed',
+        description: `Redeemed: ${reward.name}`,
+        referenceId: reward.id.toString()
+      });
+
+      // Refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/points-history', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
 
       toast({
         title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
@@ -1695,15 +1734,7 @@ export default function CompleteApp() {
     }
   };
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'credit': return 'bg-green-100 text-green-800';
-      case 'beauty': return 'bg-pink-100 text-pink-800';
-      case 'entertainment': return 'bg-blue-100 text-blue-800';
-      case 'perk': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -141,6 +141,7 @@ export interface IStorage {
   // Reward item operations
   getAllRewardItems(): Promise<RewardItem[]>;
   getActiveRewardItems(): Promise<RewardItem[]>;
+  getRewardItemById(id: number): Promise<RewardItem | undefined>;
   createRewardItem(item: InsertRewardItem): Promise<RewardItem>;
   updateRewardItem(id: number, item: Partial<InsertRewardItem>): Promise<void>;
   deleteRewardItem(id: number): Promise<void>;

@@ -1656,6 +1656,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Redeem reward endpoint
+  app.post('/api/redeem-reward', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const { rewardId, pointsCost } = req.body;
+      
+      // Get user and reward data
+      const user = await storage.getUser(userId);
+      const reward = await storage.getRewardItemById(rewardId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      if (!reward) {
+        return res.status(404).json({ message: 'Reward not found' });
+      }
+
+      // Check if user has enough points
+      if (user.loyaltyPoints < pointsCost) {
+        return res.status(400).json({ message: 'Insufficient points' });
+      }
+
+      // Check stock availability
+      if (reward.stockQuantity && reward.stockQuantity <= 0) {
+        return res.status(400).json({ message: 'Reward out of stock' });
+      }
+
+      // Deduct points from user
+      await storage.updateUserPoints(userId, user.loyaltyPoints - pointsCost);
+      
+      // Decrease stock if applicable
+      if (reward.stockQuantity) {
+        await storage.updateRewardItem(rewardId, { 
+          stockQuantity: reward.stockQuantity - 1 
+        });
+      }
+
+      res.json({ message: 'Reward redeemed successfully' });
+    } catch (error) {
+      console.error("Error redeeming reward:", error);
+      res.status(500).json({ message: "Failed to redeem reward" });
+    }
+  });
+
   // Get user dashboard stats from database
   app.get('/api/user-stats', isAuthenticated, async (req: any, res) => {
     try {
