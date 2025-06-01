@@ -1415,12 +1415,33 @@ export default function CompleteApp() {
   };
 
   // Function to confirm purchase as seller
-  const confirmPurchase = (purchaseId) => {
-    confirmPurchaseMutation.mutate(purchaseId);
-    toast({
-      title: language === "id" ? "Konfirmasi Berhasil!" : "Confirmation Successful!",
-      description: language === "id" ? "Penjualan dikonfirmasi, kredit telah ditambahkan" : "Sale confirmed, credits have been added",
-    });
+  const confirmPurchase = async (purchaseId) => {
+    try {
+      const response = await fetch(`/api/pending-purchases/${purchaseId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Konfirmasi Berhasil!" : "Confirmation Successful!",
+          description: language === "id" ? "Penjualan dikonfirmasi, menunggu konfirmasi penerima" : "Sale confirmed, waiting for buyer confirmation",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      } else {
+        throw new Error('Failed to confirm purchase');
+      }
+    } catch (error) {
+      console.error('Error confirming sale:', error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm sale",
+        variant: "destructive"
+      });
+    }
   };
 
 
