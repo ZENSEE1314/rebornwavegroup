@@ -948,7 +948,7 @@ export default function CompleteApp() {
 
   const processPayment = (amount) => {
     // This would integrate with PayPal/Stripe
-    setUserCredits(prev => prev + parseInt(amount));
+    // Credits are managed through the database, not local state
     
     // Add transaction to history
     const newTransaction = {
@@ -1022,7 +1022,7 @@ export default function CompleteApp() {
 
     try {
       // API call would go here
-      setUserCredits(userCredits - amount);
+      // Credits are managed through database
       setShowCashOutModal(false);
       setCashOutAmount("");
       setBankName("");
@@ -1272,9 +1272,7 @@ export default function CompleteApp() {
       pointsEarned: pointsEarned,
     });
 
-    // Deduct credits from buyer immediately
-    const newCredits = userCredits - price;
-    setUserCredits(newCredits);
+    // Credits will be managed through the database
 
     // Add credit transaction to history
     createCreditHistoryMutation.mutate({
