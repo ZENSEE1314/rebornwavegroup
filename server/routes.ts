@@ -1124,6 +1124,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update toy owner (admin only)
+  app.patch('/api/admin/toys/:toyId/owner', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toyId = parseInt(req.params.toyId);
+      const { newOwnerId } = req.body;
+      
+      await storage.updateToyOwner(toyId, newOwnerId);
+      res.json({ message: "Toy owner updated successfully" });
+    } catch (error) {
+      console.error("Error updating toy owner:", error);
+      res.status(500).json({ message: "Failed to update toy owner" });
+    }
+  });
+
+  // Delete toy (admin only)
+  app.delete('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toyId = parseInt(req.params.toyId);
+      await storage.deleteToy(toyId);
+      res.json({ message: "Toy deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting toy:", error);
+      res.status(500).json({ message: "Failed to delete toy" });
+    }
+  });
+
   // Admin endpoint - Update user profile (PUT)
   app.put('/api/admin/users/:userId/profile', isAuthenticated, async (req: any, res) => {
     try {

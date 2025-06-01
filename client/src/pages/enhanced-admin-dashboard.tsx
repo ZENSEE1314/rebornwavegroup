@@ -33,6 +33,7 @@ import {
   Download,
   Upload,
   FileText,
+  Trash2,
   Filter
 } from "lucide-react";
 
@@ -252,6 +253,32 @@ export default function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to update user", variant: "destructive" });
+    }
+  });
+
+  const updateToyOwnerMutation = useMutation({
+    mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string | null }) => {
+      return apiRequest('PATCH', `/api/admin/toys/${toyId}/owner`, { newOwnerId });
+    },
+    onSuccess: () => {
+      toast({ title: "Toy owner updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update toy owner", variant: "destructive" });
+    }
+  });
+
+  const deleteToyMutation = useMutation({
+    mutationFn: async (toyId: number) => {
+      return apiRequest('DELETE', `/api/admin/toys/${toyId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Toy deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete toy", variant: "destructive" });
     }
   });
 
@@ -911,6 +938,7 @@ export default function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200">Rarity</TableHead>
                         <TableHead className="text-blue-200">Owner</TableHead>
                         <TableHead className="text-blue-200">QR Code</TableHead>
+                        <TableHead className="text-blue-200">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -927,6 +955,60 @@ export default function EnhancedAdminDashboard() {
                             {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'No Owner'}
                           </TableCell>
                           <TableCell className="text-gray-300 font-mono text-xs">{toy.qrCode}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white border-blue-500"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-gray-900 border-gray-700">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-white">Edit Toy Owner</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label className="text-gray-300">Current Owner</Label>
+                                      <p className="text-white">
+                                        {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'No Owner'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <Label className="text-gray-300">New Owner (User ID)</Label>
+                                      <Input
+                                        placeholder="Enter user ID or leave empty to remove owner"
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                        id={`owner-${toy.id}`}
+                                      />
+                                    </div>
+                                    <Button
+                                      onClick={() => {
+                                        const input = document.getElementById(`owner-${toy.id}`) as HTMLInputElement;
+                                        const newOwnerId = input?.value.trim() || null;
+                                        updateToyOwnerMutation.mutate({ toyId: toy.id, newOwnerId });
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      Update Owner
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => deleteToyMutation.mutate(toy.id)}
+                                className="bg-red-600 hover:bg-red-700 text-white border-red-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
