@@ -2763,7 +2763,13 @@ export default function CompleteApp() {
                 <Card key={toy.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="text-center">
-                      <div className="text-6xl mb-4">{toy.image}</div>
+                      <div className="mb-4">
+                        <img 
+                          src={dinoImagePath} 
+                          alt={toy.name} 
+                          className="w-32 h-32 mx-auto object-contain"
+                        />
+                      </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
                       <Badge className={getRarityColor(toy.rarity)} variant="secondary">
                         {toy.rarity}
