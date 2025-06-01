@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -491,46 +491,42 @@ export default function CompleteApp() {
     }).format(amount).replace(/\./g, ',');
   };
 
-  // Service categories
-  const serviceCategories = {
-    beauty: {
-      name: language === "id" ? "Layanan Kecantikan" : "Beauty Services",
-      options: [
-        { value: "hair_spa", label: "Hair Spa", cost: 200000 },
-        { value: "facials", label: language === "id" ? "Perawatan Wajah" : "Facials", cost: 250000 },
-        { value: "nails", label: language === "id" ? "Perawatan Kuku" : "Nail Service", cost: 150000 }
-      ],
-      startingPrice: "200,000"
-    },
-    entertainment: {
-      name: language === "id" ? "Hiburan" : "Entertainment",
-      options: [
-        { value: "claw_machine", label: language === "id" ? "Mesin Cakar" : "Claw Machine", cost: 50000 },
-        { value: "ktv_lounge_table", label: "KTV Lounge Table", cost: 350000 },
-        { value: "ktv_lounge_sofa", label: "KTV Lounge Sofa", cost: 400000 },
-        { value: "ktv_room_1", label: "KTV Room 1", cost: 500000 },
-        { value: "ktv_room_2", label: "KTV Room 2", cost: 500000 },
-        { value: "ktv_room_3", label: "KTV Room 3", cost: 500000 },
-        { value: "ktv_room_4", label: "KTV Room 4", cost: 500000 },
-        { value: "ktv_vip_1", label: "KTV VIP Room 1", cost: 800000 },
-        { value: "ktv_vip_2", label: "KTV VIP Room 2", cost: 800000 }
-      ],
-      startingPrice: "350,000"
-    },
-    restaurant: {
-      name: language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant",
-      options: [
-        { value: "breakfast_indoor", label: language === "id" ? "Sarapan Indoor" : "Breakfast Indoor", cost: 150000 },
-        { value: "breakfast_outdoor", label: language === "id" ? "Sarapan Outdoor" : "Breakfast Outdoor", cost: 180000 },
-        { value: "lunch_indoor", label: language === "id" ? "Makan Siang Indoor" : "Lunch Indoor", cost: 200000 },
-        { value: "lunch_outdoor", label: language === "id" ? "Makan Siang Outdoor" : "Lunch Outdoor", cost: 230000 },
-        { value: "high_tea", label: "High Tea", cost: 120000 },
-        { value: "dinner_indoor", label: language === "id" ? "Makan Malam Indoor" : "Dinner Indoor", cost: 300000 },
-        { value: "dinner_outdoor", label: language === "id" ? "Makan Malam Outdoor" : "Dinner Outdoor", cost: 350000 }
-      ],
-      startingPrice: "150,000"
+  // Fetch appointment events from database
+  const { data: appointmentEvents } = useQuery({
+    queryKey: ['/api/admin/appointment-events']
+  });
+
+  // Transform appointment events into service categories format
+  const serviceCategories = useMemo(() => {
+    if (!appointmentEvents || !Array.isArray(appointmentEvents)) {
+      return {};
     }
-  };
+
+    const categories = {};
+    
+    appointmentEvents
+      .filter(event => event.isActive)
+      .forEach(event => {
+        if (!categories[event.category]) {
+          categories[event.category] = {
+            name: event.category === 'beauty' 
+              ? (language === "id" ? "Layanan Kecantikan" : "Beauty Services")
+              : event.category === 'entertainment'
+              ? (language === "id" ? "Hiburan" : "Entertainment") 
+              : (language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant"),
+            options: []
+          };
+        }
+        
+        categories[event.category].options.push({
+          value: event.title.toLowerCase().replace(/\s+/g, '_'),
+          label: event.title,
+          cost: 0 // Flexible pricing - will be determined during booking
+        });
+      });
+
+    return categories;
+  }, [appointmentEvents, language]);
 
   // Appointments
   const [appointments, setAppointments] = useState([
