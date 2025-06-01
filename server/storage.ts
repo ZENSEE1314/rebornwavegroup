@@ -530,6 +530,34 @@ export class DatabaseStorage implements IStorage {
 
   // Marketplace operations
   async createListing(listing: InsertListing): Promise<Listing> {
+    // Check if this toy is already listed and active
+    const existingListing = await db
+      .select()
+      .from(listings)
+      .where(
+        and(
+          eq(listings.toyId, listing.toyId),
+          or(
+            eq(listings.status, 'active'),
+            eq(listings.status, 'pending')
+          )
+        )
+      );
+
+    if (existingListing.length > 0) {
+      throw new Error('This toy is already listed for sale or in a pending transaction');
+    }
+
+    // Verify the user owns this toy
+    const [toy] = await db
+      .select()
+      .from(toys)
+      .where(eq(toys.id, listing.toyId));
+
+    if (!toy || toy.ownerId !== listing.sellerId) {
+      throw new Error('You do not own this toy');
+    }
+
     const [created] = await db
       .insert(listings)
       .values(listing)
@@ -763,7 +791,11 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Purchase is not pending seller confirmation');
     }
 
-    // NOTE: Toy ownership transfer happens only when buyer confirms receipt
+    // Transfer toy ownership immediately when seller confirms
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.buyerId })
+      .where(eq(toys.id, purchase.toyId));
 
     // Update purchase status to pending buyer confirmation
     await db
@@ -774,10 +806,10 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(pendingPurchases.id, purchaseId));
 
-    // Update listing status to pending (not available for other buyers)
+    // Update listing status to sold (remove from marketplace)
     await db
       .update(listings)
-      .set({ status: 'pending' })
+      .set({ status: 'sold' })
       .where(eq(listings.id, purchase.listingId));
   }
 
