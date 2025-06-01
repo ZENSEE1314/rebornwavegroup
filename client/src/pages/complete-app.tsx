@@ -35,7 +35,7 @@ export default function CompleteApp() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     let socket: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let reconnectTimeout: number | null = null;
     
     const connect = () => {
       try {
