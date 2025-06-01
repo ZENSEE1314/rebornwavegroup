@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatMoney, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { rewardSymbols } from "@/lib/rewardSymbols";
 import { 
   Users, 
   DollarSign, 
