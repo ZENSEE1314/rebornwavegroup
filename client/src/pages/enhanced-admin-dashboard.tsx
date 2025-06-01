@@ -504,6 +504,64 @@ export default function EnhancedAdminDashboard() {
     }
   });
 
+  const updateRewardMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return apiRequest('PUT', `/api/admin/reward-items/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Reward updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
+      setShowRewardDialog(false);
+      setEditingReward(null);
+      setRewardForm({
+        name: "",
+        description: "",
+        type: "item",
+        pointsCost: 0,
+        stockQuantity: null,
+        imageUrl: "",
+        isActive: true
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update reward", variant: "destructive" });
+    }
+  });
+
+  const deleteRewardMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('DELETE', `/api/admin/reward-items/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Reward deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete reward", variant: "destructive" });
+    }
+  });
+
+  // Handler functions for rewards
+  const handleEditReward = (reward: any) => {
+    setEditingReward(reward);
+    setRewardForm({
+      name: reward.name,
+      description: reward.description,
+      type: reward.type,
+      pointsCost: reward.pointsCost,
+      stockQuantity: reward.stockQuantity,
+      imageUrl: reward.imageUrl,
+      isActive: reward.isActive
+    });
+    setShowRewardDialog(true);
+  };
+
+  const handleDeleteReward = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this reward?')) {
+      deleteRewardMutation.mutate(id);
+    }
+  };
+
 
 
   // Download functions
@@ -1876,10 +1934,19 @@ export default function EnhancedAdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex gap-2">
-                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="bg-white/10 border-white/20"
+                                        onClick={() => handleEditReward(reward)}
+                                      >
                                         <Edit className="h-3 w-3" />
                                       </Button>
-                                      <Button size="sm" variant="destructive">
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={() => handleDeleteReward(reward.id)}
+                                      >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
@@ -2355,15 +2422,39 @@ export default function EnhancedAdminDashboard() {
               </div>
             </div>
             <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowRewardDialog(false);
+                  setEditingReward(null);
+                  setRewardForm({
+                    name: "",
+                    description: "",
+                    type: "item",
+                    pointsCost: 0,
+                    stockQuantity: null,
+                    imageUrl: "",
+                    isActive: true
+                  });
+                }}
+              >
                 Cancel
               </Button>
               <Button 
-                onClick={() => createRewardMutation.mutate(rewardForm)}
-                disabled={createRewardMutation.isPending}
+                onClick={() => {
+                  if (editingReward) {
+                    updateRewardMutation.mutate({ id: editingReward.id, data: rewardForm });
+                  } else {
+                    createRewardMutation.mutate(rewardForm);
+                  }
+                }}
+                disabled={createRewardMutation.isPending || updateRewardMutation.isPending}
                 className="bg-purple-600 hover:bg-purple-700"
               >
-                {createRewardMutation.isPending ? "Creating..." : "Create Reward"}
+                {(createRewardMutation.isPending || updateRewardMutation.isPending) 
+                  ? (editingReward ? "Updating..." : "Creating...") 
+                  : (editingReward ? "Update Reward" : "Create Reward")
+                }
               </Button>
             </div>
           </DialogContent>
