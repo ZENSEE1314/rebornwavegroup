@@ -304,87 +304,87 @@ export default function EnhancedAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
-          <p className="text-blue-200">Comprehensive system management and reporting</p>
+          <p className="text-gray-300">Comprehensive system management and reporting</p>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-sm">Total Users</p>
+                  <p className="text-gray-200 text-sm">Total Users</p>
                   <p className="text-3xl font-bold text-white">{filteredUsers.length}</p>
                 </div>
-                <Users className="h-8 w-8 text-blue-300" />
+                <Users className="h-8 w-8 text-gray-300" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-sm">Admin Fees</p>
+                  <p className="text-gray-200 text-sm">Admin Fees</p>
                   <p className="text-3xl font-bold text-white">RP {(feesReport as any).totalAdminFees?.toFixed(2) || '0.00'}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-green-300" />
+                <DollarSign className="h-8 w-8 text-green-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-sm">Total Transactions</p>
+                  <p className="text-gray-200 text-sm">Total Transactions</p>
                   <p className="text-3xl font-bold text-white">{(feesReport as any).totalTransactions || 0}</p>
                 </div>
-                <CreditCard className="h-8 w-8 text-purple-300" />
+                <CreditCard className="h-8 w-8 text-purple-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-sm">Total Volume</p>
+                  <p className="text-gray-200 text-sm">Total Volume</p>
                   <p className="text-3xl font-bold text-white">RP {(feesReport as any).totalVolume?.toFixed(2) || '0.00'}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-orange-300" />
+                <TrendingUp className="h-8 w-8 text-orange-400" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="bg-white/10 backdrop-blur border-white/20">
-            <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
+          <TabsList className="bg-white/20 backdrop-blur border-gray-300/30">
+            <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white">
               <Users className="h-4 w-4 mr-2" />
               User Management
             </TabsTrigger>
-            <TabsTrigger value="appointments" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white">
               <Calendar className="h-4 w-4 mr-2" />
               Appointments
             </TabsTrigger>
-            <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white">
               <CreditCard className="h-4 w-4 mr-2" />
               Cash Outs
             </TabsTrigger>
-            <TabsTrigger value="transactions" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-white/30 text-white">
               <History className="h-4 w-4 mr-2" />
               Transactions
             </TabsTrigger>
-            <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="toys" className="data-[state=active]:bg-white/30 text-white">
               <Package className="h-4 w-4 mr-2" />
               Toy Management
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="reports" className="data-[state=active]:bg-white/30 text-white">
               <FileText className="h-4 w-4 mr-2" />
               Reports
             </TabsTrigger>
