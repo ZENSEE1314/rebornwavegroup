@@ -743,6 +743,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the pending purchase
       const purchase = await storage.createPendingPurchase(req.body);
       
+      // Update listing status to sold to hide it from marketplace
+      await storage.updateListingStatus(req.body.listingId, 'sold');
+      
       // Create credit history for the deduction
       await storage.createCreditHistory({
         userId: buyerId,
