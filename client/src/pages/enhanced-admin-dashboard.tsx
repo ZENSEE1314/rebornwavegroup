@@ -86,6 +86,36 @@ export default function EnhancedAdminDashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Content management dialog states
+  const [showBannerDialog, setShowBannerDialog] = useState(false);
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [bannerForm, setBannerForm] = useState({
+    title: "",
+    description: "",
+    imageUrl: "",
+    type: "banner",
+    displayOrder: 0,
+    isActive: true
+  });
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    description: "",
+    category: "beauty",
+    duration: 60,
+    basePrice: 0,
+    isActive: true
+  });
+  const [rewardForm, setRewardForm] = useState({
+    name: "",
+    description: "",
+    type: "item",
+    pointsCost: 0,
+    stockQuantity: null,
+    imageUrl: "",
+    isActive: true
+  });
+
   // Check if user is admin
   if (!user || user.role !== 'admin') {
     return (
@@ -337,6 +367,74 @@ export default function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to change password", variant: "destructive" });
+    }
+  });
+
+  // Content management mutations
+  const createBannerMutation = useMutation({
+    mutationFn: async (bannerData: any) => {
+      return apiRequest('POST', '/api/admin/banners', bannerData);
+    },
+    onSuccess: () => {
+      toast({ title: "Banner created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/banners'] });
+      setShowBannerDialog(false);
+      setBannerForm({
+        title: "",
+        description: "",
+        imageUrl: "",
+        type: "banner",
+        displayOrder: 0,
+        isActive: true
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to create banner", variant: "destructive" });
+    }
+  });
+
+  const createEventMutation = useMutation({
+    mutationFn: async (eventData: any) => {
+      return apiRequest('POST', '/api/admin/appointment-events', eventData);
+    },
+    onSuccess: () => {
+      toast({ title: "Event created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/appointment-events'] });
+      setShowEventDialog(false);
+      setEventForm({
+        title: "",
+        description: "",
+        category: "beauty",
+        duration: 60,
+        basePrice: 0,
+        isActive: true
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to create event", variant: "destructive" });
+    }
+  });
+
+  const createRewardMutation = useMutation({
+    mutationFn: async (rewardData: any) => {
+      return apiRequest('POST', '/api/admin/reward-items', rewardData);
+    },
+    onSuccess: () => {
+      toast({ title: "Reward created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
+      setShowRewardDialog(false);
+      setRewardForm({
+        name: "",
+        description: "",
+        type: "item",
+        pointsCost: 0,
+        stockQuantity: null,
+        imageUrl: "",
+        isActive: true
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to create reward", variant: "destructive" });
     }
   });
 
@@ -1487,7 +1585,10 @@ export default function EnhancedAdminDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-white">Promotion Banners ({(promotionBanners as any[]).length})</h3>
-                        <Button className="bg-blue-600 hover:bg-blue-700">
+                        <Button 
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => setShowBannerDialog(true)}
+                        >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Banner
                         </Button>
