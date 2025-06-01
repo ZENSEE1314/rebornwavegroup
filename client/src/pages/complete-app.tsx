@@ -1751,6 +1751,20 @@ export default function CompleteApp() {
     }
   };
 
+  const getRewardIcon = (imageUrl) => {
+    if (!imageUrl) return '🎁';
+    
+    // Map common reward types to icons
+    if (imageUrl.includes('credit')) return '💳';
+    if (imageUrl.includes('beauty')) return '💄';
+    if (imageUrl.includes('entertainment') || imageUrl.includes('game')) return '🎮';
+    if (imageUrl.includes('token') || imageUrl.includes('coin')) return '🪙';
+    if (imageUrl.includes('discount')) return '🏷️';
+    if (imageUrl.includes('voucher')) return '🎫';
+    
+    return '🎁'; // Default gift icon
+  };
+
 
 
   return (
