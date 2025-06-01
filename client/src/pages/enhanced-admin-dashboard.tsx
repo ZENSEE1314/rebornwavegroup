@@ -90,10 +90,15 @@ export default function EnhancedAdminDashboard() {
   const [showBannerDialog, setShowBannerDialog] = useState(false);
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<any>(null);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [editingReward, setEditingReward] = useState<any>(null);
   const [bannerForm, setBannerForm] = useState({
     title: "",
     description: "",
     imageUrl: "",
+    ctaText: "",
+    ctaUrl: "",
     type: "banner",
     displayOrder: 0,
     isActive: true
@@ -379,10 +384,13 @@ export default function EnhancedAdminDashboard() {
       toast({ title: "Banner created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/banners'] });
       setShowBannerDialog(false);
+      setEditingBanner(null);
       setBannerForm({
         title: "",
         description: "",
         imageUrl: "",
+        ctaText: "",
+        ctaUrl: "",
         type: "banner",
         displayOrder: 0,
         isActive: true
@@ -390,6 +398,44 @@ export default function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to create banner", variant: "destructive" });
+    }
+  });
+
+  const updateBannerMutation = useMutation({
+    mutationFn: async ({ id, bannerData }: { id: number; bannerData: any }) => {
+      return apiRequest('PUT', `/api/admin/banners/${id}`, bannerData);
+    },
+    onSuccess: () => {
+      toast({ title: "Banner updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/banners'] });
+      setShowBannerDialog(false);
+      setEditingBanner(null);
+      setBannerForm({
+        title: "",
+        description: "",
+        imageUrl: "",
+        ctaText: "",
+        ctaUrl: "",
+        type: "banner",
+        displayOrder: 0,
+        isActive: true
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update banner", variant: "destructive" });
+    }
+  });
+
+  const deleteBannerMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('DELETE', `/api/admin/banners/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Banner deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/banners'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete banner", variant: "destructive" });
     }
   });
 
@@ -1625,10 +1671,32 @@ export default function EnhancedAdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex gap-2">
-                                      <Button size="sm" variant="outline" className="bg-white/10 border-white/20">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="bg-white/10 border-white/20"
+                                        onClick={() => {
+                                          setEditingBanner(banner);
+                                          setBannerForm({
+                                            title: banner.title,
+                                            description: banner.description,
+                                            imageUrl: banner.imageUrl || "",
+                                            ctaText: banner.ctaText || "",
+                                            ctaUrl: banner.ctaUrl || "",
+                                            type: banner.type,
+                                            displayOrder: banner.displayOrder,
+                                            isActive: banner.isActive
+                                          });
+                                          setShowBannerDialog(true);
+                                        }}
+                                      >
                                         <Edit className="h-3 w-3" />
                                       </Button>
-                                      <Button size="sm" variant="destructive">
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive"
+                                        onClick={() => deleteBannerMutation.mutate(banner.id)}
+                                      >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
