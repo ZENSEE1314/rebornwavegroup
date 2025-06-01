@@ -156,6 +156,10 @@ export default function CompleteApp() {
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
@@ -1512,6 +1516,64 @@ export default function CompleteApp() {
       toast({
         title: "Error",
         description: "Failed to confirm sale",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const changePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: language === "id" ? "Password baru tidak cocok" : "New passwords don't match",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error", 
+        description: language === "id" ? "Password minimal 6 karakter" : "Password must be at least 6 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Berhasil" : "Success",
+          description: language === "id" ? "Password berhasil diubah" : "Password changed successfully"
+        });
+        setShowPasswordModal(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.message || (language === "id" ? "Gagal mengubah password" : "Failed to change password"),
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: language === "id" ? "Terjadi kesalahan" : "An error occurred",
         variant: "destructive"
       });
     }
@@ -3494,7 +3556,7 @@ export default function CompleteApp() {
                           {language === "id" ? "Edit Profil" : "Edit Profile"}
                         </Button>
                       )}
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full" onClick={() => setShowPasswordModal(true)}>
                         {language === "id" ? "Ubah Password" : "Change Password"}
                       </Button>
                       <Button variant="outline" className="w-full">
@@ -3526,7 +3588,7 @@ export default function CompleteApp() {
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">{appointments.length}</p>
+                    <p className="text-2xl font-bold text-slate-900">{userAppointments.length}</p>
                     <p className="text-sm text-slate-600">
                       {language === "id" ? "Total Reservasi" : "Total Bookings"}
                     </p>
@@ -3753,6 +3815,73 @@ export default function CompleteApp() {
                   : `${achievementQueue.length} more achievements waiting...`}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Ubah Password" : "Change Password"}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {language === "id" ? "Password Saat Ini" : "Current Password"}
+                </label>
+                <Input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder={language === "id" ? "Masukkan password saat ini" : "Enter current password"}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {language === "id" ? "Password Baru" : "New Password"}
+                </label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={language === "id" ? "Masukkan password baru" : "Enter new password"}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {language === "id" ? "Konfirmasi Password Baru" : "Confirm New Password"}
+                </label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={language === "id" ? "Konfirmasi password baru" : "Confirm new password"}
+                />
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button
+                onClick={changePassword}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={!currentPassword || !newPassword || !confirmPassword}
+              >
+                {language === "id" ? "Ubah Password" : "Change Password"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
