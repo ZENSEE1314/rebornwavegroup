@@ -2851,8 +2851,44 @@ export default function CompleteApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Show pending purchases first */}
               {console.log("userPendingPurchases:", userPendingPurchases, "user.id:", user?.id)}
+              {/* Show purchases waiting for seller confirmation */}
               {userPendingPurchases?.filter(p => p.buyerId === user?.id && p.status === 'pending_seller_confirmation').map((purchase) => (
-                <Card key={`pending-${purchase.id}`} className="hover:shadow-lg transition-shadow border-yellow-200 bg-yellow-50">
+                <Card key={`pending-seller-${purchase.id}`} className="hover:shadow-lg transition-shadow border-orange-200 bg-orange-50">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="mb-4">
+                        <img 
+                          src={toyImage} 
+                          alt={purchase.toy?.name || "Toy"} 
+                          className="w-24 h-24 mx-auto object-contain"
+                        />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
+                      <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
+                        {purchase.toy?.rarity}
+                      </Badge>
+                      <Badge className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-300">
+                        {language === "id" ? "Menunggu Konfirmasi Penjual" : "Waiting for Seller"}
+                      </Badge>
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm text-slate-600">
+                          {language === "id" ? "Dibeli" : "Purchased"}: {new Date(purchase.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="text-lg font-bold text-green-600">
+                          RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
+                        </p>
+                        <div className="w-full bg-gray-100 text-gray-600 p-3 rounded text-sm">
+                          {language === "id" ? "Menunggu penjual mengkonfirmasi pengiriman" : "Waiting for seller to confirm shipment"}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* Show purchases ready for buyer confirmation */}
+              {userPendingPurchases?.filter(p => p.buyerId === user?.id && p.status === 'pending_buyer_confirmation').map((purchase) => (
+                <Card key={`pending-buyer-${purchase.id}`} className="hover:shadow-lg transition-shadow border-yellow-200 bg-yellow-50">
                   <CardContent className="p-6">
                     <div className="text-center">
                       <div className="mb-4">
@@ -2867,7 +2903,7 @@ export default function CompleteApp() {
                         {purchase.toy?.rarity}
                       </Badge>
                       <Badge className="mt-2 w-full bg-yellow-100 text-yellow-800 border-yellow-300">
-                        {language === "id" ? "Menunggu Diterima" : "Awaiting Delivery"}
+                        {language === "id" ? "Menunggu Konfirmasi Diterima" : "Awaiting Delivery Confirmation"}
                       </Badge>
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-slate-600">
