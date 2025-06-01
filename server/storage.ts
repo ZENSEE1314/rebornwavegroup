@@ -115,6 +115,26 @@ export interface IStorage {
   // Admin-specific operations
   getAllTransactions(): Promise<Transaction[]>;
   getAllToysWithOwners(): Promise<any[]>;
+  
+  // Promotion banner operations
+  getAllPromotionBanners(): Promise<PromotionBanner[]>;
+  createPromotionBanner(banner: InsertPromotionBanner): Promise<PromotionBanner>;
+  updatePromotionBanner(id: number, banner: Partial<InsertPromotionBanner>): Promise<void>;
+  deletePromotionBanner(id: number): Promise<void>;
+  
+  // Appointment event operations
+  getAllAppointmentEvents(): Promise<AppointmentEvent[]>;
+  getAppointmentEventsByCategory(category: string): Promise<AppointmentEvent[]>;
+  createAppointmentEvent(event: InsertAppointmentEvent): Promise<AppointmentEvent>;
+  updateAppointmentEvent(id: number, event: Partial<InsertAppointmentEvent>): Promise<void>;
+  deleteAppointmentEvent(id: number): Promise<void>;
+  
+  // Reward item operations
+  getAllRewardItems(): Promise<RewardItem[]>;
+  getActiveRewardItems(): Promise<RewardItem[]>;
+  createRewardItem(item: InsertRewardItem): Promise<RewardItem>;
+  updateRewardItem(id: number, item: Partial<InsertRewardItem>): Promise<void>;
+  deleteRewardItem(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1110,6 +1130,81 @@ export class DatabaseStorage implements IStorage {
     .from(toys)
     .leftJoin(users, eq(toys.ownerId, users.id))
     .orderBy(desc(toys.createdAt));
+  }
+
+  // Promotion banner operations
+  async getAllPromotionBanners(): Promise<PromotionBanner[]> {
+    return await db.select().from(promotionBanners).orderBy(promotionBanners.displayOrder);
+  }
+
+  async createPromotionBanner(bannerData: InsertPromotionBanner): Promise<PromotionBanner> {
+    const [banner] = await db.insert(promotionBanners).values(bannerData).returning();
+    return banner;
+  }
+
+  async updatePromotionBanner(id: number, bannerData: Partial<InsertPromotionBanner>): Promise<void> {
+    await db.update(promotionBanners).set({
+      ...bannerData,
+      updatedAt: new Date(),
+    }).where(eq(promotionBanners.id, id));
+  }
+
+  async deletePromotionBanner(id: number): Promise<void> {
+    await db.delete(promotionBanners).where(eq(promotionBanners.id, id));
+  }
+
+  // Appointment event operations
+  async getAllAppointmentEvents(): Promise<AppointmentEvent[]> {
+    return await db.select().from(appointmentEvents).orderBy(appointmentEvents.category, appointmentEvents.title);
+  }
+
+  async getAppointmentEventsByCategory(category: string): Promise<AppointmentEvent[]> {
+    return await db.select().from(appointmentEvents)
+      .where(eq(appointmentEvents.category, category))
+      .orderBy(appointmentEvents.title);
+  }
+
+  async createAppointmentEvent(eventData: InsertAppointmentEvent): Promise<AppointmentEvent> {
+    const [event] = await db.insert(appointmentEvents).values(eventData).returning();
+    return event;
+  }
+
+  async updateAppointmentEvent(id: number, eventData: Partial<InsertAppointmentEvent>): Promise<void> {
+    await db.update(appointmentEvents).set({
+      ...eventData,
+      updatedAt: new Date(),
+    }).where(eq(appointmentEvents.id, id));
+  }
+
+  async deleteAppointmentEvent(id: number): Promise<void> {
+    await db.delete(appointmentEvents).where(eq(appointmentEvents.id, id));
+  }
+
+  // Reward item operations
+  async getAllRewardItems(): Promise<RewardItem[]> {
+    return await db.select().from(rewardItems).orderBy(rewardItems.pointsCost);
+  }
+
+  async getActiveRewardItems(): Promise<RewardItem[]> {
+    return await db.select().from(rewardItems)
+      .where(eq(rewardItems.isActive, true))
+      .orderBy(rewardItems.pointsCost);
+  }
+
+  async createRewardItem(itemData: InsertRewardItem): Promise<RewardItem> {
+    const [item] = await db.insert(rewardItems).values(itemData).returning();
+    return item;
+  }
+
+  async updateRewardItem(id: number, itemData: Partial<InsertRewardItem>): Promise<void> {
+    await db.update(rewardItems).set({
+      ...itemData,
+      updatedAt: new Date(),
+    }).where(eq(rewardItems.id, id));
+  }
+
+  async deleteRewardItem(id: number): Promise<void> {
+    await db.delete(rewardItems).where(eq(rewardItems.id, id));
   }
 }
 

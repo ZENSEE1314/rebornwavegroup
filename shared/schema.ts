@@ -195,6 +195,46 @@ export const pointsHistory = pgTable("points_history", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Promotion banners table
+export const promotionBanners = pgTable("promotion_banners", {
+  id: serial("id").primaryKey(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  imageUrl: varchar("image_url"),
+  linkUrl: varchar("link_url"),
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Appointment events table
+export const appointmentEvents = pgTable("appointment_events", {
+  id: serial("id").primaryKey(),
+  category: varchar("category").notNull(), // 'beauty', 'entertainment', 'restaurant'
+  title: varchar("title").notNull(),
+  description: text("description"),
+  baseCost: varchar("base_cost").notNull(),
+  duration: integer("duration").default(60), // in minutes
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Reward items table
+export const rewardItems = pgTable("reward_items", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  pointsCost: integer("points_cost").notNull(),
+  category: varchar("category"), // 'discount', 'freebie', 'merchandise'
+  imageUrl: varchar("image_url"),
+  isActive: boolean("is_active").default(true),
+  stock: integer("stock").default(999),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   referrals: many(referrals, { relationName: "referrer" }),
@@ -421,3 +461,31 @@ export type CashOutTransaction = typeof cashOutTransactions.$inferSelect;
 export type PendingPurchase = typeof pendingPurchases.$inferSelect;
 export type CreditHistory = typeof creditHistory.$inferSelect;
 export type PointsHistory = typeof pointsHistory.$inferSelect;
+
+// New table types
+export type PromotionBanner = typeof promotionBanners.$inferSelect;
+export type AppointmentEvent = typeof appointmentEvents.$inferSelect;
+export type RewardItem = typeof rewardItems.$inferSelect;
+
+// New table insert schemas
+export const insertPromotionBannerSchema = createInsertSchema(promotionBanners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAppointmentEventSchema = createInsertSchema(appointmentEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRewardItemSchema = createInsertSchema(rewardItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPromotionBanner = z.infer<typeof insertPromotionBannerSchema>;
+export type InsertAppointmentEvent = z.infer<typeof insertAppointmentEventSchema>;
+export type InsertRewardItem = z.infer<typeof insertRewardItemSchema>;
