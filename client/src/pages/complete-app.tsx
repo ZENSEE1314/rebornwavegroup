@@ -28,73 +28,8 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
-  // WebSocket for real-time marketplace updates (simplified)
-  useEffect(() => {
-    if (!user?.id) return; // Only connect when user is authenticated
-    
-    let socket: WebSocket | null = null;
-    
-    try {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      socket = new WebSocket(wsUrl);
-      
-      socket.onopen = () => {
-        console.log('WebSocket connected');
-      };
-      
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          
-          // Handle marketplace updates
-          switch (message.type) {
-            case 'listing_created':
-              queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-              break;
-              
-            case 'purchase_created':
-            case 'seller_confirmed':
-            case 'buyer_confirmed':
-            case 'purchase_cancelled':
-              queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-              break;
-              
-            case 'credits_updated':
-            case 'appointment_created':
-              queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-              break;
-          }
-        } catch (error) {
-          // Silently handle parsing errors
-        }
-      };
-      
-      socket.onclose = () => {
-        console.log('WebSocket disconnected');
-      };
-      
-      socket.onerror = () => {
-        // Silently handle connection errors
-        if (socket) {
-          socket.close();
-        }
-      };
-    } catch (error) {
-      // Silently handle connection creation errors
-    }
-    
-    // Cleanup
-    return () => {
-      if (socket) {
-        socket.close();
-      }
-    };
-  }, [user?.id, queryClient]);
+  // Real-time updates disabled temporarily to resolve connection issues
+  // TODO: Re-enable WebSocket functionality once connection issues are resolved
   
   // User data - fetch from database
   const { data: userStats } = useQuery({
