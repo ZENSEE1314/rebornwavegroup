@@ -49,6 +49,7 @@ export interface IStorage {
   getReferralsByUserId(userId: string): Promise<Referral[]>;
   createReferralRelationship(referrerId: string, referredId: string): Promise<void>;
   calculateReferralEarnings(userId: string): Promise<number>;
+  buildReferralGenealogyTree(userId: string): Promise<any>;
   
   // Appointment operations
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
@@ -185,6 +186,130 @@ export class DatabaseStorage implements IStorage {
       .from(referrals)
       .where(eq(referrals.referrerId, userId))
       .orderBy(desc(referrals.createdAt));
+  }
+
+  async buildReferralGenealogyTree(userId: string): Promise<any> {
+    // Get all direct referrals (level 1) for this user
+    const level1Referrals = await db
+      .select({
+        id: referrals.id,
+        referredId: referrals.referredId,
+        totalEarnings: referrals.totalEarnings,
+        createdAt: referrals.createdAt,
+        referredUser: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email
+        }
+      })
+      .from(referrals)
+      .leftJoin(users, eq(referrals.referredId, users.id))
+      .where(and(eq(referrals.referrerId, userId), eq(referrals.level, 1)))
+      .orderBy(referrals.createdAt);
+
+    const genealogyTree = {
+      totalDirectReferrals: level1Referrals.length,
+      totalLevel2Referrals: 0,
+      totalLevel3Referrals: 0,
+      totalEarnings: 0,
+      levels: []
+    };
+
+    // Build tree for each level 1 referral
+    for (const level1 of level1Referrals) {
+      const level1Data = {
+        id: level1.id,
+        userId: level1.referredId,
+        name: level1.referredUser?.firstName ? 
+          `${level1.referredUser.firstName} ${level1.referredUser.lastName || ''}`.trim() : 
+          level1.referredUser?.email?.split('@')[0] || 'User',
+        email: level1.referredUser?.email,
+        level: 1,
+        earnings: parseFloat(level1.totalEarnings || '0'),
+        joinDate: level1.createdAt,
+        children: []
+      };
+
+      genealogyTree.totalEarnings += level1Data.earnings;
+
+      // Get level 2 referrals (people referred by this level 1 user)
+      const level2Referrals = await db
+        .select({
+          id: referrals.id,
+          referredId: referrals.referredId,
+          totalEarnings: referrals.totalEarnings,
+          createdAt: referrals.createdAt,
+          referredUser: {
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email
+          }
+        })
+        .from(referrals)
+        .leftJoin(users, eq(referrals.referredId, users.id))
+        .where(and(eq(referrals.referrerId, level1.referredId), eq(referrals.level, 1)));
+
+      genealogyTree.totalLevel2Referrals += level2Referrals.length;
+
+      for (const level2 of level2Referrals) {
+        const level2Data = {
+          id: level2.id,
+          userId: level2.referredId,
+          name: level2.referredUser?.firstName ? 
+            `${level2.referredUser.firstName} ${level2.referredUser.lastName || ''}`.trim() : 
+            level2.referredUser?.email?.split('@')[0] || 'User',
+          email: level2.referredUser?.email,
+          level: 2,
+          earnings: parseFloat(level2.totalEarnings || '0'),
+          joinDate: level2.createdAt,
+          children: []
+        };
+
+        genealogyTree.totalEarnings += level2Data.earnings;
+
+        // Get level 3 referrals (people referred by this level 2 user)
+        const level3Referrals = await db
+          .select({
+            id: referrals.id,
+            referredId: referrals.referredId,
+            totalEarnings: referrals.totalEarnings,
+            createdAt: referrals.createdAt,
+            referredUser: {
+              firstName: users.firstName,
+              lastName: users.lastName,
+              email: users.email
+            }
+          })
+          .from(referrals)
+          .leftJoin(users, eq(referrals.referredId, users.id))
+          .where(and(eq(referrals.referrerId, level2.referredId), eq(referrals.level, 1)));
+
+        genealogyTree.totalLevel3Referrals += level3Referrals.length;
+
+        for (const level3 of level3Referrals) {
+          const level3Data = {
+            id: level3.id,
+            userId: level3.referredId,
+            name: level3.referredUser?.firstName ? 
+              `${level3.referredUser.firstName} ${level3.referredUser.lastName || ''}`.trim() : 
+              level3.referredUser?.email?.split('@')[0] || 'User',
+            email: level3.referredUser?.email,
+            level: 3,
+            earnings: parseFloat(level3.totalEarnings || '0'),
+            joinDate: level3.createdAt
+          };
+
+          genealogyTree.totalEarnings += level3Data.earnings;
+          level2Data.children.push(level3Data);
+        }
+
+        level1Data.children.push(level2Data);
+      }
+
+      genealogyTree.levels.push(level1Data);
+    }
+
+    return genealogyTree;
   }
 
   async createReferralRelationship(referrerId: string, referredId: string): Promise<void> {
