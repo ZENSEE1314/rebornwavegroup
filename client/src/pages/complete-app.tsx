@@ -1229,6 +1229,36 @@ export default function CompleteApp() {
     }
   };
 
+  // Cancel purchase function for buyers
+  const cancelPurchase = async (purchaseId: any) => {
+    try {
+      const response = await fetch(`/api/pending-purchases/${purchaseId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast({
+          title: language === "id" ? "Pembelian Dibatalkan" : "Purchase Cancelled",
+          description: language === "id" ? "Kredit dikembalikan ke akun Anda" : "Credits refunded to your account"
+        });
+        
+        // Refresh all data from database
+        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      }
+    } catch (error) {
+      console.error('Error cancelling purchase:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel purchase",
+        variant: "destructive"
+      });
+    }
+  };
+
   const buyToy = (listing) => {
     // Check if trying to buy own item
     if (listing.sellerId === user?.id) {
@@ -2546,13 +2576,23 @@ export default function CompleteApp() {
                                 <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
                                   {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
                                 </Badge>
-                                <Button 
-                                  onClick={() => confirmPurchase(pendingPurchase.id)}
-                                  className="w-full bg-blue-600 hover:bg-blue-700"
-                                >
-                                  <Check className="w-4 h-4 mr-2" />
-                                  {language === "id" ? "Konfirmasi Penerimaan" : "Confirm Receipt"}
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    onClick={() => confirmPurchase(pendingPurchase.id)}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                  >
+                                    <Check className="w-4 h-4 mr-2" />
+                                    {language === "id" ? "Konfirmasi" : "Confirm"}
+                                  </Button>
+                                  <Button 
+                                    onClick={() => cancelSale(pendingPurchase.id)}
+                                    variant="outline"
+                                    className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
+                                  >
+                                    <X className="w-4 h-4 mr-2" />
+                                    {language === "id" ? "Tolak" : "Cancel"}
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                               <div className="space-y-2">
@@ -2591,9 +2631,19 @@ export default function CompleteApp() {
                             )}
                           </div>
                         ) : pendingPurchase && pendingPurchase.buyerId === user?.id ? (
-                          <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
-                            {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
-                          </Badge>
+                          <div className="space-y-2">
+                            <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
+                              {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
+                            </Badge>
+                            <Button 
+                              onClick={() => cancelPurchase(pendingPurchase.id)}
+                              variant="outline"
+                              className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              {language === "id" ? "Batalkan Pembelian" : "Cancel Purchase"}
+                            </Button>
+                          </div>
                         ) : (
                           <Button 
                             onClick={() => buyToy(listing)} 
