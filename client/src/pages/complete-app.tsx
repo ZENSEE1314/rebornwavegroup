@@ -3014,39 +3014,64 @@ export default function CompleteApp() {
               ))}
               
               {/* Show regular toy inventory */}
-              {toyInventory.map((toy) => (
-                <Card key={toy.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <div className="mb-4">
-                        <img 
-                          src={toyImage} 
-                          alt={toy.name} 
-                          className="w-32 h-32 mx-auto object-contain"
-                        />
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                      <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                        {toy.rarity}
-                      </Badge>
-                      <div className="mt-4 space-y-2">
-                        <p className="text-sm text-slate-600">
-                          {language === "id" ? "Diperoleh" : "Acquired"}: {toy.acquiredDate}
-                        </p>
-                        <div className="bg-gray-100 p-2 rounded">
-                          <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
-                          <div className="mt-2 bg-white p-2 rounded border-2 border-dashed border-gray-300">
-                            <QrCode className="w-16 h-16 mx-auto text-gray-400" />
-                            <p className="text-xs text-gray-500 mt-1">
-                              {language === "id" ? "Pindai untuk verifikasi" : "Scan to verify"}
+              {toyInventory.map((toy) => {
+                // Check if this toy has a pending transaction
+                const pendingTransaction = userPendingPurchases?.find((purchase: any) => 
+                  purchase.toyId === toy.id && 
+                  (purchase.status === 'pending_seller_confirmation' || 
+                   purchase.status === 'pending_buyer_confirmation')
+                );
+                
+                return (
+                  <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        {/* Transaction Status Banner */}
+                        {pendingTransaction && (
+                          <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
+                            <div className="flex items-center justify-center text-yellow-800 text-sm font-medium">
+                              <Clock className="w-4 h-4 mr-2" />
+                              {pendingTransaction.status === 'pending_buyer_confirmation' 
+                                ? (language === "id" ? "Menunggu konfirmasi pembeli" : "Waiting for buyer confirmation")
+                                : (language === "id" ? "Menunggu konfirmasi penjual" : "Waiting for seller confirmation")
+                              }
+                            </div>
+                            <p className="text-xs text-yellow-700 mt-1">
+                              {language === "id" ? "Transaksi sedang berlangsung" : "Transaction in progress"}
                             </p>
+                          </div>
+                        )}
+                        
+                        <div className="mb-4">
+                          <img 
+                            src={toyImage} 
+                            alt={toy.name} 
+                            className="w-32 h-32 mx-auto object-contain"
+                          />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                        <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                          {toy.rarity}
+                        </Badge>
+                        <div className="mt-4 space-y-2">
+                          <p className="text-sm text-slate-600">
+                            {language === "id" ? "Diperoleh" : "Acquired"}: {toy.acquiredDate}
+                          </p>
+                          <div className="bg-gray-100 p-2 rounded">
+                            <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
+                            <div className="mt-2 bg-white p-2 rounded border-2 border-dashed border-gray-300">
+                              <QrCode className="w-16 h-16 mx-auto text-gray-400" />
+                              <p className="text-xs text-gray-500 mt-1">
+                                {language === "id" ? "Pindai untuk verifikasi" : "Scan to verify"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
