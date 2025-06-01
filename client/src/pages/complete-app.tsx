@@ -535,6 +535,36 @@ export default function CompleteApp() {
     date: "",
     time: ""
   });
+  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
+
+  // Check for booking conflicts when date and service change
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (newAppointment.date && newAppointment.service) {
+        try {
+          const selectedCategory = serviceCategories[newAppointment.category];
+          const selectedService = selectedCategory?.options.find(opt => opt.value === newAppointment.service);
+          
+          if (selectedService) {
+            const response = await fetch(
+              `/api/appointments/availability?date=${newAppointment.date}&service=${encodeURIComponent(selectedService.label)}`
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              setBookedTimes(data.bookedTimes || []);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking availability:', error);
+        }
+      } else {
+        setBookedTimes([]);
+      }
+    };
+
+    checkAvailability();
+  }, [newAppointment.date, newAppointment.service, newAppointment.category]);
 
   const [editingAppointment, setEditingAppointment] = useState(null);
 
@@ -2003,11 +2033,21 @@ export default function CompleteApp() {
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({length: 24}, (_, i) => i).map(hour => (
-                          ['00', '30'].map(minute => (
-                            <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
-                              {`${hour.toString().padStart(2, '0')}:${minute}`}
-                            </SelectItem>
-                          ))
+                          ['00', '30'].map(minute => {
+                            const timeSlot = `${hour.toString().padStart(2, '0')}:${minute}`;
+                            const isBooked = bookedTimes.includes(timeSlot);
+                            
+                            return (
+                              <SelectItem 
+                                key={timeSlot} 
+                                value={timeSlot}
+                                disabled={isBooked}
+                                className={isBooked ? "text-gray-400 cursor-not-allowed" : ""}
+                              >
+                                {timeSlot} {isBooked ? (language === "id" ? "(Tidak Tersedia)" : "(Booked)") : ""}
+                              </SelectItem>
+                            );
+                          })
                         )).flat()}
                       </SelectContent>
                     </Select>
