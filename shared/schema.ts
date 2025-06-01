@@ -230,7 +230,8 @@ export const rewardItems = pgTable("reward_items", {
   name: varchar("name").notNull(),
   description: text("description"),
   pointsCost: integer("points_cost").notNull(),
-  type: varchar("type"), // 'item', 'service', 'discount', 'voucher'
+  type: varchar("type"), // 'item', 'service', 'discount', 'voucher', 'credit'
+  creditAmount: varchar("credit_amount"), // Amount in RP for credit rewards
   imageUrl: varchar("image_url"),
   isActive: boolean("is_active").default(true),
   stockQuantity: integer("stock_quantity"),

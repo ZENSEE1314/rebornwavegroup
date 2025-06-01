@@ -1702,6 +1702,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Deduct points from user
       await storage.updateUserPoints(userId, user.loyaltyPoints - pointsCost);
       
+      // If it's a credit reward, add credits to user account
+      if (reward.type === 'credit' && reward.creditAmount) {
+        const currentCredits = parseFloat(user.credits || "0");
+        const creditAmount = parseFloat(reward.creditAmount);
+        const newCredits = (currentCredits + creditAmount).toString();
+        
+        await storage.updateUserCredits(userId, newCredits);
+        
+        // Create credit history record
+        await storage.createCreditHistory({
+          userId,
+          type: 'earned',
+          amount: reward.creditAmount,
+          description: `Redeemed: ${reward.name}`,
+          status: 'completed'
+        });
+      }
+      
+      // Create points history record for redemption
+      await storage.createPointsHistory({
+        userId,
+        points: -pointsCost,
+        type: 'redeemed',
+        description: `Redeemed: ${reward.name}`,
+        relatedId: rewardId
+      });
+      
       // Decrease stock if applicable
       if (reward.stockQuantity) {
         await storage.updateRewardItem(rewardId, { 
@@ -1709,7 +1736,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      res.json({ message: 'Reward redeemed successfully' });
+      res.json({ 
+        message: 'Reward redeemed successfully',
+        creditAdded: reward.type === 'credit' ? reward.creditAmount : null
+      });
     } catch (error) {
       console.error("Error redeeming reward:", error);
       res.status(500).json({ message: "Failed to redeem reward" });
