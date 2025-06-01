@@ -655,6 +655,8 @@ export default function EnhancedAdminDashboard() {
                                     lastName: user.lastName,
                                     email: user.email,
                                     phoneNumber: user.phoneNumber,
+                                    gender: user.gender,
+                                    dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
                                     role: user.role
                                   });
                                 }}
