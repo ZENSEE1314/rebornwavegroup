@@ -638,11 +638,23 @@ export default function CompleteApp() {
 
   // Create credit history from various sources and sort by newest first
   const allCreditHistory = [
+    // From completed purchases (both buying and selling)
+    ...(userPendingPurchases || []).filter((p: any) => p.status === 'completed').map((p: any) => ({
+      id: `purchase-${p.id}`,
+      description: p.buyerId === user?.id 
+        ? `Purchase - ${p.toy?.name}` 
+        : `Sale - ${p.toy?.name}`,
+      amount: p.buyerId === user?.id 
+        ? parseFloat(p.amount) 
+        : parseFloat(p.amount) * 0.9, // 90% after 10% platform fee
+      type: p.buyerId === user?.id ? 'spent' : 'earned',
+      createdAt: p.createdAt
+    })),
     // Add cash-out requests as credit transactions
     ...cashOutHistory.map((cashOut: any) => ({
       id: `cashout-${cashOut.id}`,
       description: `Cash out request: ${cashOut.bankName} ${cashOut.accountNumber}`,
-      amount: -parseFloat(cashOut.amount),
+      amount: parseFloat(cashOut.amount),
       type: 'spent',
       createdAt: cashOut.createdAt
     })),
@@ -3273,8 +3285,8 @@ export default function CompleteApp() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-bold ${entry.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {entry.amount < 0 ? '-' : '+'}RP {Math.abs(entry.amount).toLocaleString('id-ID')}
+                        <p className={`font-bold ${entry.type === 'spent' ? 'text-red-600' : 'text-green-600'}`}>
+                          {entry.type === 'spent' ? '-' : '+'}RP {entry.amount.toLocaleString('id-ID')}
                         </p>
                         <p className="text-sm text-gray-600 capitalize">
                           {entry.type}
