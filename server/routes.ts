@@ -55,7 +55,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/genealogy-tree', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log(`*** GENEALOGY DEBUG: Building tree for user ${userId}`);
       const genealogyTree = await storage.buildReferralGenealogyTree(userId);
+      console.log(`*** GENEALOGY DEBUG: Result for ${userId}:`, JSON.stringify(genealogyTree, null, 2));
       res.json(genealogyTree);
     } catch (error) {
       console.error("Error building genealogy tree:", error);
