@@ -754,6 +754,12 @@ export class DatabaseStorage implements IStorage {
       .set({ credits: refundCredits.toString() })
       .where(eq(users.id, purchase.buyerId));
 
+    // Return toy ownership back to seller
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.sellerId })
+      .where(eq(toys.id, purchase.toyId));
+
     // Update listing back to active
     await db
       .update(listings)
