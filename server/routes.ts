@@ -909,39 +909,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'feed',
-          careDate: new Date(),
+          activityType: 'feed',
           completedAt: new Date(),
-          tokenEarned: false
+          pointsEarned: 5
         });
       } else if (careType === 'bathe') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'bathe',
-          careDate: new Date(),
+          activityType: 'bathe',
           completedAt: new Date(),
-          tokenEarned: false
+          pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'sleep') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'sleep',
-          careDate: new Date(),
+          activityType: 'sleep',
           completedAt: new Date(),
-          tokenEarned: false
+          pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'clean') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'clean',
-          careDate: new Date(),
+          activityType: 'clean',
           completedAt: new Date(),
-          tokenEarned: false
+          pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
       }

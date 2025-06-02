@@ -267,11 +267,9 @@ export const petCareActivities = pgTable("pet_care_activities", {
   id: serial("id").primaryKey(),
   petId: integer("pet_id").notNull(),
   userId: varchar("user_id").notNull(),
-  careDate: timestamp("care_date").defaultNow(),
-  careType: varchar("care_type").notNull(), // 'feed', 'bathe', 'sleep', 'clean'
+  activityType: varchar("activity_type").notNull(), // 'feed', 'bathe', 'sleep', 'clean'
   completedAt: timestamp("completed_at").defaultNow(),
-  tokenEarned: boolean("token_earned").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  pointsEarned: integer("points_earned").default(0),
 });
 
 export const dailyCareStatus = pgTable("daily_care_status", {
@@ -598,7 +596,6 @@ export const insertPetSchema = createInsertSchema(pets).omit({
 
 export const insertPetCareActivitySchema = createInsertSchema(petCareActivities).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertDailyCareStatusSchema = createInsertSchema(dailyCareStatus).omit({

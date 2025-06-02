@@ -1047,10 +1047,12 @@ export default function CompleteApp() {
   // Real-time updates disabled temporarily to resolve connection issues
   // TODO: Re-enable WebSocket functionality once connection issues are resolved
   
-  // User data - fetch from database
-  const { data: userStats } = useQuery({
+  // User data - fetch from database with real-time updates
+  const { data: userStats, refetch: refetchUserStats } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
+    refetchInterval: 5000, // Update every 5 seconds for real-time data
+    refetchOnWindowFocus: true,
   });
 
   // Genealogy tree data
