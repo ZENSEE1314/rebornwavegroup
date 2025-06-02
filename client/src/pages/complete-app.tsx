@@ -31,8 +31,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: 1,
   });
 
+  // Fetch marketplace listings to filter out listed toys
+  const { data: marketplaceListings = [], isLoading: listingsLoading } = useQuery({
+    queryKey: ["/api/listings"],
+    enabled: !!user?.id,
+    retry: 1,
+  });
+
   // Show loading state
-  if (toysLoading) {
+  if (toysLoading || listingsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -43,8 +50,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
-  // Safe data handling
-  const petCareToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
+  // Safe data handling - filter owned toys and exclude marketplace listings
+  const userOwnedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
+  
+  // Filter out toys that are currently listed in marketplace
+  const petCareToys = userOwnedToys.filter((toy: any) => {
+    const isListed = Array.isArray(marketplaceListings) && marketplaceListings.some((listing: any) => 
+      listing.toyId === toy.id && listing.status === 'active'
+    );
+    return !isListed;
+  });
 
   if (petCareToys.length === 0) {
     return (
@@ -85,9 +100,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <div className="text-center">
                 <div className="mb-4">
                   <img 
-                    src={toy.imageUrl || "/placeholder-toy.png"} 
+                    src={toy.imageUrl || toy.image || "/api/placeholder/100/100"} 
                     alt={toy.name} 
                     className="w-24 h-24 mx-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/api/placeholder/100/100";
+                    }}
                   />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
@@ -158,12 +176,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
-  // Fetch marketplace listings to filter out listed toys
-  const { data: marketplaceListings = [] } = useQuery({
-    queryKey: ["/api/listings"],
-    enabled: !!user,
-    retry: false,
-  });
+
 
   // Early return with loading state if data is still loading
   if (toysLoading || petsLoading || !user) {
@@ -177,20 +190,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
-  // Filter toys that can become pets (purchased toys) - with safety checks
-  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.ownerId === user?.id) : [];
-  
-  // Filter out toys that are currently listed in marketplace - with safety checks
-  const availableForPetCare = ownedToys.filter((toy: any) => {
-    if (!Array.isArray(marketplaceListings)) return true;
-    const isListed = marketplaceListings.some((listing: any) => 
-      listing.toyId === toy.id && listing.status === 'active'
-    );
-    return !isListed;
-  });
-  
-  const activatedToys = availableForPetCare.filter((toy: any) => toy.isActivated);
-  const unactivatedToys = availableForPetCare.filter((toy: any) => !toy.isActivated);
+
 
   // Add safety checks for all data arrays
   const safePets = Array.isArray(pets) ? pets : [];
