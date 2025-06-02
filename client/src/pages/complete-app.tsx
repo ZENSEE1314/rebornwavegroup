@@ -29,7 +29,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading } = useQuery({
     queryKey: ["/api/toys"],
-    enabled: !!user?.id,
+    enabled: !!user,
     retry: false,
   });
 
@@ -133,10 +133,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
+  // Fetch marketplace listings to filter out listed toys
+  const { data: marketplaceListings = [] } = useQuery({
+    queryKey: ["/api/listings"],
+    enabled: !!user,
+    retry: false,
+  });
+
   // Filter toys that can become pets (purchased toys)
   const ownedToys = userToys.filter((toy: any) => toy.ownerId === user?.id);
-  const activatedToys = ownedToys.filter((toy: any) => toy.isActivated);
-  const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
+  
+  // Filter out toys that are currently listed in marketplace
+  const availableForPetCare = ownedToys.filter((toy: any) => {
+    const isListed = marketplaceListings.some((listing: any) => 
+      listing.toyId === toy.id && listing.status === 'active'
+    );
+    return !isListed;
+  });
+  
+  const activatedToys = availableForPetCare.filter((toy: any) => toy.isActivated);
+  const unactivatedToys = availableForPetCare.filter((toy: any) => !toy.isActivated);
 
   if (!pets.length && !ownedToys.length) {
     return (
