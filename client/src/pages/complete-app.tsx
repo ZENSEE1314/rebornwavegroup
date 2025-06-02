@@ -113,15 +113,42 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {userPets.map((pet: any) => {
-            // Calculate real-time status based on birth time and current time
+            // Calculate comprehensive pet lifecycle timer
             const now = Date.now();
             const birthTime = new Date(pet.birthDate || pet.createdAt).getTime();
-            const hoursSinceBirth = (now - birthTime) / (1000 * 60 * 60);
+            const elapsedMs = now - birthTime;
+            
+            // Convert to days:hours:minutes:seconds format
+            const totalSeconds = Math.floor(elapsedMs / 1000);
+            const days = Math.floor(totalSeconds / (24 * 60 * 60));
+            const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+            const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+            const seconds = totalSeconds % 60;
+            
+            // Format timer as DD:HH:MM:SS
+            const timerDisplay = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Pet age in years (each day = 1 year)
+            const ageInYears = days;
+            
+            // Death check - pet dies at 100 days (100 years)
+            const isDead = days >= 100;
+            
+            // Growth stage based on age
+            let growthStage = "Baby";
+            if (isDead) growthStage = "Deceased";
+            else if (ageInYears >= 80) growthStage = "Elder";
+            else if (ageInYears >= 50) growthStage = "Adult";
+            else if (ageInYears >= 20) growthStage = "Teen";
+            else if (ageInYears >= 5) growthStage = "Child";
             
             // Status decreases from 100% to 0% over 12 hours if not fed
             const calculateStatus = (lastFeedTime?: Date) => {
+              if (isDead) return 0; // Dead pets have 0 status
+              
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
+                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
                 const decay = Math.max(0, 100 - (hoursSinceBirth / 12) * 100);
                 return Math.floor(decay);
               }
@@ -132,37 +159,58 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             };
 
             const hunger = calculateStatus(pet.lastFedAt);
-            const happiness = Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = Math.max(0, 100 - (hoursSinceBirth / 24) * 100); // Daily decay
-            const energy = Math.max(0, 100 - (hoursSinceBirth / 18) * 100); // 18-hour decay
+            const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
+            const cleanliness = isDead ? 0 : Math.max(0, 100 - (days * 4)); // Decreases 4% per day
+            const energy = isDead ? 0 : Math.max(0, 100 - (days * 3)); // Decreases 3% per day
 
-            // Check if pet can earn tokens (all stats > 0 and 24 hours since birth)
-            const canEarnTokens = hoursSinceBirth >= 24 && hunger > 0 && happiness > 0;
+            // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
+            const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
 
             return (
               <Card key={pet.id} className="overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
                   <CardTitle className="flex items-center justify-between">
                     <span>{pet.name}</span>
-                    <Badge className="bg-white text-purple-600">
-                      {pet.growthStage || "Baby"} Dragon Turtle
+                    <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
+                      {growthStage} Dragon Turtle
                     </Badge>
                   </CardTitle>
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
+                      <span className="font-mono text-lg">{timerDisplay}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>{language === "id" ? "Umur:" : "Age:"}</span>
+                      <span>{ageInYears} {language === "id" ? "tahun" : "years old"}</span>
+                    </div>
+                    {isDead && (
+                      <div className="text-red-300 font-bold text-center">
+                        💀 {language === "id" ? "Meninggal pada usia 100 tahun" : "Died at age 100"}
+                      </div>
+                    )}
+                    {days >= 90 && !isDead && (
+                      <div className="text-yellow-300 font-bold text-center">
+                        ⚠️ {language === "id" ? "Mendekati usia maksimal!" : "Approaching maximum age!"}
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-6">
                     {/* Animated Dragon Turtle */}
                     <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="animate-bounce">
+                        <div className={isDead ? '' : 'animate-bounce'}>
                           <div 
                             className="text-6xl transition-transform duration-1000 hover:scale-110"
                             style={{
-                              animation: 'walkLeftRight 4s ease-in-out infinite',
-                              filter: hunger === 0 ? 'grayscale(100%) opacity(0.5)' : 'none'
+                              animation: isDead ? 'none' : 'walkLeftRight 4s ease-in-out infinite',
+                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : 'none',
+                              transform: isDead ? 'rotate(90deg)' : 'none'
                             }}
                           >
-                            🐢
+                            {isDead ? '💀' : '🐢'}
                           </div>
                         </div>
                       </div>
@@ -171,7 +219,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           💀 {language === "id" ? "Lapar" : "Starving"}
                         </div>
                       )}
-                      {!canEarnTokens && hoursSinceBirth < 24 && (
+                      {!canEarnTokens && days < 1 && !isDead && (
                         <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
                           🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
                         </div>
@@ -287,10 +335,40 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     </Button>
                   </div>
 
-                  {/* Pet Info */}
-                  <div className="text-center text-sm text-gray-600">
-                    <p>{language === "id" ? "Umur" : "Age"}: {pet.currentAge || 0} {language === "id" ? "hari" : "days"}</p>
-                    <p>{language === "id" ? "Token Tersedia" : "Tokens Available"}: {pet.dailyTokensAvailable || 1}</p>
+                  {/* Comprehensive Pet Info */}
+                  <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 text-center">
+                      {language === "id" ? "Informasi Hewan Peliharaan" : "Pet Information"}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-600">{language === "id" ? "Lahir:" : "Born:"}</span>
+                        <p className="font-medium">{new Date(pet.birthDate || pet.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">{language === "id" ? "Umur:" : "Age:"}</span>
+                        <p className="font-medium">{ageInYears} {language === "id" ? "tahun" : "years"}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
+                        <p className={`font-medium ${isDead ? 'text-red-600' : canEarnTokens ? 'text-green-600' : 'text-orange-600'}`}>
+                          {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
+                           canEarnTokens ? (language === "id" ? "Sehat" : "Healthy") : 
+                           (language === "id" ? "Perlu Perawatan" : "Needs Care")}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">{language === "id" ? "Token:" : "Tokens:"}</span>
+                        <p className="font-medium">{canEarnTokens ? (pet.dailyTokensAvailable || 1) : 0}</p>
+                      </div>
+                    </div>
+                    {!isDead && (
+                      <div className="text-center text-xs text-gray-500">
+                        {language === "id" ? 
+                          `Sisa hidup: ${100 - days} hari (${100 - ageInYears} tahun)` : 
+                          `Life remaining: ${100 - days} days (${100 - ageInYears} years)`}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
