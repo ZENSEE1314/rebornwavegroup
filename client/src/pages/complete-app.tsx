@@ -1067,6 +1067,7 @@ export default function CompleteApp() {
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
   const lifetimePoints = userStats?.lifetimePoints || 0;
   const referralEarnings = userStats?.referralEarnings || 0;
+  const userTokens = userStats?.tokens || 0;
   
   // Use real appointments and rewards from database
   const userAppointments = userStats?.appointments || [];
@@ -3060,7 +3061,7 @@ export default function CompleteApp() {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <Card className="bg-green-50 border-green-200">
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
@@ -3100,6 +3101,20 @@ export default function CompleteApp() {
                   <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700">
                     <Star className="w-4 h-4 mr-1" />
                     {language === "id" ? "Lihat Reward" : "View Rewards"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-orange-50 border-orange-200">
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
+                  <p className="text-sm text-orange-600 font-medium">
+                    {language === "id" ? "Token" : "Tokens"}
+                  </p>
+                  <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
+                  <Button size="sm" onClick={() => setActiveTab("tokens")} className="mt-2 bg-orange-600 hover:bg-orange-700">
+                    <Star className="w-4 h-4 mr-1" />
+                    {language === "id" ? "Klaim Token" : "Claim Tokens"}
                   </Button>
                 </CardContent>
               </Card>

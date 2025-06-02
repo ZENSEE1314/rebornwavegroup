@@ -2020,6 +2020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         credits: user.credits || '0',
         loyaltyPoints: loyaltyPoints,
         lifetimePoints: user.lifetimePoints || 0,
+        tokens: user.tokens || 0,
         referralEarnings: referralEarnings,
         totalAppointments: appointments.length,
         totalRewards: pointRedemptions.length,
