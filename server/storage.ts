@@ -173,6 +173,7 @@ export interface IStorage {
   getPetById(id: number): Promise<Pet | undefined>;
   updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
   updatePetAge(id: number, age: number): Promise<void>;
+  updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void>;
   
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;

@@ -2217,5 +2217,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin pet editing
+  app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { petId } = req.params;
+      const { name, currentAge, activatedDate } = req.body;
+      
+      // Update pet details in toys table (since pets are activated toys)
+      await storage.updatePetDetails(parseInt(petId), {
+        name,
+        currentAge,
+        activatedDate: activatedDate ? new Date(activatedDate) : undefined
+      });
+      
+      res.json({ message: 'Pet updated successfully' });
+    } catch (error: any) {
+      console.error('Error updating pet:', error);
+      res.status(500).json({ message: 'Failed to update pet' });
+    }
+  });
+
+  // Admin add tokens to user
+  app.post('/api/admin/users/:userId/add-tokens', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const admin = await storage.getUser(adminUserId);
+      
+      if (admin?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { userId } = req.params;
+      const { amount } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Invalid token amount' });
+      }
+      
+      // Get current user to add tokens to their balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      const currentTokens = parseInt(user.tokens || '0');
+      const newTokenBalance = currentTokens + amount;
+      
+      // Update user tokens
+      await storage.updateUserCredits(userId, newTokenBalance.toString());
+      
+      // Create a transaction record for admin token addition
+      await storage.createTransaction({
+        userId,
+        type: 'admin_token_grant',
+        amount: amount.toString(),
+        description: `Admin granted ${amount} tokens`,
+        status: 'completed'
+      });
+      
+      res.json({ message: 'Tokens added successfully', newBalance: newTokenBalance });
+    } catch (error: any) {
+      console.error('Error adding tokens:', error);
+      res.status(500).json({ message: 'Failed to add tokens' });
+    }
+  });
+
   return httpServer;
 }

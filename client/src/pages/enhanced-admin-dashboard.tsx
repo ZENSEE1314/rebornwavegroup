@@ -52,6 +52,11 @@ export default function EnhancedAdminDashboard() {
   const [editedUserData, setEditedUserData] = useState<any>({});
   const [activeTab, setActiveTab] = useState("overview");
   const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
+  const [editingPet, setEditingPet] = useState<any>(null);
+  const [editedPetData, setEditedPetData] = useState<any>({});
+  const [showTokenDialog, setShowTokenDialog] = useState(false);
+  const [selectedUserForTokens, setSelectedUserForTokens] = useState<any>(null);
+  const [tokenAmount, setTokenAmount] = useState("");
   const [newToy, setNewToy] = useState({
     name: "",
     series: "",
@@ -515,6 +520,53 @@ export default function EnhancedAdminDashboard() {
       toast({
         title: "Error",
         description: "Failed to reset leaderboard",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Edit pet mutation
+  const editPetMutation = useMutation({
+    mutationFn: async ({ petId, petData }: { petId: number; petData: any }) => {
+      await apiRequest("PUT", `/api/admin/pets/${petId}`, petData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/activated-pets'] });
+      setEditingPet(null);
+      setEditedPetData({});
+      toast({
+        title: "Success",
+        description: "Pet details updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update pet details",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add tokens mutation
+  const addTokensMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      await apiRequest("POST", `/api/admin/users/${userId}/add-tokens`, { amount });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setShowTokenDialog(false);
+      setSelectedUserForTokens(null);
+      setTokenAmount("");
+      toast({
+        title: "Success",
+        description: "Tokens added successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add tokens",
         variant: "destructive",
       });
     },
@@ -2036,21 +2088,38 @@ export default function EnhancedAdminDashboard() {
                         <TableHead className="text-gray-300">Rarity</TableHead>
                         <TableHead className="text-gray-300">Activated Date</TableHead>
                         <TableHead className="text-gray-300">Current Age</TableHead>
+                        <TableHead className="text-gray-300">Tokens Given</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(activatedPets as any[]).length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                          <TableCell colSpan={9} className="text-center text-gray-400 py-8">
                             No activated pets found.
                           </TableCell>
                         </TableRow>
                       ) : (
                         (activatedPets as any[]).filter((pet: any) => pet.ownerId).map((pet: any) => (
                           <TableRow key={pet.id} className="border-white/10">
-                            <TableCell className="text-white">{pet.name}</TableCell>
-                            <TableCell className="text-gray-300">{pet.ownerName || 'Unknown'}</TableCell>
+                            <TableCell className="text-white">
+                              {editingPet?.id === pet.id ? (
+                                <Input
+                                  value={editedPetData.name || pet.name}
+                                  onChange={(e) => setEditedPetData({...editedPetData, name: e.target.value})}
+                                  className="bg-gray-800 border-gray-600 text-white h-8"
+                                />
+                              ) : (
+                                pet.name
+                              )}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {pet.ownerName || 'Unknown'}
+                              <div className="text-xs text-gray-500">
+                                🪙 {pet.ownerTokens || 0} tokens
+                              </div>
+                            </TableCell>
                             <TableCell className="text-gray-300">{pet.series}</TableCell>
                             <TableCell>
                               <Badge className={`${
@@ -2064,15 +2133,97 @@ export default function EnhancedAdminDashboard() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-gray-300">
-                              {pet.createdAt ? new Date(pet.createdAt).toLocaleDateString() : 'N/A'}
+                              {editingPet?.id === pet.id ? (
+                                <Input
+                                  type="date"
+                                  value={editedPetData.activatedDate || (pet.createdAt ? new Date(pet.createdAt).toISOString().split('T')[0] : '')}
+                                  onChange={(e) => setEditedPetData({...editedPetData, activatedDate: e.target.value})}
+                                  className="bg-gray-800 border-gray-600 text-white h-8"
+                                />
+                              ) : (
+                                pet.createdAt ? new Date(pet.createdAt).toLocaleDateString() : 'N/A'
+                              )}
                             </TableCell>
                             <TableCell className="text-gray-300">
-                              {pet.currentAge || 0} days
+                              {editingPet?.id === pet.id ? (
+                                <Input
+                                  type="number"
+                                  value={editedPetData.currentAge !== undefined ? editedPetData.currentAge : pet.currentAge || 0}
+                                  onChange={(e) => setEditedPetData({...editedPetData, currentAge: parseInt(e.target.value)})}
+                                  className="bg-gray-800 border-gray-600 text-white h-8 w-20"
+                                  min="0"
+                                  max="100"
+                                />
+                              ) : (
+                                `${pet.currentAge || 0} days`
+                              )}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              🪙 {pet.tokensGiven || 0}
                             </TableCell>
                             <TableCell>
                               <Badge variant={pet.currentAge >= 100 ? "destructive" : "default"}>
                                 {pet.currentAge >= 100 ? "Deceased" : "Alive"}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                {editingPet?.id === pet.id ? (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => {
+                                        editPetMutation.mutate({
+                                          petId: pet.id,
+                                          petData: editedPetData
+                                        });
+                                      }}
+                                      className="bg-green-600 hover:bg-green-700 h-8 w-8 p-0"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => {
+                                        setEditingPet(null);
+                                        setEditedPetData({});
+                                      }}
+                                      variant="outline"
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => {
+                                        setEditingPet(pet);
+                                        setEditedPetData({
+                                          name: pet.name,
+                                          currentAge: pet.currentAge,
+                                          activatedDate: pet.createdAt ? new Date(pet.createdAt).toISOString().split('T')[0] : ''
+                                        });
+                                      }}
+                                      className="bg-blue-600 hover:bg-blue-700 h-8 w-8 p-0"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => {
+                                        setSelectedUserForTokens({ id: pet.ownerId, name: pet.ownerName });
+                                        setShowTokenDialog(true);
+                                      }}
+                                      className="bg-yellow-600 hover:bg-yellow-700 h-8 w-8 p-0"
+                                      title="Add Tokens"
+                                    >
+                                      🪙
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -2163,6 +2314,57 @@ export default function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Add Tokens Dialog */}
+        {showTokenDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Add Tokens to {selectedUserForTokens?.name}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Number of Tokens</Label>
+                  <Input
+                    type="number"
+                    value={tokenAmount}
+                    onChange={(e) => setTokenAmount(e.target.value)}
+                    className="bg-gray-800 border-gray-600 text-white"
+                    placeholder="Enter token amount"
+                    min="1"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowTokenDialog(false);
+                    setSelectedUserForTokens(null);
+                    setTokenAmount("");
+                  }}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (tokenAmount && selectedUserForTokens) {
+                      addTokensMutation.mutate({
+                        userId: selectedUserForTokens.id,
+                        amount: parseInt(tokenAmount)
+                      });
+                    }
+                  }}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                  disabled={!tokenAmount || addTokensMutation.isPending}
+                >
+                  {addTokensMutation.isPending ? 'Adding...' : 'Add Tokens'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Password Change Dialog */}
         {showPasswordDialog && (
