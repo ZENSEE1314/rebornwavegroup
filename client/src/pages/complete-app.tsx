@@ -223,11 +223,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: 1,
   });
 
-  // Fetch user's pets
-  const { data: pets = [], isLoading: petsLoading } = useQuery({
+  // Fetch user's pets with real-time updates
+  const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
     queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
+    refetchInterval: 3000, // Update every 3 seconds for real-time pet data
+    refetchOnWindowFocus: true,
   });
 
   const queryClient = useQueryClient();
