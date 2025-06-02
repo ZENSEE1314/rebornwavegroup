@@ -2308,7 +2308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
       const currentUser = await storage.getUser(adminUserId);

@@ -2381,7 +2381,7 @@ export default function EnhancedAdminDashboard() {
                         (tokenClaims as any[]).map((claim: any) => (
                           <TableRow key={claim.id} className="border-white/10">
                             <TableCell className="text-white">
-                              {claim.user?.firstName || claim.user?.email || 'Unknown User'}
+                              {claim.user ? `${claim.user.firstName || ''} ${claim.user.lastName || ''}`.trim() || claim.user.email : 'Unknown User'}
                             </TableCell>
                             <TableCell className="text-yellow-300">
                               🪙 {claim.tokenAmount}
@@ -2402,39 +2402,39 @@ export default function EnhancedAdminDashboard() {
                               {claim.adminNotes || 'No notes'}
                             </TableCell>
                             <TableCell>
-                              {claim.status === 'pending' && (
+                              {claim.status === 'pending' ? (
                                 <div className="flex gap-2">
                                   <Button 
                                     size="sm"
                                     onClick={() => {
-                                      const notes = prompt('Enter admin notes (optional):');
                                       updateTokenClaimMutation.mutate({ 
                                         claimId: claim.id, 
                                         status: 'approved',
-                                        adminNotes: notes || ''
+                                        adminNotes: 'Approved by admin'
                                       });
                                     }}
                                     className="bg-green-600 hover:bg-green-700"
+                                    disabled={updateTokenClaimMutation.isPending}
                                   >
                                     <Check className="h-4 w-4" />
                                   </Button>
                                   <Button 
                                     size="sm"
                                     onClick={() => {
-                                      const notes = prompt('Enter rejection reason:');
-                                      if (notes) {
-                                        updateTokenClaimMutation.mutate({ 
-                                          claimId: claim.id, 
-                                          status: 'rejected',
-                                          adminNotes: notes
-                                        });
-                                      }
+                                      updateTokenClaimMutation.mutate({ 
+                                        claimId: claim.id, 
+                                        status: 'rejected',
+                                        adminNotes: 'Rejected by admin'
+                                      });
                                     }}
                                     variant="destructive"
+                                    disabled={updateTokenClaimMutation.isPending}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
+                              ) : (
+                                <span className="text-gray-400">No actions available</span>
                               )}
                             </TableCell>
                           </TableRow>

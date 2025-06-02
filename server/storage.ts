@@ -1557,8 +1557,26 @@ export class DatabaseStorage implements IStorage {
     return claim;
   }
 
-  async getTokenClaims(): Promise<TokenClaim[]> {
-    return await db.select().from(tokenClaims).orderBy(desc(tokenClaims.requestedAt));
+  async getTokenClaims(): Promise<any[]> {
+    return await db.select({
+      id: tokenClaims.id,
+      userId: tokenClaims.userId,
+      tokenAmount: tokenClaims.tokensRequested,
+      status: tokenClaims.status,
+      adminNotes: tokenClaims.adminNotes,
+      trackingNumber: tokenClaims.trackingNumber,
+      createdAt: tokenClaims.requestedAt,
+      requestedAt: tokenClaims.requestedAt,
+      user: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      }
+    })
+    .from(tokenClaims)
+    .leftJoin(users, eq(tokenClaims.userId, users.id))
+    .orderBy(desc(tokenClaims.requestedAt));
   }
 
   async updateTokenClaimStatus(claimId: number, status: string, adminId: string, adminNotes?: string, trackingNumber?: string): Promise<void> {
