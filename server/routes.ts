@@ -2261,19 +2261,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid token amount' });
       }
       
-      // Get current user to add tokens to their balance
+      // Get current user to verify existence
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
       
-      const currentTokens = parseInt(user.credits || '0');
-      const newTokenBalance = currentTokens + amount;
-      
-      // Update user tokens
-      await storage.updateUserCredits(userId, newTokenBalance.toString());
-      
-      // Update pet tokens for proper tracking
+      // Add tokens to pet's claimable pool (not directly to wallet)
       await storage.updatePetTokens(userId, amount);
       
       // Create a transaction record for admin token addition
@@ -2281,11 +2275,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         type: 'admin_token_grant',
         amount: amount.toString(),
-        description: `Admin granted ${amount} tokens`,
+        description: `Admin granted ${amount} tokens (claimable)`,
         status: 'completed'
       });
       
-      res.json({ message: 'Tokens added successfully', newBalance: newTokenBalance });
+      res.json({ message: 'Tokens added to claimable pool successfully' });
     } catch (error: any) {
       console.error('Error adding tokens:', error);
       res.status(500).json({ message: 'Failed to add tokens' });

@@ -1526,13 +1526,13 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(pets.userId, userId), eq(pets.isActive, true)));
       
       if (userPets.length > 0) {
-        // Update the first active pet's token count (or distribute among all pets)
+        // Update the first active pet's available tokens for claiming
         const pet = userPets[0];
-        const newTokenTotal = (pet.totalTokensEarned || 0) + tokenAmount;
+        const newDailyTokens = (pet.dailyTokensAvailable || 0) + tokenAmount;
         
         await db.update(pets)
           .set({ 
-            totalTokensEarned: newTokenTotal,
+            dailyTokensAvailable: newDailyTokens,
             updatedAt: new Date()
           })
           .where(eq(pets.id, pet.id));
