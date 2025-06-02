@@ -2275,7 +2275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct tokens from user account
-      await storage.updateUserTokens(userId, -tokensRequested);
+      await storage.deductUserTokens(userId, tokensRequested);
 
       // Create token claim request (no shipping address - redeem at approved locations)
       const claim = await storage.createTokenClaim({
