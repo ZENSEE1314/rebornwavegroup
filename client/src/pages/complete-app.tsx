@@ -29,6 +29,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading } = useQuery({
     queryKey: ["/api/toys"],
+    enabled: !!user?.id,
     retry: false,
   });
 
@@ -189,9 +190,27 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               {unactivatedToys.map((toy: any) => (
                 <Card key={toy.id} className="border-2 border-dashed border-blue-300">
                   <CardContent className="p-4 text-center">
-                    <div className="text-4xl mb-3">🧸</div>
+                    <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
+                      <img 
+                        src={toy.imageUrl} 
+                        alt={toy.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjNmNGY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjM3MzkxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn6e4PC90ZXh0Pgo8L3N2Zz4=';
+                        }}
+                      />
+                    </div>
                     <h4 className="font-semibold">{toy.name}</h4>
-                    <p className="text-sm text-gray-600 mb-3">QR: {toy.qrCode}</p>
+                    <p className="text-xs text-gray-500 mb-1">{toy.series}</p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        toy.rarity === 'rare' ? 'bg-purple-100 text-purple-800' :
+                        toy.rarity === 'common' ? 'bg-gray-100 text-gray-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {toy.rarity}
+                      </span>
+                    </p>
                     <Button 
                       onClick={() => activateToyMutation.mutate(toy.qrCode)}
                       disabled={activateToyMutation.isPending}
@@ -3632,9 +3651,22 @@ export default function CompleteApp() {
                           />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                        <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                          {toy.rarity}
-                        </Badge>
+                        <div className="flex justify-center gap-2 mb-2">
+                          <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                            {toy.rarity}
+                          </Badge>
+                          <Badge variant={toy.isActivated ? "default" : "outline"} className={
+                            toy.isActivated 
+                              ? "bg-purple-600 hover:bg-purple-700 text-white" 
+                              : "border-purple-300 text-purple-700"
+                          }>
+                            <Heart className="w-3 h-3 mr-1" />
+                            {toy.isActivated 
+                              ? (language === "id" ? "Pet Aktif" : "Pet Active")
+                              : (language === "id" ? "Belum Aktif" : "Not Activated")
+                            }
+                          </Badge>
+                        </div>
                         <div className="mt-4 space-y-2">
                           <p className="text-sm text-slate-600">
                             {language === "id" ? "Diperoleh" : "Acquired"}: {toy.acquiredDate}
