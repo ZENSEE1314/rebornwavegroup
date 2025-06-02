@@ -1115,6 +1115,8 @@ export default function CompleteApp() {
   const [modalHistoryFilter, setModalHistoryFilter] = useState<'points' | 'credits' | 'tokens' | 'appointments' | 'redemptions'>('tokens');
   const [modalHistoryPage, setModalHistoryPage] = useState(1);
   const [creditHistoryPage, setCreditHistoryPage] = useState(1);
+  const [pointsHistoryPage, setPointsHistoryPage] = useState(1);
+  const [redemptionHistoryPage, setRedemptionHistoryPage] = useState(1);
   const [modalDateFilterStart, setModalDateFilterStart] = useState("");
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
@@ -3594,21 +3596,74 @@ export default function CompleteApp() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {filteredPointHistory.map((history) => (
-                        <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium text-slate-900">{history.description}</p>
-                            <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleDateString()}</p>
+                    {(() => {
+                      const points = filteredPointHistory || [];
+                      const itemsPerPage = 10;
+                      const startIndex = (pointsHistoryPage - 1) * itemsPerPage;
+                      const endIndex = startIndex + itemsPerPage;
+                      const paginatedPoints = points.slice(startIndex, endIndex);
+                      const totalPages = Math.ceil(points.length / itemsPerPage);
+
+                      if (points.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>No points history yet</p>
+                            <p className="text-sm mt-2">Your point earnings and redemptions will appear here</p>
                           </div>
-                          <div className="text-right">
-                            <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
-                              {history.type === 'earned' ? '+' : ''}{history.points} {language === "id" ? "poin" : "points"}
-                            </span>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="space-y-3">
+                            {paginatedPoints.map((history) => (
+                              <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
+                                <div>
+                                  <p className="font-medium text-slate-900">{history.description}</p>
+                                  <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <div className="text-right">
+                                  <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
+                                    {history.type === 'earned' ? '+' : ''}{history.points} {language === "id" ? "poin" : "points"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))}
-                    </div>
+
+                          {/* Pagination Controls */}
+                          {totalPages > 1 && (
+                            <div className="flex justify-between items-center pt-4 border-t mt-6">
+                              <div className="text-sm text-gray-600">
+                                {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, points.length)} {language === "id" ? "dari" : "of"} {points.length} {language === "id" ? "item" : "items"}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPointsHistoryPage(Math.max(1, pointsHistoryPage - 1))}
+                                  disabled={pointsHistoryPage === 1}
+                                >
+                                  {language === "id" ? "Sebelumnya" : "Previous"}
+                                </Button>
+                                <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                                  {pointsHistoryPage} / {totalPages}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPointsHistoryPage(Math.min(totalPages, pointsHistoryPage + 1))}
+                                  disabled={pointsHistoryPage === totalPages}
+                                >
+                                  {language === "id" ? "Selanjutnya" : "Next"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </div>
@@ -3666,19 +3721,72 @@ export default function CompleteApp() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {filteredRedemptionHistory.map((redemption) => (
-                        <div key={redemption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-sm">{redemption.reward}</p>
-                            <p className="text-xs text-gray-600">{redemption.date}</p>
+                    {(() => {
+                      const redemptions = filteredRedemptionHistory || [];
+                      const itemsPerPage = 10;
+                      const startIndex = (redemptionHistoryPage - 1) * itemsPerPage;
+                      const endIndex = startIndex + itemsPerPage;
+                      const paginatedRedemptions = redemptions.slice(startIndex, endIndex);
+                      const totalPages = Math.ceil(redemptions.length / itemsPerPage);
+
+                      if (redemptions.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <Gift className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>No redemption history yet</p>
+                            <p className="text-sm mt-2">Your reward redemptions will appear here</p>
                           </div>
-                          <Badge variant={redemption.status === 'used' ? 'secondary' : 'default'}>
-                            {redemption.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="space-y-3">
+                            {paginatedRedemptions.map((redemption) => (
+                              <div key={redemption.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border">
+                                <div>
+                                  <p className="font-medium text-sm">{redemption.reward}</p>
+                                  <p className="text-xs text-gray-600">{redemption.date}</p>
+                                </div>
+                                <Badge variant={redemption.status === 'used' ? 'secondary' : 'default'}>
+                                  {redemption.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Pagination Controls */}
+                          {totalPages > 1 && (
+                            <div className="flex justify-between items-center pt-4 border-t mt-6">
+                              <div className="text-sm text-gray-600">
+                                {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, redemptions.length)} {language === "id" ? "dari" : "of"} {redemptions.length} {language === "id" ? "item" : "items"}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setRedemptionHistoryPage(Math.max(1, redemptionHistoryPage - 1))}
+                                  disabled={redemptionHistoryPage === 1}
+                                >
+                                  {language === "id" ? "Sebelumnya" : "Previous"}
+                                </Button>
+                                <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                                  {redemptionHistoryPage} / {totalPages}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setRedemptionHistoryPage(Math.min(totalPages, redemptionHistoryPage + 1))}
+                                  disabled={redemptionHistoryPage === totalPages}
+                                >
+                                  {language === "id" ? "Selanjutnya" : "Next"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </div>
