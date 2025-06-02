@@ -4335,19 +4335,19 @@ export default function CompleteApp() {
                   
                   switch (historyFilter) {
                     case 'points':
-                      data = filteredPointHistory;
+                      data = filteredPointHistory || [];
                       break;
                     case 'credits':
-                      data = filteredCreditHistory;
+                      data = filteredCreditHistory || [];
                       break;
                     case 'tokens':
-                      data = tokenClaimsHistory;
+                      data = tokenClaimsHistory || [];
                       break;
                     case 'appointments':
-                      data = filteredAppointments;
+                      data = filteredAppointments || [];
                       break;
                     case 'redemptions':
-                      data = filteredPointHistory.filter((item: any) => item.type === 'redeemed');
+                      data = (filteredPointHistory || []).filter((item: any) => item.type === 'redeemed');
                       break;
                     default:
                       data = [];
