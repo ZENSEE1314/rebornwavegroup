@@ -139,6 +139,7 @@ export interface IStorage {
   // Admin-specific operations
   getAllTransactions(): Promise<Transaction[]>;
   getAllToysWithOwners(): Promise<any[]>;
+  getAllActivatedPetsWithDetails(): Promise<any[]>;
   
   // Promotion banner operations
   getAllPromotionBanners(): Promise<PromotionBanner[]>;
@@ -1193,6 +1194,38 @@ export class DatabaseStorage implements IStorage {
     .orderBy(desc(toys.createdAt));
   }
 
+  async getAllActivatedPetsWithDetails(): Promise<any[]> {
+    return await db.select({
+      id: pets.id,
+      name: pets.name,
+      species: pets.species,
+      currentAge: pets.currentAge,
+      growthStage: pets.growthStage,
+      happiness: pets.happiness,
+      hunger: pets.hunger,
+      cleanliness: pets.cleanliness,
+      energy: pets.energy,
+      totalTokensEarned: pets.totalTokensEarned,
+      dailyTokensAvailable: pets.dailyTokensAvailable,
+      birthDate: pets.birthDate,
+      createdAt: pets.createdAt,
+      ownerId: pets.userId,
+      ownerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as('ownerName'),
+      ownerTokens: users.loyaltyPoints,
+      // Get toy information
+      toyId: pets.toyId,
+      series: toys.series,
+      rarity: toys.rarity,
+      imageUrl: toys.imageUrl,
+      tokensGiven: pets.totalTokensEarned
+    })
+    .from(pets)
+    .leftJoin(users, eq(pets.userId, users.id))
+    .leftJoin(toys, eq(pets.toyId, toys.id))
+    .where(eq(pets.isActive, true))
+    .orderBy(desc(pets.createdAt));
+  }
+
   // Promotion banner operations
   async getAllPromotionBanners(): Promise<PromotionBanner[]> {
     return await db.select().from(promotionBanners).orderBy(promotionBanners.displayOrder);
@@ -1467,13 +1500,18 @@ export class DatabaseStorage implements IStorage {
       
       if (details.currentAge !== undefined) {
         updateData.currentAge = details.currentAge;
+        // Update growth stage based on age
+        updateData.growthStage = this.calculateGrowthStage(details.currentAge);
       }
       
       if (details.activatedDate !== undefined) {
-        updateData.createdAt = details.activatedDate;
+        updateData.birthDate = details.activatedDate;
       }
       
-      await db.update(toys).set(updateData).where(eq(toys.id, id));
+      updateData.updatedAt = new Date();
+      
+      // Update the pets table, not toys table
+      await db.update(pets).set(updateData).where(eq(pets.id, id));
     } catch (error) {
       console.error('Error updating pet details:', error);
       throw error;
