@@ -21,15 +21,13 @@ import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 
 // Coin Catching Game Component
-function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
+function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: { pet: any; language: string; onClose: () => void; user: any; toast: any; queryClient: any }) {
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [coins, setCoins] = useState<Array<{ id: number; x: number; y: number; speed: number }>>([]);
   const [gameOver, setGameOver] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Fetch leaderboard data
   const { data: leaderboard = [] } = useQuery({
@@ -6128,6 +6126,8 @@ export default function CompleteApp() {
               setShowCoinGame(false);
             }}
             user={user}
+            toast={toast}
+            queryClient={queryClient}
           />
         )}
 
