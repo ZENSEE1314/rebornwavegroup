@@ -4325,13 +4325,166 @@ export default function CompleteApp() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <HistoryContent 
-                  historyType={historyFilter}
-                  language={language}
-                  data={getFilteredHistoryData()}
-                  page={historyPage}
-                  onPageChange={setHistoryPage}
-                />
+                {/* History Content with Pagination */}
+                {(() => {
+                  let data: any[] = [];
+                  
+                  switch (historyFilter) {
+                    case 'points':
+                      data = filteredPointHistory;
+                      break;
+                    case 'credits':
+                      data = filteredCreditHistory;
+                      break;
+                    case 'tokens':
+                      data = tokenClaimsHistory;
+                      break;
+                    case 'appointments':
+                      data = filteredAppointments;
+                      break;
+                    case 'redemptions':
+                      data = filteredPointHistory.filter((item: any) => item.type === 'redeemed');
+                      break;
+                    default:
+                      data = [];
+                  }
+
+                  // Apply additional date filters if set
+                  if (dateFilterStart || dateFilterEnd) {
+                    data = data.filter((item: any) => {
+                      const itemDate = new Date(item.createdAt || item.requestedAt || item.appointmentDate);
+                      const start = dateFilterStart ? new Date(dateFilterStart) : null;
+                      const end = dateFilterEnd ? new Date(dateFilterEnd) : null;
+                      
+                      if (start && itemDate < start) return false;
+                      if (end && itemDate > end) return false;
+                      return true;
+                    });
+                  }
+
+                  // Apply status filter if different from existing filters
+                  if (statusFilter !== 'all') {
+                    data = data.filter((item: any) => item.status === statusFilter);
+                  }
+
+                  // Pagination - 10 items per page
+                  const itemsPerPage = 10;
+                  const startIndex = (historyPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const paginatedData = data.slice(startIndex, endIndex);
+                  const totalPages = Math.ceil(data.length / itemsPerPage);
+
+                  if (data.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="text-gray-500 mb-4">
+                          {historyFilter === 'points' && "📊"}
+                          {historyFilter === 'credits' && "💰"}
+                          {historyFilter === 'tokens' && "🪙"}
+                          {historyFilter === 'appointments' && "📅"}
+                          {historyFilter === 'redemptions' && "🎁"}
+                        </div>
+                        <p className="text-gray-500">
+                          {language === "id" ? "Tidak ada data ditemukan" : "No data found"}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Items List */}
+                      <div className="space-y-3">
+                        {paginatedData.map((item: any, index: number) => (
+                          <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {historyFilter === 'points' && <span className="text-blue-600">🎯</span>}
+                                  {historyFilter === 'credits' && <span className="text-green-600">💰</span>}
+                                  {historyFilter === 'tokens' && <span className="text-orange-600">🪙</span>}
+                                  {historyFilter === 'appointments' && <span className="text-purple-600">📅</span>}
+                                  {historyFilter === 'redemptions' && <span className="text-red-600">🎁</span>}
+                                  
+                                  <span className="font-semibold">
+                                    {historyFilter === 'tokens' ? 
+                                      `${item.tokensRequested} ${language === "id" ? "Token" : "Tokens"}` :
+                                      item.description || item.serviceName || `${item.points || item.amount || 0}`
+                                    }
+                                  </span>
+                                </div>
+                                
+                                <p className="text-sm text-gray-600 mb-1">
+                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                                </p>
+                                
+                                {item.adminNotes && (
+                                  <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
+                                    {language === "id" ? "Catatan: " : "Notes: "}{item.adminNotes}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="text-right">
+                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  item.status === 'completed' || item.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  item.status === 'cancelled' || item.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {item.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
+                                   item.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                                   item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
+                                   item.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                                   item.status === 'pending' ? (language === "id" ? "Menunggu" : "Pending") :
+                                   (item.status || (language === "id" ? "Tidak diketahui" : "Unknown"))}
+                                </div>
+                                
+                                {(historyFilter === 'points' || historyFilter === 'credits') && (
+                                  <div className={`text-sm font-medium mt-1 ${
+                                    item.type === 'earned' ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {item.type === 'earned' ? '+' : '-'}{item.points || item.amount || 0}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center pt-4 border-t">
+                          <div className="text-sm text-gray-600">
+                            {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, data.length)} {language === "id" ? "dari" : "of"} {data.length} {language === "id" ? "item" : "items"}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setHistoryPage(Math.max(1, historyPage - 1))}
+                              disabled={historyPage === 1}
+                            >
+                              {language === "id" ? "Sebelumnya" : "Previous"}
+                            </Button>
+                            <span className="px-3 py-1 text-sm">
+                              {historyPage} / {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setHistoryPage(Math.min(totalPages, historyPage + 1))}
+                              disabled={historyPage === totalPages}
+                            >
+                              {language === "id" ? "Selanjutnya" : "Next"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
