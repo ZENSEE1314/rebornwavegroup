@@ -872,6 +872,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's pets
+  app.get('/api/pets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const pets = await storage.getPetsByUserId(userId);
+      res.json(pets);
+    } catch (error) {
+      console.error("Error fetching pets:", error);
+      res.status(500).json({ message: "Failed to fetch pets" });
+    }
+  });
+
+  // Pet care activities
+  app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { careType } = req.body;
+      
+      await storage.updateCareStatus(petId, userId, careType, true);
+      
+      // Check if all care is completed to award token
+      const allCareCompleted = await storage.checkAllCareCompleted(petId);
+      if (allCareCompleted) {
+        await storage.awardDailyToken(userId, petId);
+      }
+      
+      res.json({ message: "Care activity completed" });
+    } catch (error) {
+      console.error("Error updating care:", error);
+      res.status(500).json({ message: "Failed to update care" });
+    }
+  });
+
+  // Get daily care status
+  app.get('/api/pets/:petId/care-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      const careStatus = await storage.getTodaysCareStatus(petId);
+      res.json(careStatus || {});
+    } catch (error) {
+      console.error("Error fetching care status:", error);
+      res.status(500).json({ message: "Failed to fetch care status" });
+    }
+  });
+
   // Marketplace routes
   app.get('/api/marketplace/listings', async (req, res) => {
     try {

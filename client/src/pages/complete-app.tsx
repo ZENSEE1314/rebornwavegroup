@@ -38,6 +38,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: 1,
   });
 
+  // Fetch user's pets
+  const { data: pets = [], isLoading: petsLoading } = useQuery({
+    queryKey: ["/api/pets"],
+    enabled: !!user?.id,
+    retry: 1,
+  });
+
   const queryClient = useQueryClient();
 
   // Activate toy mutation for pet creation
@@ -63,12 +70,169 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   });
 
   // Show loading state
-  if (toysLoading || listingsLoading) {
+  if (toysLoading || listingsLoading || petsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading pet care...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has any pets activated
+  const userPets = Array.isArray(pets) ? pets : [];
+  
+  if (userPets.length > 0) {
+    // Show pet care interface with feeding games
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+          </h2>
+          <p className="text-slate-600">
+            {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {userPets.map((pet: any) => (
+            <Card key={pet.id} className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                <CardTitle className="flex items-center justify-between">
+                  <span>{pet.name}</span>
+                  <Badge className="bg-white text-purple-600">
+                    {pet.growthStage || "Baby"}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-6">
+                  {/* Pet Stats */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {language === "id" ? "Kebahagiaan" : "Happiness"}
+                      </p>
+                      <Progress value={pet.happiness || 50} className="h-3" />
+                      <p className="text-xs text-center mt-1">{pet.happiness || 50}/100</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {language === "id" ? "Rasa Lapar" : "Hunger"}
+                      </p>
+                      <Progress value={pet.hunger || 50} className="h-3" />
+                      <p className="text-xs text-center mt-1">{pet.hunger || 50}/100</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {language === "id" ? "Kebersihan" : "Cleanliness"}
+                      </p>
+                      <Progress value={pet.cleanliness || 50} className="h-3" />
+                      <p className="text-xs text-center mt-1">{pet.cleanliness || 50}/100</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {language === "id" ? "Energi" : "Energy"}
+                      </p>
+                      <Progress value={pet.energy || 50} className="h-3" />
+                      <p className="text-xs text-center mt-1">{pet.energy || 50}/100</p>
+                    </div>
+                  </div>
+
+                  {/* Daily Care Activities */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">
+                      {language === "id" ? "Aktivitas Harian" : "Daily Activities"}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          toast({
+                            title: language === "id" ? "Makan Berhasil!" : "Feeding Complete!",
+                            description: language === "id" ? "Hewan peliharaan Anda telah diberi makan" : "Your pet has been fed",
+                          });
+                        }}
+                      >
+                        <span className="text-2xl">🍎</span>
+                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          toast({
+                            title: language === "id" ? "Mandi Berhasil!" : "Bath Complete!",
+                            description: language === "id" ? "Hewan peliharaan Anda telah dimandikan" : "Your pet has been bathed",
+                          });
+                        }}
+                      >
+                        <span className="text-2xl">🛁</span>
+                        <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          toast({
+                            title: language === "id" ? "Tidur Berhasil!" : "Sleep Complete!",
+                            description: language === "id" ? "Hewan peliharaan Anda telah tidur" : "Your pet has slept well",
+                          });
+                        }}
+                      >
+                        <span className="text-2xl">💤</span>
+                        <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          toast({
+                            title: language === "id" ? "Bersih-bersih Berhasil!" : "Cleaning Complete!",
+                            description: language === "id" ? "Area hewan peliharaan telah dibersihkan" : "Your pet's area has been cleaned",
+                          });
+                        }}
+                      >
+                        <span className="text-2xl">🧹</span>
+                        <span className="text-sm">{language === "id" ? "Bersihkan" : "Clean"}</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Feeding Game */}
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
+                    <h5 className="font-semibold text-gray-900 mb-3">
+                      {language === "id" ? "🎮 Mini Game: Feeding Time" : "🎮 Mini Game: Feeding Time"}
+                    </h5>
+                    <Button 
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        toast({
+                          title: language === "id" ? "Game Dimulai!" : "Game Started!",
+                          description: language === "id" ? "Feeding game telah dimulai! Klik makanan untuk memberi makan hewan peliharaan." : "Feeding game started! Click food items to feed your pet.",
+                        });
+                      }}
+                    >
+                      🎯 {language === "id" ? "Mulai Feeding Game" : "Start Feeding Game"}
+                    </Button>
+                  </div>
+
+                  {/* Pet Info */}
+                  <div className="text-center text-sm text-gray-600">
+                    <p>{language === "id" ? "Umur" : "Age"}: {pet.currentAge || 0} {language === "id" ? "hari" : "days"}</p>
+                    <p>{language === "id" ? "Token Tersedia" : "Tokens Available"}: {pet.dailyTokensAvailable || 1}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
