@@ -5608,48 +5608,95 @@ export default function CompleteApp() {
             </div>
 
             <div className="space-y-4">
-              {tokenClaimsHistory && tokenClaimsHistory.length > 0 ? (
-                tokenClaimsHistory.map((claim: any, index: number) => (
-                  <div key={claim.id || index} className="border rounded-lg p-4 bg-orange-50">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-orange-600">🪙</span>
-                          <span className="font-semibold">
-                            {claim.tokensRequested || claim.tokenAmount} {language === "id" ? "Token" : "Tokens"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">
-                          {new Date(claim.createdAt || claim.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
-                        </p>
-                        {claim.adminNotes && (
-                          <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
-                            {language === "id" ? "Catatan: " : "Notes: "}{claim.adminNotes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          claim.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
-                           claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
-                           (language === "id" ? "Menunggu" : "Pending")}
-                        </div>
-                      </div>
+              {(() => {
+                const claims = tokenClaimsHistory || [];
+                const itemsPerPage = 10;
+                const startIndex = (modalHistoryPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const paginatedClaims = claims.slice(startIndex, endIndex);
+                const totalPages = Math.ceil(claims.length / itemsPerPage);
+
+                if (claims.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-4">🪙</div>
+                      <p className="text-gray-500">
+                        {language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history"}
+                      </p>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-gray-500 mb-4">🪙</div>
-                  <p className="text-gray-500">
-                    {language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history"}
-                  </p>
-                </div>
-              )}
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="space-y-3">
+                      {paginatedClaims.map((claim: any, index: number) => (
+                        <div key={claim.id || index} className="border rounded-lg p-4 bg-orange-50">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-orange-600">🪙</span>
+                                <span className="font-semibold">
+                                  {claim.tokensRequested || claim.tokenAmount} {language === "id" ? "Token" : "Tokens"}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-1">
+                                {new Date(claim.createdAt || claim.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                              </p>
+                              {claim.adminNotes && (
+                                <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
+                                  {language === "id" ? "Catatan: " : "Notes: "}{claim.adminNotes}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                claim.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                                 claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                                 (language === "id" ? "Menunggu" : "Pending")}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center pt-4 border-t mt-6">
+                        <div className="text-sm text-gray-600">
+                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, claims.length)} {language === "id" ? "dari" : "of"} {claims.length} {language === "id" ? "item" : "items"}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setModalHistoryPage(Math.max(1, modalHistoryPage - 1))}
+                            disabled={modalHistoryPage === 1}
+                          >
+                            {language === "id" ? "Sebelumnya" : "Previous"}
+                          </Button>
+                          <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                            {modalHistoryPage} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setModalHistoryPage(Math.min(totalPages, modalHistoryPage + 1))}
+                            disabled={modalHistoryPage === totalPages}
+                          >
+                            {language === "id" ? "Selanjutnya" : "Next"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
