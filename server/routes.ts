@@ -1165,17 +1165,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       });
 
-      // Award tokens based on battle result
-      const tokensEarned = battleResult === 'won' ? 5 : battleResult === 'lost' ? 1 : 2;
-      await storage.updateUserTokens(userId, tokensEarned);
-
       res.json({ 
         result: battleResult,
         weightLoss: 4,
         dpUsed: dpRequired,
         injuryOccurred,
         isDead,
-        tokensEarned,
         newWinRatio
       });
     } catch (error) {
