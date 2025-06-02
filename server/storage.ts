@@ -1362,6 +1362,13 @@ export class DatabaseStorage implements IStorage {
     return careStatus.fed && careStatus.bathed && careStatus.slept && careStatus.cleaned;
   }
 
+  async updatePetLastFed(id: number): Promise<void> {
+    await db.update(pets).set({ 
+      lastFedAt: new Date(),
+      updatedAt: new Date()
+    }).where(eq(pets.id, id));
+  }
+
   async awardDailyToken(userId: string, petId: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     
@@ -1387,8 +1394,8 @@ export class DatabaseStorage implements IStorage {
     await this.createCareActivity({
       petId,
       userId,
-      careType: 'daily_complete',
-      tokenEarned: true,
+      activityType: 'daily_complete',
+      pointsEarned: 1,
     });
   }
 }

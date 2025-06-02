@@ -47,6 +47,20 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const queryClient = useQueryClient();
 
+  // Pet care mutations
+  const careActivityMutation = useMutation({
+    mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
+      return apiRequest("POST", `/api/pets/${petId}/care`, { careType });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
+      });
+    }
+  });
+
   // Activate toy mutation for pet creation
   const activateToyMutation = useMutation({
     mutationFn: async (qrCode: string) => {
@@ -98,49 +112,106 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {userPets.map((pet: any) => (
-            <Card key={pet.id} className="overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                <CardTitle className="flex items-center justify-between">
-                  <span>{pet.name}</span>
-                  <Badge className="bg-white text-purple-600">
-                    {pet.growthStage || "Baby"}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-6">
-                  {/* Pet Stats */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {language === "id" ? "Kebahagiaan" : "Happiness"}
-                      </p>
-                      <Progress value={pet.happiness || 50} className="h-3" />
-                      <p className="text-xs text-center mt-1">{pet.happiness || 50}/100</p>
+          {userPets.map((pet: any) => {
+            // Calculate real-time status based on birth time and current time
+            const now = Date.now();
+            const birthTime = new Date(pet.birthDate || pet.createdAt).getTime();
+            const hoursSinceBirth = (now - birthTime) / (1000 * 60 * 60);
+            
+            // Status decreases from 100% to 0% over 12 hours if not fed
+            const calculateStatus = (lastFeedTime?: Date) => {
+              if (!lastFeedTime) {
+                // No feeding recorded, decay from birth
+                const decay = Math.max(0, 100 - (hoursSinceBirth / 12) * 100);
+                return Math.floor(decay);
+              }
+              
+              const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
+              const decay = Math.max(0, 100 - (hoursSinceLastFeed / 12) * 100);
+              return Math.floor(decay);
+            };
+
+            const hunger = calculateStatus(pet.lastFedAt);
+            const happiness = Math.max(0, hunger - 10); // Happiness follows hunger
+            const cleanliness = Math.max(0, 100 - (hoursSinceBirth / 24) * 100); // Daily decay
+            const energy = Math.max(0, 100 - (hoursSinceBirth / 18) * 100); // 18-hour decay
+
+            // Check if pet can earn tokens (all stats > 0 and 24 hours since birth)
+            const canEarnTokens = hoursSinceBirth >= 24 && hunger > 0 && happiness > 0;
+
+            return (
+              <Card key={pet.id} className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{pet.name}</span>
+                    <Badge className="bg-white text-purple-600">
+                      {pet.growthStage || "Baby"} Dragon Turtle
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Animated Dragon Turtle */}
+                    <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="animate-bounce">
+                          <div 
+                            className="text-6xl transition-transform duration-1000 hover:scale-110"
+                            style={{
+                              animation: 'walkLeftRight 4s ease-in-out infinite',
+                              filter: hunger === 0 ? 'grayscale(100%) opacity(0.5)' : 'none'
+                            }}
+                          >
+                            🐢
+                          </div>
+                        </div>
+                      </div>
+                      {hunger === 0 && (
+                        <div className="absolute top-2 right-2 text-red-500 font-bold">
+                          💀 {language === "id" ? "Lapar" : "Starving"}
+                        </div>
+                      )}
+                      {!canEarnTokens && hoursSinceBirth < 24 && (
+                        <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
+                          🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {language === "id" ? "Rasa Lapar" : "Hunger"}
-                      </p>
-                      <Progress value={pet.hunger || 50} className="h-3" />
-                      <p className="text-xs text-center mt-1">{pet.hunger || 50}/100</p>
+
+                    {/* Pet Stats with Real-time Values */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {language === "id" ? "Kebahagiaan" : "Happiness"}
+                        </p>
+                        <Progress value={happiness} className="h-3" />
+                        <p className="text-xs text-center mt-1">{happiness}/100</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {language === "id" ? "Rasa Lapar" : "Hunger"}
+                        </p>
+                        <Progress 
+                          value={hunger} 
+                          className={`h-3 ${hunger < 20 ? 'bg-red-100' : ''}`}
+                        />
+                        <p className="text-xs text-center mt-1 font-semibold">{hunger}/100</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {language === "id" ? "Kebersihan" : "Cleanliness"}
+                        </p>
+                        <Progress value={cleanliness} className="h-3" />
+                        <p className="text-xs text-center mt-1">{cleanliness}/100</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {language === "id" ? "Energi" : "Energy"}
+                        </p>
+                        <Progress value={energy} className="h-3" />
+                        <p className="text-xs text-center mt-1">{energy}/100</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {language === "id" ? "Kebersihan" : "Cleanliness"}
-                      </p>
-                      <Progress value={pet.cleanliness || 50} className="h-3" />
-                      <p className="text-xs text-center mt-1">{pet.cleanliness || 50}/100</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {language === "id" ? "Energi" : "Energy"}
-                      </p>
-                      <Progress value={pet.energy || 50} className="h-3" />
-                      <p className="text-xs text-center mt-1">{pet.energy || 50}/100</p>
-                    </div>
-                  </div>
 
                   {/* Daily Care Activities */}
                   <div className="space-y-3">
@@ -152,11 +223,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          toast({
-                            title: language === "id" ? "Makan Berhasil!" : "Feeding Complete!",
-                            description: language === "id" ? "Hewan peliharaan Anda telah diberi makan" : "Your pet has been fed",
-                          });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'feed' });
                         }}
+                        disabled={careActivityMutation.isPending}
                       >
                         <span className="text-2xl">🍎</span>
                         <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
@@ -166,11 +235,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          toast({
-                            title: language === "id" ? "Mandi Berhasil!" : "Bath Complete!",
-                            description: language === "id" ? "Hewan peliharaan Anda telah dimandikan" : "Your pet has been bathed",
-                          });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathe' });
                         }}
+                        disabled={careActivityMutation.isPending}
                       >
                         <span className="text-2xl">🛁</span>
                         <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
@@ -180,11 +247,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          toast({
-                            title: language === "id" ? "Tidur Berhasil!" : "Sleep Complete!",
-                            description: language === "id" ? "Hewan peliharaan Anda telah tidur" : "Your pet has slept well",
-                          });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'sleep' });
                         }}
+                        disabled={careActivityMutation.isPending}
                       >
                         <span className="text-2xl">💤</span>
                         <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
@@ -194,11 +259,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          toast({
-                            title: language === "id" ? "Bersih-bersih Berhasil!" : "Cleaning Complete!",
-                            description: language === "id" ? "Area hewan peliharaan telah dibersihkan" : "Your pet's area has been cleaned",
-                          });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'clean' });
                         }}
+                        disabled={careActivityMutation.isPending}
                       >
                         <span className="text-2xl">🧹</span>
                         <span className="text-sm">{language === "id" ? "Bersihkan" : "Clean"}</span>
@@ -232,7 +295,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )
+          })}
         </div>
       </div>
     );

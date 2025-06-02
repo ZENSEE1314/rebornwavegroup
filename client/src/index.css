@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dragon Turtle Walking Animation */
+@keyframes walkLeftRight {
+  0% { transform: translateX(-20px) scaleX(1); }
+  25% { transform: translateX(-10px) scaleX(1); }
+  50% { transform: translateX(20px) scaleX(-1); }
+  75% { transform: translateX(10px) scaleX(-1); }
+  100% { transform: translateX(-20px) scaleX(1); }
+}
+
 /* Achievement Animation Styles */
 @keyframes achievement-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.3); }

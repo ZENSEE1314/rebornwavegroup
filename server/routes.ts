@@ -884,6 +884,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet care activity
+  app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { careType } = req.body;
+
+      // Get the pet to verify ownership
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Update care status based on type
+      if (careType === 'feed') {
+        // Update last fed time to current time (this resets hunger to 100%)
+        await storage.updatePetLastFed(petId);
+        
+        // Award points for feeding
+        await storage.updateUserPoints(userId, 5);
+        
+        // Create activity record
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'feeding',
+          pointsEarned: 5
+        });
+      } else if (careType === 'bathe') {
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'bathing',
+          pointsEarned: 3
+        });
+        await storage.updateUserPoints(userId, 3);
+      } else if (careType === 'sleep') {
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'sleeping',
+          pointsEarned: 3
+        });
+        await storage.updateUserPoints(userId, 3);
+      } else if (careType === 'clean') {
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'cleaning',
+          pointsEarned: 3
+        });
+        await storage.updateUserPoints(userId, 3);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error performing pet care:", error);
+      res.status(500).json({ message: "Failed to perform pet care" });
+    }
+  });
+
   // Pet care activities
   app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
     try {
