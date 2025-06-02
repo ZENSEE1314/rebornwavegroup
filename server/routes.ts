@@ -1003,15 +1003,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         statsChanged: JSON.stringify({ weight: weightGain, hunger: 1 })
       });
 
-      // Award tokens for care
-      await storage.updateUserTokens(userId, 1);
-
       res.json({ 
         message: "Pet fed successfully", 
         weightGain,
         newWeight,
-        newHunger,
-        tokensEarned: 1
+        newHunger
       });
     } catch (error) {
       console.error("Error feeding pet:", error);
@@ -1064,16 +1060,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         statsChanged: JSON.stringify({ [trainingType]: statIncrease, weight: -2 })
       });
 
-      // Award tokens for training
-      await storage.updateUserTokens(userId, 2);
-
       res.json({ 
         message: "Training completed successfully", 
         weightLoss: 2,
         statIncrease,
         trainingType,
-        newWeight,
-        tokensEarned: 2
+        newWeight
       });
     } catch (error) {
       console.error("Error training pet:", error);

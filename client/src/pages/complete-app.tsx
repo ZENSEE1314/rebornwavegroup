@@ -836,10 +836,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     onSuccess: (data) => {
       toast({
         title: "Fed Successfully!",
-        description: `${data.message}. Weight: +${data.weightGain}G, Tokens: +${data.tokensEarned}`,
+        description: `${data.message || 'Pet has been fed'}. Weight: +${data.weightGain || 1}G`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -857,10 +856,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     onSuccess: (data) => {
       toast({
         title: "Training Complete!",
-        description: `${data.message}. ${data.trainingType}: +${data.statIncrease}, Weight: -${data.weightLoss}G, Tokens: +${data.tokensEarned}`,
+        description: `Training successful! Strength increased, weight reduced.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
     },
     onError: (error: any) => {
       toast({
@@ -877,11 +875,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
     onSuccess: (data) => {
       toast({
-        title: `Battle ${data.result.toUpperCase()}!`,
-        description: `Result: ${data.result}. Weight: -${data.weightLoss}G, DP: -${data.dpUsed}, Tokens: +${data.tokensEarned}. Win Rate: ${data.newWinRatio}%`,
+        title: "Battle Complete!",
+        description: `Battle finished! Your pet's stats have been updated.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
     },
     onError: (error: any) => {
       toast({
