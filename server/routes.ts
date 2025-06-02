@@ -623,6 +623,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const toys = await storage.getToysByOwnerId(userId);
+      console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
+      if (toys.length > 0) {
+        console.log("*** FIRST TOY:", JSON.stringify(toys[0], null, 2));
+      }
       res.json(toys);
     } catch (error) {
       console.error("Error fetching toys:", error);
