@@ -2273,6 +2273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user tokens
       await storage.updateUserCredits(userId, newTokenBalance.toString());
       
+      // Update pet tokens for proper tracking
+      await storage.updatePetTokens(userId, amount);
+      
       // Create a transaction record for admin token addition
       await storage.createTransaction({
         userId,

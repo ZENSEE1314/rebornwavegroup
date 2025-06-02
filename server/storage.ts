@@ -175,6 +175,7 @@ export interface IStorage {
   updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
   updatePetAge(id: number, age: number): Promise<void>;
   updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void>;
+  updatePetTokens(userId: string, tokenAmount: number): Promise<void>;
   
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
@@ -1514,6 +1515,30 @@ export class DatabaseStorage implements IStorage {
       await db.update(pets).set(updateData).where(eq(pets.id, id));
     } catch (error) {
       console.error('Error updating pet details:', error);
+      throw error;
+    }
+  }
+
+  async updatePetTokens(userId: string, tokenAmount: number): Promise<void> {
+    try {
+      // Find all active pets for this user
+      const userPets = await db.select().from(pets)
+        .where(and(eq(pets.userId, userId), eq(pets.isActive, true)));
+      
+      if (userPets.length > 0) {
+        // Update the first active pet's token count (or distribute among all pets)
+        const pet = userPets[0];
+        const newTokenTotal = (pet.totalTokensEarned || 0) + tokenAmount;
+        
+        await db.update(pets)
+          .set({ 
+            totalTokensEarned: newTokenTotal,
+            updatedAt: new Date()
+          })
+          .where(eq(pets.id, pet.id));
+      }
+    } catch (error) {
+      console.error('Error updating pet tokens:', error);
       throw error;
     }
   }
