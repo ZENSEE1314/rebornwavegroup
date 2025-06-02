@@ -290,10 +290,57 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [currentPet, setCurrentPet] = useState<any>(null);
   const [careStatus, setCareStatus] = useState<any>(null);
 
+  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
+  const { data: userStats } = useQuery({ queryKey: ["/api/user-stats"] });
+  const { data: toys } = useQuery({ queryKey: ["/api/toys"] });
+  const { data: marketplaceToys } = useQuery({ queryKey: ["/api/marketplace/toys"] });
+  const { data: appointments } = useQuery({ queryKey: ["/api/appointments"] });
+  const { data: banners } = useQuery({ queryKey: ["/api/banners"] });
+  const { data: rewardItems } = useQuery({ queryKey: ["/api/reward-items"] });
+  const { data: leaderboard } = useQuery({ queryKey: ["/api/game-scores/leaderboard"] });
+
+  // Initialize pet data handling
+  const safePets = Array.isArray(pets) ? pets : [];
+  const ownedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned) : [];
+  const unactivatedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned && !toy.isActivated) : [];
+
+  // Set current pet when pets data changes
+  useEffect(() => {
+    if (safePets.length > 0) {
+      setCurrentPet(safePets[currentPetIndex] || safePets[0]);
+    }
+  }, [safePets, currentPetIndex]);
+
+  // Navigation functions for pet selection
+  const navigatePet = (direction: 'prev' | 'next') => {
+    if (safePets.length === 0) return;
+    
+    setCurrentPetIndex((prev) => {
+      if (direction === 'prev') {
+        return prev > 0 ? prev - 1 : safePets.length - 1;
+      } else {
+        return prev < safePets.length - 1 ? prev + 1 : 0;
+      }
+    });
+  };
+
+  // Update timer every second for real-time display
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Enhanced Digimon pet care mutations
   const feedPetMutation = useMutation({
     mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
-      return await apiRequest("POST", `/api/pets/${petId}/feed`, { foodType });
+      const response = await fetch(`/api/pets/${petId}/feed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ foodType }),
+      });
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -427,28 +474,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch user's toys that can become pets
-  const { data: userToys = [], isLoading: toysLoading } = useQuery({
-    queryKey: ["/api/toys"],
-    enabled: !!user?.id,
-    retry: 1,
-  });
+  // Remove duplicate toy queries (already declared above)
 
-  // Fetch marketplace listings to filter out listed toys
-  const { data: marketplaceListings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ["/api/listings"],
-    enabled: !!user?.id,
-    retry: 1,
-  });
-
-  // Fetch user's pets with real-time updates
-  const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
-    queryKey: ["/api/pets"],
-    enabled: !!user?.id,
-    retry: 1,
-    refetchInterval: 3000, // Update every 3 seconds for real-time pet data
-    refetchOnWindowFocus: true,
-  });
+  // Remove duplicate pets query (already declared above)
 
   const queryClient = useQueryClient();
 
@@ -934,13 +962,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     careActivityMutation.mutate({ petId, careType });
   };
 
-  const navigatePet = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : pets.length - 1));
-    } else {
-      setCurrentPetIndex((prev) => (prev < pets.length - 1 ? prev + 1 : 0));
-    }
-  };
+  // navigatePet function already declared above
 
   const getGrowthStageInfo = (stage: string) => {
     const stages: any = {
