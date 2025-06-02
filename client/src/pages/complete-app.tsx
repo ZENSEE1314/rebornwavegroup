@@ -38,6 +38,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: 1,
   });
 
+  const queryClient = useQueryClient();
+
   // Activate toy mutation for pet creation
   const activateToyMutation = useMutation({
     mutationFn: async (qrCode: string) => {
@@ -155,14 +157,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 {!toy.isActivated && (
                   <Button 
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => {
-                      toast({
-                        title: "Coming Soon",
-                        description: "Pet activation feature will be available soon!",
-                      });
-                    }}
+                    onClick={() => activateToyMutation.mutate(toy.qrCode)}
+                    disabled={activateToyMutation.isPending}
                   >
-                    {language === "id" ? "Lahirkan Hewan Peliharaan" : "Born Pet"}
+                    <Heart className="w-4 h-4 mr-2" />
+                    {activateToyMutation.isPending 
+                      ? (language === "id" ? "Memproses..." : "Processing...") 
+                      : (language === "id" ? "Lahirkan Hewan Peliharaan" : "Born Pet")
+                    }
                   </Button>
                 )}
               </div>
