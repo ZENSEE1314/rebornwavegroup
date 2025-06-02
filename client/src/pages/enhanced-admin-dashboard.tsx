@@ -28,6 +28,7 @@ import {
   History,
   Package,
   ShoppingCart,
+  Gift,
   Calendar,
   Award,
   Search,
@@ -201,6 +202,11 @@ export default function EnhancedAdminDashboard() {
 
   const { data: gameLeaderboard = [] } = useQuery({
     queryKey: ['/api/game-scores/leaderboard'],
+    retry: false,
+  });
+
+  const { data: tokenClaims = [] } = useQuery({
+    queryKey: ['/api/admin/token-claims'],
     retry: false,
   });
 
@@ -839,6 +845,10 @@ export default function EnhancedAdminDashboard() {
                 <Trophy className="h-4 w-4 mr-2" />
                 Game Leaderboard
               </TabsTrigger>
+              <TabsTrigger value="tokens" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Gift className="h-4 w-4 mr-2" />
+                Token Claims
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -884,6 +894,7 @@ export default function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200 min-w-[120px]">Date of Birth</TableHead>
                         <TableHead className="text-blue-200 min-w-[100px]">Credits</TableHead>
                         <TableHead className="text-blue-200 min-w-[80px]">Points</TableHead>
+                        <TableHead className="text-blue-200 min-w-[80px]">Tokens</TableHead>
                         <TableHead className="text-blue-200 min-w-[80px]">Role</TableHead>
                         <TableHead className="text-blue-200 min-w-[150px]">Actions</TableHead>
                       </TableRow>
@@ -970,6 +981,7 @@ export default function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
                         <TableCell className="text-purple-300">{user.loyaltyPoints || 0}</TableCell>
+                        <TableCell className="text-yellow-300">{user.tokens || 0}</TableCell>
                         <TableCell>
                           {editingUser?.id === user.id ? (
                             <Select 
