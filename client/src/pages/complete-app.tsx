@@ -195,9 +195,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Button 
                       onClick={() => activateToyMutation.mutate(toy.qrCode)}
                       disabled={activateToyMutation.isPending}
-                      className="w-full"
+                      className="w-full bg-purple-600 hover:bg-purple-700"
                     >
-                      {language === "id" ? "Aktivasi Hewan" : "Activate Pet"}
+                      <Heart className="w-4 h-4 mr-2" />
+                      {language === "id" ? "Lahirkan" : "Born"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -2316,7 +2317,10 @@ export default function CompleteApp() {
                          purchase.status === 'pending_buyer_confirmation')
                       );
                       
-                      return !isAlreadyListed && !hasPendingTransaction;
+                      // Hide activated toys (they became pets and can't be sold)
+                      const isActivated = toy.isActivated === true;
+                      
+                      return !isAlreadyListed && !hasPendingTransaction && !isActivated;
                     }).map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
                         {toy.image} {toy.name} ({toy.rarity})
