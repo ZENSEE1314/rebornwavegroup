@@ -17,6 +17,7 @@ import {
   pets,
   petCareActivities,
   dailyCareStatus,
+  gameScores,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -34,6 +35,8 @@ import {
   type InsertPet,
   type InsertPetCareActivity,
   type InsertDailyCareStatus,
+  type GameScore,
+  type InsertGameScore,
   type Pet,
   type PetCareActivity,
   type DailyCareStatus,
@@ -157,6 +160,12 @@ export interface IStorage {
   createRewardItem(item: InsertRewardItem): Promise<RewardItem>;
   updateRewardItem(id: number, item: Partial<InsertRewardItem>): Promise<void>;
   deleteRewardItem(id: number): Promise<void>;
+  
+  // Game score operations
+  createGameScore(score: InsertGameScore): Promise<GameScore>;
+  getTopGameScores(limit?: number): Promise<any[]>;
+  getUserGameScores(userId: string): Promise<GameScore[]>;
+  resetAllGameScores(): Promise<void>;
   
   // Pet care operations
   createPet(pet: InsertPet): Promise<Pet>;
@@ -1261,6 +1270,54 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRewardItem(id: number): Promise<void> {
     await db.delete(rewardItems).where(eq(rewardItems.id, id));
+  }
+
+  // Game score operations
+  async createGameScore(scoreData: InsertGameScore): Promise<GameScore> {
+    const [score] = await db
+      .insert(gameScores)
+      .values(scoreData)
+      .returning();
+    return score;
+  }
+
+  async getTopGameScores(limit: number = 10): Promise<any[]> {
+    const scores = await db
+      .select({
+        id: gameScores.id,
+        score: gameScores.score,
+        tokensEarned: gameScores.tokensEarned,
+        createdAt: gameScores.createdAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+        pet: {
+          id: pets.id,
+          name: pets.name,
+        }
+      })
+      .from(gameScores)
+      .leftJoin(users, eq(gameScores.userId, users.id))
+      .leftJoin(pets, eq(gameScores.petId, pets.id))
+      .orderBy(desc(gameScores.score))
+      .limit(limit);
+    
+    return scores;
+  }
+
+  async getUserGameScores(userId: string): Promise<GameScore[]> {
+    return await db
+      .select()
+      .from(gameScores)
+      .where(eq(gameScores.userId, userId))
+      .orderBy(desc(gameScores.score));
+  }
+
+  async resetAllGameScores(): Promise<void> {
+    await db.delete(gameScores);
   }
 
   // Pet care operations

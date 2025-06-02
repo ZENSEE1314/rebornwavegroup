@@ -610,3 +610,20 @@ export const insertDailyCareStatusSchema = createInsertSchema(dailyCareStatus).o
 export type InsertPet = z.infer<typeof insertPetSchema>;
 export type InsertPetCareActivity = z.infer<typeof insertPetCareActivitySchema>;
 export type InsertDailyCareStatus = z.infer<typeof insertDailyCareStatusSchema>;
+
+// Game scores table
+export const gameScores = pgTable("game_scores", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  petId: integer("pet_id").references(() => pets.id),
+  score: integer("score").notNull(),
+  tokensEarned: integer("tokens_earned").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type GameScore = typeof gameScores.$inferSelect;
+export const insertGameScoreSchema = createInsertSchema(gameScores).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertGameScore = z.infer<typeof insertGameScoreSchema>;
