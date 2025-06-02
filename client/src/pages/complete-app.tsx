@@ -1114,6 +1114,7 @@ export default function CompleteApp() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [modalHistoryFilter, setModalHistoryFilter] = useState<'points' | 'credits' | 'tokens' | 'appointments' | 'redemptions'>('tokens');
   const [modalHistoryPage, setModalHistoryPage] = useState(1);
+  const [creditHistoryPage, setCreditHistoryPage] = useState(1);
   const [modalDateFilterStart, setModalDateFilterStart] = useState("");
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
@@ -5248,34 +5249,81 @@ export default function CompleteApp() {
             </div>
             
             <div className="space-y-4">
-              {filteredCreditHistory.length > 0 ? (
-                filteredCreditHistory.map((entry: any) => (
-                  <div key={entry.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">{entry.description}</p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(entry.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold ${entry.type === 'spent' ? 'text-red-600' : 'text-green-600'}`}>
-                          {entry.type === 'spent' ? '-' : '+'}RP {entry.amount.toLocaleString('id-ID')}
-                        </p>
-                        <p className="text-sm text-gray-600 capitalize">
-                          {entry.type}
-                        </p>
-                      </div>
+              {(() => {
+                const credits = filteredCreditHistory || [];
+                const itemsPerPage = 10;
+                const startIndex = (creditHistoryPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const paginatedCredits = credits.slice(startIndex, endIndex);
+                const totalPages = Math.ceil(credits.length / itemsPerPage);
+
+                if (credits.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No transaction history yet</p>
+                      <p className="text-sm mt-2">Your purchases and sales will appear here</p>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No transaction history yet</p>
-                  <p className="text-sm mt-2">Your purchases and sales will appear here</p>
-                </div>
-              )}
+                  );
+                }
+
+                return (
+                  <>
+                    <div className="space-y-3">
+                      {paginatedCredits.map((entry: any) => (
+                        <div key={entry.id} className="border rounded-lg p-4 bg-green-50">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium">{entry.description}</p>
+                              <p className="text-sm text-gray-600">
+                                {new Date(entry.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-bold ${entry.type === 'spent' ? 'text-red-600' : 'text-green-600'}`}>
+                                {entry.type === 'spent' ? '-' : '+'}RP {entry.amount.toLocaleString('id-ID')}
+                              </p>
+                              <p className="text-sm text-gray-600 capitalize">
+                                {entry.type}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center pt-4 border-t mt-6">
+                        <div className="text-sm text-gray-600">
+                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, credits.length)} {language === "id" ? "dari" : "of"} {credits.length} {language === "id" ? "item" : "items"}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreditHistoryPage(Math.max(1, creditHistoryPage - 1))}
+                            disabled={creditHistoryPage === 1}
+                          >
+                            {language === "id" ? "Sebelumnya" : "Previous"}
+                          </Button>
+                          <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                            {creditHistoryPage} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreditHistoryPage(Math.min(totalPages, creditHistoryPage + 1))}
+                            disabled={creditHistoryPage === totalPages}
+                          >
+                            {language === "id" ? "Selanjutnya" : "Next"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -5596,85 +5644,33 @@ export default function CompleteApp() {
         </div>
       )}
 
-      {/* Comprehensive History Modal */}
+      {/* Token History Modal */}
       {showHistoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">
-                {language === "id" ? "Riwayat Transaksi" : "Transaction History"}
+                {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
               </h3>
               <Button variant="ghost" onClick={() => setShowHistoryModal(false)}>✕</Button>
             </div>
 
-            {/* History Category Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {[
-                { key: 'tokens', label: language === "id" ? "Token" : "Tokens", icon: "🪙" },
-                { key: 'points', label: language === "id" ? "Poin" : "Points", icon: "🎯" },
-                { key: 'credits', label: language === "id" ? "Kredit" : "Credits", icon: "💰" },
-                { key: 'appointments', label: language === "id" ? "Janji Temu" : "Appointments", icon: "📅" }
-              ].map((tab) => (
-                <Button
-                  key={tab.key}
-                  variant={modalHistoryFilter === tab.key ? "default" : "outline"}
-                  onClick={() => {
-                    setModalHistoryFilter(tab.key);
-                    setModalHistoryPage(1);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <span>{tab.icon}</span>
-                  {tab.label}
-                </Button>
-              ))}
-            </div>
-
             <div className="space-y-4">
               {(() => {
-                let data: any[] = [];
-                let emptyMessage = "";
-                let emptyIcon = "";
-
-                // Get data based on selected category
-                switch (modalHistoryFilter) {
-                  case 'tokens':
-                    data = tokenClaimsHistory || [];
-                    emptyMessage = language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history";
-                    emptyIcon = "🪙";
-                    break;
-                  case 'points':
-                    data = filteredPointHistory || [];
-                    emptyMessage = language === "id" ? "Tidak ada riwayat poin" : "No points history";
-                    emptyIcon = "🎯";
-                    break;
-                  case 'credits':
-                    data = filteredCreditHistory || [];
-                    emptyMessage = language === "id" ? "Tidak ada riwayat kredit" : "No credit history";
-                    emptyIcon = "💰";
-                    break;
-                  case 'appointments':
-                    data = filteredAppointments || [];
-                    emptyMessage = language === "id" ? "Tidak ada riwayat janji temu" : "No appointment history";
-                    emptyIcon = "📅";
-                    break;
-                  default:
-                    data = tokenClaimsHistory || [];
-                    emptyMessage = language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history";
-                    emptyIcon = "🪙";
-                }
-
+                const claims = tokenClaimsHistory || [];
                 const itemsPerPage = 10;
                 const startIndex = (modalHistoryPage - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
-                const paginatedData = data.slice(startIndex, endIndex);
-                const totalPages = Math.ceil(data.length / itemsPerPage);
+                const paginatedClaims = claims.slice(startIndex, endIndex);
+                const totalPages = Math.ceil(claims.length / itemsPerPage);
 
-                if (data.length === 0) {
+                if (claims.length === 0) {
                   return (
                     <div className="text-center py-8">
-                      <div className="text-gray-500 mb-4 text-4xl">{emptyIcon}</div>
-                      <p className="text-gray-500">{emptyMessage}</p>
+                      <div className="text-gray-500 mb-4 text-4xl">🪙</div>
+                      <p className="text-gray-500">
+                        {language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history"}
+                      </p>
                     </div>
                   );
                 }
@@ -5682,83 +5678,35 @@ export default function CompleteApp() {
                 return (
                   <>
                     <div className="space-y-3">
-                      {paginatedData.map((item: any, index: number) => (
-                        <div key={item.id || index} className={`border rounded-lg p-4 ${
-                          modalHistoryFilter === 'tokens' ? 'bg-orange-50' :
-                          modalHistoryFilter === 'points' ? 'bg-blue-50' :
-                          modalHistoryFilter === 'credits' ? 'bg-green-50' :
-                          'bg-purple-50'
-                        }`}>
+                      {paginatedClaims.map((claim: any, index: number) => (
+                        <div key={claim.id || index} className="border rounded-lg p-4 bg-orange-50">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className={
-                                  modalHistoryFilter === 'tokens' ? 'text-orange-600' :
-                                  modalHistoryFilter === 'points' ? 'text-blue-600' :
-                                  modalHistoryFilter === 'credits' ? 'text-green-600' :
-                                  'text-purple-600'
-                                }>
-                                  {modalHistoryFilter === 'tokens' && "🪙"}
-                                  {modalHistoryFilter === 'points' && "🎯"}
-                                  {modalHistoryFilter === 'credits' && "💰"}
-                                  {modalHistoryFilter === 'appointments' && "📅"}
-                                </span>
+                                <span className="text-orange-600">🪙</span>
                                 <span className="font-semibold">
-                                  {modalHistoryFilter === 'tokens' ? 
-                                    `${item.tokensRequested || item.tokenAmount} ${language === "id" ? "Token" : "Tokens"}` :
-                                    modalHistoryFilter === 'points' ?
-                                    `${item.points > 0 ? '+' : ''}${item.points} ${language === "id" ? "Poin" : "Points"}` :
-                                    modalHistoryFilter === 'credits' ?
-                                    `${item.amount > 0 ? '+' : ''}${item.amount} ${language === "id" ? "Kredit" : "Credits"}` :
-                                    item.serviceName || item.description || "Appointment"
-                                  }
+                                  {claim.tokensRequested || claim.tokenAmount} {language === "id" ? "Token" : "Tokens"}
                                 </span>
                               </div>
-                              
                               <p className="text-sm text-gray-600 mb-1">
-                                {modalHistoryFilter === 'appointments' ? 
-                                  new Date(item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US") :
-                                  new Date(item.createdAt || item.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")
-                                }
+                                {new Date(claim.createdAt || claim.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
                               </p>
-
-                              {item.description && modalHistoryFilter !== 'appointments' && (
-                                <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-                              )}
-
-                              {item.adminNotes && (
+                              {claim.adminNotes && (
                                 <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
-                                  {language === "id" ? "Catatan: " : "Notes: "}{item.adminNotes}
+                                  {language === "id" ? "Catatan: " : "Notes: "}{claim.adminNotes}
                                 </p>
                               )}
                             </div>
-                            
                             <div className="text-right">
                               <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                item.status === 'completed' || item.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                item.status === 'cancelled' || item.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                item.status === 'pending' || item.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
+                                claim.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {item.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
-                                 item.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
-                                 item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
-                                 item.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
-                                 item.status === 'pending' ? (language === "id" ? "Menunggu" : "Pending") :
-                                 item.status === 'scheduled' ? (language === "id" ? "Terjadwal" : "Scheduled") :
-                                 (item.status || (language === "id" ? "Tidak diketahui" : "Unknown"))}
+                                {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                                 claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                                 (language === "id" ? "Menunggu" : "Pending")}
                               </div>
-
-                              {(modalHistoryFilter === 'points' || modalHistoryFilter === 'credits') && (
-                                <div className={`text-sm font-medium mt-1 ${
-                                  (item.type === 'earned' || item.amount > 0) ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                  {modalHistoryFilter === 'points' ? 
-                                    `${item.points > 0 ? '+' : ''}${item.points}` :
-                                    `${item.amount > 0 ? '+' : ''}${item.amount}`
-                                  }
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -5769,7 +5717,7 @@ export default function CompleteApp() {
                     {totalPages > 1 && (
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, data.length)} {language === "id" ? "dari" : "of"} {data.length} {language === "id" ? "item" : "items"}
+                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, claims.length)} {language === "id" ? "dari" : "of"} {claims.length} {language === "id" ? "item" : "items"}
                         </div>
                         <div className="flex gap-2">
                           <Button
