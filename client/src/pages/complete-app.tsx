@@ -4089,81 +4089,134 @@ export default function CompleteApp() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {filteredAppointments.map((apt) => (
-                    <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
-                      <div className="flex items-center space-x-3 sm:space-x-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
-                          <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
-                          <p className="text-xs sm:text-sm text-slate-500">{apt.description}</p>
-                        </div>
+                {(() => {
+                  const appointments = filteredAppointments || [];
+                  const itemsPerPage = 10;
+                  const startIndex = (appointmentsPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const paginatedAppointments = appointments.slice(startIndex, endIndex);
+                  const totalPages = Math.ceil(appointments.length / itemsPerPage);
+
+                  if (appointments.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No appointments yet</p>
+                        <p className="text-sm mt-2">Your bookings and appointments will appear here</p>
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">
-                        <Badge 
-                          className={
-                            apt.status === 'scheduled' ? 'bg-blue-500 text-white hover:bg-blue-600' :
-                            apt.status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
-                            apt.status === 'cancelled' ? 'bg-red-500 text-white hover:bg-red-600' :
-                            apt.status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
-                            'bg-gray-500 text-white hover:bg-gray-600'
-                          }
-                        >
-                          {apt.status}
-                        </Badge>
-                        {editingAppointment === apt.id ? (
-                          <div className="flex space-x-2">
-                            <input
-                              type="date"
-                              min={new Date().toISOString().split('T')[0]}
-                              defaultValue={apt.date}
-                              onChange={(e) => apt.newDate = e.target.value}
-                              className="w-32 flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                            <Select onValueChange={(value) => apt.newTime = value} defaultValue={apt.time}>
-                              <SelectTrigger className="w-24">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({length: 24}, (_, i) => i).map(hour => (
-                                  ['00', '30'].map(minute => (
-                                    <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
-                                      {`${hour.toString().padStart(2, '0')}:${minute}`}
-                                    </SelectItem>
-                                  ))
-                                )).flat()}
-                              </SelectContent>
-                            </Select>
-                            <Button size="sm" onClick={() => rescheduleAppointment(apt.id, apt.newDate || apt.date, apt.newTime || apt.time)}>
-                              {language === "id" ? "Simpan" : "Save"}
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="space-y-4">
+                        {paginatedAppointments.map((apt) => (
+                          <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
+                            <div className="flex items-center space-x-3 sm:space-x-4">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
+                                <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
+                                <p className="text-xs sm:text-sm text-slate-500">{apt.description}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">
+                              <Badge 
+                                className={
+                                  apt.status === 'scheduled' ? 'bg-blue-500 text-white hover:bg-blue-600' :
+                                  apt.status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
+                                  apt.status === 'cancelled' ? 'bg-red-500 text-white hover:bg-red-600' :
+                                  apt.status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
+                                  'bg-gray-500 text-white hover:bg-gray-600'
+                                }
+                              >
+                                {apt.status}
+                              </Badge>
+                              {editingAppointment === apt.id ? (
+                                <div className="flex space-x-2">
+                                  <input
+                                    type="date"
+                                    min={new Date().toISOString().split('T')[0]}
+                                    defaultValue={apt.date}
+                                    onChange={(e) => apt.newDate = e.target.value}
+                                    className="w-32 flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  />
+                                  <Select onValueChange={(value) => apt.newTime = value} defaultValue={apt.time}>
+                                    <SelectTrigger className="w-24">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({length: 24}, (_, i) => i).map(hour => (
+                                        ['00', '30'].map(minute => (
+                                          <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
+                                            {`${hour.toString().padStart(2, '0')}:${minute}`}
+                                          </SelectItem>
+                                        ))
+                                      )).flat()}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button size="sm" onClick={() => rescheduleAppointment(apt.id, apt.newDate || apt.date, apt.newTime || apt.time)}>
+                                    {language === "id" ? "Simpan" : "Save"}
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
+                                    {language === "id" ? "Batal" : "Cancel"}
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                                  {apt.status !== 'cancelled' && (
+                                    <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
+                                      <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                                      <span className="hidden sm:inline ml-1">{language === "id" ? "Ubah" : "Reschedule"}</span>
+                                    </Button>
+                                  )}
+                                  {apt.status !== 'cancelled' && (
+                                    <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
+                                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                                      <span className="hidden sm:inline ml-1">{language === "id" ? "Batal" : "Cancel"}</span>
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center pt-4 border-t mt-6">
+                          <div className="text-sm text-gray-600">
+                            {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {language === "id" ? "dari" : "of"} {appointments.length} {language === "id" ? "item" : "items"}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAppointmentsPage(Math.max(1, appointmentsPage - 1))}
+                              disabled={appointmentsPage === 1}
+                            >
+                              {language === "id" ? "Sebelumnya" : "Previous"}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
-                              {language === "id" ? "Batal" : "Cancel"}
+                            <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                              {appointmentsPage} / {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAppointmentsPage(Math.min(totalPages, appointmentsPage + 1))}
+                              disabled={appointmentsPage === totalPages}
+                            >
+                              {language === "id" ? "Selanjutnya" : "Next"}
                             </Button>
                           </div>
-                        ) : (
-                          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                            {apt.status !== 'cancelled' && (
-                              <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
-                                <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span className="hidden sm:inline ml-1">{language === "id" ? "Ubah" : "Reschedule"}</span>
-                              </Button>
-                            )}
-                            {apt.status !== 'cancelled' && (
-                              <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
-                                <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span className="hidden sm:inline ml-1">{language === "id" ? "Batal" : "Cancel"}</span>
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -4188,8 +4241,18 @@ export default function CompleteApp() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketplaceListings.length > 0 ? marketplaceListings.map((listing) => {
+            {(() => {
+              const listings = marketplaceListings || [];
+              const itemsPerPage = 10;
+              const startIndex = (marketplacePage - 1) * itemsPerPage;
+              const endIndex = startIndex + itemsPerPage;
+              const paginatedListings = listings.slice(startIndex, endIndex);
+              const totalPages = Math.ceil(listings.length / itemsPerPage);
+
+              return (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {paginatedListings.length > 0 ? paginatedListings.map((listing) => {
                 // Check if there's a pending purchase for this listing
                 const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id);
                 const isOwnListing = listing.sellerId === user?.id;
@@ -4327,7 +4390,40 @@ export default function CompleteApp() {
                   </p>
                 </div>
               )}
-            </div>
+                    </div>
+
+                    {/* Marketplace Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-between items-center pt-6 mt-6">
+                        <div className="text-sm text-gray-600">
+                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, listings.length)} {language === "id" ? "dari" : "of"} {listings.length} {language === "id" ? "item" : "items"}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMarketplacePage(Math.max(1, marketplacePage - 1))}
+                            disabled={marketplacePage === 1}
+                          >
+                            {language === "id" ? "Sebelumnya" : "Previous"}
+                          </Button>
+                          <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
+                            {marketplacePage} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMarketplacePage(Math.min(totalPages, marketplacePage + 1))}
+                            disabled={marketplacePage === totalPages}
+                          >
+                            {language === "id" ? "Selanjutnya" : "Next"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
           </div>
         )}
 
