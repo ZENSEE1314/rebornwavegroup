@@ -1252,7 +1252,7 @@ export class DatabaseStorage implements IStorage {
       weight: pets.weight,
       strength: pets.strength,
       effort: pets.effort,
-      dp: pets.dp,
+      dpEnergy: pets.dpEnergy,
       totalBattles: pets.totalBattles,
       battlesWon: pets.battlesWon,
       winRatio: pets.winRatio,

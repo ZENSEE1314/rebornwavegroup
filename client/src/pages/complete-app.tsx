@@ -1689,7 +1689,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <span className="text-sm font-medium">DP Energy</span>
                   </div>
                   <div className="text-lg font-bold text-yellow-600">
-                    {currentPet.dp || 10}
+                    {currentPet.dpEnergy || 10}
                   </div>
                   <span className="text-xs text-gray-600">Battle energy</span>
                 </div>
@@ -1804,7 +1804,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 5}
+                        disabled={currentPet.isDead || currentPet.dpEnergy < 5}
                         onClick={() => battlePet(currentPet.id, 'wild')}
                       >
                         Wild (5 DP)
@@ -1813,7 +1813,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 10}
+                        disabled={currentPet.isDead || currentPet.dpEnergy < 10}
                         onClick={() => battlePet(currentPet.id, 'boss')}
                       >
                         Boss (10 DP)
@@ -1822,7 +1822,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 15}
+                        disabled={currentPet.isDead || currentPet.dpEnergy < 15}
                         onClick={() => battlePet(currentPet.id, 'tournament')}
                       >
                         Tournament (15 DP)
