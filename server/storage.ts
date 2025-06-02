@@ -1562,6 +1562,31 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async updatePetAge(petId: number, age: number, growthStage: string): Promise<void> {
+    await db.update(pets).set({
+      currentAge: age,
+      growthStage: growthStage,
+      lastEvolutionCheck: new Date(),
+      updatedAt: new Date()
+    }).where(eq(pets.id, petId));
+  }
+
+  async updatePetDeath(petId: number, isDead: boolean): Promise<void> {
+    await db.update(pets).set({
+      isDead: isDead,
+      canEarnTokens: false,
+      isActive: false,
+      updatedAt: new Date()
+    }).where(eq(pets.id, petId));
+  }
+
+  async updatePetTokenEarning(petId: number, canEarn: boolean): Promise<void> {
+    await db.update(pets).set({
+      canEarnTokens: canEarn,
+      updatedAt: new Date()
+    }).where(eq(pets.id, petId));
+  }
+
   async updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void> {
     try {
       const updateData: any = {};
