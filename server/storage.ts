@@ -1456,6 +1456,29 @@ export class DatabaseStorage implements IStorage {
       pointsEarned: 1,
     });
   }
+
+  async updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void> {
+    try {
+      const updateData: any = {};
+      
+      if (details.name !== undefined) {
+        updateData.name = details.name;
+      }
+      
+      if (details.currentAge !== undefined) {
+        updateData.currentAge = details.currentAge;
+      }
+      
+      if (details.activatedDate !== undefined) {
+        updateData.createdAt = details.activatedDate;
+      }
+      
+      await db.update(toys).set(updateData).where(eq(toys.id, id));
+    } catch (error) {
+      console.error('Error updating pet details:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
