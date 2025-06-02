@@ -1580,6 +1580,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTokenClaimStatus(claimId: number, status: string, adminId: string, adminNotes?: string, trackingNumber?: string): Promise<void> {
+    // Get the token claim details first
+    const [claim] = await db.select().from(tokenClaims).where(eq(tokenClaims.id, claimId));
+    
+    if (!claim) {
+      throw new Error('Token claim not found');
+    }
+
     const updateData: any = {
       status,
       processedBy: adminId,
@@ -1590,6 +1597,14 @@ export class DatabaseStorage implements IStorage {
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
     
     await db.update(tokenClaims).set(updateData).where(eq(tokenClaims.id, claimId));
+
+    // If rejected, return the tokens to the user's account
+    if (status === 'rejected') {
+      await db.update(users).set({
+        tokens: sql`${users.tokens} + ${claim.tokensRequested}`,
+        updatedAt: new Date()
+      }).where(eq(users.id, claim.userId));
+    }
   }
 }
 
