@@ -1801,6 +1801,13 @@ export default function CompleteApp() {
   const [creditFilter, setCreditFilter] = useState<'all' | 'earned' | 'spent'>('all');
   const [creditDateFilter, setCreditDateFilter] = useState('');
 
+  // History management states
+  const [historyFilter, setHistoryFilter] = useState<'points' | 'credits' | 'tokens' | 'appointments' | 'redemptions'>('points');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [dateFilterStart, setDateFilterStart] = useState('');
+  const [dateFilterEnd, setDateFilterEnd] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   // Get points history from user stats and sort by newest first
   const allPointHistory = userStats?.pointRedemptions || [];
   const sortedPointHistory = [...allPointHistory].sort((a, b) => 
@@ -4201,104 +4208,130 @@ export default function CompleteApp() {
           </div>
         )}
 
-        {/* Token Claim History Tab */}
+        {/* Comprehensive History Tab */}
         {activeTab === "token-history" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
+                {language === "id" ? "Riwayat Lengkap" : "Complete History"}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Lihat status permintaan klaim token Anda" : "View the status of your token claim requests"}
+                {language === "id" ? "Kelola semua riwayat aktivitas Anda" : "Manage all your activity history"}
               </p>
             </div>
 
+            {/* History Type Tabs */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {[
+                { key: 'points', label: language === "id" ? "Poin" : "Points", icon: "🎯" },
+                { key: 'credits', label: language === "id" ? "Kredit" : "Credits", icon: "💰" },
+                { key: 'tokens', label: language === "id" ? "Token" : "Tokens", icon: "🪙" },
+                { key: 'appointments', label: language === "id" ? "Booking" : "Bookings", icon: "📅" },
+                { key: 'redemptions', label: language === "id" ? "Penukaran" : "Redemptions", icon: "🎁" }
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  variant={historyFilter === tab.key ? "default" : "outline"}
+                  onClick={() => {
+                    setHistoryFilter(tab.key);
+                    setHistoryPage(1);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Filters */}
             <Card>
               <CardHeader>
-                <CardTitle>
-                  {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  {language === "id" ? "Filter & Pencarian" : "Filters & Search"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {tokenClaimsHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Gift className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">
-                      {language === "id" ? "Belum ada klaim token yang diajukan" : "No token claims submitted yet"}
-                    </p>
-                    <Button 
-                      onClick={() => setShowTokenClaimModal(true)}
-                      className="mt-4 bg-orange-600 hover:bg-orange-700"
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Tanggal Mulai" : "Start Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={dateFilterStart}
+                      onChange={(e) => setDateFilterStart(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Tanggal Akhir" : "End Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={dateFilterEnd}
+                      onChange={(e) => setDateFilterEnd(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Status" : "Status"}
+                    </label>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
-                      {language === "id" ? "Ajukan Klaim Pertama" : "Submit First Claim"}
-                    </Button>
+                      <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                      <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
+                      <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
+                      <option value="approved">{language === "id" ? "Disetujui" : "Approved"}</option>
+                      <option value="rejected">{language === "id" ? "Ditolak" : "Rejected"}</option>
+                    </select>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {tokenClaimsHistory.map((claim: any) => (
-                      <div key={claim.id} className="border rounded-lg p-4 bg-gray-50">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Gift className="h-5 w-5 text-orange-600" />
-                              <span className="font-semibold text-lg">
-                                {claim.tokensRequested} {language === "id" ? "Token" : "Tokens"}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {language === "id" ? "Diajukan pada" : "Requested on"}: {new Date(claim.requestedAt).toLocaleDateString()}
-                            </p>
-                            {claim.processedAt && (
-                              <p className="text-sm text-gray-600">
-                                {language === "id" ? "Diproses pada" : "Processed on"}: {new Date(claim.processedAt).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                              claim.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
-                               claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
-                               (language === "id" ? "Menunggu" : "Pending")}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {claim.adminNotes && (
-                          <div className="bg-blue-50 rounded-lg p-3 mt-3">
-                            <p className="text-sm font-medium text-blue-800 mb-1">
-                              {language === "id" ? "Catatan Admin:" : "Admin Notes:"}
-                            </p>
-                            <p className="text-sm text-blue-700">{claim.adminNotes}</p>
-                          </div>
-                        )}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setDateFilterStart('');
+                      setDateFilterEnd('');
+                      setStatusFilter('all');
+                    }}
+                  >
+                    {language === "id" ? "Reset Filter" : "Reset Filters"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-                        {claim.status === 'approved' && (
-                          <div className="bg-green-50 rounded-lg p-3 mt-3">
-                            <p className="text-sm text-green-700">
-                              {language === "id" 
-                                ? "✅ Klaim disetujui! Anda dapat menukarkan token di lokasi yang disetujui."
-                                : "✅ Claim approved! You can redeem your tokens at approved locations."}
-                            </p>
-                          </div>
-                        )}
-
-                        {claim.status === 'rejected' && (
-                          <div className="bg-red-50 rounded-lg p-3 mt-3">
-                            <p className="text-sm text-red-700">
-                              {language === "id" 
-                                ? "❌ Klaim ditolak. Token telah dikembalikan ke akun Anda."
-                                : "❌ Claim rejected. Tokens have been returned to your account."}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+            {/* History Content */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                  <span>
+                    {historyFilter === 'points' && (language === "id" ? "Riwayat Poin" : "Points History")}
+                    {historyFilter === 'credits' && (language === "id" ? "Riwayat Kredit" : "Credits History")}
+                    {historyFilter === 'tokens' && (language === "id" ? "Riwayat Token" : "Token Claims History")}
+                    {historyFilter === 'appointments' && (language === "id" ? "Riwayat Booking" : "Booking History")}
+                    {historyFilter === 'redemptions' && (language === "id" ? "Riwayat Penukaran" : "Redemption History")}
+                  </span>
+                  <div className="text-sm text-gray-500">
+                    {language === "id" ? "Halaman" : "Page"} {historyPage}
                   </div>
-                )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HistoryContent 
+                  historyType={historyFilter}
+                  language={language}
+                  data={getFilteredHistoryData()}
+                  page={historyPage}
+                  onPageChange={setHistoryPage}
+                />
               </CardContent>
             </Card>
           </div>
