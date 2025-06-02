@@ -296,6 +296,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           </p>
         </div>
 
+        {/* Coin Catching Game Modal */}
+        {showCoinGame && selectedPet && (
+          <CoinCatchingGame 
+            pet={selectedPet}
+            language={language}
+            onClose={() => {
+              setShowCoinGame(false);
+              setSelectedPet(null);
+            }}
+            user={user}
+          />
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {userPets.map((pet: any) => {
             // Calculate comprehensive pet lifecycle timer using real-time updates
