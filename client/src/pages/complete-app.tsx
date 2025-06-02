@@ -383,15 +383,36 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
             Advanced digital pet care with weight tracking, training, and battle mechanics
           </p>
         </div>
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 border-2 border-purple-300">
           <CardContent className="text-center py-12">
-            <div className="text-6xl mb-4">🎮</div>
-            <h3 className="text-xl font-semibold mb-2">No Pets Yet</h3>
-            <p className="text-gray-600 mb-6">
-              Buy toys from the marketplace and activate them to create your first digital pet!
-            </p>
-            <Button onClick={() => setActiveTab("marketplace")} className="bg-purple-600 hover:bg-purple-700">
-              Visit Marketplace
+            <div className="relative">
+              <div className="text-8xl mb-6 animate-bounce">🥚</div>
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
+                <div className="text-2xl animate-pulse">✨</div>
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Your Pet Adventure Awaits!
+            </h3>
+            <div className="space-y-4 mb-8">
+              <div className="bg-white/80 rounded-xl p-4 shadow-lg">
+                <div className="text-4xl mb-2">🛍️</div>
+                <p className="font-semibold text-purple-800">Step 1: Buy a Toy</p>
+                <p className="text-sm text-gray-600">Visit the marketplace to get your first Doluruu toy</p>
+              </div>
+              <div className="text-2xl">↓</div>
+              <div className="bg-white/80 rounded-xl p-4 shadow-lg">
+                <div className="text-4xl mb-2">🐣</div>
+                <p className="font-semibold text-purple-800">Step 2: Hatch Your Pet</p>
+                <p className="text-sm text-gray-600">Activate your toy to bring your digital pet to life!</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setActiveTab("marketplace")} 
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition-all duration-200"
+            >
+              <span className="text-xl mr-2">🎪</span>
+              Visit Toy Marketplace
             </Button>
           </CardContent>
         </Card>
@@ -511,198 +532,240 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
         )}
 
         {/* Pet Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">{currentPet.name}</CardTitle>
-            <p className="text-gray-600">Age: {currentPet.currentAge || 0} days</p>
+        <Card className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-2 border-purple-200">
+          <CardHeader className="text-center">
+            <div className="text-6xl mb-2 animate-bounce">🐉</div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              {currentPet.name}
+            </CardTitle>
+            <p className="text-gray-600 bg-white/60 rounded-full px-4 py-1 inline-block">
+              🎂 Age: {currentPet.currentAge || 0} days old
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-red-500" />
-                  <span className="text-sm font-medium">Hunger</span>
-                </div>
-                <div className="flex gap-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {/* Hunger Hearts */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">❤️</div>
+                <p className="font-bold text-red-600">Hunger</p>
+                <div className="flex gap-1 justify-center my-2">
                   {Array.from({ length: 4 }, (_, i) => (
-                    <Heart
+                    <div
                       key={i}
-                      className={`w-4 h-4 ${
-                        i < (currentPet.hunger || 0) ? 'text-red-500 fill-current' : 'text-gray-300'
+                      className={`text-lg ${
+                        i < (currentPet.hunger || 0) ? 'animate-pulse' : ''
                       }`}
-                    />
+                    >
+                      {i < (currentPet.hunger || 0) ? '❤️' : '🤍'}
+                    </div>
                   ))}
                 </div>
-                <span className="text-xs text-gray-600">{currentPet.hunger || 0}/4 hearts</span>
+                <span className="text-xs bg-red-100 px-2 py-1 rounded-full">
+                  {currentPet.hunger || 0}/4 hearts
+                </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 text-blue-500">⚡</span>
-                  <span className="text-sm font-medium">Weight</span>
-                </div>
-                <div className="text-lg font-bold text-blue-600">
+
+              {/* Weight */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">⚖️</div>
+                <p className="font-bold text-blue-600">Weight</p>
+                <div className="text-2xl font-bold text-blue-600 my-2">
                   {currentPet.weight || 20}G
                 </div>
-                <span className="text-xs text-gray-600">Gigabytes</span>
+                <span className="text-xs bg-blue-100 px-2 py-1 rounded-full">
+                  Gigabytes
+                </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Dumbbell className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium">Strength</span>
-                </div>
-                <div className="text-lg font-bold text-green-600">
+
+              {/* Strength */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">💪</div>
+                <p className="font-bold text-green-600">Strength</p>
+                <div className="text-2xl font-bold text-green-600 my-2">
                   {currentPet.strength || 0}
                 </div>
-                <span className="text-xs text-gray-600">Max: 999</span>
+                <span className="text-xs bg-green-100 px-2 py-1 rounded-full">
+                  Max: 999
+                </span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-purple-500" />
-                  <span className="text-sm font-medium">Effort</span>
-                </div>
-                <div className="text-lg font-bold text-purple-600">
+
+              {/* Effort */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">⚡</div>
+                <p className="font-bold text-purple-600">Effort</p>
+                <div className="text-2xl font-bold text-purple-600 my-2">
                   {currentPet.effort || 0}
                 </div>
-                <span className="text-xs text-gray-600">Max: 999</span>
+                <span className="text-xs bg-purple-100 px-2 py-1 rounded-full">
+                  Max: 999
+                </span>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium">DP Energy</span>
-                </div>
-                <div className="text-lg font-bold text-yellow-600">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* DP Energy */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">🛡️</div>
+                <p className="font-bold text-yellow-600">DP Energy</p>
+                <div className="text-xl font-bold text-yellow-600 my-2">
                   {currentPet.dpEnergy || 0}/100
                 </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-medium">Win Ratio</span>
+                <div className="bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-gradient-to-r from-yellow-400 to-orange-400 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(currentPet.dpEnergy || 0)}%` }}
+                  ></div>
                 </div>
-                <div className="text-lg font-bold text-orange-600">
+              </div>
+
+              {/* Win Ratio */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">🏆</div>
+                <p className="font-bold text-orange-600">Win Ratio</p>
+                <div className="text-xl font-bold text-orange-600 my-2">
                   {currentPet.winRatio || 0}%
                 </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm font-medium">Care Mistakes</span>
+                <div className="bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-gradient-to-r from-orange-400 to-red-400 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${currentPet.winRatio || 0}%` }}
+                  ></div>
                 </div>
-                <div className="text-lg font-bold text-red-600">
+              </div>
+
+              {/* Care Mistakes */}
+              <div className="bg-white/80 rounded-xl p-4 text-center shadow-lg">
+                <div className="text-2xl mb-2">⚠️</div>
+                <p className="font-bold text-red-600">Care Mistakes</p>
+                <div className="text-xl font-bold text-red-600 my-2">
                   {currentPet.careMistakes || 0}
                 </div>
+                <span className="text-xs bg-red-100 px-2 py-1 rounded-full">
+                  Keep it low!
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Feeding Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Enhanced Feeding</CardTitle>
-            <p className="text-sm text-gray-600">Feed your pet different foods to manage weight and earn tokens</p>
+        <Card className="bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 border-2 border-orange-200">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-2">🍽️</div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              Feeding Time!
+            </CardTitle>
+            <p className="text-gray-600">Choose delicious food to keep your pet healthy and earn tokens</p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-red-200 hover:border-red-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'meat' })}
                 disabled={feedPetMutation.isPending}
               >
-                <span className="text-2xl">🥩</span>
-                <span className="text-sm">Meat</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+                <div className="text-4xl mb-2 animate-bounce">🥩</div>
+                <div className="font-bold text-red-600">Meat</div>
+                <div className="text-xs text-gray-500 mt-1">+Weight +Strength</div>
+              </button>
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-blue-200 hover:border-blue-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'fish' })}
                 disabled={feedPetMutation.isPending}
               >
-                <span className="text-2xl">🐟</span>
-                <span className="text-sm">Fish</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+                <div className="text-4xl mb-2 animate-bounce">🐟</div>
+                <div className="font-bold text-blue-600">Fish</div>
+                <div className="text-xs text-gray-500 mt-1">+Effort +DP</div>
+              </button>
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-yellow-200 hover:border-yellow-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'protein' })}
                 disabled={feedPetMutation.isPending}
               >
-                <span className="text-2xl">🥚</span>
-                <span className="text-sm">Protein</span>
-              </Button>
+                <div className="text-4xl mb-2 animate-bounce">🥚</div>
+                <div className="font-bold text-yellow-600">Protein</div>
+                <div className="text-xs text-gray-500 mt-1">Balanced Growth</div>
+              </button>
             </div>
           </CardContent>
         </Card>
 
         {/* Training Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Training</CardTitle>
-            <p className="text-sm text-gray-600">Train your pet to increase stats and earn tokens</p>
+        <Card className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-2">🏋️</div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
+              Training Gym
+            </CardTitle>
+            <p className="text-gray-600">Build your pet's strength and effort through intense training</p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+            <div className="grid grid-cols-2 gap-6">
+              <button
+                className="bg-white/80 rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-green-200 hover:border-green-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'strength' })}
                 disabled={trainPetMutation.isPending}
               >
-                <Dumbbell className="w-6 h-6 text-green-500" />
-                <span className="text-sm">Strength Training</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+                <div className="text-5xl mb-3 animate-pulse">💪</div>
+                <div className="font-bold text-green-600 text-lg">Strength Training</div>
+                <div className="text-sm text-gray-500 mt-2">Build muscle power!</div>
+                <div className="text-xs bg-green-100 px-2 py-1 rounded-full mt-3">+1-5 Strength</div>
+              </button>
+              <button
+                className="bg-white/80 rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-purple-200 hover:border-purple-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'effort' })}
                 disabled={trainPetMutation.isPending}
               >
-                <Zap className="w-6 h-6 text-purple-500" />
-                <span className="text-sm">Effort Training</span>
-              </Button>
+                <div className="text-5xl mb-3 animate-pulse">⚡</div>
+                <div className="font-bold text-purple-600 text-lg">Effort Training</div>
+                <div className="text-sm text-gray-500 mt-2">Boost endurance!</div>
+                <div className="text-xs bg-purple-100 px-2 py-1 rounded-full mt-3">+1-5 Effort</div>
+              </button>
             </div>
           </CardContent>
         </Card>
 
         {/* Battle Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Battle System</CardTitle>
-            <p className="text-sm text-gray-600">Battle to increase win ratio and earn tokens</p>
+        <Card className="bg-gradient-to-br from-red-50 via-pink-50 to-purple-50 border-2 border-red-200">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-2">⚔️</div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-red-600 to-purple-600 bg-clip-text text-transparent">
+              Battle Arena
+            </CardTitle>
+            <p className="text-gray-600">Fight epic battles to increase win ratio and earn massive tokens</p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-green-200 hover:border-green-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'wild' })}
                 disabled={battlePetMutation.isPending}
               >
-                <span className="text-2xl">🌿</span>
-                <span className="text-sm">Wild Battle</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+                <div className="text-4xl mb-2 animate-bounce">🌿</div>
+                <div className="font-bold text-green-600">Wild Battle</div>
+                <div className="text-xs text-gray-500 mt-1">Easy • Low Risk</div>
+                <div className="text-xs bg-green-100 px-2 py-1 rounded-full mt-2">5-10 Tokens</div>
+              </button>
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-red-200 hover:border-red-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'boss' })}
                 disabled={battlePetMutation.isPending}
               >
-                <span className="text-2xl">👹</span>
-                <span className="text-sm">Boss Battle</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2"
+                <div className="text-4xl mb-2 animate-bounce">👹</div>
+                <div className="font-bold text-red-600">Boss Battle</div>
+                <div className="text-xs text-gray-500 mt-1">Hard • High Risk</div>
+                <div className="text-xs bg-red-100 px-2 py-1 rounded-full mt-2">15-25 Tokens</div>
+              </button>
+              <button
+                className="bg-white/80 rounded-xl p-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-yellow-200 hover:border-yellow-400 disabled:opacity-50 disabled:transform-none"
                 onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'tournament' })}
                 disabled={battlePetMutation.isPending}
               >
-                <span className="text-2xl">🏆</span>
-                <span className="text-sm">Tournament</span>
-              </Button>
+                <div className="text-4xl mb-2 animate-bounce">🏆</div>
+                <div className="font-bold text-yellow-600">Tournament</div>
+                <div className="text-xs text-gray-500 mt-1">Epic • Max Reward</div>
+                <div className="text-xs bg-yellow-100 px-2 py-1 rounded-full mt-2">30-50 Tokens</div>
+              </button>
             </div>
           </CardContent>
         </Card>
