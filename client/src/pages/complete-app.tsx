@@ -287,6 +287,134 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
 
+  // Enhanced Digimon pet care mutations
+  const feedPetMutation = useMutation({
+    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
+      return await apiRequest("POST", `/api/pets/${petId}/feed`, { foodType });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Fed Successfully!",
+        description: `${data.message}. Weight: +${data.weightGain}G, Tokens: +${data.tokensEarned}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Feeding Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const trainPetMutation = useMutation({
+    mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
+      return await apiRequest("POST", `/api/pets/${petId}/train`, { trainingType });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Training Complete!",
+        description: `${data.message}. ${data.trainingType}: +${data.statIncrease}, Weight: -${data.weightLoss}G, Tokens: +${data.tokensEarned}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Training Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const battlePetMutation = useMutation({
+    mutationFn: async ({ petId, opponentType }: { petId: number; opponentType: string }) => {
+      return await apiRequest("POST", `/api/pets/${petId}/battle`, { opponentType });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: `Battle ${data.result.toUpperCase()}!`,
+        description: `Result: ${data.result}. Weight: -${data.weightLoss}G, DP: -${data.dpUsed}, Tokens: +${data.tokensEarned}. Win Rate: ${data.newWinRatio}%`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Battle Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const healPetMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return await apiRequest("POST", `/api/pets/${petId}/heal`, {});
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Healing Complete!",
+        description: `${data.message}. Healed ${data.injuriesHealed} injuries.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Healing Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const respondToCallMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return await apiRequest("POST", `/api/pets/${petId}/respond`, {});
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.wasCareMistake ? "Care Mistake!" : "Responded Successfully!",
+        description: data.wasCareMistake 
+          ? `Late response (${data.responseDelayMinutes} min). Care mistake recorded.`
+          : "Your pet is happy you responded quickly!",
+        variant: data.wasCareMistake ? "destructive" : "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Response Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Helper functions for pet care actions
+  const feedPet = (petId: number, foodType: string) => {
+    feedPetMutation.mutate({ petId, foodType });
+  };
+
+  const trainPet = (petId: number, trainingType: string) => {
+    trainPetMutation.mutate({ petId, trainingType });
+  };
+
+  const battlePet = (petId: number, opponentType: string) => {
+    battlePetMutation.mutate({ petId, opponentType });
+  };
+
+  const healPet = (petId: number) => {
+    healPetMutation.mutate(petId);
+  };
+
+  const respondToCall = (petId: number) => {
+    respondToCallMutation.mutate(petId);
+  };
+
   // Update timer every second for real-time display
   useEffect(() => {
     const timer = setInterval(() => {
@@ -991,11 +1119,263 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 text-orange-500">🍎</span>
+                    <Heart className="w-4 h-4 text-orange-500" />
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
-                  <Progress value={currentPet.hunger} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.hunger}%</span>
+                  <div className="flex gap-1">
+                    {Array.from({ length: 4 }, (_, i) => (
+                      <Heart
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < (currentPet.hunger || 0) ? 'text-red-500 fill-current' : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-gray-600">{currentPet.hunger || 0}/4 hearts</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 text-blue-500">⚡</span>
+                    <span className="text-sm font-medium">Weight</span>
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {currentPet.weight || 20}G
+                  </div>
+                  <span className="text-xs text-gray-600">Gigabytes</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Dumbbell className="w-4 h-4 text-green-500" />
+                    <span className="text-sm font-medium">Strength</span>
+                  </div>
+                  <div className="text-lg font-bold text-green-600">
+                    {currentPet.strength || 0}
+                  </div>
+                  <span className="text-xs text-gray-600">Max: 999</span>
+                </div>
+              </div>
+              
+              {/* Second row of stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm font-medium">Effort</span>
+                  </div>
+                  <div className="text-lg font-bold text-purple-600">
+                    {currentPet.effort || 0}
+                  </div>
+                  <span className="text-xs text-gray-600">Max: 999</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium">DP Energy</span>
+                  </div>
+                  <div className="text-lg font-bold text-yellow-600">
+                    {currentPet.dp || 10}
+                  </div>
+                  <span className="text-xs text-gray-600">Battle energy</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-medium">Win Ratio</span>
+                  </div>
+                  <div className="text-lg font-bold text-amber-600">
+                    {currentPet.winRatio || "0.00"}%
+                  </div>
+                  <span className="text-xs text-gray-600">{currentPet.battlesWon || 0}/{currentPet.totalBattles || 0}</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <span className="text-sm font-medium">Status</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {currentPet.isDead && (
+                      <Badge variant="destructive" className="text-xs">Dead</Badge>
+                    )}
+                    {currentPet.injuries > 0 && (
+                      <Badge variant="outline" className="text-xs">Injured ({currentPet.injuries})</Badge>
+                    )}
+                    {currentPet.careMistakes > 0 && (
+                      <Badge variant="secondary" className="text-xs">Mistakes: {currentPet.careMistakes}</Badge>
+                    )}
+                    {!currentPet.isDead && currentPet.injuries === 0 && (
+                      <Badge variant="outline" className="text-xs text-green-600">Healthy</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Digimon Care Actions */}
+              <div className="mt-6 space-y-4">
+                <h3 className="text-lg font-semibold">Digimon Care Actions</h3>
+                
+                {/* Feeding Section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Utensils className="w-4 h-4" />
+                      Feeding
+                    </h4>
+                    <div className="space-y-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.hunger >= 4}
+                        onClick={() => feedPet(currentPet.id, 'meat')}
+                      >
+                        Meat (+1G)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.hunger >= 4}
+                        onClick={() => feedPet(currentPet.id, 'fish')}
+                      >
+                        Fish (+1G)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.hunger >= 4}
+                        onClick={() => feedPet(currentPet.id, 'protein')}
+                      >
+                        Protein (+2G)
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Dumbbell className="w-4 h-4" />
+                      Training
+                    </h4>
+                    <div className="space-y-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.weight <= 5}
+                        onClick={() => trainPet(currentPet.id, 'strength')}
+                      >
+                        Strength (-2G)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.weight <= 5}
+                        onClick={() => trainPet(currentPet.id, 'effort')}
+                      >
+                        Effort (-2G)
+                      </Button>
+                    </div>
+                  </Card>
+
+                  <Card className="p-4">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Battle
+                    </h4>
+                    <div className="space-y-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.dp < 5}
+                        onClick={() => battlePet(currentPet.id, 'wild')}
+                      >
+                        Wild (5 DP)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.dp < 10}
+                        onClick={() => battlePet(currentPet.id, 'boss')}
+                      >
+                        Boss (10 DP)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentPet.isDead || currentPet.dp < 15}
+                        onClick={() => battlePet(currentPet.id, 'tournament')}
+                      >
+                        Tournament (15 DP)
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Healing and Care */}
+                {(currentPet.injuries > 0 || currentPet.needsAttention) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {currentPet.injuries > 0 && (
+                      <Card className="p-4 border-red-200">
+                        <h4 className="font-medium mb-2 text-red-600">Injury Treatment</h4>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Your Digimon has {currentPet.injuries} injuries
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => healPet(currentPet.id)}
+                        >
+                          Heal Injuries
+                        </Button>
+                      </Card>
+                    )}
+                    
+                    {currentPet.needsAttention && (
+                      <Card className="p-4 border-yellow-200">
+                        <h4 className="font-medium mb-2 text-yellow-600">Attention Required</h4>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Type: {currentPet.attentionType}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => respondToCall(currentPet.id)}
+                        >
+                          Respond to Call
+                        </Button>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Care Status Card - Keep existing daily care */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-pink-500" />
+                Daily Care Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center ${
+                    careStatus?.fed ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    🍖
+                  </div>
+                  <p className="text-sm font-medium">Fed</p>
+                  <p className="text-xs text-gray-500">
+                    {careStatus?.fed ? 'Complete' : 'Pending'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
