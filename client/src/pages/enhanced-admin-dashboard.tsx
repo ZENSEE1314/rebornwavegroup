@@ -36,7 +36,9 @@ import {
   FileText,
   Trash2,
   Filter,
-  Settings
+  Settings,
+  Heart,
+  Trophy
 } from "lucide-react";
 
 export default function EnhancedAdminDashboard() {
@@ -183,6 +185,17 @@ export default function EnhancedAdminDashboard() {
 
   const { data: rewardItems = [] } = useQuery({
     queryKey: ['/api/admin/reward-items'],
+    retry: false,
+  });
+
+  // New queries for pet management and leaderboard
+  const { data: activatedPets = [] } = useQuery({
+    queryKey: ['/api/admin/activated-pets'],
+    retry: false,
+  });
+
+  const { data: gameLeaderboard = [] } = useQuery({
+    queryKey: ['/api/game-scores/leaderboard'],
     retry: false,
   });
 
@@ -486,6 +499,27 @@ export default function EnhancedAdminDashboard() {
     }
   };
 
+  // Reset leaderboard mutation
+  const resetLeaderboardMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/admin/game-scores/reset");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/game-scores/leaderboard'] });
+      toast({
+        title: "Success",
+        description: "Game leaderboard reset successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reset leaderboard",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createRewardMutation = useMutation({
     mutationFn: async (rewardData: any) => {
       return apiRequest('POST', '/api/admin/reward-items', rewardData);
@@ -743,6 +777,14 @@ export default function EnhancedAdminDashboard() {
               <TabsTrigger value="content" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Settings className="h-4 w-4 mr-2" />
                 Content Management
+              </TabsTrigger>
+              <TabsTrigger value="pets" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Heart className="h-4 w-4 mr-2" />
+                Pet Management
+              </TabsTrigger>
+              <TabsTrigger value="leaderboard" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Trophy className="h-4 w-4 mr-2" />
+                Game Leaderboard
               </TabsTrigger>
             </TabsList>
           </div>
