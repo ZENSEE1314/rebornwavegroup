@@ -6119,6 +6119,18 @@ export default function CompleteApp() {
           />
         )}
 
+        {/* Coin Catching Game Modal */}
+        {showCoinGame && (
+          <CoinCatchingGame 
+            pet={pets?.[0] || null}
+            language={language}
+            onClose={() => {
+              setShowCoinGame(false);
+            }}
+            user={user}
+          />
+        )}
+
         {/* Profile Tab */}
         {activeTab === "profile" && (
           <div className="space-y-8">
