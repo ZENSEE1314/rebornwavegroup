@@ -282,12 +282,22 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }: { setActiveTab: any; toast: any; queryClient: any; setShowCoinGame: any }) {
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   
-  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
-  const { data: userToys } = useQuery({ queryKey: ["/api/toys"] });
+  const { data: pets, isLoading: petsLoading } = useQuery({ queryKey: ["/api/pets"] });
+  const { data: userToys, isLoading: toysLoading } = useQuery({ queryKey: ["/api/toys"] });
   
+  // Safe data handling with proper error checking
   const petList = Array.isArray(pets) ? pets : [];
-  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.isOwned) : [];
-  const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
+  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.isOwned) : [];
+  const unactivatedToys = ownedToys.filter((toy: any) => !toy?.isActivated);
+  
+  // Show loading state
+  if (petsLoading || toysLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   // Mutations for pet actions
   const feedPetMutation = useMutation({
