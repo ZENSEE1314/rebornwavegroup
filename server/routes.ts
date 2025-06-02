@@ -2139,5 +2139,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export broadcast function for use in routes
   (app as any).broadcastMarketplaceUpdate = broadcastMarketplaceUpdate;
 
+  // Game scores routes
+  app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { petId, score, tokensEarned } = req.body;
+      
+      const gameScore = await storage.createGameScore({
+        userId,
+        petId,
+        score,
+        tokensEarned
+      });
+      
+      res.json(gameScore);
+    } catch (error: any) {
+      console.error("Error creating game score:", error);
+      res.status(500).json({ message: "Failed to save game score" });
+    }
+  });
+
+  app.get('/api/game-scores/leaderboard', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const leaderboard = await storage.getTopGameScores(limit);
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get('/api/game-scores/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const userScores = await storage.getUserGameScores(userId);
+      res.json(userScores);
+    } catch (error: any) {
+      console.error("Error fetching user scores:", error);
+      res.status(500).json({ message: "Failed to fetch user scores" });
+    }
+  });
+
+  // Admin route to reset leaderboard
+  app.delete('/api/admin/game-scores/reset', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      await storage.resetAllGameScores();
+      res.json({ message: 'Game scores reset successfully' });
+    } catch (error: any) {
+      console.error("Error resetting game scores:", error);
+      res.status(500).json({ message: "Failed to reset game scores" });
+    }
+  });
+
+  // Admin route to get all activated pets
+  app.get('/api/admin/activated-pets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const activatedPets = await storage.getAllToysWithOwners();
+      res.json(activatedPets);
+    } catch (error: any) {
+      console.error("Error fetching activated pets:", error);
+      res.status(500).json({ message: "Failed to fetch activated pets" });
+    }
+  });
+
   return httpServer;
 }
