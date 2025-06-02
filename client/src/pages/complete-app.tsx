@@ -32,7 +32,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     enabled: !!user?.id,
     retry: 1,
     staleTime: 0,
-    cacheTime: 0,
   });
 
   // Add error handling for toys API
@@ -153,6 +152,18 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     enabled: !!user,
     retry: false,
   });
+
+  // Early return with loading state if data is still loading
+  if (toysLoading || petsLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading pet care...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Filter toys that can become pets (purchased toys) - with safety checks
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.ownerId === user?.id) : [];
