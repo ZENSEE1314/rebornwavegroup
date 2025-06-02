@@ -18,6 +18,7 @@ import {
   petCareActivities,
   dailyCareStatus,
   gameScores,
+  tokenClaims,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -37,6 +38,8 @@ import {
   type InsertDailyCareStatus,
   type GameScore,
   type InsertGameScore,
+  type TokenClaim,
+  type InsertTokenClaim,
   type Pet,
   type PetCareActivity,
   type DailyCareStatus,
@@ -1540,6 +1543,35 @@ export class DatabaseStorage implements IStorage {
       console.error('Error updating pet tokens:', error);
       throw error;
     }
+  }
+
+  async updateUserTokens(userId: string, tokens: number): Promise<void> {
+    await db.update(users).set({ 
+      tokens: sql`${users.tokens} + ${tokens}`,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
+
+  async createTokenClaim(claimData: InsertTokenClaim): Promise<TokenClaim> {
+    const [claim] = await db.insert(tokenClaims).values(claimData).returning();
+    return claim;
+  }
+
+  async getTokenClaims(): Promise<TokenClaim[]> {
+    return await db.select().from(tokenClaims).orderBy(desc(tokenClaims.requestedAt));
+  }
+
+  async updateTokenClaimStatus(claimId: number, status: string, adminId: string, adminNotes?: string, trackingNumber?: string): Promise<void> {
+    const updateData: any = {
+      status,
+      processedBy: adminId,
+      processedAt: new Date(),
+    };
+    
+    if (adminNotes) updateData.adminNotes = adminNotes;
+    if (trackingNumber) updateData.trackingNumber = trackingNumber;
+    
+    await db.update(tokenClaims).set(updateData).where(eq(tokenClaims.id, claimId));
   }
 }
 

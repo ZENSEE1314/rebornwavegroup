@@ -902,8 +902,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update last fed time to current time (this resets hunger to 100%)
         await storage.updatePetLastFed(petId);
         
-        // Award points for feeding
-        await storage.updateUserPoints(userId, 5);
+        // Award tokens for feeding (instead of points)
+        await storage.updateUserTokens(userId, 5);
         
         // Create activity record
         await storage.createCareActivity({
