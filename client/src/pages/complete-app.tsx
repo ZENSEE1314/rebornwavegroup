@@ -2139,8 +2139,7 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
-  // Coin catching game state
-  const [showCoinGame, setShowCoinGame] = useState(false);
+
   
   // History modal states
   const [showHistoryModal, setShowHistoryModal] = useState(false);
