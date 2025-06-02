@@ -941,7 +941,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(pet.id, 'fed')}
+                  onClick={() => handleCareActivity(currentPet.id, 'fed')}
                   disabled={careActivityMutation.isPending}
                 >
                   <span className="text-2xl">🍎</span>
@@ -950,7 +950,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(pet.id, 'bathed')}
+                  onClick={() => handleCareActivity(currentPet.id, 'bathed')}
                   disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
@@ -959,7 +959,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(pet.id, 'slept')}
+                  onClick={() => handleCareActivity(currentPet.id, 'slept')}
                   disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
@@ -968,7 +968,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(pet.id, 'cleaned')}
+                  onClick={() => handleCareActivity(currentPet.id, 'cleaned')}
                   disabled={careActivityMutation.isPending}
                 >
                   <Sparkles className="w-6 h-6" />
