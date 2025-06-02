@@ -546,14 +546,19 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
                     </span>
                   ))}
                 </div>
-                <div className="text-xs font-bold text-red-600">{currentPet.hunger || 0}/4</div>
+                <div className="text-xs font-bold text-red-600">{Math.min(currentPet.hunger || 0, 4)}/4</div>
               </div>
 
-              {/* Weight */}
+              {/* Cleanliness */}
               <div className="bg-white/90 rounded-xl p-3 text-center shadow-lg">
-                <div className="text-lg">⚖️</div>
-                <div className="text-lg font-bold text-blue-600">{currentPet.weight || 20}G</div>
-                <div className="text-xs text-gray-500">Weight</div>
+                <div className="text-lg">🛁</div>
+                <div className="bg-gray-200 rounded-full h-2 my-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-400 to-cyan-400 h-2 rounded-full transition-all"
+                    style={{ width: `${(currentPet.cleanliness || 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs font-bold text-cyan-600">{currentPet.cleanliness || 100}%</div>
               </div>
 
               {/* Strength */}
@@ -573,6 +578,19 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
 
             {/* Progress Bars */}
             <div className="bg-white/90 rounded-xl p-4 shadow-lg space-y-3">
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span>⚖️ Weight</span>
+                  <span className="font-bold text-blue-600">{currentPet.weight || 20}G</span>
+                </div>
+                <div className="bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min((currentPet.weight || 20) / 100 * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span>🛡️ DP Energy</span>
@@ -609,37 +627,37 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
           {/* Right Columns - Action Buttons */}
           <div className="lg:col-span-2 space-y-4">
             
-            {/* Food & Training Row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Food & Care Row */}
+            <div className="grid grid-cols-3 gap-4">
               {/* Feeding Buttons */}
               <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
                 <div className="text-center mb-3">
                   <div className="text-2xl">🍽️</div>
                   <h3 className="font-bold text-orange-600">Feed Pet</h3>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1">
                   <button
-                    className="bg-red-100 hover:bg-red-200 rounded-xl p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    className="bg-red-100 hover:bg-red-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
                     onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'meat' })}
                     disabled={feedPetMutation.isPending}
                   >
-                    <div className="text-2xl">🥩</div>
+                    <div className="text-lg">🥩</div>
                     <div className="text-xs font-bold">Meat</div>
                   </button>
                   <button
-                    className="bg-blue-100 hover:bg-blue-200 rounded-xl p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    className="bg-blue-100 hover:bg-blue-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
                     onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'fish' })}
                     disabled={feedPetMutation.isPending}
                   >
-                    <div className="text-2xl">🐟</div>
+                    <div className="text-lg">🐟</div>
                     <div className="text-xs font-bold">Fish</div>
                   </button>
                   <button
-                    className="bg-yellow-100 hover:bg-yellow-200 rounded-xl p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    className="bg-yellow-100 hover:bg-yellow-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
                     onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'protein' })}
                     disabled={feedPetMutation.isPending}
                   >
-                    <div className="text-2xl">🥚</div>
+                    <div className="text-lg">🥚</div>
                     <div className="text-xs font-bold">Protein</div>
                   </button>
                 </div>
@@ -653,20 +671,56 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    className="bg-green-100 hover:bg-green-200 rounded-xl p-4 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    className="bg-green-100 hover:bg-green-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
                     onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'strength' })}
                     disabled={trainPetMutation.isPending}
                   >
-                    <div className="text-3xl">💪</div>
+                    <div className="text-2xl">💪</div>
                     <div className="text-xs font-bold">Strength</div>
                   </button>
                   <button
-                    className="bg-purple-100 hover:bg-purple-200 rounded-xl p-4 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    className="bg-purple-100 hover:bg-purple-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
                     onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'effort' })}
                     disabled={trainPetMutation.isPending}
                   >
-                    <div className="text-3xl">⚡</div>
+                    <div className="text-2xl">⚡</div>
                     <div className="text-xs font-bold">Effort</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Care Buttons */}
+              <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
+                <div className="text-center mb-3">
+                  <div className="text-2xl">🛁</div>
+                  <h3 className="font-bold text-cyan-600">Pet Care</h3>
+                </div>
+                <div className="space-y-2">
+                  <button
+                    className="w-full bg-cyan-100 hover:bg-cyan-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    onClick={() => {
+                      // Clean pet action
+                      toast({
+                        title: "Pet Cleaned!",
+                        description: "Your pet is now squeaky clean! +5 tokens earned.",
+                      });
+                    }}
+                  >
+                    <div className="text-2xl">🧼</div>
+                    <div className="text-xs font-bold">Clean</div>
+                  </button>
+                  <button
+                    className="w-full bg-pink-100 hover:bg-pink-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
+                    onClick={() => {
+                      // Play with pet action
+                      toast({
+                        title: "Playtime!",
+                        description: "Your pet had fun playing! +3 tokens earned.",
+                      });
+                    }}
+                  >
+                    <div className="text-2xl">🎾</div>
+                    <div className="text-xs font-bold">Play</div>
                   </button>
                 </div>
               </div>
