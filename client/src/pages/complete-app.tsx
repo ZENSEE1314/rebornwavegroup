@@ -822,27 +822,22 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                     const lastGameTime = currentPet?.lastGameTime ? new Date(currentPet.lastGameTime) : null;
                     const now = new Date();
                     const timeSinceLastGame = lastGameTime ? (now.getTime() - lastGameTime.getTime()) / 1000 / 60 : Infinity; // minutes
-                    const gameAvailable = timeSinceLastGame >= 60 || !lastGameTime; // 60 minutes cooldown
-                    const timeUntilNext = gameAvailable ? 0 : Math.ceil(60 - timeSinceLastGame);
+                    const canEarnTokens = timeSinceLastGame >= 60 || !lastGameTime; // 60 minutes cooldown for earning tokens
+                    const timeUntilNext = canEarnTokens ? 0 : Math.ceil(60 - timeSinceLastGame);
                     
                     return (
                       <button
-                        className={`w-full rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50 ${
-                          gameAvailable 
-                            ? 'bg-yellow-100 hover:bg-yellow-200' 
-                            : 'bg-gray-100 cursor-not-allowed'
-                        }`}
-                        onClick={() => gameAvailable && setShowCoinGame(true)}
-                        disabled={!gameAvailable}
+                        className="w-full bg-yellow-100 hover:bg-yellow-200 rounded-lg p-3 text-center transition-all hover:scale-105"
+                        onClick={() => setShowCoinGame(true)}
                       >
                         <div className="text-2xl">🪙</div>
                         <div className="text-xs font-bold">Coin Game</div>
-                        {gameAvailable ? (
-                          <div className="text-xs text-orange-600">+5 tokens</div>
+                        {canEarnTokens ? (
+                          <div className="text-xs text-orange-600">Can earn tokens!</div>
                         ) : (
-                          <div className="text-xs text-red-500">
+                          <div className="text-xs text-gray-500">
                             <Clock className="w-3 h-3 inline mr-1" />
-                            {timeUntilNext}m left
+                            Tokens in {timeUntilNext}m
                           </div>
                         )}
                       </button>
@@ -901,7 +896,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   
   // State for real-time timer updates
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [currentPet, setCurrentPet] = useState<any>(null);
