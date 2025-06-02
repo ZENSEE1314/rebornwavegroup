@@ -172,14 +172,51 @@ export interface IStorage {
   getUserGameScores(userId: string): Promise<GameScore[]>;
   resetAllGameScores(): Promise<void>;
   
-  // Pet care operations
+  // Enhanced Digimon-inspired pet care operations
   createPet(pet: InsertPet): Promise<Pet>;
   getPetsByUserId(userId: string): Promise<Pet[]>;
   getPetById(id: number): Promise<Pet | undefined>;
-  updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
+  
+  // Core pet stat management
+  updatePetStats(id: number, stats: { 
+    happiness?: number; 
+    hunger?: number; 
+    cleanliness?: number; 
+    energy?: number;
+    weight?: number;
+    strength?: number;
+    effort?: number;
+    dp?: number;
+  }): Promise<void>;
   updatePetAge(id: number, age: number): Promise<void>;
   updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void>;
   updatePetTokens(userId: string, tokenAmount: number): Promise<void>;
+  
+  // Digimon care mechanics
+  feedPet(petId: number, userId: string, foodType: 'meat' | 'fish' | 'protein'): Promise<void>;
+  trainPet(petId: number, userId: string, trainingType: 'strength' | 'effort'): Promise<void>;
+  battlePet(petId: number, userId: string, opponentType: 'wild' | 'boss' | 'tournament'): Promise<PetBattle>;
+  
+  // Care system
+  triggerPetAttentionCall(petId: number, attentionType: 'hungry' | 'sleep' | 'strength' | 'sick'): Promise<void>;
+  respondToPetCall(petId: number, userId: string, responseDelayMinutes: number): Promise<void>;
+  checkPetHealth(petId: number): Promise<{ isDead: boolean; needsAttention: boolean; attentionType?: string }>;
+  
+  // Injury and death system
+  injurePet(petId: number): Promise<void>;
+  healPetInjuries(petId: number): Promise<void>;
+  resetDailyInjuries(petId: number): Promise<void>;
+  
+  // Battle and statistics
+  createPetBattle(battle: InsertPetBattle): Promise<PetBattle>;
+  getPetBattleHistory(petId: number): Promise<PetBattle[]>;
+  updateBattleStats(petId: number, won: boolean): Promise<void>;
+  
+  // Care activities and mistakes
+  createPetCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
+  getPetCareHistory(petId: number): Promise<PetCareActivity[]>;
+  createCareMistake(mistake: InsertCareMistake): Promise<CareMistake>;
+  getCareMistakeHistory(petId: number): Promise<CareMistake[]>;
   
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;

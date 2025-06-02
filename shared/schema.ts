@@ -241,7 +241,7 @@ export const rewardItems = pgTable("reward_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Pet care system tables
+// Pet care system tables - Digimon inspired
 export const pets = pgTable("pets", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
@@ -251,26 +251,94 @@ export const pets = pgTable("pets", {
   birthDate: timestamp("birth_date").defaultNow(),
   currentAge: integer("current_age").default(0), // days since birth
   growthStage: varchar("growth_stage").default("baby"), // baby, child, teen, adult, elder
+  
+  // Core Digimon stats
+  weight: integer("weight").default(20), // in Gigabytes (G)
+  hunger: integer("hunger").default(4), // 0-4 hearts
+  strength: integer("strength").default(0), // 0-999
+  effort: integer("effort").default(0), // 0-999
+  dp: integer("dp").default(10), // energy for battles
+  
+  // Battle system
+  totalBattles: integer("total_battles").default(0),
+  battlesWon: integer("battles_won").default(0),
+  winRatio: decimal("win_ratio", { precision: 5, scale: 2 }).default("0.00"), // percentage
+  
+  // Care system
+  careMistakes: integer("care_mistakes").default(0),
+  injuries: integer("injuries").default(0),
+  dailyInjuries: integer("daily_injuries").default(0), // resets daily
+  lastInjuryDate: varchar("last_injury_date"), // YYYY-MM-DD
+  
+  // Status tracking
   happiness: integer("happiness").default(50), // 0-100
-  hunger: integer("hunger").default(50), // 0-100 (100 = full)
   cleanliness: integer("cleanliness").default(50), // 0-100
-  energy: integer("energy").default(50), // 0-100
   isActive: boolean("is_active").default(true),
+  isDead: boolean("is_dead").default(false),
+  isUpset: boolean("is_upset").default(false),
+  needsAttention: boolean("needs_attention").default(false),
+  attentionType: varchar("attention_type"), // 'hungry', 'sleep', 'strength', 'sick'
+  lastAttentionCall: timestamp("last_attention_call"),
+  
+  // Care timing
   lastCareDate: timestamp("last_care_date"),
   lastFedAt: timestamp("last_fed_at"),
+  lastTrainedAt: timestamp("last_trained_at"),
+  lastBattleAt: timestamp("last_battle_at"),
+  
+  // Token system
   totalTokensEarned: integer("total_tokens_earned").default(0),
   dailyTokensAvailable: integer("daily_tokens_available").default(1),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Enhanced pet care activities for Digimon system
 export const petCareActivities = pgTable("pet_care_activities", {
   id: serial("id").primaryKey(),
   petId: integer("pet_id").notNull(),
   userId: varchar("user_id").notNull(),
-  activityType: varchar("activity_type").notNull(), // 'feed', 'bathe', 'sleep', 'clean'
+  activityType: varchar("activity_type").notNull(), // 'feed', 'protein', 'train', 'battle', 'sleep', 'clean'
+  foodType: varchar("food_type"), // 'meat', 'fish', 'protein' for feeding
+  weightChange: integer("weight_change").default(0), // +1 for food, +2 for protein, -2 for training, -4 for battles
+  statsChanged: text("stats_changed"), // JSON of stat changes
+  battleResult: varchar("battle_result"), // 'won', 'lost', 'fled' for battles
+  injuryOccurred: boolean("injury_occurred").default(false),
   completedAt: timestamp("completed_at").defaultNow(),
   pointsEarned: integer("points_earned").default(0),
+  tokensEarned: integer("tokens_earned").default(0),
+});
+
+// Battle system table
+export const petBattles = pgTable("pet_battles", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  opponentType: varchar("opponent_type").default("wild"), // 'wild', 'boss', 'tournament'
+  opponentName: varchar("opponent_name"),
+  opponentStrength: integer("opponent_strength"),
+  result: varchar("result").notNull(), // 'won', 'lost', 'fled'
+  damageDealt: integer("damage_dealt").default(0),
+  damageTaken: integer("damage_taken").default(0),
+  dpUsed: integer("dp_used").default(0),
+  strengthGained: integer("strength_gained").default(0),
+  effortGained: integer("effort_gained").default(0),
+  injuryOccurred: boolean("injury_occurred").default(false),
+  completedAt: timestamp("completed_at").defaultNow(),
+});
+
+// Care mistake tracking
+export const careMistakes = pgTable("care_mistakes", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  mistakeType: varchar("mistake_type").notNull(), // 'ignored_hunger', 'ignored_sleep', 'ignored_strength', 'ignored_sick'
+  callTime: timestamp("call_time").notNull(),
+  responseTime: timestamp("response_time"),
+  responseDelayMinutes: integer("response_delay_minutes"),
+  consequenceSeverity: varchar("consequence_severity").default("minor"), // 'minor', 'major', 'critical'
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const dailyCareStatus = pgTable("daily_care_status", {
@@ -500,6 +568,22 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
+// Enhanced pet care system types
+export type PetBattle = typeof petBattles.$inferSelect;
+export type InsertPetBattle = typeof petBattles.$inferInsert;
+export type CareMistake = typeof careMistakes.$inferSelect;
+export type InsertCareMistake = typeof careMistakes.$inferInsert;
+
+export const insertPetBattleSchema = createInsertSchema(petBattles).omit({
+  id: true,
+  completedAt: true,
+});
+
+export const insertCareMistakeSchema = createInsertSchema(careMistakes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPointRedemptionSchema = createInsertSchema(pointRedemptions).omit({
   id: true,
   createdAt: true,
@@ -583,31 +667,7 @@ export type InsertPromotionBanner = z.infer<typeof insertPromotionBannerSchema>;
 export type InsertAppointmentEvent = z.infer<typeof insertAppointmentEventSchema>;
 export type InsertRewardItem = z.infer<typeof insertRewardItemSchema>;
 
-// Pet care table types
-export type Pet = typeof pets.$inferSelect;
-export type PetCareActivity = typeof petCareActivities.$inferSelect;
-export type DailyCareStatus = typeof dailyCareStatus.$inferSelect;
-
-// Pet care insert schemas
-export const insertPetSchema = createInsertSchema(pets).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertPetCareActivitySchema = createInsertSchema(petCareActivities).omit({
-  id: true,
-});
-
-export const insertDailyCareStatusSchema = createInsertSchema(dailyCareStatus).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertPet = z.infer<typeof insertPetSchema>;
-export type InsertPetCareActivity = z.infer<typeof insertPetCareActivitySchema>;
-export type InsertDailyCareStatus = z.infer<typeof insertDailyCareStatusSchema>;
+// Remove duplicated pet care types - they're already defined above
 
 // Game scores table
 export const gameScores = pgTable("game_scores", {
