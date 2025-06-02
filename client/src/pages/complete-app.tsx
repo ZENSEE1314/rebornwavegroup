@@ -3242,7 +3242,11 @@ export default function CompleteApp() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => setActiveTab("token-history")}
+                      onClick={() => {
+                        setHistoryFilter("tokens");
+                        setHistoryPage(1);
+                        setActiveTab("token-history");
+                      }}
                       className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
                     >
                       <Eye className="w-3 h-3 mr-1" />
