@@ -1771,6 +1771,12 @@ export default function CompleteApp() {
     }
   });
 
+  // Fetch user's token claim history
+  const { data: tokenClaimsHistory = [] } = useQuery({
+    queryKey: ['/api/token-claims/history'],
+    enabled: !!user?.id,
+  });
+
   // Mutation to create credit history entry
   const createCreditHistoryMutation = useMutation({
     mutationFn: (creditData: any) => apiRequest('POST', '/api/credit-history', creditData),

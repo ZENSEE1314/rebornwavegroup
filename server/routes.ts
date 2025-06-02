@@ -2308,6 +2308,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User route to get their own token claim history
+  app.get('/api/token-claims/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const claims = await storage.getTokenClaimsByUserId(userId);
+      res.json(claims);
+    } catch (error) {
+      console.error("Error fetching user token claims:", error);
+      res.status(500).json({ message: "Failed to fetch token claims history" });
+    }
+  });
+
   app.patch('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;

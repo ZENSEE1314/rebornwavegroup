@@ -1587,6 +1587,22 @@ export class DatabaseStorage implements IStorage {
     .orderBy(desc(tokenClaims.requestedAt));
   }
 
+  async getTokenClaimsByUserId(userId: string): Promise<any[]> {
+    return await db.select({
+      id: tokenClaims.id,
+      userId: tokenClaims.userId,
+      tokensRequested: tokenClaims.tokensRequested,
+      status: tokenClaims.status,
+      adminNotes: tokenClaims.adminNotes,
+      trackingNumber: tokenClaims.trackingNumber,
+      requestedAt: tokenClaims.requestedAt,
+      processedAt: tokenClaims.processedAt,
+    })
+    .from(tokenClaims)
+    .where(eq(tokenClaims.userId, userId))
+    .orderBy(desc(tokenClaims.requestedAt));
+  }
+
   async updateTokenClaimStatus(claimId: number, status: string, adminId: string, adminNotes?: string, trackingNumber?: string): Promise<void> {
     // Get the token claim details first
     const [claim] = await db.select().from(tokenClaims).where(eq(tokenClaims.id, claimId));
