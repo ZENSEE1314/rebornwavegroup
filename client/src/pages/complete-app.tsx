@@ -238,10 +238,20 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       return apiRequest("POST", `/api/pets/${petId}/care`, { careType });
     },
     onSuccess: () => {
+      // Invalidate pets query to trigger real-time updates
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      // Force a refetch to update status bars immediately
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
+        variant: "destructive"
       });
     }
   });
@@ -353,7 +363,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               dragonEmoji = "🐢"; // Turtle form
             } else {
               growthStage = language === "id" ? "Baby Turtle Dragon" : "Baby Turtle Dragon";
-              dragonEmoji = "🥚"; // Egg/baby form
+              dragonEmoji = "🐢"; // Baby turtle form
             }
             
             // Status decreases from 100% to 0% over 12 hours if not fed
@@ -545,10 +555,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Button 
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => {
-                        toast({
-                          title: language === "id" ? "Coin Catching Game!" : "Coin Catching Game!",
-                          description: language === "id" ? "Game menangkap koin dimulai! Tangkap sebanyak mungkin koin untuk mendapatkan token." : "Coin catching game started! Catch as many coins as possible to earn tokens.",
-                        });
+                        setSelectedPet(pet);
+                        setShowCoinGame(true);
                       }}
                       disabled={isDead}
                     >
