@@ -698,12 +698,28 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
                 <div className="space-y-2">
                   <button
                     className="w-full bg-cyan-100 hover:bg-cyan-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => {
-                      // Clean pet action
-                      toast({
-                        title: "Pet Cleaned!",
-                        description: "Your pet is now squeaky clean! +5 tokens earned.",
-                      });
+                    onClick={async () => {
+                      if (currentPet) {
+                        try {
+                          const response = await fetch(`/api/pets/${currentPet.id}/clean`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          if (response.ok) {
+                            toast({
+                              title: "Pet Cleaned!",
+                              description: "Your pet is now squeaky clean!",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/pets/digimon'] });
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to clean pet",
+                            variant: "destructive",
+                          });
+                        }
+                      }
                     }}
                   >
                     <div className="text-2xl">🧼</div>
@@ -711,12 +727,28 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
                   </button>
                   <button
                     className="w-full bg-pink-100 hover:bg-pink-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => {
-                      // Play with pet action
-                      toast({
-                        title: "Playtime!",
-                        description: "Your pet had fun playing! +3 tokens earned.",
-                      });
+                    onClick={async () => {
+                      if (currentPet) {
+                        try {
+                          const response = await fetch(`/api/pets/${currentPet.id}/play`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          if (response.ok) {
+                            toast({
+                              title: "Playtime!",
+                              description: "Your pet had fun playing!",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/pets/digimon'] });
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to play with pet",
+                            variant: "destructive",
+                          });
+                        }
+                      }
                     }}
                   >
                     <div className="text-2xl">🎾</div>

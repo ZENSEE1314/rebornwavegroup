@@ -1258,6 +1258,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clean pet - increases cleanliness
+  app.post('/api/pets/:petId/clean', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot clean a dead pet" });
+      }
+
+      const newCleanliness = Math.min(pet.cleanliness + 25, 100);
+
+      await storage.updatePetStats(petId, {
+        cleanliness: newCleanliness
+      });
+
+      res.json({ 
+        message: "Pet cleaned successfully",
+        newCleanliness
+      });
+    } catch (error) {
+      console.error("Error cleaning pet:", error);
+      res.status(500).json({ message: "Failed to clean pet" });
+    }
+  });
+
+  // Play with pet - increases happiness
+  app.post('/api/pets/:petId/play', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot play with a dead pet" });
+      }
+
+      const newHappiness = Math.min(pet.happiness + 20, 100);
+      const newEnergy = Math.max(pet.energy - 10, 0);
+
+      await storage.updatePetStats(petId, {
+        happiness: newHappiness,
+        energy: newEnergy
+      });
+
+      res.json({ 
+        message: "Pet enjoyed playing",
+        newHappiness,
+        newEnergy
+      });
+    } catch (error) {
+      console.error("Error playing with pet:", error);
+      res.status(500).json({ message: "Failed to play with pet" });
+    }
+  });
+
   // Pet care activity
   app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
     try {
@@ -1276,16 +1341,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update last fed time to current time (this resets hunger to 100%)
         await storage.updatePetLastFed(petId);
         
-        // Award tokens for feeding (instead of points)
-        await storage.updateUserTokens(userId, 5);
-        
         // Create activity record
         await storage.createCareActivity({
           petId,
           userId,
           activityType: 'feed',
           completedAt: new Date(),
-          pointsEarned: 5
+          pointsEarned: 0
         });
       } else if (careType === 'bathe') {
         await storage.createCareActivity({
