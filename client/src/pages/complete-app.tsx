@@ -38,6 +38,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: 1,
   });
 
+  // Activate toy mutation for pet creation
+  const activateToyMutation = useMutation({
+    mutationFn: async (qrCode: string) => {
+      return apiRequest("POST", "/api/toys/activate", { qrCode });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Mainan berhasil diaktifkan menjadi hewan peliharaan!" : "Toy successfully activated as pet!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal mengaktifkan mainan" : "Failed to activate toy"),
+        variant: "destructive"
+      });
+    }
+  });
+
   // Show loading state
   if (toysLoading || listingsLoading) {
     return (
