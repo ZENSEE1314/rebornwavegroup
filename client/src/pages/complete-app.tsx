@@ -280,26 +280,42 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 
 // Pet Care Tab Component
 function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }: { setActiveTab: any; toast: any; queryClient: any; setShowCoinGame: any }) {
-  const [currentPetIndex, setCurrentPetIndex] = useState(0);
-  
-  const { data: pets, isLoading: petsLoading } = useQuery({ queryKey: ["/api/pets"] });
-  const { data: userToys, isLoading: toysLoading } = useQuery({ queryKey: ["/api/toys"] });
-  
-  // Safe data handling with proper error checking
-  const petList = Array.isArray(pets) ? pets : [];
-  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.isOwned) : [];
-  const unactivatedToys = ownedToys.filter((toy: any) => !toy?.isActivated);
+  const { data: pets, isLoading: petsLoading, error: petsError } = useQuery({ queryKey: ["/api/pets"] });
+  const { data: userStats, isLoading: statsLoading } = useQuery({ queryKey: ["/api/user-stats"] });
   
   // Show loading state
-  if (petsLoading || toysLoading) {
+  if (petsLoading || statsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
+  
+  // Show error state
+  if (petsError) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-red-600">Error loading pet data. Please try again.</p>
+        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/pets"] })} className="mt-4">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  
+  const petList = Array.isArray(pets) ? pets : [];
+  const activePet = petList.find((pet: any) => pet.isActive) || petList[0];
+  
+  if (!activePet) {
+    return (
+      <div className="text-center p-8">
+        <p>No pets found. Please activate a pet first.</p>
+      </div>
+    );
+  }
 
-  // Mutations for pet actions
+  // Simple feed mutation
   const feedPetMutation = useMutation({
     mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
       const response = await fetch(`/api/pets/${petId}/feed`, {
@@ -311,59 +327,160 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
       if (!response.ok) throw new Error('Failed to feed pet');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Pet Fed Successfully!",
-        description: `Gained ${data.tokensEarned} tokens. Weight: ${data.newWeight}G`,
+        description: "Your pet is happier now!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
     },
   });
 
-  const trainPetMutation = useMutation({
-    mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/train`, {
+  // Simple clean mutation
+  const cleanPetMutation = useMutation({
+    mutationFn: async ({ petId }: { petId: number }) => {
+      const response = await fetch(`/api/pets/${petId}/clean`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ trainingType }),
       });
-      if (!response.ok) throw new Error('Failed to train pet');
+      if (!response.ok) throw new Error('Failed to clean pet');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: "Training Complete!",
-        description: `${data.trainingType} +${data.statIncrease}. Earned ${data.tokensEarned} tokens.`,
+        title: "Pet Cleaned Successfully!",
+        description: "Your pet is cleaner now!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
     },
   });
 
-  const battlePetMutation = useMutation({
-    mutationFn: async ({ petId, battleType }: { petId: number; battleType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/battle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ battleType }),
-      });
-      if (!response.ok) throw new Error('Failed to battle');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: data.result === 'win' ? "Victory!" : "Defeat",
-        description: `${data.result === 'win' ? 'Won' : 'Lost'} battle. Earned ${data.tokensEarned} tokens.`,
-        variant: data.result === 'win' ? "default" : "destructive",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-  });
+  // Calculate time since birth for pet age
+  const calculatePetAge = (birthDate: string) => {
+    const birth = new Date(birthDate);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - birth.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
-  const activateToyMutation = useMutation({
-    mutationFn: async (qrCode: string) => {
-      const response = await fetch('/api/toys/activate', {
+  // Get evolution stage based on age
+  const getEvolutionStage = (ageInDays: number): string => {
+    if (ageInDays < 7) return "Baby";
+    if (ageInDays < 14) return "Child";
+    if (ageInDays < 30) return "Teen";
+    if (ageInDays < 60) return "Adult";
+    if (ageInDays < 100) return "Elder";
+    return "Grand Turtle Dragon";
+  };
+
+  const petAge = calculatePetAge(activePet.birthDate || new Date().toISOString());
+  const evolutionStage = getEvolutionStage(petAge);
+
+  return (
+    <div className="space-y-6">
+      {/* Pet Display */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Heart className="h-5 w-5 text-red-500" />
+            {activePet.name || "Your Pet"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Pet Info */}
+            <div className="text-center">
+              <div className="text-6xl mb-2">🐲</div>
+              <p className="text-lg font-semibold">{evolutionStage}</p>
+              <p className="text-sm text-gray-600">Day {petAge} of 100</p>
+            </div>
+
+            {/* Stats */}
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Energy</span>
+                  <span>{activePet.energy || 50}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full" 
+                    style={{ width: `${activePet.energy || 50}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Hunger</span>
+                  <span>{activePet.hunger || 50}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full" 
+                    style={{ width: `${activePet.hunger || 50}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Cleanliness</span>
+                  <span>{activePet.cleanliness || 50}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-cyan-500 h-2 rounded-full" 
+                    style={{ width: `${activePet.cleanliness || 50}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => feedPetMutation.mutate({ petId: activePet.id, foodType: "normal" })}
+                disabled={feedPetMutation.isPending}
+              >
+                🍖 Feed
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => cleanPetMutation.mutate({ petId: activePet.id })}
+                disabled={cleanPetMutation.isPending}
+              >
+                🧼 Clean
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowCoinGame(true)}
+              >
+                🎮 Play
+              </Button>
+            </div>
+
+            {/* Token Counter */}
+            <div className="bg-yellow-50 p-3 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">Tokens Earned Today:</span>
+                <span className="text-xl font-bold text-yellow-600">
+                  {(userStats as any)?.tokens || 0}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
