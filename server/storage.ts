@@ -1414,7 +1414,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPetsByUserId(userId: string): Promise<Pet[]> {
     return await db.select().from(pets)
-      .where(and(eq(pets.userId, userId), eq(pets.isActive, true)))
+      .where(eq(pets.userId, userId))
       .orderBy(pets.createdAt);
   }
 
