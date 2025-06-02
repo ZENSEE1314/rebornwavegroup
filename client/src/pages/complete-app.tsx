@@ -300,26 +300,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const { data: leaderboard } = useQuery({ queryKey: ["/api/game-scores/leaderboard"] });
 
   // Initialize pet data handling
-  const safePets = Array.isArray(pets) ? pets : [];
+  const petList = Array.isArray(pets) ? pets : [];
   const ownedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned) : [];
   const unactivatedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned && !toy.isActivated) : [];
 
   // Set current pet when pets data changes
   useEffect(() => {
-    if (safePets.length > 0) {
-      setCurrentPet(safePets[currentPetIndex] || safePets[0]);
+    if (petList.length > 0) {
+      setCurrentPet(petList[currentPetIndex] || petList[0]);
     }
-  }, [safePets, currentPetIndex]);
+  }, [petList, currentPetIndex]);
 
   // Navigation functions for pet selection
   const navigatePet = (direction: 'prev' | 'next') => {
-    if (safePets.length === 0) return;
+    if (petList.length === 0) return;
     
     setCurrentPetIndex((prev) => {
       if (direction === 'prev') {
-        return prev > 0 ? prev - 1 : safePets.length - 1;
+        return prev > 0 ? prev - 1 : petList.length - 1;
       } else {
-        return prev < safePets.length - 1 ? prev + 1 : 0;
+        return prev < petList.length - 1 ? prev + 1 : 0;
       }
     });
   };
@@ -999,11 +999,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
-  // Add safety checks for all data arrays
-  const safePets = Array.isArray(pets) ? pets : [];
+  // Use existing safePets and ownedToys from above
   const safeOwnedToys = Array.isArray(ownedToys) ? ownedToys : [];
 
-  if (!safePets.length && !safeOwnedToys.length) {
+  if (!petList.length && !safeOwnedToys.length) {
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
