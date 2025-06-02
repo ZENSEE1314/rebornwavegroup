@@ -3253,9 +3253,9 @@ export default function CompleteApp() {
                       size="sm" 
                       variant="outline"
                       onClick={() => {
-                        setHistoryFilter("tokens");
-                        setHistoryPage(1);
-                        setActiveTab("token-history");
+                        setModalHistoryFilter("tokens");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
                       }}
                       className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
                     >
