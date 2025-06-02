@@ -153,7 +153,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             <p className="text-gray-600 mb-4">
               {language === "id" ? "Tidak ada mainan yang dimiliki" : "No toys owned"}
             </p>
-            <Button onClick={() => window.location.href = '#marketplace'} variant="outline">
+            <Button onClick={() => setActiveTab('marketplace')} variant="outline">
               {language === "id" ? "Pergi ke Marketplace" : "Go to Marketplace"}
             </Button>
           </CardContent>
