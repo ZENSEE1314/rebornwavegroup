@@ -772,6 +772,36 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
                     <div className="text-2xl">🎾</div>
                     <div className="text-xs font-bold">Play</div>
                   </button>
+                  {(() => {
+                    const lastGameTime = currentPet?.lastGameTime ? new Date(currentPet.lastGameTime) : null;
+                    const now = new Date();
+                    const timeSinceLastGame = lastGameTime ? (now.getTime() - lastGameTime.getTime()) / 1000 / 60 : Infinity; // minutes
+                    const gameAvailable = timeSinceLastGame >= 60 || !lastGameTime; // 60 minutes cooldown
+                    const timeUntilNext = gameAvailable ? 0 : Math.ceil(60 - timeSinceLastGame);
+                    
+                    return (
+                      <button
+                        className={`w-full rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50 ${
+                          gameAvailable 
+                            ? 'bg-yellow-100 hover:bg-yellow-200' 
+                            : 'bg-gray-100 cursor-not-allowed'
+                        }`}
+                        onClick={() => gameAvailable && setShowCoinGame(true)}
+                        disabled={!gameAvailable}
+                      >
+                        <div className="text-2xl">🪙</div>
+                        <div className="text-xs font-bold">Coin Game</div>
+                        {gameAvailable ? (
+                          <div className="text-xs text-orange-600">+5 tokens</div>
+                        ) : (
+                          <div className="text-xs text-red-500">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {timeUntilNext}m left
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
