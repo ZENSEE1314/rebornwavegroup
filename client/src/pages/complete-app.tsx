@@ -286,6 +286,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  const [currentPet, setCurrentPet] = useState<any>(null);
+  const [careStatus, setCareStatus] = useState<any>(null);
 
   // Enhanced Digimon pet care mutations
   const feedPetMutation = useMutation({
