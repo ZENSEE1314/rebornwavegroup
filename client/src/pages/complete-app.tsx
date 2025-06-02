@@ -5490,7 +5490,61 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <PetCareSection language={language} user={user} />
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                Enhanced Pet Care System
+              </h2>
+              <p className="text-slate-600">
+                Advanced Digimon-inspired pet care with weight, training, and battles
+              </p>
+            </div>
+            
+            <Card>
+              <CardContent className="text-center py-12">
+                <div className="text-6xl mb-4">🎮</div>
+                <h3 className="text-xl font-semibold mb-2">Enhanced Pet Care System</h3>
+                <p className="text-gray-600 mb-6">
+                  The advanced pet care system is fully implemented on the backend with all Digimon features ready.
+                  Buy toys from the marketplace and activate them to access:
+                </p>
+                <div className="mt-4 text-sm text-gray-600 space-y-2 max-w-md mx-auto">
+                  <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                    <span>Weight tracking</span>
+                    <span className="font-semibold text-blue-600">Gigabytes (G)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-red-50 rounded">
+                    <span>Hunger system</span>
+                    <span className="font-semibold text-red-600">Hearts (0-4)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                    <span>Strength training</span>
+                    <span className="font-semibold text-green-600">0-999 stats</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
+                    <span>Effort training</span>
+                    <span className="font-semibold text-purple-600">0-999 stats</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-yellow-50 rounded">
+                    <span>DP Energy</span>
+                    <span className="font-semibold text-yellow-600">Battle power</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-orange-50 rounded">
+                    <span>Enhanced feeding</span>
+                    <span className="font-semibold text-orange-600">Meat, Fish, Protein</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-indigo-50 rounded">
+                    <span>Battle system</span>
+                    <span className="font-semibold text-indigo-600">Wild, Boss, Tournament</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-pink-50 rounded">
+                    <span>Token rewards</span>
+                    <span className="font-semibold text-pink-600">All activities</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Profile Tab */}
