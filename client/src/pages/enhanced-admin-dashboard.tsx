@@ -2108,7 +2108,7 @@ export default function EnhancedAdminDashboard() {
                                 <Input
                                   value={editedPetData.name || pet.name}
                                   onChange={(e) => setEditedPetData({...editedPetData, name: e.target.value})}
-                                  className="bg-gray-800 border-gray-600 text-white h-8"
+                                  className="bg-gray-800 border-gray-600 text-white h-8 w-48"
                                 />
                               ) : (
                                 pet.name
@@ -2149,7 +2149,17 @@ export default function EnhancedAdminDashboard() {
                                 <Input
                                   type="number"
                                   value={editedPetData.currentAge !== undefined ? editedPetData.currentAge : pet.currentAge || 0}
-                                  onChange={(e) => setEditedPetData({...editedPetData, currentAge: parseInt(e.target.value)})}
+                                  onChange={(e) => {
+                                    const newAge = parseInt(e.target.value);
+                                    // Auto-calculate activation date based on age (deduct days from today)
+                                    const today = new Date();
+                                    const activationDate = new Date(today.getTime() - (newAge * 24 * 60 * 60 * 1000));
+                                    setEditedPetData({
+                                      ...editedPetData, 
+                                      currentAge: newAge,
+                                      activatedDate: activationDate.toISOString().split('T')[0]
+                                    });
+                                  }}
                                   className="bg-gray-800 border-gray-600 text-white h-8 w-20"
                                   min="0"
                                   max="100"
