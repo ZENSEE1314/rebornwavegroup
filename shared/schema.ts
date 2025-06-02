@@ -255,10 +255,12 @@ export const pets = pgTable("pets", {
   // Core stats
   weight: integer("weight").default(20), // in Gigabytes (G)
   hunger: integer("hunger").default(4), // 0-4 hearts
-  health: integer("health").default(100), // 0-100 overall health
+  happiness: integer("happiness").default(50), // 0-100
+  cleanliness: integer("cleanliness").default(50), // 0-100
+  energy: integer("energy").default(50), // 0-100
   strength: integer("strength").default(0), // 0-999
   effort: integer("effort").default(0), // 0-999
-  dpEnergy: integer("dp_energy").default(50), // 0-100 energy for battles
+  dp: integer("dp").default(50), // 0-100 energy for battles
   
   // Battle system
   totalBattles: integer("total_battles").default(0),
