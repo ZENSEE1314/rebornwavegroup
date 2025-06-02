@@ -884,6 +884,329 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Digimon pet care routes
+  app.get('/api/pets/digimon', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const pets = await storage.getPetsByUserId(userId);
+      res.json(pets);
+    } catch (error) {
+      console.error("Error fetching Digimon pets:", error);
+      res.status(500).json({ message: "Failed to fetch Digimon pets" });
+    }
+  });
+
+  // Feeding system - Food +1G, Protein +2G
+  app.post('/api/pets/:petId/feed', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { foodType } = req.body;
+
+      if (!['meat', 'fish', 'protein'].includes(foodType)) {
+        return res.status(400).json({ message: "Invalid food type" });
+      }
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot feed a dead pet" });
+      }
+
+      if (pet.hunger >= 4) {
+        return res.status(400).json({ message: "Pet is already full" });
+      }
+
+      const weightGain = foodType === 'protein' ? 2 : 1;
+      const newWeight = pet.weight + weightGain;
+      const newHunger = Math.min(pet.hunger + 1, 4);
+
+      await storage.updatePetStats(petId, {
+        weight: newWeight,
+        hunger: newHunger
+      });
+
+      // Record feeding activity
+      await storage.createPetCareActivity({
+        petId,
+        userId,
+        activityType: 'feed',
+        foodType,
+        weightChange: weightGain,
+        statsChanged: JSON.stringify({ weight: weightGain, hunger: 1 })
+      });
+
+      // Award tokens for care
+      await storage.updateUserTokens(userId, 1);
+
+      res.json({ 
+        message: "Pet fed successfully", 
+        weightGain,
+        newWeight,
+        newHunger,
+        tokensEarned: 1
+      });
+    } catch (error) {
+      console.error("Error feeding pet:", error);
+      res.status(500).json({ message: "Failed to feed pet" });
+    }
+  });
+
+  // Training system - reduces weight by 2G, increases stats
+  app.post('/api/pets/:petId/train', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { trainingType } = req.body;
+
+      if (!['strength', 'effort'].includes(trainingType)) {
+        return res.status(400).json({ message: "Invalid training type" });
+      }
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot train a dead pet" });
+      }
+
+      if (pet.weight <= 5) {
+        return res.status(400).json({ message: "Pet is too light to train safely" });
+      }
+
+      const newWeight = Math.max(pet.weight - 2, 5);
+      const statIncrease = Math.floor(Math.random() * 10) + 5; // 5-14 increase
+      
+      const updateStats: any = { weight: newWeight };
+      if (trainingType === 'strength') {
+        updateStats.strength = Math.min(pet.strength + statIncrease, 999);
+      } else {
+        updateStats.effort = Math.min(pet.effort + statIncrease, 999);
+      }
+
+      await storage.updatePetStats(petId, updateStats);
+
+      // Record training activity
+      await storage.createPetCareActivity({
+        petId,
+        userId,
+        activityType: 'train',
+        weightChange: -2,
+        statsChanged: JSON.stringify({ [trainingType]: statIncrease, weight: -2 })
+      });
+
+      // Award tokens for training
+      await storage.updateUserTokens(userId, 2);
+
+      res.json({ 
+        message: "Training completed successfully", 
+        weightLoss: 2,
+        statIncrease,
+        trainingType,
+        newWeight,
+        tokensEarned: 2
+      });
+    } catch (error) {
+      console.error("Error training pet:", error);
+      res.status(500).json({ message: "Failed to train pet" });
+    }
+  });
+
+  // Battle system - reduces weight by 4G, can cause injuries
+  app.post('/api/pets/:petId/battle', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { opponentType } = req.body;
+
+      if (!['wild', 'boss', 'tournament'].includes(opponentType)) {
+        return res.status(400).json({ message: "Invalid opponent type" });
+      }
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot battle with a dead pet" });
+      }
+
+      const dpRequired = opponentType === 'wild' ? 5 : opponentType === 'boss' ? 10 : 15;
+      if (pet.dp < dpRequired) {
+        return res.status(400).json({ message: "Not enough DP for this battle" });
+      }
+
+      // Battle calculation
+      const opponentStrength = opponentType === 'wild' ? 50 + Math.random() * 100 
+                              : opponentType === 'boss' ? 200 + Math.random() * 200 
+                              : 400 + Math.random() * 300;
+
+      const petPower = pet.strength + (pet.effort * 0.5) + Math.random() * 100;
+      const battleResult = petPower > opponentStrength ? 'won' : Math.random() > 0.3 ? 'lost' : 'fled';
+      
+      const newWeight = Math.max(pet.weight - 4, 5);
+      const newDp = Math.max(pet.dp - dpRequired, 0);
+      const newTotalBattles = pet.totalBattles + 1;
+      const newBattlesWon = battleResult === 'won' ? pet.battlesWon + 1 : pet.battlesWon;
+      const newWinRatio = ((newBattlesWon / newTotalBattles) * 100).toFixed(2);
+
+      // Injury chance if pet loses while upset
+      let injuryOccurred = false;
+      let newInjuries = pet.injuries;
+      let newDailyInjuries = pet.dailyInjuries;
+      
+      if (battleResult === 'lost' && pet.isUpset) {
+        injuryOccurred = Math.random() < 0.3; // 30% chance
+        if (injuryOccurred) {
+          newInjuries += 1;
+          newDailyInjuries += 1;
+        }
+      }
+
+      // Check if pet dies from injuries
+      const isDead = newDailyInjuries >= 4;
+
+      const updateStats: any = {
+        weight: newWeight,
+        dp: newDp,
+        totalBattles: newTotalBattles,
+        battlesWon: newBattlesWon,
+        winRatio: newWinRatio,
+        injuries: newInjuries,
+        dailyInjuries: newDailyInjuries,
+        isDead
+      };
+
+      // Stat gains for winning
+      if (battleResult === 'won') {
+        const strengthGain = Math.floor(Math.random() * 5) + 1;
+        const effortGain = Math.floor(Math.random() * 3) + 1;
+        updateStats.strength = Math.min(pet.strength + strengthGain, 999);
+        updateStats.effort = Math.min(pet.effort + effortGain, 999);
+      }
+
+      await storage.updatePetStats(petId, updateStats);
+
+      // Record battle
+      await storage.createPetCareActivity({
+        petId,
+        userId,
+        activityType: 'battle',
+        weightChange: -4,
+        battleResult,
+        injuryOccurred,
+        statsChanged: JSON.stringify({ 
+          weight: -4, 
+          dp: -dpRequired,
+          result: battleResult,
+          injury: injuryOccurred
+        })
+      });
+
+      // Award tokens based on battle result
+      const tokensEarned = battleResult === 'won' ? 5 : battleResult === 'lost' ? 1 : 2;
+      await storage.updateUserTokens(userId, tokensEarned);
+
+      res.json({ 
+        result: battleResult,
+        weightLoss: 4,
+        dpUsed: dpRequired,
+        injuryOccurred,
+        isDead,
+        tokensEarned,
+        newWinRatio
+      });
+    } catch (error) {
+      console.error("Error in battle:", error);
+      res.status(500).json({ message: "Failed to complete battle" });
+    }
+  });
+
+  // Respond to pet attention calls
+  app.post('/api/pets/:petId/respond', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (!pet.needsAttention) {
+        return res.status(400).json({ message: "Pet doesn't need attention" });
+      }
+
+      // Calculate response time
+      const responseDelayMinutes = pet.lastAttentionCall 
+        ? Math.floor((Date.now() - new Date(pet.lastAttentionCall).getTime()) / (1000 * 60))
+        : 0;
+
+      // Determine if this was a care mistake (>30 minutes delay)
+      const isCareMistake = responseDelayMinutes > 30;
+
+      if (isCareMistake) {
+        await storage.updatePetStats(petId, {
+          careMistakes: pet.careMistakes + 1,
+          needsAttention: false,
+          attentionType: null
+        });
+      } else {
+        await storage.updatePetStats(petId, {
+          needsAttention: false,
+          attentionType: null,
+          isUpset: false
+        });
+      }
+
+      res.json({ 
+        message: "Responded to pet call",
+        wasCareMistake: isCareMistake,
+        responseDelayMinutes
+      });
+    } catch (error) {
+      console.error("Error responding to pet call:", error);
+      res.status(500).json({ message: "Failed to respond to pet call" });
+    }
+  });
+
+  // Heal pet injuries
+  app.post('/api/pets/:petId/heal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.injuries === 0) {
+        return res.status(400).json({ message: "Pet has no injuries to heal" });
+      }
+
+      await storage.updatePetStats(petId, {
+        injuries: 0,
+        dailyInjuries: 0,
+        isDead: false
+      });
+
+      res.json({ 
+        message: "Pet injuries healed successfully",
+        injuriesHealed: pet.injuries
+      });
+    } catch (error) {
+      console.error("Error healing pet:", error);
+      res.status(500).json({ message: "Failed to heal pet" });
+    }
+  });
+
   // Pet care activity
   app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
     try {
