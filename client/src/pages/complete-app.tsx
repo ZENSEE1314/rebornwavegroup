@@ -5688,11 +5688,11 @@ export default function CompleteApp() {
             <Card>
               <CardContent className="p-6">
                 {(() => {
-                  // Get data based on filter
+                  // Get data based on filter using the correctly defined variables
                   let data: any[] = [];
                   switch (modalHistoryFilter) {
                     case 'tokens':
-                      data = filteredTokenHistory || [];
+                      data = tokenClaimsHistory || [];
                       break;
                     case 'points':
                       data = (filteredPointHistory || []).filter((item: any) => item.type === 'earned');
@@ -5701,7 +5701,7 @@ export default function CompleteApp() {
                       data = filteredCreditHistory || [];
                       break;
                     case 'appointments':
-                      data = filteredAppointmentHistory || [];
+                      data = filteredAppointments || [];
                       break;
                     case 'redemptions':
                       data = (filteredPointHistory || []).filter((item: any) => item.type === 'redeemed');
