@@ -555,18 +555,19 @@ export default function EnhancedAdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/activated-pets'] });
       setShowTokenDialog(false);
       setSelectedUserForTokens(null);
       setTokenAmount("");
       toast({
         title: "Success",
-        description: "Tokens added successfully",
+        description: "Claimable tokens set successfully",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to add tokens",
+        description: "Failed to set tokens",
         variant: "destructive",
       });
     },
@@ -2088,7 +2089,7 @@ export default function EnhancedAdminDashboard() {
                         <TableHead className="text-gray-300">Rarity</TableHead>
                         <TableHead className="text-gray-300">Activated Date</TableHead>
                         <TableHead className="text-gray-300">Current Age</TableHead>
-                        <TableHead className="text-gray-300">Tokens Given</TableHead>
+                        <TableHead className="text-gray-300">Claimable Tokens</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
                         <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
@@ -2169,7 +2170,7 @@ export default function EnhancedAdminDashboard() {
                               )}
                             </TableCell>
                             <TableCell className="text-gray-300">
-                              🪙 {pet.tokensGiven || 0}
+                              🪙 {pet.dailyTokensAvailable || 0}
                             </TableCell>
                             <TableCell>
                               <Badge variant={pet.currentAge >= 100 ? "destructive" : "default"}>
@@ -2330,18 +2331,18 @@ export default function EnhancedAdminDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-4">
-                Add Tokens to {selectedUserForTokens?.name}
+                Set Claimable Tokens for {selectedUserForTokens?.name}
               </h3>
               <div className="space-y-4">
                 <div>
-                  <Label className="text-gray-300">Number of Tokens</Label>
+                  <Label className="text-gray-300">Set Claimable Tokens</Label>
                   <Input
                     type="number"
                     value={tokenAmount}
                     onChange={(e) => setTokenAmount(e.target.value)}
                     className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="Enter token amount"
-                    min="1"
+                    placeholder="Enter exact number to set"
+                    min="0"
                   />
                 </div>
               </div>
@@ -2369,7 +2370,7 @@ export default function EnhancedAdminDashboard() {
                   className="bg-yellow-600 hover:bg-yellow-700"
                   disabled={!tokenAmount || addTokensMutation.isPending}
                 >
-                  {addTokensMutation.isPending ? 'Adding...' : 'Add Tokens'}
+                  {addTokensMutation.isPending ? 'Setting...' : 'Set Tokens'}
                 </Button>
               </div>
             </div>
