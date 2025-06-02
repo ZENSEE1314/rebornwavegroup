@@ -3227,10 +3227,21 @@ export default function CompleteApp() {
                     {language === "id" ? "Token" : "Tokens"}
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
-                  <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="mt-2 bg-orange-600 hover:bg-orange-700">
-                    <Star className="w-4 h-4 mr-1" />
-                    {language === "id" ? "Klaim Token" : "Claim Tokens"}
-                  </Button>
+                  <div className="space-y-2 mt-2">
+                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700">
+                      <Star className="w-4 h-4 mr-1" />
+                      {language === "id" ? "Klaim Token" : "Claim Tokens"}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setActiveTab("token-history")}
+                      className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      {language === "id" ? "Riwayat Klaim" : "Claim History"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -4187,6 +4198,109 @@ export default function CompleteApp() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Token Claim History Tab */}
+        {activeTab === "token-history" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
+              </h2>
+              <p className="text-slate-600">
+                {language === "id" ? "Lihat status permintaan klaim token Anda" : "View the status of your token claim requests"}
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tokenClaimsHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Gift className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500">
+                      {language === "id" ? "Belum ada klaim token yang diajukan" : "No token claims submitted yet"}
+                    </p>
+                    <Button 
+                      onClick={() => setShowTokenClaimModal(true)}
+                      className="mt-4 bg-orange-600 hover:bg-orange-700"
+                    >
+                      {language === "id" ? "Ajukan Klaim Pertama" : "Submit First Claim"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {tokenClaimsHistory.map((claim: any) => (
+                      <div key={claim.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Gift className="h-5 w-5 text-orange-600" />
+                              <span className="font-semibold text-lg">
+                                {claim.tokensRequested} {language === "id" ? "Token" : "Tokens"}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {language === "id" ? "Diajukan pada" : "Requested on"}: {new Date(claim.requestedAt).toLocaleDateString()}
+                            </p>
+                            {claim.processedAt && (
+                              <p className="text-sm text-gray-600">
+                                {language === "id" ? "Diproses pada" : "Processed on"}: {new Date(claim.processedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                              claim.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                               claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                               (language === "id" ? "Menunggu" : "Pending")}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {claim.adminNotes && (
+                          <div className="bg-blue-50 rounded-lg p-3 mt-3">
+                            <p className="text-sm font-medium text-blue-800 mb-1">
+                              {language === "id" ? "Catatan Admin:" : "Admin Notes:"}
+                            </p>
+                            <p className="text-sm text-blue-700">{claim.adminNotes}</p>
+                          </div>
+                        )}
+
+                        {claim.status === 'approved' && (
+                          <div className="bg-green-50 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-green-700">
+                              {language === "id" 
+                                ? "✅ Klaim disetujui! Anda dapat menukarkan token di lokasi yang disetujui."
+                                : "✅ Claim approved! You can redeem your tokens at approved locations."}
+                            </p>
+                          </div>
+                        )}
+
+                        {claim.status === 'rejected' && (
+                          <div className="bg-red-50 rounded-lg p-3 mt-3">
+                            <p className="text-sm text-red-700">
+                              {language === "id" 
+                                ? "❌ Klaim ditolak. Token telah dikembalikan ke akun Anda."
+                                : "❌ Claim rejected. Tokens have been returned to your account."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
