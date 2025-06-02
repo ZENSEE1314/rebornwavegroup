@@ -1093,6 +1093,9 @@ export default function CompleteApp() {
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
   const [newListingTitle, setNewListingTitle] = useState("");
+  const [showTokenClaimModal, setShowTokenClaimModal] = useState(false);
+  const [tokenClaimAmount, setTokenClaimAmount] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
 
   // 5-Level Loyalty Program System
   const loyaltyLevels = [
@@ -1632,8 +1635,28 @@ export default function CompleteApp() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+    },
+  });
+
+  // Mutation to claim tokens
+  const claimTokensMutation = useMutation({
+    mutationFn: (tokenData: { tokensRequested: number; shippingAddress: string }) => apiRequest('POST', '/api/token-claims', tokenData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      setShowTokenClaimModal(false);
+      setTokenClaimAmount("");
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Gagal mengajukan klaim token" : "Failed to submit token claim",
+        variant: "destructive",
+      });
     },
   });
 
@@ -3112,7 +3135,7 @@ export default function CompleteApp() {
                     {language === "id" ? "Token" : "Tokens"}
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
-                  <Button size="sm" onClick={() => setActiveTab("tokens")} className="mt-2 bg-orange-600 hover:bg-orange-700">
+                  <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="mt-2 bg-orange-600 hover:bg-orange-700">
                     <Star className="w-4 h-4 mr-1" />
                     {language === "id" ? "Klaim Token" : "Claim Tokens"}
                   </Button>
@@ -5094,6 +5117,59 @@ export default function CompleteApp() {
                   setSelectedReward(null);
                 }}
                 disabled={isRedeeming}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Token Claim Modal */}
+      {showTokenClaimModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Klaim Token Fisik" : "Claim Physical Tokens"}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {language === "id" 
+                ? `Anda memiliki ${userTokens} token. Berapa yang ingin diklaim?`
+                : `You have ${userTokens} tokens. How many would you like to claim?`
+              }
+            </p>
+            <input
+              type="number"
+              min="1"
+              max={userTokens}
+              value={tokenClaimAmount}
+              onChange={(e) => setTokenClaimAmount(e.target.value)}
+              placeholder={language === "id" ? "Jumlah token" : "Number of tokens"}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
+            />
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => {
+                  const amount = parseInt(tokenClaimAmount);
+                  if (amount > 0 && amount <= userTokens) {
+                    claimTokensMutation.mutate({ amount });
+                  }
+                }}
+                disabled={!tokenClaimAmount || parseInt(tokenClaimAmount) <= 0 || parseInt(tokenClaimAmount) > userTokens || claimTokensMutation.isPending}
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+              >
+                {claimTokensMutation.isPending 
+                  ? (language === "id" ? "Memproses..." : "Processing...") 
+                  : (language === "id" ? "Ajukan Klaim" : "Submit Claim")
+                }
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowTokenClaimModal(false);
+                  setTokenClaimAmount("");
+                }}
                 className="flex-1"
               >
                 {language === "id" ? "Batal" : "Cancel"}
