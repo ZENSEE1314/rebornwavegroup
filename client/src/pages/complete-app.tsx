@@ -332,13 +332,29 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             // Death check - pet dies at 100 days (100 years)
             const isDead = days >= 100;
             
-            // Growth stage based on age
+            // Growth stage based on age (every 20 days)
             let growthStage = "Baby";
-            if (isDead) growthStage = "Deceased";
-            else if (ageInYears >= 80) growthStage = "Elder";
-            else if (ageInYears >= 50) growthStage = "Adult";
-            else if (ageInYears >= 20) growthStage = "Teen";
-            else if (ageInYears >= 5) growthStage = "Child";
+            let dragonEmoji = "🥚"; // Default baby stage
+            
+            if (isDead) {
+              growthStage = "Deceased";
+              dragonEmoji = "💀";
+            } else if (ageInYears >= 80) {
+              growthStage = language === "id" ? "Grand Turtle Dragon" : "Grand Turtle Dragon";
+              dragonEmoji = "🐉"; // Majestic dragon
+            } else if (ageInYears >= 60) {
+              growthStage = language === "id" ? "Adult Turtle Dragon" : "Adult Turtle Dragon";
+              dragonEmoji = "🐲"; // Full grown dragon
+            } else if (ageInYears >= 40) {
+              growthStage = language === "id" ? "Teenager Turtle Dragon" : "Teenager Turtle Dragon";
+              dragonEmoji = "🦕"; // Large dinosaur
+            } else if (ageInYears >= 20) {
+              growthStage = language === "id" ? "Youth Turtle Dragon" : "Youth Turtle Dragon";
+              dragonEmoji = "🐢"; // Turtle form
+            } else {
+              growthStage = language === "id" ? "Baby Turtle Dragon" : "Baby Turtle Dragon";
+              dragonEmoji = "🥚"; // Egg/baby form
+            }
             
             // Status decreases from 100% to 0% over 12 hours if not fed
             const calculateStatus = (lastFeedTime?: Date) => {
@@ -356,10 +372,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
+            // Real-time status calculations that decay over time
             const hunger = calculateStatus(pet.lastFedAt);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = isDead ? 0 : Math.max(0, 100 - (days * 4)); // Decreases 4% per day
-            const energy = isDead ? 0 : Math.max(0, 100 - (days * 3)); // Decreases 3% per day
+            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6))); // Decreases every 6 hours
+            const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
@@ -370,7 +387,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <CardTitle className="flex items-center justify-between">
                     <span>{pet.name}</span>
                     <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
-                      {growthStage} Dragon Turtle
+                      {growthStage}
                     </Badge>
                   </CardTitle>
                   <div className="text-sm space-y-1">
@@ -396,7 +413,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-6">
-                    {/* Animated Dragon Turtle */}
+                    {/* Animated Dragon Turtle with Growth Stages */}
                     <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className={isDead ? '' : 'animate-bounce'}>
@@ -408,9 +425,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                               transform: isDead ? 'rotate(90deg)' : 'none'
                             }}
                           >
-                            {isDead ? '💀' : '🐢'}
+                            {dragonEmoji}
                           </div>
                         </div>
+                      </div>
+                      
+                      {/* Growth Stage Indicator */}
+                      <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                        {language === "id" ? `Tahap: ${growthStage}` : `Stage: ${growthStage}`}
                       </div>
                       {hunger === 0 && (
                         <div className="absolute top-2 right-2 text-red-500 font-bold">
