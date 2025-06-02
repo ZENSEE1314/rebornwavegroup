@@ -1608,6 +1608,7 @@ export class DatabaseStorage implements IStorage {
 
     // If rejected, return the tokens to the user's account
     if (status === 'rejected') {
+      console.log('Refunding tokens:', claim.tokensRequested, 'to user:', claim.userId);
       await db.update(users).set({
         tokens: sql`${users.tokens} + ${claim.tokensRequested}`,
         updatedAt: new Date()
