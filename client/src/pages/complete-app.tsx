@@ -20,22 +20,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 
-// Coin Catching Game Component
+// Simple Coin Catching Game Component
 function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: { pet: any; language: string; onClose: () => void; user: any; toast: any; queryClient: any }) {
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
-  const [coins, setCoins] = useState<Array<{ id: number; x: number; y: number; speed: number }>>([]);
   const [gameOver, setGameOver] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-  // Fetch leaderboard data
-  const { data: leaderboard = [] } = useQuery({
-    queryKey: ['/api/game-scores/leaderboard'],
-    enabled: showLeaderboard,
-  });
+  const startGame = () => {
+    setGameStarted(true);
+    setScore(0);
+    setTimeLeft(30);
+    setGameOver(false);
+  };
 
-  // Game timer
+  const endGame = () => {
+    setGameOver(true);
+    setGameStarted(false);
+    
+    if (score > 0 && pet && pet.id) {
+      toast({
+        title: language === "id" ? "Permainan Selesai!" : "Game Over!",
+        description: language === "id" 
+          ? `Skor: ${score}. Bagus sekali!` 
+          : `Score: ${score}. Well done!`,
+      });
+    }
+  };
+
+  const clickCoin = () => {
+    if (gameStarted && !gameOver) {
+      setScore(prev => prev + 10);
+    }
+  };
+
+  // Timer countdown
   useEffect(() => {
     if (gameStarted && timeLeft > 0 && !gameOver) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -44,6 +63,75 @@ function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: 
       endGame();
     }
   }, [gameStarted, timeLeft, gameOver]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">
+            {language === "id" ? "Permainan Coin Catching" : "Coin Catching Game"}
+          </h3>
+          <Button variant="ghost" onClick={onClose}>✕</Button>
+        </div>
+
+        {!gameStarted && !gameOver && (
+          <div className="text-center space-y-4">
+            <div className="text-4xl">🪙</div>
+            <p className="text-gray-600">
+              {language === "id" 
+                ? "Klik tombol koin untuk mendapatkan poin!"
+                : "Click the coin button to earn points!"}
+            </p>
+            <Button onClick={startGame} className="w-full">
+              {language === "id" ? "Mulai Permainan" : "Start Game"}
+            </Button>
+          </div>
+        )}
+
+        {gameStarted && !gameOver && (
+          <div className="space-y-4">
+            <div className="flex justify-between text-lg font-semibold">
+              <span>{language === "id" ? "Skor:" : "Score:"} {score}</span>
+              <span>{language === "id" ? "Waktu:" : "Time:"} {timeLeft}s</span>
+            </div>
+            
+            <div className="bg-blue-100 p-8 rounded-lg text-center">
+              <Button 
+                onClick={clickCoin}
+                className="text-4xl p-8 bg-yellow-500 hover:bg-yellow-600"
+              >
+                🪙
+              </Button>
+              <p className="mt-2 text-sm text-gray-600">
+                {language === "id" ? "Klik koin!" : "Click the coin!"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {gameOver && (
+          <div className="text-center space-y-4">
+            <div className="text-4xl">🏆</div>
+            <h4 className="text-xl font-bold">
+              {language === "id" ? "Permainan Selesai!" : "Game Over!"}
+            </h4>
+            <p className="text-lg">
+              {language === "id" ? "Skor Akhir:" : "Final Score:"} <span className="font-bold">{score}</span>
+            </p>
+            <div className="space-y-2">
+              <Button onClick={startGame} className="w-full">
+                {language === "id" ? "Main Lagi" : "Play Again"}
+              </Button>
+              <Button variant="outline" onClick={onClose} className="w-full">
+                {language === "id" ? "Tutup" : "Close"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
   // Spawn coins
   useEffect(() => {
@@ -206,28 +294,9 @@ function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: 
             </div>
             
             <div className="max-h-64 overflow-y-auto space-y-2">
-              {leaderboard.length > 0 ? (
-                leaderboard.map((entry: any, index: number) => (
-                  <div 
-                    key={entry.id} 
-                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="font-bold text-gray-600">#{index + 1}</span>
-                      <div>
-                        <div className="font-medium">
-                          {entry.user?.firstName || entry.user?.email || 'Anonymous'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {language === "id" ? "Pet:" : "Pet:"} {entry.pet?.name || 'Unknown'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">{entry.score}</div>
-                      <div className="text-sm text-gray-500">
-                        {entry.tokensEarned} {language === "id" ? "token" : "tokens"}
-                      </div>
+              <div className="text-center text-gray-500 py-4">
+                {language === "id" ? "Papan peringkat akan ditampilkan setelah bermain" : "Leaderboard will be displayed after playing"}
+              </div>
                     </div>
                   </div>
                 ))
