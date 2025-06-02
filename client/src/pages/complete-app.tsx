@@ -104,7 +104,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     alt={toy.name} 
                     className="w-24 h-24 mx-auto object-contain"
                     onError={(e) => {
-                      e.currentTarget.src = "/api/placeholder/100/100";
+                      // Try the attached assets path if the original fails
+                      if (!e.currentTarget.src.includes('/attached_assets/')) {
+                        e.currentTarget.src = toy.imageUrl.startsWith('/attached_assets/') 
+                          ? toy.imageUrl 
+                          : "/api/placeholder/100/100";
+                      } else {
+                        e.currentTarget.src = "/api/placeholder/100/100";
+                      }
                     }}
                   />
                 </div>

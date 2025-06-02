@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import express from "express";
+import path from "path";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
@@ -16,6 +18,9 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Serve attached assets as static files
+  app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
