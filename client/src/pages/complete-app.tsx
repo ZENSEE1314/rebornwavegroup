@@ -1117,6 +1117,9 @@ export default function CompleteApp() {
   const [creditHistoryPage, setCreditHistoryPage] = useState(1);
   const [pointsHistoryPage, setPointsHistoryPage] = useState(1);
   const [redemptionHistoryPage, setRedemptionHistoryPage] = useState(1);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [marketplacePage, setMarketplacePage] = useState(1);
+  const [toyInventoryPage, setToyInventoryPage] = useState(1);
   const [modalDateFilterStart, setModalDateFilterStart] = useState("");
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
