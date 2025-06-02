@@ -27,10 +27,22 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
 
   // Fetch user's toys that can become pets
-  const { data: userToys = [], isLoading: toysLoading } = useQuery({
+  const { data: userToys = [], isLoading: toysLoading, error: toysError } = useQuery({
     queryKey: ["/api/toys"],
     enabled: !!user,
     retry: false,
+  });
+
+  // Add error handling for toys API
+  if (toysError) {
+    console.error("Toys API error:", toysError);
+  }
+
+  console.log("PET CARE DEBUG:", {
+    user: !!user,
+    toysLoading,
+    toysError,
+    userToys: userToys?.length || 0
   });
 
   // Fetch user's pets (activated toys)
@@ -170,9 +182,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             <p className="text-gray-600 mb-4">
               {language === "id" ? "Tidak ada mainan yang dimiliki" : "No toys owned"}
             </p>
-            <Button onClick={() => setActiveTab('marketplace')} variant="outline">
-              {language === "id" ? "Pergi ke Marketplace" : "Go to Marketplace"}
-            </Button>
+            <p className="text-sm text-gray-500">
+              {language === "id" ? "Kunjungi tab Marketplace untuk membeli mainan" : "Visit Marketplace tab to buy toys"}
+            </p>
           </CardContent>
         </Card>
       </div>
