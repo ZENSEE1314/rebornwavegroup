@@ -1646,6 +1646,7 @@ export default function CompleteApp() {
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       setShowTokenClaimModal(false);
       setTokenClaimAmount("");
+      setShippingAddress("");
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
@@ -5148,15 +5149,25 @@ export default function CompleteApp() {
               placeholder={language === "id" ? "Jumlah token" : "Number of tokens"}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
             />
+            <textarea
+              value={shippingAddress}
+              onChange={(e) => setShippingAddress(e.target.value)}
+              placeholder={language === "id" ? "Alamat pengiriman lengkap" : "Complete shipping address"}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 h-20 resize-none"
+              required
+            />
             <div className="flex gap-3">
               <Button 
                 onClick={() => {
                   const amount = parseInt(tokenClaimAmount);
-                  if (amount > 0 && amount <= userTokens) {
-                    claimTokensMutation.mutate({ amount });
+                  if (amount > 0 && amount <= userTokens && shippingAddress.trim()) {
+                    claimTokensMutation.mutate({ 
+                      tokensRequested: amount,
+                      shippingAddress: shippingAddress.trim()
+                    });
                   }
                 }}
-                disabled={!tokenClaimAmount || parseInt(tokenClaimAmount) <= 0 || parseInt(tokenClaimAmount) > userTokens || claimTokensMutation.isPending}
+                disabled={!tokenClaimAmount || !shippingAddress.trim() || parseInt(tokenClaimAmount) <= 0 || parseInt(tokenClaimAmount) > userTokens || claimTokensMutation.isPending}
                 className="flex-1 bg-orange-600 hover:bg-orange-700"
               >
                 {claimTokensMutation.isPending 
@@ -5169,6 +5180,7 @@ export default function CompleteApp() {
                 onClick={() => {
                   setShowTokenClaimModal(false);
                   setTokenClaimAmount("");
+                  setShippingAddress("");
                 }}
                 className="flex-1"
               >
