@@ -850,6 +850,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet Care activation endpoint
+  app.post('/api/toys/activate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { qrCode } = req.body;
+      
+      const activatedToy = await storage.activateToyByQrCode(qrCode, userId);
+      
+      if (!activatedToy) {
+        return res.status(400).json({ message: "Failed to activate toy" });
+      }
+
+      res.json({ 
+        message: "Toy activated successfully!", 
+        toy: activatedToy 
+      });
+    } catch (error: any) {
+      console.error("Error activating toy:", error);
+      res.status(400).json({ message: error.message || "Failed to activate toy" });
+    }
+  });
+
   // Marketplace routes
   app.get('/api/marketplace/listings', async (req, res) => {
     try {
