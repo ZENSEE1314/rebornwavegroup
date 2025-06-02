@@ -28,7 +28,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading } = useQuery({
-    queryKey: ["/api/user-toys"],
+    queryKey: ["/api/toys"],
     retry: false,
   });
 
@@ -133,7 +133,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   }
 
   // Filter toys that can become pets (purchased toys)
-  const ownedToys = userToys.filter((toy: any) => toy.ownerId === user?.id || toy.purchasedBy === user?.id);
+  const ownedToys = userToys.filter((toy: any) => toy.ownerId === user?.id);
   const activatedToys = ownedToys.filter((toy: any) => toy.isActivated);
   const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
 
