@@ -1110,6 +1110,14 @@ export default function CompleteApp() {
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
   
+  // History modal states
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [modalHistoryFilter, setModalHistoryFilter] = useState<'points' | 'credits' | 'tokens' | 'appointments' | 'redemptions'>('tokens');
+  const [modalHistoryPage, setModalHistoryPage] = useState(1);
+  const [modalDateFilterStart, setModalDateFilterStart] = useState("");
+  const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
+  const [modalStatusFilter, setModalStatusFilter] = useState("all");
+  
   // Global error handler for unhandled promise rejections
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -5584,6 +5592,262 @@ export default function CompleteApp() {
                 {language === "id" ? "Batal" : "Cancel"}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">
+                {language === "id" ? "Riwayat Transaksi" : "Transaction History"}
+              </h3>
+              <Button variant="ghost" onClick={() => setShowHistoryModal(false)}>✕</Button>
+            </div>
+
+            {/* History Tabs */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {[
+                { key: 'tokens', label: language === "id" ? "Token" : "Tokens", icon: "🪙" },
+                { key: 'points', label: language === "id" ? "Poin" : "Points", icon: "🎯" },
+                { key: 'credits', label: language === "id" ? "Kredit" : "Credits", icon: "💰" },
+                { key: 'appointments', label: language === "id" ? "Janji Temu" : "Appointments", icon: "📅" },
+                { key: 'redemptions', label: language === "id" ? "Penukaran" : "Redemptions", icon: "🎁" }
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  variant={modalHistoryFilter === tab.key ? "default" : "outline"}
+                  onClick={() => {
+                    setModalHistoryFilter(tab.key);
+                    setModalHistoryPage(1);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Filters */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  {language === "id" ? "Filter" : "Filters"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Tanggal Mulai" : "Start Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={modalDateFilterStart}
+                      onChange={(e) => setModalDateFilterStart(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Tanggal Akhir" : "End Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={modalDateFilterEnd}
+                      onChange={(e) => setModalDateFilterEnd(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {language === "id" ? "Status" : "Status"}
+                    </label>
+                    <select
+                      value={modalStatusFilter}
+                      onChange={(e) => setModalStatusFilter(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                      <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
+                      <option value="approved">{language === "id" ? "Disetujui" : "Approved"}</option>
+                      <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
+                      <option value="cancelled">{language === "id" ? "Dibatalkan" : "Cancelled"}</option>
+                      <option value="rejected">{language === "id" ? "Ditolak" : "Rejected"}</option>
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* History Content */}
+            <Card>
+              <CardContent className="p-6">
+                {(() => {
+                  // Get data based on filter
+                  let data: any[] = [];
+                  switch (modalHistoryFilter) {
+                    case 'tokens':
+                      data = filteredTokenHistory || [];
+                      break;
+                    case 'points':
+                      data = (filteredPointHistory || []).filter((item: any) => item.type === 'earned');
+                      break;
+                    case 'credits':
+                      data = filteredCreditHistory || [];
+                      break;
+                    case 'appointments':
+                      data = filteredAppointmentHistory || [];
+                      break;
+                    case 'redemptions':
+                      data = (filteredPointHistory || []).filter((item: any) => item.type === 'redeemed');
+                      break;
+                    default:
+                      data = [];
+                  }
+
+                  // Apply date filters
+                  if (modalDateFilterStart || modalDateFilterEnd) {
+                    data = data.filter((item: any) => {
+                      const itemDate = new Date(item.createdAt || item.requestedAt || item.appointmentDate);
+                      const start = modalDateFilterStart ? new Date(modalDateFilterStart) : null;
+                      const end = modalDateFilterEnd ? new Date(modalDateFilterEnd) : null;
+                      
+                      if (start && itemDate < start) return false;
+                      if (end && itemDate > end) return false;
+                      return true;
+                    });
+                  }
+
+                  // Apply status filter
+                  if (modalStatusFilter !== 'all') {
+                    data = data.filter((item: any) => item.status === modalStatusFilter);
+                  }
+
+                  // Pagination - 10 items per page
+                  const itemsPerPage = 10;
+                  const startIndex = (modalHistoryPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const paginatedData = data.slice(startIndex, endIndex);
+                  const totalPages = Math.ceil(data.length / itemsPerPage);
+
+                  if (data.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="text-gray-500 mb-4">
+                          {modalHistoryFilter === 'points' && "📊"}
+                          {modalHistoryFilter === 'credits' && "💰"}
+                          {modalHistoryFilter === 'tokens' && "🪙"}
+                          {modalHistoryFilter === 'appointments' && "📅"}
+                          {modalHistoryFilter === 'redemptions' && "🎁"}
+                        </div>
+                        <p className="text-gray-500">
+                          {language === "id" ? "Tidak ada data ditemukan" : "No data found"}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Items List */}
+                      <div className="space-y-3">
+                        {paginatedData.map((item: any, index: number) => (
+                          <div key={item.id || index} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {modalHistoryFilter === 'points' && <span className="text-blue-600">🎯</span>}
+                                  {modalHistoryFilter === 'credits' && <span className="text-green-600">💰</span>}
+                                  {modalHistoryFilter === 'tokens' && <span className="text-orange-600">🪙</span>}
+                                  {modalHistoryFilter === 'appointments' && <span className="text-purple-600">📅</span>}
+                                  {modalHistoryFilter === 'redemptions' && <span className="text-red-600">🎁</span>}
+                                  
+                                  <span className="font-semibold">
+                                    {modalHistoryFilter === 'tokens' ? 
+                                      `${item.tokensRequested} ${language === "id" ? "Token" : "Tokens"}` :
+                                      item.description || item.serviceName || `${item.points || item.amount || 0}`
+                                    }
+                                  </span>
+                                </div>
+                                
+                                <p className="text-sm text-gray-600 mb-1">
+                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                                </p>
+                                
+                                {item.adminNotes && (
+                                  <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
+                                    {language === "id" ? "Catatan: " : "Notes: "}{item.adminNotes}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="text-right">
+                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  item.status === 'completed' || item.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  item.status === 'cancelled' || item.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {item.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
+                                   item.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                                   item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
+                                   item.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                                   item.status === 'pending' ? (language === "id" ? "Menunggu" : "Pending") :
+                                   (item.status || (language === "id" ? "Tidak diketahui" : "Unknown"))}
+                                </div>
+                                
+                                {(modalHistoryFilter === 'points' || modalHistoryFilter === 'credits') && (
+                                  <div className={`text-sm font-medium mt-1 ${
+                                    item.type === 'earned' ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {item.type === 'earned' ? '+' : '-'}{item.points || item.amount || 0}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex justify-between items-center pt-4 border-t">
+                          <div className="text-sm text-gray-600">
+                            {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, data.length)} {language === "id" ? "dari" : "of"} {data.length} {language === "id" ? "item" : "items"}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setModalHistoryPage(Math.max(1, modalHistoryPage - 1))}
+                              disabled={modalHistoryPage === 1}
+                            >
+                              {language === "id" ? "Sebelumnya" : "Previous"}
+                            </Button>
+                            <span className="px-3 py-1 text-sm">
+                              {modalHistoryPage} / {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setModalHistoryPage(Math.min(totalPages, modalHistoryPage + 1))}
+                              disabled={modalHistoryPage === totalPages}
+                            >
+                              {language === "id" ? "Selanjutnya" : "Next"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
