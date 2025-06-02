@@ -133,23 +133,6 @@ function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: 
   );
 }
 
-  // Spawn coins
-  useEffect(() => {
-    if (gameStarted && !gameOver) {
-      const spawnInterval = setInterval(() => {
-        const newCoin = {
-          id: Date.now() + Math.random(),
-          x: Math.random() * 80 + 10, // 10% to 90% of container width
-          y: 0,
-          speed: Math.random() * 2 + 1, // Speed between 1-3
-        };
-        setCoins(prev => [...prev, newCoin]);
-      }, 800);
-
-      return () => clearInterval(spawnInterval);
-    }
-  }, [gameStarted, gameOver]);
-
   // Move coins down
   useEffect(() => {
     if (gameStarted && !gameOver) {
