@@ -909,27 +909,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'feed'
+          careType: 'feed',
+          careDate: new Date(),
+          completedAt: new Date(),
+          tokenEarned: false
         });
       } else if (careType === 'bathe') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'bathe'
+          careType: 'bathe',
+          careDate: new Date(),
+          completedAt: new Date(),
+          tokenEarned: false
         });
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'sleep') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'sleep'
+          careType: 'sleep',
+          careDate: new Date(),
+          completedAt: new Date(),
+          tokenEarned: false
         });
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'clean') {
         await storage.createCareActivity({
           petId,
           userId,
-          careType: 'clean'
+          careType: 'clean',
+          careDate: new Date(),
+          completedAt: new Date(),
+          tokenEarned: false
         });
         await storage.updateUserPoints(userId, 3);
       }
@@ -2145,12 +2157,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.claims?.sub;
       const { petId, score, tokensEarned } = req.body;
       
+      // Create the game score record
       const gameScore = await storage.createGameScore({
         userId,
         petId,
         score,
-        tokensEarned
+        tokensEarned: tokensEarned || 0
       });
+      
+      // Award tokens to the user if any were earned
+      if (tokensEarned && tokensEarned > 0) {
+        await storage.updatePetTokens(userId, tokensEarned);
+        
+        // Create transaction record for token earning
+        await storage.createTransaction({
+          userId,
+          type: 'coin_game_reward',
+          amount: '0.00',
+          description: `Earned ${tokensEarned} tokens from Coin Catching Game (Score: ${score})`,
+          status: 'completed',
+          pointsEarned: tokensEarned
+        });
+      }
       
       res.json(gameScore);
     } catch (error: any) {
