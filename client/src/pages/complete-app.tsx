@@ -532,6 +532,37 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
               <p className="text-sm text-gray-600 bg-purple-100 rounded-full px-3 py-1 mt-2 inline-block">
                 🎂 {currentPet.currentAge || 0} days old
               </p>
+              
+              {/* Pet Lifecycle Timer */}
+              <div className="mt-4 p-3 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="text-lg">⏰</div>
+                    <span className="font-semibold text-purple-800 text-sm">Pet Lifecycle</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-base font-bold text-purple-700">Day {currentPet.currentAge || 0}</div>
+                    <div className="text-xs text-purple-600">of 100 days</div>
+                  </div>
+                </div>
+                <div className="bg-gray-200 rounded-full h-3 mb-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-400 to-pink-400 h-3 rounded-full transition-all"
+                    style={{ width: `${Math.min(((currentPet.currentAge || 0) / 100) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-center text-purple-600">
+                  {(() => {
+                    const age = currentPet.currentAge || 0;
+                    if (age < 20) return "🐣 Baby Stage";
+                    if (age < 40) return "🐉 Child Stage";
+                    if (age < 60) return "🔥 Adult Stage";
+                    if (age < 80) return "👑 Elder Stage";
+                    if (age < 100) return "💎 Grand Dragon";
+                    return "⚰️ Memorial";
+                  })()}
+                </div>
+              </div>
             </div>
 
             {/* Compact Stats Grid */}
