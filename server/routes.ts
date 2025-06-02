@@ -2268,6 +2268,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Token claim routes for users to request physical tokens
+  app.post('/api/token-claims', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { tokensRequested, shippingAddress } = req.body;
+      
+      // Check if user has enough tokens
+      const user = await storage.getUser(userId);
+      if (!user || user.tokens < tokensRequested) {
+        return res.status(400).json({ message: "Insufficient tokens" });
+      }
+
+      // Deduct tokens from user account
+      await storage.updateUserTokens(userId, -tokensRequested);
+
+      // Create token claim request
+      const claim = await storage.createTokenClaim({
+        userId,
+        tokensRequested,
+        shippingAddress,
+        status: 'pending'
+      });
+
+      res.json(claim);
+    } catch (error) {
+      console.error("Error creating token claim:", error);
+      res.status(500).json({ message: "Failed to create token claim" });
+    }
+  });
+
+  app.get('/api/admin/token-claims', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const claims = await storage.getTokenClaims();
+      res.json(claims);
+    } catch (error) {
+      console.error("Error fetching token claims:", error);
+      res.status(500).json({ message: "Failed to fetch token claims" });
+    }
+  });
+
+  app.put('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes, trackingNumber } = req.body;
+      
+      await storage.updateTokenClaimStatus(parseInt(id), status, adminUserId, adminNotes, trackingNumber);
+      res.json({ message: "Token claim updated successfully" });
+    } catch (error) {
+      console.error("Error updating token claim:", error);
+      res.status(500).json({ message: "Failed to update token claim" });
+    }
+  });
+
   // Admin add tokens to user
   app.post('/api/admin/users/:userId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {
