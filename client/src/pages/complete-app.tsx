@@ -597,31 +597,29 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                 <div className="text-xs text-center font-bold text-cyan-600">{Math.round(currentPet.cleanliness || 100)}%</div>
               </div>
 
-              {/* Weight */}
+              {/* Tokens Earned */}
               <div className="bg-white/90 rounded-xl p-3 shadow-lg">
                 <div className="text-center mb-2">
-                  <div className="text-lg">⚖️</div>
-                  <div className="text-xs font-bold text-blue-600">Weight</div>
+                  <div className="text-lg">🪙</div>
+                  <div className="text-xs font-bold text-yellow-600">Tokens</div>
                 </div>
-                <div className="text-lg font-bold text-blue-600 text-center">{currentPet.weight || 20}G</div>
-                <div className="text-xs text-center text-gray-500">Gigabytes</div>
+                <div className="text-lg font-bold text-yellow-600 text-center">{currentPet.tokens || 0}</div>
+                <div className="text-xs text-center text-gray-500">Earned</div>
               </div>
 
-              {/* Health/Life Bar */}
+              {/* Energy Bar */}
               <div className="bg-white/90 rounded-xl p-3 shadow-lg">
                 <div className="text-center mb-2">
-                  <div className="text-lg">💚</div>
-                  <div className="text-xs font-bold text-green-600">Health</div>
+                  <div className="text-lg">⚡</div>
+                  <div className="text-xs font-bold text-green-600">Energy</div>
                 </div>
                 <div className="bg-gray-200 rounded-full h-2 mb-1">
                   <div 
                     className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full transition-all"
-                    style={{ width: `${currentPet.isDead ? 0 : Math.max(100 - (currentPet.injuries || 0) * 20, 10)}%` }}
+                    style={{ width: `${(currentPet.energy || 100)}%` }}
                   ></div>
                 </div>
-                <div className="text-xs text-center font-bold text-green-600">
-                  {currentPet.isDead ? 'Dead' : `${Math.max(100 - (currentPet.injuries || 0) * 20, 10)}%`}
-                </div>
+                <div className="text-xs text-center font-bold text-green-600">{Math.round(currentPet.energy || 100)}%</div>
               </div>
             </div>
 
@@ -759,7 +757,7 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                               title: "Pet Cleaned!",
                               description: "Your pet is now squeaky clean!",
                             });
-                            queryClient.invalidateQueries({ queryKey: ['/api/pets/digimon'] });
+                            queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
                           }
                         } catch (error) {
                           toast({
@@ -788,7 +786,7 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                               title: "Playtime!",
                               description: "Your pet had fun playing!",
                             });
-                            queryClient.invalidateQueries({ queryKey: ['/api/pets/digimon'] });
+                            queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
                           }
                         } catch (error) {
                           toast({
