@@ -27,8 +27,15 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   const [timeLeft, setTimeLeft] = useState(30);
   const [coins, setCoins] = useState<Array<{ id: number; x: number; y: number; speed: number }>>([]);
   const [gameOver, setGameOver] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch leaderboard data
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ['/api/game-scores/leaderboard'],
+    enabled: showLeaderboard,
+  });
 
   // Game timer
   useEffect(() => {
@@ -89,7 +96,18 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
       try {
         // Award tokens based on score
         const tokensEarned = Math.floor(score / 10);
+        
+        // Submit score to backend
+        await apiRequest('POST', '/api/game-scores', {
+          petId: pet.id,
+          score: score,
+          tokensEarned: tokensEarned
+        });
+        
+        // Refresh user data to show updated tokens
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
         
         toast({
           title: language === "id" ? "Permainan Selesai!" : "Game Over!",
@@ -98,9 +116,10 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
             : `Score: ${score}. Tokens earned: ${tokensEarned}!`,
         });
       } catch (error) {
+        console.error('Error submitting game score:', error);
         toast({
           title: language === "id" ? "Error" : "Error",
-          description: language === "id" ? "Gagal memberikan token" : "Failed to award tokens",
+          description: language === "id" ? "Gagal menyimpan skor dan memberikan token" : "Failed to save score and award tokens",
           variant: "destructive"
         });
       }
@@ -122,7 +141,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           <Button variant="ghost" onClick={onClose}>✕</Button>
         </div>
 
-        {!gameStarted && !gameOver && (
+        {!gameStarted && !gameOver && !showLeaderboard && (
           <div className="text-center space-y-4">
             <div className="text-4xl">🪙</div>
             <p className="text-gray-600">
@@ -130,9 +149,19 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                 ? "Tangkap koin yang jatuh untuk mendapatkan poin! Klik koin untuk menangkapnya."
                 : "Catch falling coins to earn points! Click coins to catch them."}
             </p>
-            <Button onClick={startGame} className="w-full">
-              {language === "id" ? "Mulai Permainan" : "Start Game"}
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={startGame} className="w-full">
+                {language === "id" ? "Mulai Permainan" : "Start Game"}
+              </Button>
+              <Button 
+                onClick={() => setShowLeaderboard(true)} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                {language === "id" ? "Papan Peringkat" : "Leaderboard"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -167,6 +196,59 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           </div>
         )}
 
+        {showLeaderboard && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h4 className="text-lg font-semibold">
+                {language === "id" ? "Papan Peringkat" : "Leaderboard"}
+              </h4>
+              <Button 
+                onClick={() => setShowLeaderboard(false)} 
+                variant="outline"
+                size="sm"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {language === "id" ? "Kembali" : "Back"}
+              </Button>
+            </div>
+            
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {leaderboard.length > 0 ? (
+                leaderboard.map((entry: any, index: number) => (
+                  <div 
+                    key={entry.id} 
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="font-bold text-gray-600">#{index + 1}</span>
+                      <div>
+                        <div className="font-medium">
+                          {entry.user?.firstName || entry.user?.email || 'Anonymous'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {language === "id" ? "Pet:" : "Pet:"} {entry.pet?.name || 'Unknown'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg">{entry.score}</div>
+                      <div className="text-sm text-gray-500">
+                        {entry.tokensEarned} {language === "id" ? "token" : "tokens"}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  {language === "id" 
+                    ? "Belum ada skor yang tercatat. Jadilah yang pertama!"
+                    : "No scores recorded yet. Be the first!"}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {gameOver && (
           <div className="text-center space-y-4">
             <div className="text-4xl">🏆</div>
@@ -176,12 +258,22 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
             <p className="text-gray-600">
               {language === "id" ? `Skor Akhir: ${score}` : `Final Score: ${score}`}
             </p>
-            <div className="flex gap-2">
-              <Button onClick={startGame} variant="outline">
-                {language === "id" ? "Main Lagi" : "Play Again"}
-              </Button>
-              <Button onClick={onClose}>
-                {language === "id" ? "Selesai" : "Done"}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button onClick={startGame} variant="outline">
+                  {language === "id" ? "Main Lagi" : "Play Again"}
+                </Button>
+                <Button onClick={onClose}>
+                  {language === "id" ? "Selesai" : "Done"}
+                </Button>
+              </div>
+              <Button 
+                onClick={() => setShowLeaderboard(true)} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                {language === "id" ? "Lihat Peringkat" : "View Leaderboard"}
               </Button>
             </div>
           </div>
