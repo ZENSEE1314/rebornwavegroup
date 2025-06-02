@@ -26,7 +26,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const queryClient = useQueryClient();
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
 
-  // Fetch user's pets
+  // Fetch user's toys that can become pets
+  const { data: userToys = [], isLoading: toysLoading } = useQuery({
+    queryKey: ["/api/user-toys"],
+    retry: false,
+  });
+
+  // Fetch user's pets (activated toys)
   const { data: pets = [], isLoading: petsLoading } = useQuery({
     queryKey: ["/api/pets"],
     retry: false,
@@ -72,24 +78,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
   });
 
-  // Create new pet mutation
-  const createPetMutation = useMutation({
-    mutationFn: async (petData: { name: string; type: string }) => {
-      return apiRequest("POST", "/api/pets", {
-        ...petData,
-        happiness: 100,
-        hunger: 100,
-        cleanliness: 100,
-        energy: 100,
-        currentAge: 0,
-        growthStage: "baby",
-      });
+  // Activate toy to create pet
+  const activateToyMutation = useMutation({
+    mutationFn: async (qrCode: string) => {
+      return apiRequest("POST", "/api/toys/activate", { qrCode });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-toys"] });
       toast({
-        title: "Pet Created!",
-        description: "Your new digital pet is ready for care!",
+        title: "Toy Activated!",
+        description: "Your toy has been activated and is now a pet!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Activation Failed",
+        description: error.message || "Failed to activate toy",
+        variant: "destructive",
       });
     },
   });
@@ -107,13 +113,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   };
 
-  const createSamplePet = () => {
-    createPetMutation.mutate({
-      name: `Pet ${pets.length + 1}`,
-      type: "dragon",
-    });
-  };
-
   const getGrowthStageInfo = (stage: string) => {
     const stages: any = {
       baby: { label: "Baby", color: "bg-pink-100 text-pink-800" },
@@ -125,7 +124,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return stages[stage] || stages.baby;
   };
 
-  if (petsLoading) {
+  if (petsLoading || toysLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -133,7 +132,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
-  if (!pets.length) {
+  // Filter toys that can become pets (purchased toys)
+  const ownedToys = userToys.filter((toy: any) => toy.ownerId === user?.id || toy.purchasedBy === user?.id);
+  const activatedToys = ownedToys.filter((toy: any) => toy.isActivated);
+  const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
+
+  if (!pets.length && !ownedToys.length) {
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
@@ -141,14 +145,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
           </h2>
           <p className="text-slate-600">
-            {language === "id" ? "Belum ada hewan peliharaan. Buat hewan digital pertama Anda!" : "You don't have any pets yet. Create your first digital pet!"}
+            {language === "id" ? "Beli mainan terlebih dahulu untuk membuat hewan peliharaan!" : "Buy toys from the marketplace to create pets!"}
           </p>
         </div>
         <Card>
           <CardContent className="text-center py-12">
-            <Button onClick={createSamplePet} disabled={createPetMutation.isPending}>
-              <Plus className="w-4 h-4 mr-2" />
-              {language === "id" ? "Buat Hewan Pertama" : "Create Your First Pet"}
+            <p className="text-gray-600 mb-4">
+              {language === "id" ? "Tidak ada mainan yang dimiliki" : "No toys owned"}
+            </p>
+            <Button onClick={() => window.location.href = '#marketplace'} variant="outline">
+              {language === "id" ? "Pergi ke Marketplace" : "Go to Marketplace"}
             </Button>
           </CardContent>
         </Card>
@@ -168,6 +174,38 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
         </p>
       </div>
+
+      {/* Unactivated Toys Section */}
+      {unactivatedToys.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{language === "id" ? "Mainan yang Perlu Diaktivasi" : "Toys Awaiting Activation"}</CardTitle>
+            <p className="text-sm text-gray-600">
+              {language === "id" ? "Aktivasi mainan untuk mengubahnya menjadi hewan peliharaan" : "Activate your toys to turn them into pets"}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {unactivatedToys.map((toy: any) => (
+                <Card key={toy.id} className="border-2 border-dashed border-blue-300">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-4xl mb-3">🧸</div>
+                    <h4 className="font-semibold">{toy.name}</h4>
+                    <p className="text-sm text-gray-600 mb-3">QR: {toy.qrCode}</p>
+                    <Button 
+                      onClick={() => activateToyMutation.mutate(toy.qrCode)}
+                      disabled={activateToyMutation.isPending}
+                      className="w-full"
+                    >
+                      {language === "id" ? "Aktivasi Hewan" : "Activate Pet"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pet Navigation */}
       {pets.length > 1 && (
@@ -330,17 +368,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Create New Pet Button */}
-      <div className="text-center">
-        <Button
-          variant="outline"
-          onClick={createSamplePet}
-          disabled={createPetMutation.isPending}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {language === "id" ? "Tambah Hewan Lain" : "Add Another Pet"}
-        </Button>
-      </div>
+
     </div>
   );
 }
