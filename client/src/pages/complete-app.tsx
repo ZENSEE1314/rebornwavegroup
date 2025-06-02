@@ -278,7 +278,440 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   );
 }
 
-// Pet Care Component
+// Pet Care Tab Component
+function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab: any; toast: any; queryClient: any }) {
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  
+  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
+  const { data: userToys } = useQuery({ queryKey: ["/api/toys"] });
+  
+  const petList = Array.isArray(pets) ? pets : [];
+  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.isOwned) : [];
+  const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
+
+  // Mutations for pet actions
+  const feedPetMutation = useMutation({
+    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
+      const response = await fetch(`/api/pets/${petId}/feed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ foodType }),
+      });
+      if (!response.ok) throw new Error('Failed to feed pet');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Pet Fed Successfully!",
+        description: `Gained ${data.tokensEarned} tokens. Weight: ${data.newWeight}G`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+    },
+  });
+
+  const trainPetMutation = useMutation({
+    mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
+      const response = await fetch(`/api/pets/${petId}/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ trainingType }),
+      });
+      if (!response.ok) throw new Error('Failed to train pet');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Training Complete!",
+        description: `${data.trainingType} +${data.statIncrease}. Earned ${data.tokensEarned} tokens.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+    },
+  });
+
+  const battlePetMutation = useMutation({
+    mutationFn: async ({ petId, battleType }: { petId: number; battleType: string }) => {
+      const response = await fetch(`/api/pets/${petId}/battle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ battleType }),
+      });
+      if (!response.ok) throw new Error('Failed to battle');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.result === 'win' ? "Victory!" : "Defeat",
+        description: `${data.result === 'win' ? 'Won' : 'Lost'} battle. Earned ${data.tokensEarned} tokens.`,
+        variant: data.result === 'win' ? "default" : "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+    },
+  });
+
+  const activateToyMutation = useMutation({
+    mutationFn: async (qrCode: string) => {
+      const response = await fetch('/api/toys/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ qrCode }),
+      });
+      if (!response.ok) throw new Error('Failed to activate toy');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Pet Born!",
+        description: "Your toy has been activated and turned into a digital pet!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+    },
+  });
+
+  if (petList.length === 0 && unactivatedToys.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            Digital Pet Care System
+          </h2>
+          <p className="text-slate-600">
+            Advanced digital pet care with weight tracking, training, and battle mechanics
+          </p>
+        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <div className="text-6xl mb-4">🎮</div>
+            <h3 className="text-xl font-semibold mb-2">No Pets Yet</h3>
+            <p className="text-gray-600 mb-6">
+              Buy toys from the marketplace and activate them to create your first digital pet!
+            </p>
+            <Button onClick={() => setActiveTab("marketplace")} className="bg-purple-600 hover:bg-purple-700">
+              Visit Marketplace
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (unactivatedToys.length > 0 && petList.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            Digital Pet Care System
+          </h2>
+          <p className="text-slate-600">
+            Advanced digital pet care with weight tracking, training, and battle mechanics
+          </p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Activate Your Toys</CardTitle>
+            <p className="text-gray-600">Turn your toys into digital pets!</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {unactivatedToys.map((toy: any) => (
+                <Card key={toy.id} className="border-2 border-dashed border-purple-300">
+                  <CardContent className="p-4 text-center">
+                    <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
+                      <img 
+                        src={toy.imageUrl} 
+                        alt={toy.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h4 className="font-semibold">{toy.name}</h4>
+                    <p className="text-xs text-gray-500 mb-3">{toy.series}</p>
+                    <Button 
+                      onClick={() => activateToyMutation.mutate(toy.qrCode)}
+                      disabled={activateToyMutation.isPending}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Heart className="w-4 h-4 mr-2" />
+                      Activate Pet
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentPet = petList[currentPetIndex] || petList[0];
+
+  if (!currentPet) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            Digital Pet Care System
+          </h2>
+          <p className="text-slate-600">
+            Advanced digital pet care with weight tracking, training, and battle mechanics
+          </p>
+        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <div className="text-6xl mb-4">🎮</div>
+            <h3 className="text-xl font-semibold mb-2">Loading Pets...</h3>
+            <p className="text-gray-600">
+              Checking for available pets and toys...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          Digital Pet Care System
+        </h2>
+        <p className="text-slate-600">
+          Advanced digital pet care with weight tracking, training, and battle mechanics
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Pet Navigation */}
+        {petList.length > 1 && (
+          <Card>
+            <CardContent className="flex items-center justify-between py-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-gray-600">
+                Pet {currentPetIndex + 1} of {petList.length}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPetIndex(Math.min(petList.length - 1, currentPetIndex + 1))}
+              >
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pet Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">{currentPet.name}</CardTitle>
+            <p className="text-gray-600">Age: {currentPet.currentAge || 0} days</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-medium">Hunger</span>
+                </div>
+                <div className="flex gap-1">
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <Heart
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < (currentPet.hunger || 0) ? 'text-red-500 fill-current' : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600">{currentPet.hunger || 0}/4 hearts</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 text-blue-500">⚡</span>
+                  <span className="text-sm font-medium">Weight</span>
+                </div>
+                <div className="text-lg font-bold text-blue-600">
+                  {currentPet.weight || 20}G
+                </div>
+                <span className="text-xs text-gray-600">Gigabytes</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">Strength</span>
+                </div>
+                <div className="text-lg font-bold text-green-600">
+                  {currentPet.strength || 0}
+                </div>
+                <span className="text-xs text-gray-600">Max: 999</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-500" />
+                  <span className="text-sm font-medium">Effort</span>
+                </div>
+                <div className="text-lg font-bold text-purple-600">
+                  {currentPet.effort || 0}
+                </div>
+                <span className="text-xs text-gray-600">Max: 999</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm font-medium">DP Energy</span>
+                </div>
+                <div className="text-lg font-bold text-yellow-600">
+                  {currentPet.dpEnergy || 0}/100
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm font-medium">Win Ratio</span>
+                </div>
+                <div className="text-lg font-bold text-orange-600">
+                  {currentPet.winRatio || 0}%
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-medium">Care Mistakes</span>
+                </div>
+                <div className="text-lg font-bold text-red-600">
+                  {currentPet.careMistakes || 0}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Feeding Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Enhanced Feeding</CardTitle>
+            <p className="text-sm text-gray-600">Feed your pet different foods to manage weight and earn tokens</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'meat' })}
+                disabled={feedPetMutation.isPending}
+              >
+                <span className="text-2xl">🥩</span>
+                <span className="text-sm">Meat</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'fish' })}
+                disabled={feedPetMutation.isPending}
+              >
+                <span className="text-2xl">🐟</span>
+                <span className="text-sm">Fish</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'protein' })}
+                disabled={feedPetMutation.isPending}
+              >
+                <span className="text-2xl">🥚</span>
+                <span className="text-sm">Protein</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Training Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Training</CardTitle>
+            <p className="text-sm text-gray-600">Train your pet to increase stats and earn tokens</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'strength' })}
+                disabled={trainPetMutation.isPending}
+              >
+                <Dumbbell className="w-6 h-6 text-green-500" />
+                <span className="text-sm">Strength Training</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'effort' })}
+                disabled={trainPetMutation.isPending}
+              >
+                <Zap className="w-6 h-6 text-purple-500" />
+                <span className="text-sm">Effort Training</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Battle Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Battle System</CardTitle>
+            <p className="text-sm text-gray-600">Battle to increase win ratio and earn tokens</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'wild' })}
+                disabled={battlePetMutation.isPending}
+              >
+                <span className="text-2xl">🌿</span>
+                <span className="text-sm">Wild Battle</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'boss' })}
+                disabled={battlePetMutation.isPending}
+              >
+                <span className="text-2xl">👹</span>
+                <span className="text-sm">Boss Battle</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2"
+                onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'tournament' })}
+                disabled={battlePetMutation.isPending}
+              >
+                <span className="text-2xl">🏆</span>
+                <span className="text-sm">Tournament</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Old Pet Care Component (keeping for reference but not used)
 function PetCareSection({ language, user }: { language: string; user: any }) {
   const { toast } = useToast();
   
@@ -5490,396 +5923,11 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <div className="space-y-8">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                Digital Pet Care System
-              </h2>
-              <p className="text-slate-600">
-                Advanced digital pet care with weight tracking, training, and battle mechanics
-              </p>
-            </div>
-
-            {/* Fetch pets data */}
-            {(() => {
-              const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
-              const { data: userToys } = useQuery({ queryKey: ["/api/toys"] });
-              
-              const petList = Array.isArray(pets) ? pets : [];
-              const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.isOwned) : [];
-              const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
-
-              // Mutations for pet actions
-              const feedPetMutation = useMutation({
-                mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
-                  const response = await fetch(`/api/pets/${petId}/feed`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ foodType }),
-                  });
-                  if (!response.ok) throw new Error('Failed to feed pet');
-                  return response.json();
-                },
-                onSuccess: (data) => {
-                  toast({
-                    title: "Pet Fed Successfully!",
-                    description: `Gained ${data.tokensEarned} tokens. Weight: ${data.newWeight}G`,
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-                },
-              });
-
-              const trainPetMutation = useMutation({
-                mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
-                  const response = await fetch(`/api/pets/${petId}/train`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ trainingType }),
-                  });
-                  if (!response.ok) throw new Error('Failed to train pet');
-                  return response.json();
-                },
-                onSuccess: (data) => {
-                  toast({
-                    title: "Training Complete!",
-                    description: `${data.trainingType} +${data.statIncrease}. Earned ${data.tokensEarned} tokens.`,
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-                },
-              });
-
-              const battlePetMutation = useMutation({
-                mutationFn: async ({ petId, battleType }: { petId: number; battleType: string }) => {
-                  const response = await fetch(`/api/pets/${petId}/battle`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ battleType }),
-                  });
-                  if (!response.ok) throw new Error('Failed to battle');
-                  return response.json();
-                },
-                onSuccess: (data) => {
-                  toast({
-                    title: data.result === 'win' ? "Victory!" : "Defeat",
-                    description: `${data.result === 'win' ? 'Won' : 'Lost'} battle. Earned ${data.tokensEarned} tokens.`,
-                    variant: data.result === 'win' ? "default" : "destructive",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-                },
-              });
-
-              const activateToyMutation = useMutation({
-                mutationFn: async (qrCode: string) => {
-                  const response = await fetch('/api/toys/activate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ qrCode }),
-                  });
-                  if (!response.ok) throw new Error('Failed to activate toy');
-                  return response.json();
-                },
-                onSuccess: () => {
-                  toast({
-                    title: "Pet Born!",
-                    description: "Your toy has been activated and turned into a digital pet!",
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-                  queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
-                },
-              });
-
-              if (petList.length === 0 && unactivatedToys.length === 0) {
-                return (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <div className="text-6xl mb-4">🎮</div>
-                      <h3 className="text-xl font-semibold mb-2">No Pets Yet</h3>
-                      <p className="text-gray-600 mb-6">
-                        Buy toys from the marketplace and activate them to create your first digital pet!
-                      </p>
-                      <Button onClick={() => setActiveTab("marketplace")} className="bg-purple-600 hover:bg-purple-700">
-                        Visit Marketplace
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              }
-
-              if (unactivatedToys.length > 0 && petList.length === 0) {
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Activate Your Toys</CardTitle>
-                      <p className="text-gray-600">Turn your toys into digital pets!</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {unactivatedToys.map((toy: any) => (
-                          <Card key={toy.id} className="border-2 border-dashed border-purple-300">
-                            <CardContent className="p-4 text-center">
-                              <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
-                                <img 
-                                  src={toy.imageUrl} 
-                                  alt={toy.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <h4 className="font-semibold">{toy.name}</h4>
-                              <p className="text-xs text-gray-500 mb-3">{toy.series}</p>
-                              <Button 
-                                onClick={() => activateToyMutation.mutate(toy.qrCode)}
-                                disabled={activateToyMutation.isPending}
-                                className="w-full bg-purple-600 hover:bg-purple-700"
-                              >
-                                <Heart className="w-4 h-4 mr-2" />
-                                Activate Pet
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              }
-
-              // Show pet care interface
-              const [currentPetIndex, setCurrentPetIndex] = useState(0);
-              const currentPet = petList[currentPetIndex] || petList[0];
-
-              if (!currentPet) return null;
-
-              return (
-                <div className="space-y-6">
-                  {/* Pet Navigation */}
-                  {petList.length > 1 && (
-                    <Card>
-                      <CardContent className="flex items-center justify-between py-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
-                        >
-                          <ArrowLeft className="w-4 h-4" />
-                        </Button>
-                        <span className="text-sm text-gray-600">
-                          Pet {currentPetIndex + 1} of {petList.length}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPetIndex(Math.min(petList.length - 1, currentPetIndex + 1))}
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Pet Stats */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-2xl">{currentPet.name}</CardTitle>
-                      <p className="text-gray-600">Age: {currentPet.currentAge || 0} days</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Heart className="w-4 h-4 text-red-500" />
-                            <span className="text-sm font-medium">Hunger</span>
-                          </div>
-                          <div className="flex gap-1">
-                            {Array.from({ length: 4 }, (_, i) => (
-                              <Heart
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < (currentPet.hunger || 0) ? 'text-red-500 fill-current' : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-xs text-gray-600">{currentPet.hunger || 0}/4 hearts</span>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-4 h-4 text-blue-500">⚡</span>
-                            <span className="text-sm font-medium">Weight</span>
-                          </div>
-                          <div className="text-lg font-bold text-blue-600">
-                            {currentPet.weight || 20}G
-                          </div>
-                          <span className="text-xs text-gray-600">Gigabytes</span>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Dumbbell className="w-4 h-4 text-green-500" />
-                            <span className="text-sm font-medium">Strength</span>
-                          </div>
-                          <div className="text-lg font-bold text-green-600">
-                            {currentPet.strength || 0}
-                          </div>
-                          <span className="text-xs text-gray-600">Max: 999</span>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-purple-500" />
-                            <span className="text-sm font-medium">Effort</span>
-                          </div>
-                          <div className="text-lg font-bold text-purple-600">
-                            {currentPet.effort || 0}
-                          </div>
-                          <span className="text-xs text-gray-600">Max: 999</span>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Shield className="w-4 h-4 text-yellow-500" />
-                            <span className="text-sm font-medium">DP Energy</span>
-                          </div>
-                          <div className="text-lg font-bold text-yellow-600">
-                            {currentPet.dpEnergy || 0}/100
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-orange-500" />
-                            <span className="text-sm font-medium">Win Ratio</span>
-                          </div>
-                          <div className="text-lg font-bold text-orange-600">
-                            {currentPet.winRatio || 0}%
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 text-red-500" />
-                            <span className="text-sm font-medium">Care Mistakes</span>
-                          </div>
-                          <div className="text-lg font-bold text-red-600">
-                            {currentPet.careMistakes || 0}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Feeding Section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Enhanced Feeding</CardTitle>
-                      <p className="text-sm text-gray-600">Feed your pet different foods to manage weight and earn tokens</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4">
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'meat' })}
-                          disabled={feedPetMutation.isPending}
-                        >
-                          <span className="text-2xl">🥩</span>
-                          <span className="text-sm">Meat</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'fish' })}
-                          disabled={feedPetMutation.isPending}
-                        >
-                          <span className="text-2xl">🐟</span>
-                          <span className="text-sm">Fish</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'protein' })}
-                          disabled={feedPetMutation.isPending}
-                        >
-                          <span className="text-2xl">🥚</span>
-                          <span className="text-sm">Protein</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Training Section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Training</CardTitle>
-                      <p className="text-sm text-gray-600">Train your pet to increase stats and earn tokens</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'strength' })}
-                          disabled={trainPetMutation.isPending}
-                        >
-                          <Dumbbell className="w-6 h-6 text-green-500" />
-                          <span className="text-sm">Strength Training</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'effort' })}
-                          disabled={trainPetMutation.isPending}
-                        >
-                          <Zap className="w-6 h-6 text-purple-500" />
-                          <span className="text-sm">Effort Training</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Battle Section */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Battle System</CardTitle>
-                      <p className="text-sm text-gray-600">Battle to increase win ratio and earn tokens</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4">
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'wild' })}
-                          disabled={battlePetMutation.isPending}
-                        >
-                          <span className="text-2xl">🌿</span>
-                          <span className="text-sm">Wild Battle</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'boss' })}
-                          disabled={battlePetMutation.isPending}
-                        >
-                          <span className="text-2xl">👹</span>
-                          <span className="text-sm">Boss Battle</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="h-20 flex-col gap-2"
-                          onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'tournament' })}
-                          disabled={battlePetMutation.isPending}
-                        >
-                          <span className="text-2xl">🏆</span>
-                          <span className="text-sm">Tournament</span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              );
-            })()}
-          </div>
+          <PetCareTabContent 
+            setActiveTab={setActiveTab} 
+            toast={toast} 
+            queryClient={queryClient}
+          />
         )}
 
         {/* Profile Tab */}
