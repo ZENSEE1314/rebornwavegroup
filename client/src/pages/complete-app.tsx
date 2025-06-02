@@ -23,96 +23,108 @@ import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 // Pet Care Component
 function PetCareSection({ language, user }: { language: string; user: any }) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [currentPetIndex, setCurrentPetIndex] = useState(0);
 
   // Fetch user's toys that can become pets
-  const { data: userToys = [], isLoading: toysLoading, error: toysError } = useQuery({
+  const { data: userToys = [], isLoading: toysLoading } = useQuery({
     queryKey: ["/api/toys"],
     enabled: !!user?.id,
     retry: 1,
-    staleTime: 0,
   });
 
-  // Add error handling for toys API
-  if (toysError) {
-    console.error("Toys API error:", toysError);
+  // Show loading state
+  if (toysLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading pet care...</p>
+        </div>
+      </div>
+    );
   }
 
-  console.log("PET CARE DEBUG:", {
-    user: !!user,
-    toysLoading,
-    toysError,
-    userToys: userToys?.length || 0
-  });
+  // Safe data handling
+  const petCareToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
 
-  // Fetch user's pets (activated toys)
-  const { data: pets = [], isLoading: petsLoading } = useQuery({
-    queryKey: ["/api/pets"],
-    retry: false,
-  });
+  if (petCareToys.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            {language === "id" ? "Perawatan Hewan Peliharaan" : "Pet Care"}
+          </h2>
+          <p className="text-slate-600">
+            {language === "id" 
+              ? "Anda belum memiliki mainan untuk dijadikan hewan peliharaan. Beli mainan terlebih dahulu!"
+              : "You don't have any toys to turn into pets yet. Purchase toys first!"
+            }
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  const currentPet = pets[currentPetIndex];
+  return (
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          {language === "id" ? "Perawatan Hewan Peliharaan" : "Pet Care"}
+        </h2>
+        <p className="text-slate-600">
+          {language === "id" 
+            ? "Aktifkan mainan Anda untuk menjadi hewan peliharaan virtual"
+            : "Activate your toys to become virtual pets"
+          }
+        </p>
+      </div>
 
-  // Fetch care status for current pet
-  const { data: careStatus } = useQuery({
-    queryKey: ["/api/pets", currentPet?.id, "care-status"],
-    enabled: !!currentPet?.id,
-    retry: false,
-  });
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {petCareToys.map((toy: any) => (
+          <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <div className="mb-4">
+                  <img 
+                    src={toy.imageUrl || "/placeholder-toy.png"} 
+                    alt={toy.name} 
+                    className="w-24 h-24 mx-auto object-contain"
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                <p className="text-sm text-slate-600 mb-4">{toy.series}</p>
+                
+                <div className="mb-4">
+                  {toy.isActivated ? (
+                    <Badge className="bg-purple-100 text-purple-800">
+                      {language === "id" ? "Hewan Peliharaan Aktif" : "Pet Active"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      {language === "id" ? "Belum Diaktifkan" : "Not Activated"}
+                    </Badge>
+                  )}
+                </div>
 
-  // Mutation for performing care activities
-  const careActivityMutation = useMutation({
-    mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
-      return apiRequest("POST", `/api/pets/${petId}/care/${careType}`, {});
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pets", currentPet?.id, "care-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      
-      if (data.allCompleted) {
-        toast({
-          title: "Daily Care Complete! 🎉",
-          description: "You've earned 1 token for completing all care activities today!",
-        });
-      } else {
-        toast({
-          title: "Care Activity Complete",
-          description: "Your pet feels better!",
-        });
-      }
-    },
-    onError: () => {
-      toast({
-        title: "Care Failed",
-        description: "Unable to perform care activity. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Activate toy to create pet
-  const activateToyMutation = useMutation({
-    mutationFn: async (qrCode: string) => {
-      return apiRequest("POST", "/api/toys/activate", { qrCode });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-toys"] });
-      toast({
-        title: "Toy Activated!",
-        description: "Your toy has been activated and is now a pet!",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Activation Failed",
-        description: error.message || "Failed to activate toy",
-        variant: "destructive",
-      });
-    },
-  });
+                {!toy.isActivated && (
+                  <Button 
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => {
+                      toast({
+                        title: "Coming Soon",
+                        description: "Pet activation feature will be available soon!",
+                      });
+                    }}
+                  >
+                    {language === "id" ? "Lahirkan Hewan Peliharaan" : "Born Pet"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 
   const handleCareActivity = (careType: string) => {
     if (!currentPet) return;
