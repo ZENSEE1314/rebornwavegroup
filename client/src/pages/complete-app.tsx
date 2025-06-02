@@ -279,7 +279,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 }
 
 // Pet Care Tab Component
-function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab: any; toast: any; queryClient: any }) {
+function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }: { setActiveTab: any; toast: any; queryClient: any; setShowCoinGame: any }) {
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   
   const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
@@ -1700,6 +1700,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               </p>
             </CardHeader>
             <CardContent>
+              {/* Pet Lifecycle Timer */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-purple-600" />
+                    <span className="font-semibold text-purple-800">Pet Lifecycle</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-purple-700">Day {currentPet.currentAge}</div>
+                    <div className="text-xs text-purple-600">of 100 days</div>
+                  </div>
+                </div>
+                <Progress value={(currentPet.currentAge / 100) * 100} className="h-3 bg-purple-200" />
+                <div className="flex justify-between text-xs text-purple-600 mt-1">
+                  <span>Baby</span>
+                  <span>Child</span>
+                  <span>Adult</span>
+                  <span>Elder</span>
+                  <span>Grand Dragon</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -1711,40 +1733,29 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-orange-500" />
+                    <Utensils className="w-4 h-4 text-orange-500" />
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
-                  <div className="flex gap-1">
-                    {Array.from({ length: 4 }, (_, i) => (
-                      <Heart
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < (currentPet.hunger || 0) ? 'text-red-500 fill-current' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-gray-600">{currentPet.hunger || 0}/4 hearts</span>
+                  <Progress value={currentPet.hunger || 0} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.hunger || 0}%</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 text-blue-500">⚡</span>
+                    <Droplets className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium">Cleanliness</span>
+                  </div>
+                  <Progress value={currentPet.cleanliness || 0} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.cleanliness || 0}%</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 text-green-500">⚡</span>
                     <span className="text-sm font-medium">Weight</span>
                   </div>
-                  <div className="text-lg font-bold text-blue-600">
-                    {currentPet.weight || 20}G
+                  <div className="text-lg font-bold text-green-600">
+                    {currentPet.weight || 20}GB
                   </div>
                   <span className="text-xs text-gray-600">Gigabytes</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Dumbbell className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium">Strength</span>
-                  </div>
-                  <div className="text-lg font-bold text-green-600">
-                    {currentPet.strength || 0}
-                  </div>
-                  <span className="text-xs text-gray-600">Max: 999</span>
                 </div>
               </div>
               
@@ -6065,6 +6076,7 @@ export default function CompleteApp() {
             setActiveTab={setActiveTab} 
             toast={toast} 
             queryClient={queryClient}
+            setShowCoinGame={setShowCoinGame}
           />
         )}
 
