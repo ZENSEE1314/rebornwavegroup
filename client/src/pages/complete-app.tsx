@@ -281,6 +281,15 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 // Pet Care Tab Component
 function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }: { setActiveTab: any; toast: any; queryClient: any; setShowCoinGame: any }) {
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  
+  // Update timer every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
   const { data: userToys } = useQuery({ queryKey: ["/api/toys"] });
@@ -1163,18 +1172,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           </p>
         </div>
 
-        {/* Coin Catching Game Modal */}
-        {showCoinGame && currentPet && (
-          <CoinCatchingGame 
-            pet={currentPet}
-            language={language}
-            onClose={() => {
-              setShowCoinGame(false);
-              setSelectedPet(null);
-            }}
-            user={user}
-          />
-        )}
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {userPets.map((pet: any) => {
