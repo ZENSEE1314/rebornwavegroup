@@ -224,6 +224,9 @@ export interface IStorage {
   createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
   checkAllCareCompleted(petId: number): Promise<boolean>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
+  updatePetAge(petId: number, age: number, growthStage: string): Promise<void>;
+  updatePetDeath(petId: number, isDead: boolean): Promise<void>;
+  updatePetTokenEarning(petId: number, canEarn: boolean): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {

@@ -252,12 +252,13 @@ export const pets = pgTable("pets", {
   currentAge: integer("current_age").default(0), // days since birth
   growthStage: varchar("growth_stage").default("baby"), // baby, child, teen, adult, elder
   
-  // Core Digimon stats
+  // Core stats
   weight: integer("weight").default(20), // in Gigabytes (G)
   hunger: integer("hunger").default(4), // 0-4 hearts
+  health: integer("health").default(100), // 0-100 overall health
   strength: integer("strength").default(0), // 0-999
   effort: integer("effort").default(0), // 0-999
-  dp: integer("dp").default(10), // energy for battles
+  dpEnergy: integer("dp_energy").default(50), // 0-100 energy for battles
   
   // Battle system
   totalBattles: integer("total_battles").default(0),
@@ -286,9 +287,16 @@ export const pets = pgTable("pets", {
   lastTrainedAt: timestamp("last_trained_at"),
   lastBattleAt: timestamp("last_battle_at"),
   
+  // Lifecycle system  
+  maxLifespanDays: integer("max_lifespan_days").default(100),
+  lastTokenClaimDate: timestamp("last_token_claim_date"),
+  lastEvolutionCheck: timestamp("last_evolution_check"),
+  nextEvolutionAge: integer("next_evolution_age").default(20), // days
+  
   // Token system
   totalTokensEarned: integer("total_tokens_earned").default(0),
   dailyTokensAvailable: integer("daily_tokens_available").default(1),
+  canEarnTokens: boolean("can_earn_tokens").default(true), // false when dead or health = 0
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

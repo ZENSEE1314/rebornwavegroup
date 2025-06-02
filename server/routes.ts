@@ -15,6 +15,70 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Pet lifecycle helper functions
+function getEvolutionStage(ageInDays: number): string {
+  if (ageInDays < 20) return "Baby Turtle Dragon";
+  if (ageInDays < 40) return "Young Turtle Dragon";
+  if (ageInDays < 60) return "Adult Turtle Dragon";
+  if (ageInDays < 80) return "Elder Turtle Dragon";
+  return "Grand Turtle Dragon";
+}
+
+function formatPetTimer(ageInDays: number, birthDate: Date): string {
+  const now = new Date();
+  const birth = new Date(birthDate);
+  const diffMs = now.getTime() - birth.getTime();
+  
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+  
+  return `${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+async function updatePetLifecycle(pet: any) {
+  const now = new Date();
+  const birth = new Date(pet.birthDate);
+  const ageInDays = Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Check if pet should die (100+ days)
+  if (ageInDays >= pet.maxLifespanDays && !pet.isDead) {
+    await storage.updatePetDeath(pet.id, true);
+    pet.isDead = true;
+    pet.canEarnTokens = false;
+  }
+  
+  // Update age and evolution stage
+  if (ageInDays !== pet.currentAge) {
+    const newStage = getEvolutionStage(ageInDays);
+    await storage.updatePetAge(pet.id, ageInDays, newStage);
+    pet.currentAge = ageInDays;
+    pet.growthStage = newStage;
+  }
+  
+  // Check for daily token reward (every 24 hours)
+  const lastClaim = pet.lastTokenClaimDate ? new Date(pet.lastTokenClaimDate) : null;
+  const canClaimToken = !lastClaim || (now.getTime() - lastClaim.getTime()) >= (24 * 60 * 60 * 1000);
+  
+  if (canClaimToken && pet.health > 0 && !pet.isDead && pet.canEarnTokens) {
+    await storage.awardDailyToken(pet.userId, pet.id);
+    pet.lastTokenClaimDate = now;
+    pet.totalTokensEarned += 1;
+  }
+  
+  // Stop token earning if health is 0
+  if (pet.health <= 0 && pet.canEarnTokens) {
+    await storage.updatePetTokenEarning(pet.id, false);
+    pet.canEarnTokens = false;
+  }
+  
+  // Add formatted timer
+  pet.formattedAge = formatPetTimer(ageInDays, birth);
+  
+  return pet;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
