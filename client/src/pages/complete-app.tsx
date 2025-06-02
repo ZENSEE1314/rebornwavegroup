@@ -1123,9 +1123,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </div>
 
         {/* Coin Catching Game Modal */}
-        {showCoinGame && selectedPet && (
+        {showCoinGame && currentPet && (
           <CoinCatchingGame 
-            pet={selectedPet}
+            pet={currentPet}
             language={language}
             onClose={() => {
               setShowCoinGame(false);
@@ -2081,6 +2081,9 @@ export default function CompleteApp() {
   
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
+  
+  // Coin catching game state
+  const [showCoinGame, setShowCoinGame] = useState(false);
   
   // History modal states
   const [showHistoryModal, setShowHistoryModal] = useState(false);
