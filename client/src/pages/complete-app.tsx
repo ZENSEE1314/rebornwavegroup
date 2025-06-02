@@ -906,12 +906,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [currentPet, setCurrentPet] = useState<any>(null);
   const [careStatus, setCareStatus] = useState<any>(null);
-
-  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
+  const { data: pets, isLoading: petsLoading } = useQuery({ queryKey: ["/api/pets"] });
   const { data: userStats } = useQuery({ queryKey: ["/api/user-stats"] });
-  const { data: toys } = useQuery({ queryKey: ["/api/toys"] });
+  const { data: toys, isLoading: toysLoading } = useQuery({ queryKey: ["/api/toys"] });
   const { data: marketplaceToys } = useQuery({ queryKey: ["/api/marketplace/toys"] });
   const { data: appointments } = useQuery({ queryKey: ["/api/appointments"] });
+  const { data: listingsData, isLoading: listingsLoading } = useQuery({ queryKey: ["/api/listings"] });
   const { data: banners } = useQuery({ queryKey: ["/api/banners"] });
   const { data: rewardItems } = useQuery({ queryKey: ["/api/reward-items"] });
   const { data: leaderboard } = useQuery({ queryKey: ["/api/game-scores/leaderboard"] });
@@ -920,6 +920,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const petList = Array.isArray(pets) ? pets : [];
   const ownedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned) : [];
   const unactivatedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned && !toy.isActivated) : [];
+  const userToys = Array.isArray(toys) ? toys : [];
+  const marketplaceListings = Array.isArray(listingsData) ? listingsData : [];
 
   // Set current pet when pets data changes
   useEffect(() => {
@@ -1153,7 +1155,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   }
 
   // Check if user has any pets activated
-  const userPets = Array.isArray(pets) ? pets : [];
+  const userPets = Array.isArray(petList) ? petList : [];
   
   if (userPets.length > 0) {
     // Show pet care interface with feeding games
