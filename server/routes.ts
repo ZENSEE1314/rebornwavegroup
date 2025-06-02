@@ -2262,22 +2262,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const { tokensRequested, shippingAddress } = req.body;
+      const { tokensRequested } = req.body;
+      
+      if (!tokensRequested || tokensRequested <= 0) {
+        return res.status(400).json({ message: "Valid token amount required" });
+      }
       
       // Check if user has enough tokens
       const user = await storage.getUser(userId);
-      if (!user || user.tokens < tokensRequested) {
+      if (!user || (user.tokens || 0) < tokensRequested) {
         return res.status(400).json({ message: "Insufficient tokens" });
       }
 
       // Deduct tokens from user account
       await storage.updateUserTokens(userId, -tokensRequested);
 
-      // Create token claim request
+      // Create token claim request (no shipping address - redeem at approved locations)
       const claim = await storage.createTokenClaim({
         userId,
         tokensRequested,
-        shippingAddress,
         status: 'pending'
       });
 

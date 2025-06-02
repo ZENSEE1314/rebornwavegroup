@@ -5221,10 +5221,18 @@ export default function CompleteApp() {
             </h3>
             <p className="text-gray-600 mb-4">
               {language === "id" 
-                ? `Anda memiliki ${userTokens} token. Berapa yang ingin diklaim?`
-                : `You have ${userTokens} tokens. How many would you like to claim?`
+                ? `Anda memiliki ${userTokens} token. Berapa yang ingin diklaim untuk ditukar di lokasi yang disetujui?`
+                : `You have ${userTokens} tokens. How many would you like to claim for redemption at approved locations?`
               }
             </p>
+            <div className="bg-blue-50 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-700">
+                {language === "id" 
+                  ? "Token akan ditukar di lokasi yang disetujui. Tidak ada pengiriman diperlukan."
+                  : "Tokens will be redeemed at approved locations. No shipping required."
+                }
+              </p>
+            </div>
             <input
               type="number"
               min="1"
