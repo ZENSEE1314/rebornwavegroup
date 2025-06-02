@@ -2017,6 +2017,151 @@ export default function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Pet Management Tab */}
+          <TabsContent value="pets">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Activated Pets Management</CardTitle>
+                <p className="text-gray-300">View and manage all activated dragon turtle pets</p>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white/5 rounded-lg p-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-gray-300">Pet Name</TableHead>
+                        <TableHead className="text-gray-300">Owner</TableHead>
+                        <TableHead className="text-gray-300">Series</TableHead>
+                        <TableHead className="text-gray-300">Rarity</TableHead>
+                        <TableHead className="text-gray-300">Activated Date</TableHead>
+                        <TableHead className="text-gray-300">Current Age</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(activatedPets as any[]).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                            No activated pets found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (activatedPets as any[]).filter((pet: any) => pet.ownerId).map((pet: any) => (
+                          <TableRow key={pet.id} className="border-white/10">
+                            <TableCell className="text-white">{pet.name}</TableCell>
+                            <TableCell className="text-gray-300">{pet.ownerName || 'Unknown'}</TableCell>
+                            <TableCell className="text-gray-300">{pet.series}</TableCell>
+                            <TableCell>
+                              <Badge className={`${
+                                pet.rarity === 'common' ? 'bg-gray-500' :
+                                pet.rarity === 'rare' ? 'bg-blue-500' :
+                                pet.rarity === 'epic' ? 'bg-purple-500' :
+                                pet.rarity === 'legendary' ? 'bg-yellow-500' :
+                                'bg-red-500'
+                              }`}>
+                                {pet.rarity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {pet.createdAt ? new Date(pet.createdAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {pet.currentAge || 0} days
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={pet.currentAge >= 100 ? "destructive" : "default"}>
+                                {pet.currentAge >= 100 ? "Deceased" : "Alive"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Game Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-white">Coin Catching Game Leaderboard</CardTitle>
+                    <p className="text-gray-300">Top scores from dragon turtle mini-game</p>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      if (confirm('Are you sure you want to reset all game scores? This action cannot be undone.')) {
+                        resetLeaderboardMutation.mutate();
+                      }
+                    }}
+                    variant="destructive"
+                    disabled={resetLeaderboardMutation.isPending}
+                  >
+                    <Trophy className="h-4 w-4 mr-2" />
+                    {resetLeaderboardMutation.isPending ? 'Resetting...' : 'Reset Leaderboard'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white/5 rounded-lg p-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-gray-300">Rank</TableHead>
+                        <TableHead className="text-gray-300">Player</TableHead>
+                        <TableHead className="text-gray-300">Pet Name</TableHead>
+                        <TableHead className="text-gray-300">Score</TableHead>
+                        <TableHead className="text-gray-300">Tokens Earned</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(gameLeaderboard as any[]).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                            No game scores recorded yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (gameLeaderboard as any[]).map((score: any, index: number) => (
+                          <TableRow key={score.id} className="border-white/10">
+                            <TableCell className="text-white font-bold">
+                              <div className="flex items-center">
+                                {index === 0 && '🥇'}
+                                {index === 1 && '🥈'}
+                                {index === 2 && '🥉'}
+                                <span className="ml-2">#{index + 1}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {score.user?.firstName || score.user?.email || 'Anonymous'}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {score.pet?.name || 'Unknown Pet'}
+                            </TableCell>
+                            <TableCell className="text-white font-semibold">
+                              {score.score?.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-yellow-400">
+                              🪙 {score.tokensEarned}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {score.createdAt ? new Date(score.createdAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Password Change Dialog */}
