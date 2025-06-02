@@ -274,8 +274,6 @@ export const pets = pgTable("pets", {
   lastInjuryDate: varchar("last_injury_date"), // YYYY-MM-DD
   
   // Status tracking
-  happiness: integer("happiness").default(50), // 0-100
-  cleanliness: integer("cleanliness").default(50), // 0-100
   isActive: boolean("is_active").default(true),
   isDead: boolean("is_dead").default(false),
   isUpset: boolean("is_upset").default(false),
@@ -285,6 +283,8 @@ export const pets = pgTable("pets", {
   
   // Care timing
   lastCareDate: timestamp("last_care_date"),
+  lastFed: timestamp("last_fed"),
+  lastCleaned: timestamp("last_cleaned"),
   lastFedAt: timestamp("last_fed_at"),
   lastTrainedAt: timestamp("last_trained_at"),
   lastBattleAt: timestamp("last_battle_at"),
