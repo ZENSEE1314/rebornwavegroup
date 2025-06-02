@@ -606,8 +606,8 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                 <div className="text-lg font-bold text-yellow-600 text-center">{currentPet.tokens || 0}</div>
                 <div className="text-xs text-center text-gray-500">Earned Today</div>
                 {(() => {
-                  // Calculate time until next 24-hour reset (midnight)
-                  const now = new Date();
+                  // Calculate time until next 24-hour reset (midnight) - update with currentTime for real-time countdown
+                  const now = new Date(currentTime);
                   const tomorrow = new Date(now);
                   tomorrow.setDate(now.getDate() + 1);
                   tomorrow.setHours(0, 0, 0, 0);
@@ -615,10 +615,11 @@ function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }
                   
                   const hoursLeft = Math.floor(timeUntilReset / (1000 * 60 * 60));
                   const minutesLeft = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
+                  const secondsLeft = Math.floor((timeUntilReset % (1000 * 60)) / 1000);
                   
                   return (
                     <div className="text-xs text-center text-orange-500 mt-1">
-                      Reset: {hoursLeft}h {minutesLeft}m
+                      Reset: {String(hoursLeft).padStart(2, '0')}:{String(minutesLeft).padStart(2, '0')}:{String(secondsLeft).padStart(2, '0')}
                     </div>
                   );
                 })()}
