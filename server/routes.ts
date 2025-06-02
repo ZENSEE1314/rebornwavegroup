@@ -2328,6 +2328,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to update user tokens directly
+  app.patch('/api/admin/users/:userId/tokens', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { tokens } = req.body;
+      
+      if (typeof tokens !== 'number' || tokens < 0) {
+        return res.status(400).json({ message: "Valid token amount required" });
+      }
+      
+      await storage.updateUserTokens(userId, tokens);
+      res.json({ message: "User tokens updated successfully" });
+    } catch (error) {
+      console.error("Error updating user tokens:", error);
+      res.status(500).json({ message: "Failed to update user tokens" });
+    }
+  });
+
   // Admin add tokens to user
   app.post('/api/admin/users/:userId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {

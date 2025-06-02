@@ -403,6 +403,19 @@ export default function EnhancedAdminDashboard() {
     }
   });
 
+  const updateUserTokensMutation = useMutation({
+    mutationFn: async ({ userId, tokens }: { userId: string; tokens: number }) => {
+      return apiRequest('PATCH', `/api/admin/users/${userId}/tokens`, { tokens });
+    },
+    onSuccess: () => {
+      toast({ title: "User tokens updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update user tokens", variant: "destructive" });
+    }
+  });
+
   // Content management mutations
   const createBannerMutation = useMutation({
     mutationFn: async (bannerData: any) => {
@@ -994,7 +1007,27 @@ export default function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
                         <TableCell className="text-purple-300">{user.loyaltyPoints || 0}</TableCell>
-                        <TableCell className="text-yellow-300">{user.tokens || 0}</TableCell>
+                        <TableCell className="text-yellow-300">
+                          <div className="flex items-center gap-2">
+                            <span>🪙 {user.tokens || 0}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const newTokens = prompt(`Edit tokens for ${user.firstName || user.email || 'User'}:`, (user.tokens || 0).toString());
+                                if (newTokens !== null && !isNaN(parseInt(newTokens)) && parseInt(newTokens) >= 0) {
+                                  updateUserTokensMutation.mutate({
+                                    userId: user.id,
+                                    tokens: parseInt(newTokens)
+                                  });
+                                }
+                              }}
+                              className="h-6 px-2 text-xs border-gray-600 text-gray-300 hover:bg-gray-800"
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {editingUser?.id === user.id ? (
                             <Select 

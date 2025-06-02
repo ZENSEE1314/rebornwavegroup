@@ -1547,7 +1547,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserTokens(userId: string, tokens: number): Promise<void> {
     await db.update(users).set({ 
-      tokens: sql`${users.tokens} + ${tokens}`,
+      tokens: tokens,
       updatedAt: new Date()
     }).where(eq(users.id, userId));
   }
