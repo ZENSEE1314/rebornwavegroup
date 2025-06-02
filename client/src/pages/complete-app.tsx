@@ -94,32 +94,27 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
     
     if (score > 0) {
       try {
-        // Award tokens based on score
-        const tokensEarned = Math.floor(score / 10);
-        
-        // Submit score to backend
+        // Submit score to backend (no tokens earned)
         await apiRequest('POST', '/api/game-scores', {
           petId: pet.id,
           score: score,
-          tokensEarned: tokensEarned
+          tokensEarned: 0
         });
         
-        // Refresh user data to show updated tokens
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+        // Refresh leaderboard data
         await queryClient.invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
         
         toast({
           title: language === "id" ? "Permainan Selesai!" : "Game Over!",
           description: language === "id" 
-            ? `Skor: ${score}. Token diperoleh: ${tokensEarned}!` 
-            : `Score: ${score}. Tokens earned: ${tokensEarned}!`,
+            ? `Skor: ${score}. Skor tersimpan di papan peringkat!` 
+            : `Score: ${score}. Score saved to leaderboard!`,
         });
       } catch (error) {
         console.error('Error submitting game score:', error);
         toast({
           title: language === "id" ? "Error" : "Error",
-          description: language === "id" ? "Gagal menyimpan skor dan memberikan token" : "Failed to save score and award tokens",
+          description: language === "id" ? "Gagal menyimpan skor" : "Failed to save score",
           variant: "destructive"
         });
       }
@@ -1187,7 +1182,6 @@ export default function CompleteApp() {
   const [newListingTitle, setNewListingTitle] = useState("");
   const [showTokenClaimModal, setShowTokenClaimModal] = useState(false);
   const [tokenClaimAmount, setTokenClaimAmount] = useState("");
-  const [shippingAddress, setShippingAddress] = useState("");
 
   // 5-Level Loyalty Program System
   const loyaltyLevels = [
@@ -1733,12 +1727,11 @@ export default function CompleteApp() {
 
   // Mutation to claim tokens
   const claimTokensMutation = useMutation({
-    mutationFn: (tokenData: { tokensRequested: number; shippingAddress: string }) => apiRequest('POST', '/api/token-claims', tokenData),
+    mutationFn: (tokenData: { tokensRequested: number }) => apiRequest('POST', '/api/token-claims', tokenData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       setShowTokenClaimModal(false);
       setTokenClaimAmount("");
-      setShippingAddress("");
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
@@ -5241,25 +5234,18 @@ export default function CompleteApp() {
               placeholder={language === "id" ? "Jumlah token" : "Number of tokens"}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
             />
-            <textarea
-              value={shippingAddress}
-              onChange={(e) => setShippingAddress(e.target.value)}
-              placeholder={language === "id" ? "Alamat pengiriman lengkap" : "Complete shipping address"}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 h-20 resize-none"
-              required
-            />
+
             <div className="flex gap-3">
               <Button 
                 onClick={() => {
                   const amount = parseInt(tokenClaimAmount);
-                  if (amount > 0 && amount <= userTokens && shippingAddress.trim()) {
+                  if (amount > 0 && amount <= userTokens) {
                     claimTokensMutation.mutate({ 
-                      tokensRequested: amount,
-                      shippingAddress: shippingAddress.trim()
+                      tokensRequested: amount
                     });
                   }
                 }}
-                disabled={!tokenClaimAmount || !shippingAddress.trim() || parseInt(tokenClaimAmount) <= 0 || parseInt(tokenClaimAmount) > userTokens || claimTokensMutation.isPending}
+                disabled={!tokenClaimAmount || parseInt(tokenClaimAmount) <= 0 || parseInt(tokenClaimAmount) > userTokens || claimTokensMutation.isPending}
                 className="flex-1 bg-orange-600 hover:bg-orange-700"
               >
                 {claimTokensMutation.isPending 
@@ -5272,7 +5258,6 @@ export default function CompleteApp() {
                 onClick={() => {
                   setShowTokenClaimModal(false);
                   setTokenClaimAmount("");
-                  setShippingAddress("");
                 }}
                 className="flex-1"
               >

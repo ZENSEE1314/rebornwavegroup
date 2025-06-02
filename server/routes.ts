@@ -2152,30 +2152,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const { petId, score, tokensEarned } = req.body;
+      const { petId, score } = req.body;
       
-      // Create the game score record
+      // Create the game score record (no tokens awarded)
       const gameScore = await storage.createGameScore({
         userId,
         petId,
         score,
-        tokensEarned: tokensEarned || 0
+        tokensEarned: 0
       });
-      
-      // Award tokens to the user if any were earned
-      if (tokensEarned && tokensEarned > 0) {
-        await storage.updatePetTokens(userId, tokensEarned);
-        
-        // Create transaction record for token earning
-        await storage.createTransaction({
-          userId,
-          type: 'coin_game_reward',
-          amount: '0.00',
-          description: `Earned ${tokensEarned} tokens from Coin Catching Game (Score: ${score})`,
-          status: 'completed',
-          pointsEarned: tokensEarned
-        });
-      }
       
       res.json(gameScore);
     } catch (error: any) {
