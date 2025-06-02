@@ -2209,7 +2209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const activatedPets = await storage.getAllToysWithOwners();
+      const activatedPets = await storage.getAllActivatedPetsWithDetails();
       res.json(activatedPets);
     } catch (error: any) {
       console.error("Error fetching activated pets:", error);
