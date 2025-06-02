@@ -29,8 +29,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading, error: toysError } = useQuery({
     queryKey: ["/api/toys"],
-    enabled: !!user,
-    retry: false,
+    enabled: !!user?.id,
+    retry: 1,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   // Add error handling for toys API
@@ -152,11 +154,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     retry: false,
   });
 
-  // Filter toys that can become pets (purchased toys)
-  const ownedToys = userToys.filter((toy: any) => toy.ownerId === user?.id);
+  // Filter toys that can become pets (purchased toys) - with safety checks
+  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.ownerId === user?.id) : [];
   
-  // Filter out toys that are currently listed in marketplace
+  // Filter out toys that are currently listed in marketplace - with safety checks
   const availableForPetCare = ownedToys.filter((toy: any) => {
+    if (!Array.isArray(marketplaceListings)) return true;
     const isListed = marketplaceListings.some((listing: any) => 
       listing.toyId === toy.id && listing.status === 'active'
     );
@@ -166,7 +169,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const activatedToys = availableForPetCare.filter((toy: any) => toy.isActivated);
   const unactivatedToys = availableForPetCare.filter((toy: any) => !toy.isActivated);
 
-  if (!pets.length && !ownedToys.length) {
+  // Add safety checks for all data arrays
+  const safePets = Array.isArray(pets) ? pets : [];
+  const safeOwnedToys = Array.isArray(ownedToys) ? ownedToys : [];
+
+  if (!safePets.length && !safeOwnedToys.length) {
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
