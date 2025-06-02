@@ -953,7 +953,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const pets = await storage.getPetsByUserId(userId);
-      res.json(pets);
+      
+      // Update pet stats based on time passed (hunger and cleanliness decay)
+      const updatedPets = await Promise.all(pets.map(async (pet: any) => {
+        const now = new Date();
+        const lastFed = pet.lastFed ? new Date(pet.lastFed) : pet.createdAt ? new Date(pet.createdAt) : now;
+        const lastCleaned = pet.lastCleaned ? new Date(pet.lastCleaned) : pet.createdAt ? new Date(pet.createdAt) : now;
+        
+        // Calculate hunger decay: 100% to 1% over 12 hours (720 minutes)
+        const minutesSinceLastFed = Math.floor((now.getTime() - lastFed.getTime()) / (1000 * 60));
+        const hungerDecayPerMinute = 99 / (12 * 60); // 99% decay over 720 minutes
+        const newHunger = Math.max(pet.hunger - (minutesSinceLastFed * hungerDecayPerMinute), 1);
+        
+        // Calculate cleanliness decay: 100% to 0% over 8 hours (480 minutes)
+        const minutesSinceLastCleaned = Math.floor((now.getTime() - lastCleaned.getTime()) / (1000 * 60));
+        const cleanlinessDecayPerMinute = 100 / (8 * 60); // 100% decay over 480 minutes
+        const newCleanliness = Math.max(pet.cleanliness - (minutesSinceLastCleaned * cleanlinessDecayPerMinute), 0);
+        
+        // Update pet stats if values changed significantly
+        if (Math.abs(pet.hunger - newHunger) > 1 || Math.abs(pet.cleanliness - newCleanliness) > 1) {
+          await storage.updatePetStats(pet.id, {
+            hunger: Math.round(newHunger),
+            cleanliness: Math.round(newCleanliness)
+          });
+          
+          return {
+            ...pet,
+            hunger: Math.round(newHunger),
+            cleanliness: Math.round(newCleanliness)
+          };
+        }
+        
+        return pet;
+      }));
+      
+      res.json(updatedPets);
     } catch (error) {
       console.error("Error fetching Digimon pets:", error);
       res.status(500).json({ message: "Failed to fetch Digimon pets" });
@@ -980,17 +1014,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot feed a dead pet" });
       }
 
-      if (pet.hunger >= 4) {
+      if (pet.hunger >= 100) {
         return res.status(400).json({ message: "Pet is already full" });
       }
 
       const weightGain = foodType === 'protein' ? 2 : 1;
       const newWeight = pet.weight + weightGain;
-      const newHunger = Math.min(pet.hunger + 1, 4);
-
+      const newHunger = Math.min(pet.hunger + 25, 100); // Increase hunger by 25%
+      
+      // Update last fed time for hunger decay calculation
       await storage.updatePetStats(petId, {
         weight: newWeight,
-        hunger: newHunger
+        hunger: newHunger,
+        lastFed: new Date()
       });
 
       // Record feeding activity
@@ -1276,7 +1312,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newCleanliness = Math.min(pet.cleanliness + 25, 100);
 
       await storage.updatePetStats(petId, {
-        cleanliness: newCleanliness
+        cleanliness: newCleanliness,
+        lastCleaned: new Date()
       });
 
       res.json({ 

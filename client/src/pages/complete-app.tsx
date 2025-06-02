@@ -536,43 +536,61 @@ function PetCareTabContent({ setActiveTab, toast, queryClient }: { setActiveTab:
 
             {/* Compact Stats Grid */}
             <div className="grid grid-cols-2 gap-2">
-              {/* Hunger */}
-              <div className="bg-white/90 rounded-xl p-3 text-center shadow-lg">
-                <div className="text-lg">❤️</div>
-                <div className="flex gap-1 justify-center my-1">
-                  {Array.from({ length: 4 }, (_, i) => (
-                    <span key={i} className="text-xs">
-                      {i < (currentPet.hunger || 0) ? '❤️' : '🤍'}
-                    </span>
-                  ))}
+              {/* Hunger Bar */}
+              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
+                <div className="text-center mb-2">
+                  <div className="text-lg">🍖</div>
+                  <div className="text-xs font-bold text-red-600">Hunger</div>
                 </div>
-                <div className="text-xs font-bold text-red-600">{Math.min(currentPet.hunger || 0, 4)}/4</div>
+                <div className="bg-gray-200 rounded-full h-2 mb-1">
+                  <div 
+                    className="bg-gradient-to-r from-red-400 to-orange-400 h-2 rounded-full transition-all"
+                    style={{ width: `${(currentPet.hunger || 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-center font-bold text-red-600">{Math.round(currentPet.hunger || 100)}%</div>
               </div>
 
-              {/* Cleanliness */}
-              <div className="bg-white/90 rounded-xl p-3 text-center shadow-lg">
-                <div className="text-lg">🛁</div>
-                <div className="bg-gray-200 rounded-full h-2 my-2">
+              {/* Cleanliness Bar */}
+              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
+                <div className="text-center mb-2">
+                  <div className="text-lg">🛁</div>
+                  <div className="text-xs font-bold text-cyan-600">Cleanliness</div>
+                </div>
+                <div className="bg-gray-200 rounded-full h-2 mb-1">
                   <div 
                     className="bg-gradient-to-r from-blue-400 to-cyan-400 h-2 rounded-full transition-all"
                     style={{ width: `${(currentPet.cleanliness || 100)}%` }}
                   ></div>
                 </div>
-                <div className="text-xs font-bold text-cyan-600">{currentPet.cleanliness || 100}%</div>
+                <div className="text-xs text-center font-bold text-cyan-600">{Math.round(currentPet.cleanliness || 100)}%</div>
               </div>
 
-              {/* Strength */}
-              <div className="bg-white/90 rounded-xl p-3 text-center shadow-lg">
-                <div className="text-lg">💪</div>
-                <div className="text-lg font-bold text-green-600">{currentPet.strength || 0}</div>
-                <div className="text-xs text-gray-500">STR</div>
+              {/* Weight */}
+              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
+                <div className="text-center mb-2">
+                  <div className="text-lg">⚖️</div>
+                  <div className="text-xs font-bold text-blue-600">Weight</div>
+                </div>
+                <div className="text-lg font-bold text-blue-600 text-center">{currentPet.weight || 20}G</div>
+                <div className="text-xs text-center text-gray-500">Gigabytes</div>
               </div>
 
-              {/* Effort */}
-              <div className="bg-white/90 rounded-xl p-3 text-center shadow-lg">
-                <div className="text-lg">⚡</div>
-                <div className="text-lg font-bold text-purple-600">{currentPet.effort || 0}</div>
-                <div className="text-xs text-gray-500">EFF</div>
+              {/* Health/Life Bar */}
+              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
+                <div className="text-center mb-2">
+                  <div className="text-lg">💚</div>
+                  <div className="text-xs font-bold text-green-600">Health</div>
+                </div>
+                <div className="bg-gray-200 rounded-full h-2 mb-1">
+                  <div 
+                    className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full transition-all"
+                    style={{ width: `${currentPet.isDead ? 0 : Math.max(100 - (currentPet.injuries || 0) * 20, 10)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-center font-bold text-green-600">
+                  {currentPet.isDead ? 'Dead' : `${Math.max(100 - (currentPet.injuries || 0) * 20, 10)}%`}
+                </div>
               </div>
             </div>
 

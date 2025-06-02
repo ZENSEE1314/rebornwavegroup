@@ -254,7 +254,7 @@ export const pets = pgTable("pets", {
   
   // Core stats
   weight: integer("weight").default(20), // in Gigabytes (G)
-  hunger: integer("hunger").default(4), // 0-4 hearts
+  hunger: integer("hunger").default(100), // 0-100% (changed from 0-4 hearts)
   happiness: integer("happiness").default(50), // 0-100
   cleanliness: integer("cleanliness").default(50), // 0-100
   energy: integer("energy").default(50), // 0-100
