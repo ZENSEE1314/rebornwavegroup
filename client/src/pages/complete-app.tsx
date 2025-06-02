@@ -90,7 +90,7 @@ function CoinCatchingGame({ pet, language, onClose, user, toast, queryClient }: 
     setGameOver(true);
     setGameStarted(false);
     
-    if (score > 0) {
+    if (score > 0 && pet && pet.id) {
       try {
         // Submit score to backend (no tokens earned)
         await apiRequest('POST', '/api/game-scores', {
@@ -6118,9 +6118,9 @@ export default function CompleteApp() {
         )}
 
         {/* Coin Catching Game Modal */}
-        {showCoinGame && (
+        {showCoinGame && Array.isArray(pets) && pets.length > 0 && (
           <CoinCatchingGame 
-            pet={pets?.[0] || null}
+            pet={pets[0]}
             language={language}
             onClose={() => {
               setShowCoinGame(false);
