@@ -710,9 +710,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     </div>
   );
 
-  const handleCareActivity = (careType: string) => {
-    if (!currentPet) return;
-    careActivityMutation.mutate({ petId: currentPet.id, careType });
+  const handleCareActivity = (petId: number, careType: string) => {
+    careActivityMutation.mutate({ petId, careType });
   };
 
   const navigatePet = (direction: 'prev' | 'next') => {
@@ -940,44 +939,40 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Button
-                  variant={careStatus?.fed ? "default" : "outline"}
+                  variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity('fed')}
-                  disabled={careStatus?.fed || careActivityMutation.isPending}
+                  onClick={() => handleCareActivity(pet.id, 'fed')}
+                  disabled={careActivityMutation.isPending}
                 >
                   <span className="text-2xl">🍎</span>
                   <span className="text-sm">Feed</span>
-                  {careStatus?.fed && <span className="text-xs">✓ Done</span>}
                 </Button>
                 <Button
-                  variant={careStatus?.bathed ? "default" : "outline"}
+                  variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity('bathed')}
-                  disabled={careStatus?.bathed || careActivityMutation.isPending}
+                  onClick={() => handleCareActivity(pet.id, 'bathed')}
+                  disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
                   <span className="text-sm">Bath</span>
-                  {careStatus?.bathed && <span className="text-xs">✓ Done</span>}
                 </Button>
                 <Button
-                  variant={careStatus?.slept ? "default" : "outline"}
+                  variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity('slept')}
-                  disabled={careStatus?.slept || careActivityMutation.isPending}
+                  onClick={() => handleCareActivity(pet.id, 'slept')}
+                  disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
                   <span className="text-sm">Sleep</span>
-                  {careStatus?.slept && <span className="text-xs">✓ Done</span>}
                 </Button>
                 <Button
-                  variant={careStatus?.cleaned ? "default" : "outline"}
+                  variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity('cleaned')}
-                  disabled={careStatus?.cleaned || careActivityMutation.isPending}
+                  onClick={() => handleCareActivity(pet.id, 'cleaned')}
+                  disabled={careActivityMutation.isPending}
                 >
                   <Sparkles className="w-6 h-6" />
                   <span className="text-sm">Clean</span>
-                  {careStatus?.cleaned && <span className="text-xs">✓ Done</span>}
                 </Button>
               </div>
 
