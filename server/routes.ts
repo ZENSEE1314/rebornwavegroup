@@ -922,16 +922,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createCareActivity({
           petId,
           userId,
-          activityType: 'sleeping',
-          pointsEarned: 3
+          careType: 'sleep'
         });
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'clean') {
         await storage.createCareActivity({
           petId,
           userId,
-          activityType: 'cleaning',
-          pointsEarned: 3
+          careType: 'clean'
         });
         await storage.updateUserPoints(userId, 3);
       }

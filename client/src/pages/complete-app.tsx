@@ -326,12 +326,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => {
                         toast({
-                          title: language === "id" ? "Game Dimulai!" : "Game Started!",
-                          description: language === "id" ? "Feeding game telah dimulai! Klik makanan untuk memberi makan hewan peliharaan." : "Feeding game started! Click food items to feed your pet.",
+                          title: language === "id" ? "Coin Catching Game!" : "Coin Catching Game!",
+                          description: language === "id" ? "Game menangkap koin dimulai! Tangkap sebanyak mungkin koin untuk mendapatkan token." : "Coin catching game started! Catch as many coins as possible to earn tokens.",
                         });
                       }}
+                      disabled={isDead}
                     >
-                      🎯 {language === "id" ? "Mulai Feeding Game" : "Start Feeding Game"}
+                      🪙 {language === "id" ? "Mulai Coin Catching Game" : "Start Coin Catching Game"}
                     </Button>
                   </div>
 
