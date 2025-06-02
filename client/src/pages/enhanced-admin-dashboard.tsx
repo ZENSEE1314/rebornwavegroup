@@ -2148,9 +2148,9 @@ export default function EnhancedAdminDashboard() {
                               {editingPet?.id === pet.id ? (
                                 <Input
                                   type="number"
-                                  value={editedPetData.currentAge !== undefined ? editedPetData.currentAge : pet.currentAge || 0}
+                                  value={editedPetData.currentAge}
                                   onChange={(e) => {
-                                    const newAge = parseInt(e.target.value);
+                                    const newAge = parseInt(e.target.value) || 0;
                                     // Auto-calculate activation date based on age (deduct days from today)
                                     const today = new Date();
                                     const activationDate = new Date(today.getTime() - (newAge * 24 * 60 * 60 * 1000));
@@ -2212,7 +2212,7 @@ export default function EnhancedAdminDashboard() {
                                         setEditingPet(pet);
                                         setEditedPetData({
                                           name: pet.name,
-                                          currentAge: pet.currentAge,
+                                          currentAge: pet.currentAge || 0,
                                           activatedDate: pet.createdAt ? new Date(pet.createdAt).toISOString().split('T')[0] : ''
                                         });
                                       }}
