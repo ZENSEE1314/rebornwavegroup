@@ -579,6 +579,19 @@ export default function EnhancedAdminDashboard() {
     },
   });
 
+  const updateTokenClaimMutation = useMutation({
+    mutationFn: async ({ claimId, status, adminNotes }: { claimId: number; status: string; adminNotes: string }) => {
+      return apiRequest('PATCH', `/api/admin/token-claims/${claimId}`, { status, adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Token claim updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update token claim", variant: "destructive" });
+    }
+  });
+
   const createRewardMutation = useMutation({
     mutationFn: async (rewardData: any) => {
       return apiRequest('POST', '/api/admin/reward-items', rewardData);
@@ -2326,6 +2339,103 @@ export default function EnhancedAdminDashboard() {
                             </TableCell>
                             <TableCell className="text-gray-300">
                               {score.createdAt ? new Date(score.createdAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Claims Tab */}
+          <TabsContent value="tokens">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Claims Management</CardTitle>
+                <p className="text-gray-300">Approve or reject token redemption requests</p>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-blue-200">User</TableHead>
+                        <TableHead className="text-blue-200">Token Amount</TableHead>
+                        <TableHead className="text-blue-200">Status</TableHead>
+                        <TableHead className="text-blue-200">Request Date</TableHead>
+                        <TableHead className="text-blue-200">Admin Notes</TableHead>
+                        <TableHead className="text-blue-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(tokenClaims as any[]).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                            No token claims submitted yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (tokenClaims as any[]).map((claim: any) => (
+                          <TableRow key={claim.id} className="border-white/10">
+                            <TableCell className="text-white">
+                              {claim.user?.firstName || claim.user?.email || 'Unknown User'}
+                            </TableCell>
+                            <TableCell className="text-yellow-300">
+                              🪙 {claim.tokenAmount}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={
+                                claim.status === 'approved' ? 'bg-green-500' :
+                                claim.status === 'rejected' ? 'bg-red-500' :
+                                'bg-yellow-500'
+                              }>
+                                {claim.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {new Date(claim.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {claim.adminNotes || 'No notes'}
+                            </TableCell>
+                            <TableCell>
+                              {claim.status === 'pending' && (
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => {
+                                      const notes = prompt('Enter admin notes (optional):');
+                                      updateTokenClaimMutation.mutate({ 
+                                        claimId: claim.id, 
+                                        status: 'approved',
+                                        adminNotes: notes || ''
+                                      });
+                                    }}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => {
+                                      const notes = prompt('Enter rejection reason:');
+                                      if (notes) {
+                                        updateTokenClaimMutation.mutate({ 
+                                          claimId: claim.id, 
+                                          status: 'rejected',
+                                          adminNotes: notes
+                                        });
+                                      }
+                                    }}
+                                    variant="destructive"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))
