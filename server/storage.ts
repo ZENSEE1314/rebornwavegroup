@@ -595,6 +595,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(toys.qrCode, qrCode))
       .returning();
 
+    // Create a pet from this activated toy
+    await this.createPet({
+      userId: userId,
+      toyId: toy.id,
+      name: toy.name || `Pet ${toy.name}`,
+      type: toy.category || "dragon",
+      happiness: 100,
+      hunger: 100,
+      cleanliness: 100,
+      energy: 100,
+      currentAge: 0,
+      growthStage: "baby"
+    });
+
     return updatedToy;
   }
 
