@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   credits: decimal("credits", { precision: 10, scale: 2 }).default("0.00").notNull(),
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
   lifetimePoints: integer("lifetime_points").default(0).notNull(),
+  tokens: integer("tokens").default(0).notNull(), // Physical tokens that can be claimed
   level: integer("level").default(1).notNull(),
   referralCode: varchar("referral_code").unique().notNull(),
   referredById: varchar("referred_by_id"),
@@ -624,3 +625,24 @@ export const insertGameScoreSchema = createInsertSchema(gameScores).omit({
   createdAt: true,
 });
 export type InsertGameScore = z.infer<typeof insertGameScoreSchema>;
+
+// Token claims table for physical token redemptions
+export const tokenClaims = pgTable("token_claims", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  tokensRequested: integer("tokens_requested").notNull(),
+  status: varchar("status").default("pending").notNull(), // 'pending', 'approved', 'rejected', 'shipped'
+  adminNotes: text("admin_notes"),
+  shippingAddress: text("shipping_address"),
+  trackingNumber: varchar("tracking_number"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by"), // Admin user ID
+});
+
+export type TokenClaim = typeof tokenClaims.$inferSelect;
+export const insertTokenClaimSchema = createInsertSchema(tokenClaims).omit({
+  id: true,
+  requestedAt: true,
+});
+export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
