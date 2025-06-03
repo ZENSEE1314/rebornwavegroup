@@ -18,6 +18,12 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+  
+  // Log all requests to debug routing
+  app.use('/api/pets', (req, res, next) => {
+    console.log('Pet API request:', req.method, req.url, req.params);
+    next();
+  });
 
   // Serve attached assets as static files
   app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
