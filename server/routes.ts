@@ -1033,6 +1033,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Energy potion - spend 2 tokens to restore energy to 100%
+  app.post('/api/pets/:petId/energy-potion', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      // Get user's current token balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const currentTokens = user.tokens || 0;
+      if (currentTokens < 2) {
+        return res.status(400).json({ 
+          message: "Not enough tokens! You need 2 tokens to use an energy potion.",
+          insufficientTokens: true
+        });
+      }
+      
+      // Get pet to verify ownership
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      // Check if pet already has full energy
+      const currentEnergy = pet.energy || 50;
+      if (currentEnergy >= 100) {
+        return res.status(400).json({ 
+          message: "Pet already has full energy!",
+          alreadyFullEnergy: true
+        });
+      }
+      
+      // Deduct 2 tokens and restore energy to 100%
+      await storage.deductUserTokens(userId, 2);
+      await storage.updatePetStats(petId, { 
+        energy: 100,
+        isSleeping: false, // Wake up the pet
+        sleepStartTime: null 
+      });
+      
+      // Create activity record
+      await storage.createCareActivity({
+        petId,
+        userId,
+        activityType: 'energy_potion',
+        completedAt: new Date(),
+        pointsEarned: 0
+      });
+      
+      res.json({ 
+        message: "Energy potion used! Pet energy restored to 100%", 
+        newTokenBalance: currentTokens - 2,
+        newEnergy: 100
+      });
+    } catch (error) {
+      console.error("Error using energy potion:", error);
+      res.status(500).json({ message: "Failed to use energy potion" });
+    }
+  });
+
   // Wake up pet
   app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
     try {

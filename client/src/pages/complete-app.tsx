@@ -397,6 +397,31 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
+  // Energy potion mutation
+  const energyPotionMutation = useMutation({
+    mutationFn: async ({ petId }: { petId: number }) => {
+      const result = await apiRequest("POST", `/api/pets/${petId}/energy-potion`, {});
+      return result;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/user-stats"] });
+      toast({
+        title: language === "id" ? "Ramuan Energi Berhasil!" : "Energy Potion Success!",
+        description: language === "id" ? `Energi pet dipulihkan ke 100%! Token: ${data.newTokenBalance}` : `Pet energy restored to 100%! Tokens: ${data.newTokenBalance}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Gagal Menggunakan Ramuan" : "Failed to Use Potion",
+        description: error.message || (language === "id" ? "Gagal menggunakan ramuan energi" : "Failed to use energy potion"),
+        variant: "destructive"
+      });
+    }
+  });
+
   // Sleep mutation
   const sleepMutation = useMutation({
     mutationFn: async (petId: number) => {
@@ -1242,6 +1267,44 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <Sparkles className="w-6 h-6" />
                   <span className="text-sm">Play</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+              </div>
+
+              {/* Energy Potion - Special Item */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="font-semibold text-gray-900">
+                    {language === "id" ? "Item Khusus" : "Special Items"}
+                  </h5>
+                  <span className="text-sm text-gray-600">
+                    {language === "id" ? "Token: " : "Tokens: "}{user?.tokens || 0}
+                  </span>
+                </div>
+                <Button
+                  variant={safePets[currentPetIndex]?.energy === 100 ? "secondary" : "default"}
+                  className="w-full h-16 flex items-center gap-3 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500"
+                  onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id })}
+                  disabled={
+                    energyPotionMutation.isPending || 
+                    (user?.tokens || 0) < 2 || 
+                    safePets[currentPetIndex]?.energy === 100
+                  }
+                >
+                  <span className="text-2xl">⚡</span>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold">
+                      {language === "id" ? "Ramuan Energi" : "Energy Potion"}
+                    </div>
+                    <div className="text-xs opacity-90">
+                      {(user?.tokens || 0) < 2 
+                        ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
+                        : safePets[currentPetIndex]?.energy === 100
+                        ? (language === "id" ? "Energi penuh" : "Energy full")
+                        : (language === "id" ? "Pulihkan energi ke 100%" : "Restore energy to 100%")
+                      }
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold">2🪙</span>
                 </Button>
               </div>
 
