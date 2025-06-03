@@ -604,12 +604,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const cleanliness = isDead ? 0 : (pet.cleanliness || calculateCleanliness(pet.lastCareDate));
             const energy = isDead ? 0 : pet.energy; // Use stored energy value
             
-            // Happiness calculation: decreases by 1% for every 1% below 100 in hunger, cleanliness, or energy
-            const hungerDeficit = Math.max(0, 100 - hunger);
-            const cleanlinessDeficit = Math.max(0, 100 - cleanliness);
-            const energyDeficit = Math.max(0, 100 - energy);
-            const totalDeficit = hungerDeficit + cleanlinessDeficit + energyDeficit;
-            const happiness = isDead ? 0 : Math.max(0, (pet.happiness || 50) - totalDeficit);
+            // Use actual database value for happiness instead of calculated deficit
+            const happiness = isDead ? 0 : (pet.happiness || 50);
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
