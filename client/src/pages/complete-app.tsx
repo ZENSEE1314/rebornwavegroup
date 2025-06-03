@@ -1346,9 +1346,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     {/* Real-time countdown timer */}
                     <div className="text-3xl font-mono text-blue-600 mb-2">
                       {(() => {
-                        const nextEnergyMinutes = sleepProgress.nextEnergyIn || 0;
-                        // Convert to total seconds and account for real-time countdown
+                        if (!sleepProgress?.nextEnergyIn) return "00:00";
+                        
+                        // Calculate exact seconds remaining until next energy boost
+                        const nextEnergyMinutes = sleepProgress.nextEnergyIn;
                         const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
+                        
                         const minutes = Math.floor(totalSecondsRemaining / 60);
                         const seconds = totalSecondsRemaining % 60;
                         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
