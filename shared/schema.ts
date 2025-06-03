@@ -272,8 +272,6 @@ export const pets = pgTable("pets", {
   injuries: integer("injuries").default(0),
   dailyInjuries: integer("daily_injuries").default(0), // resets daily
   lastInjuryDate: varchar("last_injury_date"), // YYYY-MM-DD
-  lastFed: timestamp("last_fed"), // For hunger decay calculation
-  lastCleaned: timestamp("last_cleaned"), // For cleanliness decay calculation
   
   // Status tracking
   isActive: boolean("is_active").default(true),
@@ -287,7 +285,6 @@ export const pets = pgTable("pets", {
   lastCareDate: timestamp("last_care_date"),
   lastFed: timestamp("last_fed"),
   lastCleaned: timestamp("last_cleaned"),
-  lastFedAt: timestamp("last_fed_at"),
   lastTrainedAt: timestamp("last_trained_at"),
   lastBattleAt: timestamp("last_battle_at"),
   
