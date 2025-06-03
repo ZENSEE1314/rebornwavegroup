@@ -1336,6 +1336,43 @@ export default function EnhancedAdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* Pagination for Appointments */}
+                {(appointmentsResponse as any)?.pagination && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {(appointmentsResponse as any).pagination.hasPrev && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Previous page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        <PaginationItem>
+                          <PaginationLink href="#" isActive>
+                            {(appointmentsResponse as any).pagination.page}
+                          </PaginationLink>
+                        </PaginationItem>
+                        
+                        {(appointmentsResponse as any).pagination.hasNext && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Next page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1744,6 +1781,43 @@ export default function EnhancedAdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* Pagination for Cash Outs */}
+                {(cashOutResponse as any)?.pagination && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {(cashOutResponse as any).pagination.hasPrev && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Previous page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        <PaginationItem>
+                          <PaginationLink href="#" isActive>
+                            {(cashOutResponse as any).pagination.page}
+                          </PaginationLink>
+                        </PaginationItem>
+                        
+                        {(cashOutResponse as any).pagination.hasNext && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Next page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1819,6 +1893,43 @@ export default function EnhancedAdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* Pagination for Transactions */}
+                {(transactionsResponse as any)?.pagination && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {(transactionsResponse as any).pagination.hasPrev && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Previous page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        <PaginationItem>
+                          <PaginationLink href="#" isActive>
+                            {(transactionsResponse as any).pagination.page}
+                          </PaginationLink>
+                        </PaginationItem>
+                        
+                        {(transactionsResponse as any).pagination.hasNext && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={() => {
+                                console.log('Next page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
