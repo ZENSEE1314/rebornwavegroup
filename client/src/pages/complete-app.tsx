@@ -1197,7 +1197,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    // Direct API call with hardcoded pet ID 1 (from server logs)
+                    console.log('Bath button clicked - making API call');
                     careActivityMutation.mutate({ petId: 1, careType: 'bathe' });
                   }}
                   disabled={careActivityMutation.isPending}

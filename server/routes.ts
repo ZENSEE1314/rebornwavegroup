@@ -902,6 +902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid care type" });
       }
 
+      // If pet is sleeping, wake it up for any care activity except sleep
+      if (pet.isSleeping && careType !== 'sleep') {
+        await storage.updatePetStats(petId, { 
+          isSleeping: false, 
+          sleepStartTime: null 
+        });
+      }
+
       // Update care status based on type
       if (careType === 'feed') {
         // Increase hunger by 30% (not reset to 100%)
