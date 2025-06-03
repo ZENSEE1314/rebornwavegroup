@@ -1383,45 +1383,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
-              {/* ENERGY POTION BUTTON */}
-              <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
-                <div className="text-center mb-3">
-                  <h3 className="font-bold text-purple-700">⚡ ENERGY POTION ⚡</h3>
-                  <p className="text-sm text-gray-600">Your Tokens: {user?.loyaltyPoints || 0}</p>
-                </div>
+              {/* Energy Potion - Simple Button */}
+              <div className="mt-4">
                 <Button
-                  size="lg"
-                  className="w-full h-16 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500 shadow-lg"
-                  onClick={() => {
-                    console.log('Energy Potion clicked', { petId: safePets[currentPetIndex]?.id });
-                    if (safePets[currentPetIndex]?.id) {
-                      energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id });
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/pets/${safePets[currentPetIndex]?.id}/energy-potion`, {
+                        method: 'POST'
+                      });
+                      if (response.ok) {
+                        // Refresh pet data
+                        window.location.reload();
+                      }
+                    } catch (error) {
+                      console.error('Energy potion failed:', error);
                     }
                   }}
-                  disabled={
-                    energyPotionMutation.isPending || 
-                    (user?.loyaltyPoints || 0) < 10 || 
-                    safePets[currentPetIndex]?.energy === 100 ||
-                    !safePets[currentPetIndex]?.id
-                  }
+                  disabled={(user?.tokens || 0) < 10}
                 >
-                  <span className="text-3xl mr-3">⚡</span>
-                  <div className="flex-1">
-                    <div className="font-bold text-lg">
-                      {language === "id" ? "Ramuan Energi" : "Energy Potion"}
-                    </div>
-                    <div className="text-sm opacity-90">
-                      {!safePets[currentPetIndex]?.id 
-                        ? "No pet selected"
-                        : (user?.loyaltyPoints || 0) < 10 
-                        ? (language === "id" ? "Perlu 10 token" : "Need 10 tokens")
-                        : safePets[currentPetIndex]?.energy === 100
-                        ? (language === "id" ? "Energi penuh" : "Energy full")
-                        : (language === "id" ? "Pulihkan 20% energi" : "Restore 20% energy")
-                      }
-                    </div>
-                  </div>
-                  <span className="text-lg font-bold ml-3">10🪙</span>
+                  ⚡ Energy Potion (10 tokens) - You have: {user?.tokens || 0}
                 </Button>
               </div>
 
