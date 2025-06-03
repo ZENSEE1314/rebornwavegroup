@@ -897,8 +897,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
+      // Validate care type
+      if (!['feed', 'bathe', 'clean'].includes(careType)) {
+        return res.status(400).json({ message: "Invalid care type" });
+      }
+
       // Update care status based on type
-      if (careType === 'fed') {
+      if (careType === 'feed') {
         // Update last fed time to current time (this resets hunger to 100%)
         await storage.updatePetLastFed(petId);
         
@@ -917,10 +922,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedAt: new Date(),
           pointsEarned: 5
         });
-      } else if (careType === 'bathed') {
-        // Decrease energy by 5%
-        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
-        await storage.updatePetStats(petId, { energy: newEnergy });
+      } else if (careType === 'bathe') {
+        // Update last care date for cleanliness tracking
+        await storage.updatePetStats(petId, { 
+          lastCareDate: new Date(),
+          energy: Math.max(0, (pet.energy || 50) - 5)
+        });
         
         await storage.createCareActivity({
           petId,
@@ -930,25 +937,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
-      } else if (careType === 'slept') {
-        // Sleep starts energy recovery process - set to 100% after 6 hours
-        // For now, we'll simulate instant recovery but store sleep start time
+      } else if (careType === 'clean') {
+        // Update last care date for cleanliness tracking
         await storage.updatePetStats(petId, { 
-          energy: Math.min(100, pet.energy + 50) // Partial recovery for testing
+          lastCareDate: new Date(),
+          energy: Math.max(0, (pet.energy || 50) - 5)
         });
-        
-        await storage.createCareActivity({
-          petId,
-          userId,
-          activityType: 'sleep',
-          completedAt: new Date(),
-          pointsEarned: 3
-        });
-        await storage.updateUserPoints(userId, 3);
-      } else if (careType === 'cleaned') {
-        // Decrease energy by 5%
-        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
-        await storage.updatePetStats(petId, { energy: newEnergy });
         
         await storage.createCareActivity({
           petId,
