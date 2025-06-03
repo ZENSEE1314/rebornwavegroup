@@ -1883,8 +1883,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const users = await storage.getAllUsers();
-      res.json(users);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allUsers = await storage.getAllUsers();
+      const totalCount = allUsers.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedUsers = allUsers.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedUsers,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
@@ -1900,8 +1918,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const cashOuts = await storage.getAllCashOuts();
-      res.json(cashOuts);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allCashOuts = await storage.getAllCashOuts();
+      const totalCount = allCashOuts.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedCashOuts = allCashOuts.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedCashOuts,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching cash outs:", error);
       res.status(500).json({ message: "Failed to fetch cash outs" });
@@ -1917,8 +1953,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const transactions = await storage.getAllTransactions();
-      res.json(transactions);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allTransactions = await storage.getAllTransactions();
+      const totalCount = allTransactions.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedTransactions = allTransactions.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedTransactions,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching transactions:", error);
       res.status(500).json({ message: "Failed to fetch transactions" });
@@ -1934,8 +1988,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const toys = await storage.getAllToysWithOwners();
-      res.json(toys);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allToys = await storage.getAllToysWithOwners();
+      const totalCount = allToys.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedToys = allToys.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedToys,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching toys:", error);
       res.status(500).json({ message: "Failed to fetch toys" });
@@ -1952,8 +2024,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const appointments = await storage.getAllAppointments();
-      res.json(appointments);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allAppointments = await storage.getAllAppointments();
+      const totalCount = allAppointments.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedAppointments = allAppointments.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedAppointments,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error('Error fetching appointments:', error);
       res.status(500).json({ message: 'Failed to fetch appointments' });
@@ -2599,8 +2689,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const activatedPets = await storage.getAllActivatedPetsWithDetails();
-      res.json(activatedPets);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allActivatedPets = await storage.getAllActivatedPetsWithDetails();
+      const totalCount = allActivatedPets.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedPets = allActivatedPets.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedPets,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error: any) {
       console.error("Error fetching activated pets:", error);
       res.status(500).json({ message: "Failed to fetch activated pets" });
@@ -2680,8 +2788,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const claims = await storage.getTokenClaims();
-      res.json(claims);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allClaims = await storage.getTokenClaims();
+      const totalCount = allClaims.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedClaims = allClaims.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedClaims,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching token claims:", error);
       res.status(500).json({ message: "Failed to fetch token claims" });
