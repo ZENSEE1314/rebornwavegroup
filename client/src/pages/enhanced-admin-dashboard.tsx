@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatMoney, formatCurrency, formatDate } from "@/lib/utils";
@@ -1181,6 +1182,45 @@ export default function EnhancedAdminDashboard() {
                   </TableBody>
                   </Table>
                 </div>
+                
+                {/* Pagination for Users */}
+                {(usersResponse as any)?.pagination && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {(usersResponse as any).pagination.hasPrev && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={() => {
+                                // Handle previous page
+                                console.log('Previous page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        <PaginationItem>
+                          <PaginationLink href="#" isActive>
+                            {(usersResponse as any).pagination.page}
+                          </PaginationLink>
+                        </PaginationItem>
+                        
+                        {(usersResponse as any).pagination.hasNext && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={() => {
+                                // Handle next page
+                                console.log('Next page');
+                              }}
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
