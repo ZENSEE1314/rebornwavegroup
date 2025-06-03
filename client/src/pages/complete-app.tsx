@@ -1208,24 +1208,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' })}
-                  disabled={careActivityMutation.isPending}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🍎</span>
                   <span className="text-sm">Feed</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => bathMutation.mutate({ petId: safePets[currentPetIndex].id })}
-                  disabled={bathMutation.isPending}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' })}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🛁</span>
                   <span className="text-sm">Bath</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'sleep' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
@@ -1234,11 +1236,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' })}
-                  disabled={careActivityMutation.isPending}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'cleaned' })}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
-                  <span className="text-sm">Clean</span>
+                  <span className="text-sm">Play</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
               </div>
 

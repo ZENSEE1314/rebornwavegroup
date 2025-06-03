@@ -1595,6 +1595,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
+      // Check energy restrictions - if energy is 0%, only allow sleep
+      const currentEnergy = pet.energy || 50;
+      if (currentEnergy === 0 && careType !== 'slept') {
+        return res.status(400).json({ 
+          message: "Pet has no energy! Please let your pet sleep first to restore energy.",
+          energyTooLow: true
+        });
+      }
+
+      // Auto wake up pet for any care action except sleep
+      if (pet.isSleeping && careType !== 'slept') {
+        console.log('Pet was sleeping, waking up for care activity');
+        await storage.updatePetStats(parseInt(petId), { 
+          isSleeping: false, 
+          sleepStartTime: null 
+        });
+      }
+
       // Update pet stats based on care type
       if (careType === 'fed') {
         // Increase hunger by 30%
