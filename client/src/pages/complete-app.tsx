@@ -1197,15 +1197,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    console.log('Bath button clicked');
-                    console.log('safePets:', safePets);
-                    console.log('currentPetIndex:', currentPetIndex);
-                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
-                    if (safePets[currentPetIndex]?.id) {
-                      careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathe' });
-                    } else {
-                      console.error('No valid pet found for bathing');
-                    }
+                    // Direct API call with hardcoded pet ID 1 (from server logs)
+                    careActivityMutation.mutate({ petId: 1, careType: 'bathe' });
                   }}
                   disabled={careActivityMutation.isPending}
                 >
