@@ -1335,42 +1335,57 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
-              {/* Sleep Timer Display - MM:SS format */}
+              {/* Sleep Timer Display - Real-time countdown */}
               {safePets[currentPetIndex]?.isSleeping && sleepProgress && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="text-center">
                     <div className="text-lg font-bold text-blue-700 mb-2">
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
-                    <div className="text-2xl font-mono text-blue-600 mb-2">
-                      {formatSleepTime(sleepProgress.totalSleepTime || 0)}
+                    
+                    {/* Real-time countdown timer */}
+                    <div className="text-3xl font-mono text-blue-600 mb-2">
+                      {(() => {
+                        const nextEnergyMinutes = sleepProgress.nextEnergyIn || 0;
+                        // Convert minutes to seconds for MM:SS display
+                        const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
+                        const minutes = Math.floor(totalSecondsRemaining / 60);
+                        const seconds = totalSecondsRemaining % 60;
+                        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                      })()}
                     </div>
+                    
+                    <div className="text-sm text-blue-600 mb-2">
+                      {language === "id" 
+                        ? "Waktu hingga energi berikutnya"
+                        : "Time until next energy boost"
+                      }
+                    </div>
+                    
                     <div className="text-sm text-blue-600">
                       {language === "id" 
                         ? `Telah tidur selama ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
                         : `Sleeping for ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
                       }
                     </div>
-                    <div className="text-sm text-blue-600">
-                      {language === "id" 
-                        ? `Energi berikutnya dalam ${5 - (sleepProgress.totalSleepTime % 5)} menit`
-                        : `Next energy in ${5 - (sleepProgress.totalSleepTime % 5)} minutes`
-                      }
-                    </div>
+                    
                     <div className="text-sm text-blue-600 mb-3">
                       {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
                     </div>
+                    
                     <div className="text-sm text-gray-600 mb-3">
                       {language === "id" ? "Energi saat ini: " : "Current energy: "}
                       <span className="font-semibold text-blue-700">
-                        {safePets[currentPetIndex]?.energy || 0}%
+                        {sleepProgress.currentEnergy || safePets[currentPetIndex]?.energy || 0}%
                       </span>
                     </div>
-                    {safePets[currentPetIndex]?.energy >= 100 && (
+                    
+                    {(sleepProgress.currentEnergy || safePets[currentPetIndex]?.energy || 0) >= 100 && (
                       <div className="text-green-600 font-semibold text-sm mb-2">
                         ✨ {language === "id" ? "Energi penuh! Bisa bangun sekarang" : "Energy full! Can wake up now"}
                       </div>
                     )}
+                    
                     <Button
                       variant="outline"
                       size="sm"
