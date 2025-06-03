@@ -36,9 +36,6 @@ function Router() {
 
   return (
     <Switch>
-      {/* Public test route - no authentication required */}
-      <Route path="/test-pet-care" component={TestPetCare} />
-      
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
@@ -47,7 +44,7 @@ function Router() {
           {user?.role === 'admin' ? (
             <Route path="/" component={AdminDashboard} />
           ) : (
-            <Route path="/" component={PetCareWithEnergy} />
+            <Route path="/" component={CompleteApp} />
           )}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/app" component={CompleteApp} />
