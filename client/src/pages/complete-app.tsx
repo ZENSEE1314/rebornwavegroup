@@ -1191,11 +1191,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const seconds = totalSeconds % 60;
 
             // Calculate real-time hunger and cleanliness decay (100% to 1% over 6 hours)
-            const lastUpdate = new Date(pet.updatedAt || pet.createdAt).getTime();
-            const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+            // Use the pet's updatedAt timestamp as the reference point for decay
+            const lastUpdateTime = new Date(pet.updatedAt || pet.createdAt).getTime();
+            const hoursSinceUpdate = (now - lastUpdateTime) / (1000 * 60 * 60);
             
             // Decay rate: 16.5% per hour (99% decay over 6 hours)
             const decayAmount = Math.min(hoursSinceUpdate * 16.5, 99);
+            
+            // Apply decay to both hunger and cleanliness from their stored values
             const currentHunger = Math.max(1, (pet.hunger || 100) - decayAmount);
             const currentCleanliness = Math.max(1, (pet.cleanliness || 100) - decayAmount);
             

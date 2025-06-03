@@ -1061,8 +1061,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cleanliness: 100
       });
       
-      // Update the pet's updatedAt timestamp in the database to restart decay timer
+      // Update the pet's updatedAt timestamp to restart cleanliness decay timer
       await db.update(pets).set({ updatedAt: new Date() }).where(eq(pets.id, petId));
+      
+      // Log the cleaning activity
+      await storage.createCareActivity({
+        petId,
+        userId,
+        activityType: 'clean',
+        weightChange: 0,
+        pointsEarned: 0,
+        tokensEarned: 0
+      });
 
       res.json({ 
         message: "Pet cleaned successfully", 
@@ -1109,8 +1119,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weight: newWeight
       });
       
-      // Update the pet's updatedAt timestamp in the database to restart decay timer
+      // Update the pet's updatedAt timestamp to restart hunger decay timer
       await db.update(pets).set({ updatedAt: new Date() }).where(eq(pets.id, petId));
+      
+      // Log the feeding activity
+      await storage.createCareActivity({
+        petId,
+        userId,
+        activityType: 'feed',
+        foodType,
+        weightChange: weightGain,
+        pointsEarned: 0,
+        tokensEarned: 0
+      });
 
       res.json({ 
         message: "Pet fed successfully", 
