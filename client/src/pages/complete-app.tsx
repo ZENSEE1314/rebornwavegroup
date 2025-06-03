@@ -286,6 +286,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -318,6 +319,25 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     refetchInterval: 3000, // Update every 3 seconds for real-time pet data
     refetchOnWindowFocus: true,
   });
+
+  // Get current pet from pets array
+  const safePetsForCurrent = Array.isArray(pets) ? pets : [];
+  const currentPet = safePetsForCurrent[currentPetIndex];
+
+  // Fetch care status for current pet
+  const { data: careStatus } = useQuery({
+    queryKey: ["/api/pets", currentPet?.id, "care-status"],
+    enabled: !!currentPet?.id,
+  });
+
+  // Get owned toys (filter out toys that are already pets or listed in marketplace)
+  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
+    !pets?.some((pet: any) => pet.toyId === toy.id) &&
+    !marketplaceListings?.some((listing: any) => listing.toyId === toy.id)
+  ) : [];
+
+  // Get unactivated toys (toys without QR codes activated)
+  const unactivatedToys = ownedToys?.filter((toy: any) => !toy.isActivated) || [];
 
   const queryClient = useQueryClient();
 
