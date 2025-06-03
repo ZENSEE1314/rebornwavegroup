@@ -247,22 +247,8 @@ export default function EnhancedAdminDashboard() {
     return searchMatch && typeMatch;
   });
 
-  const filteredToys = (allToys as any[]).filter((toy: any) => {
-    const searchMatch = !toySearch || 
-      toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
-      toy.series?.toLowerCase().includes(toySearch.toLowerCase());
-    const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
-    const ownerMatch = ownerFilter === "all" || 
-      (ownerFilter === "owned" && toy.owner) ||
-      (ownerFilter === "unowned" && !toy.owner);
-    return searchMatch && rarityMatch && ownerMatch;
-  });
-
-  // Calculate pagination for toys
-  const totalPages = Math.ceil(filteredToys.length / toysPerPage);
-  const startIndex = (currentPage - 1) * toysPerPage;
-  const endIndex = startIndex + toysPerPage;
-  const paginatedToys = filteredToys.slice(startIndex, endIndex);
+  // Use server-side pagination for toys
+  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
@@ -1478,7 +1464,7 @@ export default function EnhancedAdminDashboard() {
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-white">All Toys</CardTitle>
                     <Button 
-                      onClick={() => downloadCSV(filteredToys, 'toys')}
+                      onClick={() => downloadCSV(allToys, 'toys')}
                       variant="outline" 
                       size="sm"
                       className="bg-white/10 text-white border-white/20"
@@ -1535,7 +1521,7 @@ export default function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paginatedToys.map((toy: any) => (
+                      {allToys.map((toy: any) => (
                         <TableRow key={toy.id} className="border-white/10">
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-gray-300">{toy.series}</TableCell>
@@ -1624,41 +1610,41 @@ export default function EnhancedAdminDashboard() {
                   </Table>
                   
                   {/* Pagination Controls */}
-                  {totalPages > 1 && (
+                  {toysPaginationInfo.totalPages > 1 && (
                     <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
                       <div className="text-sm text-gray-300">
-                        Showing {startIndex + 1} to {Math.min(endIndex, filteredToys.length)} of {filteredToys.length} toys
+                        Showing page {toysPaginationInfo.page} of {toysPaginationInfo.totalPages} ({toysPaginationInfo.totalCount} total toys)
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
+                          onClick={() => setToysPage(prev => Math.max(1, prev - 1))}
+                          disabled={!toysPaginationInfo.hasPrev}
                           className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                         >
                           Previous
                         </Button>
                         <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          {Array.from({ length: Math.min(5, toysPaginationInfo.totalPages) }, (_, i) => {
                             let pageNum;
-                            if (totalPages <= 5) {
+                            if (toysPaginationInfo.totalPages <= 5) {
                               pageNum = i + 1;
-                            } else if (currentPage <= 3) {
+                            } else if (toysPage <= 3) {
                               pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 2) {
-                              pageNum = totalPages - 4 + i;
+                            } else if (toysPage >= toysPaginationInfo.totalPages - 2) {
+                              pageNum = toysPaginationInfo.totalPages - 4 + i;
                             } else {
-                              pageNum = currentPage - 2 + i;
+                              pageNum = toysPage - 2 + i;
                             }
                             return (
                               <Button
                                 key={pageNum}
-                                variant={currentPage === pageNum ? "default" : "outline"}
+                                variant={toysPage === pageNum ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => setCurrentPage(pageNum)}
+                                onClick={() => setToysPage(pageNum)}
                                 className={
-                                  currentPage === pageNum
+                                  toysPage === pageNum
                                     ? "bg-blue-600 text-white border-blue-500"
                                     : "bg-white/10 text-white border-white/20 hover:bg-white/20"
                                 }
@@ -1671,8 +1657,8 @@ export default function EnhancedAdminDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                          disabled={currentPage === totalPages}
+                          onClick={() => setToysPage(prev => Math.min(toysPaginationInfo.totalPages, prev + 1))}
+                          disabled={!toysPaginationInfo.hasNext}
                           className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                         >
                           Next
@@ -1990,7 +1976,7 @@ export default function EnhancedAdminDashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-300">Total Toys:</span>
-                      <span className="text-white font-bold">{filteredToys.length}</span>
+                      <span className="text-white font-bold">{toysPaginationInfo.totalCount}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-300">Pending Cash Outs:</span>
