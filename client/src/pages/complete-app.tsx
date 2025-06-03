@@ -757,7 +757,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'feed' });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
@@ -815,7 +815,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
