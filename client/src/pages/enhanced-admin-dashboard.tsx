@@ -78,7 +78,8 @@ export default function EnhancedAdminDashboard() {
   const [rarityFilter, setRarityFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const toysPerPage = 100;
+  const [toysPage, setToysPage] = useState(1);
+  const toysPerPage = 10;
   
   // Bulk upload states
   const [bulkToyData, setBulkToyData] = useState("");
@@ -165,7 +166,8 @@ export default function EnhancedAdminDashboard() {
   });
 
   const { data: toysResponse }: any = useQuery({
-    queryKey: ['/api/admin/all-toys'],
+    queryKey: ['/api/admin/all-toys', toysPage],
+    queryFn: () => apiRequest('GET', `/api/admin/all-toys?page=${toysPage}&limit=10`),
     retry: false,
   });
 
