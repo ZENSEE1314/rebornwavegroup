@@ -599,9 +599,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
-            // Real-time status calculations that decay over time
-            const hunger = calculateHunger(pet.lastFedAt);
-            const cleanliness = calculateCleanliness(pet.lastCareDate);
+            // Use actual database values for stats, with time decay as fallback
+            const hunger = isDead ? 0 : (pet.hunger || calculateHunger(pet.lastFedAt));
+            const cleanliness = isDead ? 0 : (pet.cleanliness || calculateCleanliness(pet.lastCareDate));
             const energy = isDead ? 0 : pet.energy; // Use stored energy value
             
             // Happiness calculation: decreases by 1% for every 1% below 100 in hunger, cleanliness, or energy
