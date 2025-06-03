@@ -1347,7 +1347,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <div className="text-3xl font-mono text-blue-600 mb-2">
                       {(() => {
                         const nextEnergyMinutes = sleepProgress.nextEnergyIn || 0;
-                        // Convert minutes to seconds for MM:SS display
+                        // Convert to total seconds and account for real-time countdown
                         const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
                         const minutes = Math.floor(totalSecondsRemaining / 60);
                         const seconds = totalSecondsRemaining % 60;
