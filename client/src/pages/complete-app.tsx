@@ -1182,6 +1182,20 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </Card>
       )}
 
+      {/* TEST ENERGY POTION - TOP OF PET CARE */}
+      <div className="mb-4 p-4 bg-red-100 border-2 border-red-500 rounded-lg">
+        <Button
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+          onClick={() => {
+            if (safePets[0]?.id) {
+              energyPotionMutation.mutate({ petId: safePets[0].id });
+            }
+          }}
+        >
+          ⚡ ENERGY POTION TEST (186 tokens) ⚡
+        </Button>
+      </div>
+
       {safePets.length > 0 && safePets[currentPetIndex] && (
         <>
           {/* Pet Info */}
