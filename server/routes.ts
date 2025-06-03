@@ -1378,8 +1378,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      const users = await storage.getAllUsers();
-      res.json(users);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const allUsers = await storage.getAllUsers();
+      const totalCount = allUsers.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const paginatedUsers = allUsers.slice(offset, offset + limit);
+
+      res.json({
+        data: paginatedUsers,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
