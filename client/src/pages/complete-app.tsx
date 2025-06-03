@@ -474,7 +474,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             // Real-time status calculations that decay over time
             const hunger = calculateStatus(pet.lastFedAt);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6))); // Decreases every 6 hours
+            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 12))); // Decreases every 12 hours
             const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
@@ -4869,8 +4869,8 @@ export default function CompleteApp() {
                 </Card>
               ))}
               
-              {/* Show regular toy inventory */}
-              {Array.isArray(toyInventory) && toyInventory.map((toy) => {
+              {/* Show regular toy inventory with pagination */}
+              {Array.isArray(toyInventory) && toyInventory.slice((toyInventoryPage - 1) * 10, toyInventoryPage * 10).map((toy) => {
                 // Check if this toy has a pending transaction
                 const pendingTransaction = Array.isArray(userPendingPurchases) ? userPendingPurchases.find((purchase: any) => 
                   purchase?.toyId === toy?.id && 
