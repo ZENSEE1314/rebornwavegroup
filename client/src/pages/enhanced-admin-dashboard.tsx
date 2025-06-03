@@ -2303,9 +2303,9 @@ export default function EnhancedAdminDashboard() {
                       <TableRow className="border-white/20">
                         <TableHead className="text-gray-300">Pet Name</TableHead>
                         <TableHead className="text-gray-300">Owner</TableHead>
+                        <TableHead className="text-gray-300">Pet Stats</TableHead>
                         <TableHead className="text-gray-300">Series</TableHead>
                         <TableHead className="text-gray-300">Rarity</TableHead>
-                        <TableHead className="text-gray-300">Activated Date</TableHead>
                         <TableHead className="text-gray-300">Current Age</TableHead>
                         <TableHead className="text-gray-300">Claimable Tokens</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
@@ -2338,6 +2338,75 @@ export default function EnhancedAdminDashboard() {
                               <div className="text-xs text-gray-500">
                                 🪙 {pet.ownerTokens || 0} tokens
                               </div>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {editingPet?.id === pet.id ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="w-12">Hunger:</span>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={editedPetData.hunger !== undefined ? editedPetData.hunger : pet.hunger || 100}
+                                      onChange={(e) => setEditedPetData({...editedPetData, hunger: parseInt(e.target.value)})}
+                                      className="bg-gray-800 border-gray-600 text-white h-6 w-16 text-xs"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="w-12">Happy:</span>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={editedPetData.happiness !== undefined ? editedPetData.happiness : pet.happiness || 100}
+                                      onChange={(e) => setEditedPetData({...editedPetData, happiness: parseInt(e.target.value)})}
+                                      className="bg-gray-800 border-gray-600 text-white h-6 w-16 text-xs"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="w-12">Clean:</span>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={editedPetData.cleanliness !== undefined ? editedPetData.cleanliness : pet.cleanliness || 100}
+                                      onChange={(e) => setEditedPetData({...editedPetData, cleanliness: parseInt(e.target.value)})}
+                                      className="bg-gray-800 border-gray-600 text-white h-6 w-16 text-xs"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="w-12">Energy:</span>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={editedPetData.energy !== undefined ? editedPetData.energy : pet.energy || 100}
+                                      onChange={(e) => setEditedPetData({...editedPetData, energy: parseInt(e.target.value)})}
+                                      className="bg-gray-800 border-gray-600 text-white h-6 w-16 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-orange-400">🍎</span>
+                                    <span>{pet.hunger || 100}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-yellow-400">😊</span>
+                                    <span>{pet.happiness || 100}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-blue-400">🛁</span>
+                                    <span>{pet.cleanliness || 100}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-green-400">⚡</span>
+                                    <span>{pet.energy || 100}%</span>
+                                  </div>
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="text-gray-300">{pet.series}</TableCell>
                             <TableCell>
@@ -2432,7 +2501,11 @@ export default function EnhancedAdminDashboard() {
                                         setEditedPetData({
                                           name: pet.name,
                                           currentAge: pet.currentAge || 0,
-                                          activatedDate: pet.createdAt ? new Date(pet.createdAt).toISOString().split('T')[0] : ''
+                                          activatedDate: pet.createdAt ? new Date(pet.createdAt).toISOString().split('T')[0] : '',
+                                          hunger: pet.hunger || 100,
+                                          happiness: pet.happiness || 100,
+                                          cleanliness: pet.cleanliness || 100,
+                                          energy: pet.energy || 100
                                         });
                                       }}
                                       className="bg-blue-600 hover:bg-blue-700 h-8 w-8 p-0"

@@ -1500,6 +1500,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to update pet details and stats
+  app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const petId = parseInt(req.params.petId);
+      const { name, currentAge, activatedDate, hunger, happiness, cleanliness, energy } = req.body;
+      
+      // Update pet details
+      const petDetails: any = {};
+      if (name !== undefined) petDetails.name = name;
+      if (currentAge !== undefined) petDetails.currentAge = currentAge;
+      if (activatedDate !== undefined) petDetails.activatedDate = new Date(activatedDate);
+      
+      if (Object.keys(petDetails).length > 0) {
+        await storage.updatePetDetails(petId, petDetails);
+      }
+      
+      // Update pet stats
+      const petStats: any = {};
+      if (hunger !== undefined) petStats.hunger = hunger;
+      if (happiness !== undefined) petStats.happiness = happiness;
+      if (cleanliness !== undefined) petStats.cleanliness = cleanliness;
+      if (energy !== undefined) petStats.energy = energy;
+      
+      if (Object.keys(petStats).length > 0) {
+        await storage.updatePetStats(petId, petStats);
+      }
+      
+      res.json({ message: 'Pet updated successfully' });
+    } catch (error) {
+      console.error('Error updating pet:', error);
+      res.status(500).json({ message: 'Failed to update pet' });
+    }
+  });
+
   // Admin routes for cash-out management
   app.get("/api/admin/cashouts", isAuthenticated, async (req, res) => {
     try {
