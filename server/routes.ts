@@ -878,19 +878,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's pets
-  app.get('/api/pets', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const pets = await storage.getPetsByUserId(userId);
-      res.json(pets);
-    } catch (error) {
-      console.error("Error fetching pets:", error);
-      res.status(500).json({ message: "Failed to fetch pets" });
-    }
-  });
+  // This route moved to avoid conflicts - see line 1548
 
-  // Pet care activity
+  // CONFLICTING ROUTE REMOVED - Pet care activity moved to /api/pets/:petId/care/:careType
+  /*
   app.post('/api/pets/:petId/care-action/:careType', isAuthenticated, async (req: any, res) => {
     try {
       console.log('Pet care endpoint hit:', req.params.petId, req.params.careType);
@@ -1003,6 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to perform pet care" });
     }
   });
+  */
 
   // Pet sleep management
   app.post('/api/pets/:petId/sleep', isAuthenticated, async (req: any, res) => {
@@ -1082,7 +1074,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Pet care activities
+  // CONFLICTING ROUTE REMOVED - Pet care activities moved to /api/pets/:petId/care/:careType
+  /*
   app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1103,6 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update care" });
     }
   });
+  */
 
   // Get daily care status
   app.get('/api/pets/:petId/care-status', isAuthenticated, async (req: any, res) => {
