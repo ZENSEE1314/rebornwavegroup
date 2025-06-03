@@ -1335,6 +1335,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
+              {/* Debug sleep status */}
+              {console.log("Debug sleep timer:", {
+                petIsSleeping: safePets[currentPetIndex]?.isSleeping,
+                sleepProgress: sleepProgress,
+                currentPet: safePets[currentPetIndex]
+              })}
+
               {/* Sleep Timer Display - Real-time countdown */}
               {safePets[currentPetIndex]?.isSleeping && sleepProgress && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
