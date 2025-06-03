@@ -499,8 +499,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               dragonEmoji = "🐢"; // Baby turtle form
             }
             
-            // Status decreases from 100% to 1% over 6 hours if not fed
-            const calculateStatus = (lastFeedTime?: Date) => {
+            // Hunger decreases from 100% to 1% over 6 hours if not fed
+            const calculateHunger = (lastFeedTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
               if (!lastFeedTime) {
@@ -515,9 +515,25 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
+            // Cleanliness decreases from 100% to 1% over 6 hours if not cleaned
+            const calculateCleanliness = (lastCareTime?: Date) => {
+              if (isDead) return 0; // Dead pets have 0 status
+              
+              if (!lastCareTime) {
+                // No care recorded, decay from birth
+                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
+                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
+                return Math.floor(decay);
+              }
+              
+              const hoursSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60 * 60);
+              const decay = Math.max(1, 100 - (hoursSinceLastCare / 6) * 99);
+              return Math.floor(decay);
+            };
+
             // Real-time status calculations that decay over time
-            const hunger = calculateStatus(pet.lastFedAt);
-            const cleanliness = calculateStatus(pet.lastCareDate); // Use lastCareDate for cleanliness decay
+            const hunger = calculateHunger(pet.lastFedAt);
+            const cleanliness = calculateCleanliness(pet.lastCareDate);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
             const energy = isDead ? 0 : pet.energy; // Use stored energy value
 
