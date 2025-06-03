@@ -172,51 +172,14 @@ export interface IStorage {
   getUserGameScores(userId: string): Promise<GameScore[]>;
   resetAllGameScores(): Promise<void>;
   
-  // Enhanced Digimon-inspired pet care operations
+  // Pet care operations
   createPet(pet: InsertPet): Promise<Pet>;
   getPetsByUserId(userId: string): Promise<Pet[]>;
   getPetById(id: number): Promise<Pet | undefined>;
-  
-  // Core pet stat management
-  updatePetStats(id: number, stats: { 
-    happiness?: number; 
-    hunger?: number; 
-    cleanliness?: number; 
-    energy?: number;
-    weight?: number;
-    strength?: number;
-    effort?: number;
-    dp?: number;
-  }): Promise<void>;
+  updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
   updatePetAge(id: number, age: number): Promise<void>;
   updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void>;
   updatePetTokens(userId: string, tokenAmount: number): Promise<void>;
-  
-  // Digimon care mechanics
-  feedPet(petId: number, userId: string, foodType: 'meat' | 'fish' | 'protein'): Promise<void>;
-  trainPet(petId: number, userId: string, trainingType: 'strength' | 'effort'): Promise<void>;
-  battlePet(petId: number, userId: string, opponentType: 'wild' | 'boss' | 'tournament'): Promise<PetBattle>;
-  
-  // Care system
-  triggerPetAttentionCall(petId: number, attentionType: 'hungry' | 'sleep' | 'strength' | 'sick'): Promise<void>;
-  respondToPetCall(petId: number, userId: string, responseDelayMinutes: number): Promise<void>;
-  checkPetHealth(petId: number): Promise<{ isDead: boolean; needsAttention: boolean; attentionType?: string }>;
-  
-  // Injury and death system
-  injurePet(petId: number): Promise<void>;
-  healPetInjuries(petId: number): Promise<void>;
-  resetDailyInjuries(petId: number): Promise<void>;
-  
-  // Battle and statistics
-  createPetBattle(battle: InsertPetBattle): Promise<PetBattle>;
-  getPetBattleHistory(petId: number): Promise<PetBattle[]>;
-  updateBattleStats(petId: number, won: boolean): Promise<void>;
-  
-  // Care activities and mistakes
-  createPetCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
-  getPetCareHistory(petId: number): Promise<PetCareActivity[]>;
-  createCareMistake(mistake: InsertCareMistake): Promise<CareMistake>;
-  getCareMistakeHistory(petId: number): Promise<CareMistake[]>;
   
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
@@ -224,9 +187,6 @@ export interface IStorage {
   createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
   checkAllCareCompleted(petId: number): Promise<boolean>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
-  updatePetAge(petId: number, age: number, growthStage: string): Promise<void>;
-  updatePetDeath(petId: number, isDead: boolean): Promise<void>;
-  updatePetTokenEarning(petId: number, canEarn: boolean): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1249,27 +1209,20 @@ export class DatabaseStorage implements IStorage {
       happiness: pets.happiness,
       hunger: pets.hunger,
       cleanliness: pets.cleanliness,
-      weight: pets.weight,
-      strength: pets.strength,
-      effort: pets.effort,
-      dpEnergy: pets.dp,
-      totalBattles: pets.totalBattles,
-      battlesWon: pets.battlesWon,
-      winRatio: pets.winRatio,
-      careMistakes: pets.careMistakes,
-      injuries: pets.injuries,
-      isDead: pets.isDead,
-      isUpset: pets.isUpset,
+      energy: pets.energy,
+      totalTokensEarned: pets.totalTokensEarned,
+      dailyTokensAvailable: pets.dailyTokensAvailable,
       birthDate: pets.birthDate,
       createdAt: pets.createdAt,
       ownerId: pets.userId,
       ownerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`.as('ownerName'),
-      ownerTokens: users.tokens,
+      ownerTokens: users.loyaltyPoints,
       // Get toy information
       toyId: pets.toyId,
       series: toys.series,
       rarity: toys.rarity,
       imageUrl: toys.imageUrl,
+      tokensGiven: pets.totalTokensEarned
     })
     .from(pets)
     .leftJoin(users, eq(pets.userId, users.id))
@@ -1414,7 +1367,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPetsByUserId(userId: string): Promise<Pet[]> {
     return await db.select().from(pets)
-      .where(eq(pets.userId, userId))
+      .where(and(eq(pets.userId, userId), eq(pets.isActive, true)))
       .orderBy(pets.createdAt);
   }
 
@@ -1423,27 +1376,7 @@ export class DatabaseStorage implements IStorage {
     return pet;
   }
 
-  async updatePetStats(id: number, stats: { 
-    happiness?: number; 
-    hunger?: number; 
-    cleanliness?: number; 
-    energy?: number;
-    weight?: number;
-    strength?: number;
-    effort?: number;
-    dp?: number;
-    totalBattles?: number;
-    battlesWon?: number;
-    winRatio?: string;
-    careMistakes?: number;
-    injuries?: number;
-    dailyInjuries?: number;
-    isDead?: boolean;
-    isUpset?: boolean;
-    needsAttention?: boolean;
-    attentionType?: string | null;
-    lastAttentionCall?: Date | null;
-  }): Promise<void> {
+  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void> {
     await db.update(pets).set({
       ...stats,
       updatedAt: new Date(),
@@ -1562,31 +1495,6 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updatePetAge(petId: number, age: number, growthStage: string): Promise<void> {
-    await db.update(pets).set({
-      currentAge: age,
-      growthStage: growthStage,
-      lastEvolutionCheck: new Date(),
-      updatedAt: new Date()
-    }).where(eq(pets.id, petId));
-  }
-
-  async updatePetDeath(petId: number, isDead: boolean): Promise<void> {
-    await db.update(pets).set({
-      isDead: isDead,
-      canEarnTokens: false,
-      isActive: false,
-      updatedAt: new Date()
-    }).where(eq(pets.id, petId));
-  }
-
-  async updatePetTokenEarning(petId: number, canEarn: boolean): Promise<void> {
-    await db.update(pets).set({
-      canEarnTokens: canEarn,
-      updatedAt: new Date()
-    }).where(eq(pets.id, petId));
-  }
-
   async updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void> {
     try {
       const updateData: any = {};
@@ -1655,117 +1563,6 @@ export class DatabaseStorage implements IStorage {
   async createTokenClaim(claimData: InsertTokenClaim): Promise<TokenClaim> {
     const [claim] = await db.insert(tokenClaims).values(claimData).returning();
     return claim;
-  }
-
-  // Enhanced Digimon care mechanics implementation
-  async feedPet(petId: number, userId: string, foodType: 'meat' | 'fish' | 'protein'): Promise<void> {
-    // Implementation handled by API routes
-  }
-
-  async trainPet(petId: number, userId: string, trainingType: 'strength' | 'effort'): Promise<void> {
-    // Implementation handled by API routes
-  }
-
-  async battlePet(petId: number, userId: string, opponentType: 'wild' | 'boss' | 'tournament'): Promise<any> {
-    // Implementation handled by API routes
-    return {};
-  }
-
-  async triggerPetAttentionCall(petId: number, attentionType: 'hungry' | 'sleep' | 'strength' | 'sick'): Promise<void> {
-    await this.updatePetStats(petId, {
-      needsAttention: true,
-      attentionType,
-      lastAttentionCall: new Date()
-    });
-  }
-
-  async respondToPetCall(petId: number, userId: string, responseDelayMinutes: number): Promise<void> {
-    const isCareMistake = responseDelayMinutes > 30;
-    const pet = await this.getPetById(petId);
-    
-    if (pet && isCareMistake) {
-      await this.updatePetStats(petId, {
-        careMistakes: pet.careMistakes + 1,
-        needsAttention: false,
-        attentionType: null
-      });
-    } else {
-      await this.updatePetStats(petId, {
-        needsAttention: false,
-        attentionType: null,
-        isUpset: false
-      });
-    }
-  }
-
-  async checkPetHealth(petId: number): Promise<{ isDead: boolean; needsAttention: boolean; attentionType?: string }> {
-    const pet = await this.getPetById(petId);
-    if (!pet) throw new Error("Pet not found");
-
-    return {
-      isDead: pet.isDead || false,
-      needsAttention: pet.needsAttention || false,
-      attentionType: pet.attentionType || undefined
-    };
-  }
-
-  async injurePet(petId: number): Promise<void> {
-    const pet = await this.getPetById(petId);
-    if (!pet) throw new Error("Pet not found");
-
-    await this.updatePetStats(petId, {
-      injuries: pet.injuries + 1,
-      dailyInjuries: pet.dailyInjuries + 1,
-      isDead: (pet.dailyInjuries + 1) >= 4
-    });
-  }
-
-  async healPetInjuries(petId: number): Promise<void> {
-    await this.updatePetStats(petId, {
-      injuries: 0,
-      dailyInjuries: 0,
-      isDead: false
-    });
-  }
-
-  async resetDailyInjuries(petId: number): Promise<void> {
-    await this.updatePetStats(petId, {
-      dailyInjuries: 0,
-      lastInjuryDate: new Date().toISOString().split('T')[0]
-    });
-  }
-
-  async createPetBattle(battle: any): Promise<any> {
-    const [newBattle] = await db.insert(petBattles).values(battle).returning();
-    return newBattle;
-  }
-
-  async getPetBattleHistory(petId: number): Promise<any[]> {
-    return await db.select().from(petBattles).where(eq(petBattles.petId, petId)).orderBy(desc(petBattles.completedAt));
-  }
-
-  async updateBattleStats(petId: number, won: boolean): Promise<void> {
-    const pet = await this.getPetById(petId);
-    if (!pet) return;
-
-    const newTotalBattles = pet.totalBattles + 1;
-    const newBattlesWon = won ? pet.battlesWon + 1 : pet.battlesWon;
-    const newWinRatio = ((newBattlesWon / newTotalBattles) * 100).toFixed(2);
-
-    await this.updatePetStats(petId, {
-      totalBattles: newTotalBattles,
-      battlesWon: newBattlesWon,
-      winRatio: newWinRatio
-    });
-  }
-
-  async createCareMistake(mistake: any): Promise<any> {
-    const [newMistake] = await db.insert(careMistakes).values(mistake).returning();
-    return newMistake;
-  }
-
-  async getCareMistakeHistory(petId: number): Promise<any[]> {
-    return await db.select().from(careMistakes).where(eq(careMistakes.petId, petId)).orderBy(desc(careMistakes.createdAt));
   }
 
   async getTokenClaims(): Promise<any[]> {

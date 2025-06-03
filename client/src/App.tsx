@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import CompleteApp from "@/pages/complete-app";
-import DigimonPetCareFixed from "@/pages/digimon-pet-care-fixed";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
 import Referrals from "@/pages/referrals-working";
@@ -46,7 +45,6 @@ function Router() {
           )}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/app" component={CompleteApp} />
-          <Route path="/pet-care" component={DigimonPetCareFixed} />
         </>
       )}
       <Route component={NotFound} />

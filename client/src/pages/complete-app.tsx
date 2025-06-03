@@ -12,7 +12,7 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, Dumbbell, Utensils, Shield
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -278,786 +278,14 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   );
 }
 
-// Pet Care Tab Component
-function PetCareTabContent({ setActiveTab, toast, queryClient, setShowCoinGame }: { setActiveTab: any; toast: any; queryClient: any; setShowCoinGame: any }) {
-  const [currentPetIndex, setCurrentPetIndex] = useState(0);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-  
-  // Update timer every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-  
-  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
-  const { data: userToys } = useQuery({ queryKey: ["/api/toys"] });
-  
-  const petList = Array.isArray(pets) ? pets : [];
-  const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy.isOwned) : [];
-  const unactivatedToys = ownedToys.filter((toy: any) => !toy.isActivated);
-
-  // Mutations for pet actions
-  const feedPetMutation = useMutation({
-    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/feed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ foodType }),
-      });
-      if (!response.ok) throw new Error('Failed to feed pet');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Pet Fed Successfully!",
-        description: `Gained ${data.tokensEarned} tokens. Weight: ${data.newWeight}G`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-  });
-
-  const trainPetMutation = useMutation({
-    mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/train`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ trainingType }),
-      });
-      if (!response.ok) throw new Error('Failed to train pet');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Training Complete!",
-        description: `${data.trainingType} +${data.statIncrease}. Earned ${data.tokensEarned} tokens.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-  });
-
-  const battlePetMutation = useMutation({
-    mutationFn: async ({ petId, battleType }: { petId: number; battleType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/battle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ battleType }),
-      });
-      if (!response.ok) throw new Error('Failed to battle');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: data.result === 'win' ? "Victory!" : "Defeat",
-        description: `${data.result === 'win' ? 'Won' : 'Lost'} battle. Earned ${data.tokensEarned} tokens.`,
-        variant: data.result === 'win' ? "default" : "destructive",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-  });
-
-  const activateToyMutation = useMutation({
-    mutationFn: async (qrCode: string) => {
-      const response = await fetch('/api/toys/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ qrCode }),
-      });
-      if (!response.ok) throw new Error('Failed to activate toy');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Pet Born!",
-        description: "Your toy has been activated and turned into a digital pet!",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
-    },
-  });
-
-  if (petList.length === 0 && unactivatedToys.length === 0) {
-    return (
-      <div className="space-y-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            Digital Pet Care System
-          </h2>
-          <p className="text-slate-600">
-            Advanced digital pet care with weight tracking, training, and battle mechanics
-          </p>
-        </div>
-        <Card className="bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 border-2 border-purple-300">
-          <CardContent className="text-center py-12">
-            <div className="relative">
-              <div className="text-8xl mb-6 animate-bounce">🥚</div>
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
-                <div className="text-2xl animate-pulse">✨</div>
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Your Pet Adventure Awaits!
-            </h3>
-            <div className="space-y-4 mb-8">
-              <div className="bg-white/80 rounded-xl p-4 shadow-lg">
-                <div className="text-4xl mb-2">🛍️</div>
-                <p className="font-semibold text-purple-800">Step 1: Buy a Toy</p>
-                <p className="text-sm text-gray-600">Visit the marketplace to get your first Doluruu toy</p>
-              </div>
-              <div className="text-2xl">↓</div>
-              <div className="bg-white/80 rounded-xl p-4 shadow-lg">
-                <div className="text-4xl mb-2">🐣</div>
-                <p className="font-semibold text-purple-800">Step 2: Hatch Your Pet</p>
-                <p className="text-sm text-gray-600">Activate your toy to bring your digital pet to life!</p>
-              </div>
-            </div>
-            <Button 
-              onClick={() => setActiveTab("marketplace")} 
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition-all duration-200"
-            >
-              <span className="text-xl mr-2">🎪</span>
-              Visit Toy Marketplace
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (unactivatedToys.length > 0 && petList.length === 0) {
-    return (
-      <div className="space-y-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            Digital Pet Care System
-          </h2>
-          <p className="text-slate-600">
-            Advanced digital pet care with weight tracking, training, and battle mechanics
-          </p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Activate Your Toys</CardTitle>
-            <p className="text-gray-600">Turn your toys into digital pets!</p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unactivatedToys.map((toy: any) => (
-                <Card key={toy.id} className="border-2 border-dashed border-purple-300">
-                  <CardContent className="p-4 text-center">
-                    <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
-                      <img 
-                        src={toy.imageUrl} 
-                        alt={toy.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <h4 className="font-semibold">{toy.name}</h4>
-                    <p className="text-xs text-gray-500 mb-3">{toy.series}</p>
-                    <Button 
-                      onClick={() => activateToyMutation.mutate(toy.qrCode)}
-                      disabled={activateToyMutation.isPending}
-                      className="w-full bg-purple-600 hover:bg-purple-700"
-                    >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Activate Pet
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const currentPet = petList[currentPetIndex] || petList[0];
-
-  if (!currentPet) {
-    return (
-      <div className="space-y-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            Digital Pet Care System
-          </h2>
-          <p className="text-slate-600">
-            Advanced digital pet care with weight tracking, training, and battle mechanics
-          </p>
-        </div>
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="text-6xl mb-4">🎮</div>
-            <h3 className="text-xl font-semibold mb-2">Loading Pets...</h3>
-            <p className="text-gray-600">
-              Checking for available pets and toys...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 min-h-screen p-4">
-      {/* Pet Navigation - Compact */}
-      {petList.length > 1 && (
-        <div className="flex items-center justify-center mb-4 bg-white/80 rounded-full px-4 py-2 shadow-lg w-fit mx-auto">
-          <button
-            className="w-8 h-8 rounded-full bg-purple-200 hover:bg-purple-300 flex items-center justify-center"
-            onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
-          >
-            ←
-          </button>
-          <span className="mx-4 text-sm font-medium">
-            Pet {currentPetIndex + 1}/{petList.length}
-          </span>
-          <button
-            className="w-8 h-8 rounded-full bg-purple-200 hover:bg-purple-300 flex items-center justify-center"
-            onClick={() => setCurrentPetIndex(Math.min(petList.length - 1, currentPetIndex + 1))}
-          >
-            →
-          </button>
-        </div>
-      )}
-
-      {/* Main Game Screen - Single View */}
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          
-          {/* Left Column - Pet Display & Stats */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* Pet Avatar */}
-            <div className="bg-white/90 rounded-2xl p-6 text-center shadow-xl border-4 border-purple-300">
-              <div className="text-8xl mb-3 animate-bounce">🐉</div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                {currentPet.name}
-              </h2>
-              <p className="text-sm text-gray-600 bg-purple-100 rounded-full px-3 py-1 mt-2 inline-block">
-                🎂 {currentPet.currentAge || 0} days old
-              </p>
-              
-              {/* Pet Lifecycle Timer */}
-              <div className="mt-4 p-3 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg border border-purple-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="text-lg">⏰</div>
-                    <span className="font-semibold text-purple-800 text-sm">Pet Lifecycle</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-base font-bold text-purple-700">Day {currentPet.currentAge || 0}</div>
-                    <div className="text-xs text-purple-600">of 100 days</div>
-                  </div>
-                </div>
-                <div className="bg-gray-200 rounded-full h-3 mb-2">
-                  <div 
-                    className="bg-gradient-to-r from-purple-400 to-pink-400 h-3 rounded-full transition-all"
-                    style={{ width: `${Math.min(((currentPet.currentAge || 0) / 100) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-center text-purple-600">
-                  {(() => {
-                    const age = currentPet.currentAge || 0;
-                    if (age < 20) return "🐣 Baby Stage";
-                    if (age < 40) return "🐉 Child Stage";
-                    if (age < 60) return "🔥 Adult Stage";
-                    if (age < 80) return "👑 Elder Stage";
-                    if (age < 100) return "💎 Grand Dragon";
-                    return "⚰️ Memorial";
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Compact Stats Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Hunger Bar */}
-              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
-                <div className="text-center mb-2">
-                  <div className="text-lg">🍖</div>
-                  <div className="text-xs font-bold text-red-600">Hunger</div>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2 mb-1">
-                  <div 
-                    className="bg-gradient-to-r from-red-400 to-orange-400 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentPet.hunger || 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-center font-bold text-red-600">{Math.round(currentPet.hunger || 100)}%</div>
-              </div>
-
-              {/* Cleanliness Bar */}
-              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
-                <div className="text-center mb-2">
-                  <div className="text-lg">🛁</div>
-                  <div className="text-xs font-bold text-cyan-600">Cleanliness</div>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2 mb-1">
-                  <div 
-                    className="bg-gradient-to-r from-blue-400 to-cyan-400 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentPet.cleanliness || 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-center font-bold text-cyan-600">{Math.round(currentPet.cleanliness || 100)}%</div>
-              </div>
-
-              {/* Tokens Earned */}
-              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
-                <div className="text-center mb-2">
-                  <div className="text-lg">🪙</div>
-                  <div className="text-xs font-bold text-yellow-600">Tokens</div>
-                </div>
-                <div className="text-lg font-bold text-yellow-600 text-center">{currentPet.tokens || 0}</div>
-                <div className="text-xs text-center text-gray-500">Earned Today</div>
-                {(() => {
-                  // Calculate time until next 24-hour reset (midnight) - update with currentTime for real-time countdown
-                  const now = new Date(currentTime);
-                  const tomorrow = new Date(now);
-                  tomorrow.setDate(now.getDate() + 1);
-                  tomorrow.setHours(0, 0, 0, 0);
-                  const timeUntilReset = tomorrow.getTime() - now.getTime();
-                  
-                  const hoursLeft = Math.floor(timeUntilReset / (1000 * 60 * 60));
-                  const minutesLeft = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
-                  const secondsLeft = Math.floor((timeUntilReset % (1000 * 60)) / 1000);
-                  
-                  return (
-                    <div className="text-xs text-center text-orange-500 mt-1">
-                      Reset: {String(hoursLeft).padStart(2, '0')}:{String(minutesLeft).padStart(2, '0')}:{String(secondsLeft).padStart(2, '0')}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Energy Bar */}
-              <div className="bg-white/90 rounded-xl p-3 shadow-lg">
-                <div className="text-center mb-2">
-                  <div className="text-lg">⚡</div>
-                  <div className="text-xs font-bold text-green-600">Energy</div>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2 mb-1">
-                  <div 
-                    className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentPet.energy || 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-center font-bold text-green-600">{Math.round(currentPet.energy || 100)}%</div>
-              </div>
-            </div>
-
-            {/* Progress Bars */}
-            <div className="bg-white/90 rounded-xl p-4 shadow-lg space-y-3">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>⚖️ Weight</span>
-                  <span className="font-bold text-blue-600">{currentPet.weight || 20}G</span>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min((currentPet.weight || 20) / 100 * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>🛡️ DP Energy</span>
-                  <span className="font-bold text-yellow-600">{currentPet.dpEnergy || 0}/100</span>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-yellow-400 to-orange-400 h-2 rounded-full transition-all"
-                    style={{ width: `${(currentPet.dpEnergy || 0)}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>🏆 Win Rate</span>
-                  <span className="font-bold text-orange-600">{currentPet.winRatio || 0}%</span>
-                </div>
-                <div className="bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-orange-400 to-red-400 h-2 rounded-full transition-all"
-                    style={{ width: `${currentPet.winRatio || 0}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <span className="text-xs">⚠️ Care Mistakes: </span>
-                <span className="font-bold text-red-600">{currentPet.careMistakes || 0}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Columns - Action Buttons */}
-          <div className="lg:col-span-2 space-y-4">
-            
-            {/* Food & Care Row */}
-            <div className="grid grid-cols-3 gap-4">
-              {/* Feeding Buttons */}
-              <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
-                <div className="text-center mb-3">
-                  <div className="text-2xl">🍽️</div>
-                  <h3 className="font-bold text-orange-600">Feed Pet</h3>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <button
-                    className="bg-red-100 hover:bg-red-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'meat' })}
-                    disabled={feedPetMutation.isPending}
-                  >
-                    <div className="text-lg">🥩</div>
-                    <div className="text-xs font-bold">Meat</div>
-                  </button>
-                  <button
-                    className="bg-blue-100 hover:bg-blue-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'fish' })}
-                    disabled={feedPetMutation.isPending}
-                  >
-                    <div className="text-lg">🐟</div>
-                    <div className="text-xs font-bold">Fish</div>
-                  </button>
-                  <button
-                    className="bg-yellow-100 hover:bg-yellow-200 rounded-lg p-2 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => feedPetMutation.mutate({ petId: currentPet.id, foodType: 'protein' })}
-                    disabled={feedPetMutation.isPending}
-                  >
-                    <div className="text-lg">🥚</div>
-                    <div className="text-xs font-bold">Protein</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Training Buttons */}
-              <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
-                <div className="text-center mb-3">
-                  <div className="text-2xl">🏋️</div>
-                  <h3 className="font-bold text-green-600">Training</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    className="bg-green-100 hover:bg-green-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'strength' })}
-                    disabled={trainPetMutation.isPending}
-                  >
-                    <div className="text-2xl">💪</div>
-                    <div className="text-xs font-bold">Strength</div>
-                  </button>
-                  <button
-                    className="bg-purple-100 hover:bg-purple-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={() => trainPetMutation.mutate({ petId: currentPet.id, trainingType: 'effort' })}
-                    disabled={trainPetMutation.isPending}
-                  >
-                    <div className="text-2xl">⚡</div>
-                    <div className="text-xs font-bold">Effort</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Care Buttons */}
-              <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
-                <div className="text-center mb-3">
-                  <div className="text-2xl">🛁</div>
-                  <h3 className="font-bold text-cyan-600">Pet Care</h3>
-                </div>
-                <div className="space-y-2">
-                  <button
-                    className="w-full bg-cyan-100 hover:bg-cyan-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={async () => {
-                      if (currentPet) {
-                        try {
-                          const response = await fetch(`/api/pets/${currentPet.id}/clean`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' }
-                          });
-                          if (response.ok) {
-                            toast({
-                              title: "Pet Cleaned!",
-                              description: "Your pet is now squeaky clean!",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-                          }
-                        } catch (error) {
-                          toast({
-                            title: "Error",
-                            description: "Failed to clean pet",
-                            variant: "destructive",
-                          });
-                        }
-                      }
-                    }}
-                  >
-                    <div className="text-2xl">🧼</div>
-                    <div className="text-xs font-bold">Clean</div>
-                  </button>
-                  <button
-                    className="w-full bg-pink-100 hover:bg-pink-200 rounded-lg p-3 text-center transition-all hover:scale-105 disabled:opacity-50"
-                    onClick={async () => {
-                      if (currentPet) {
-                        try {
-                          const response = await fetch(`/api/pets/${currentPet.id}/play`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' }
-                          });
-                          if (response.ok) {
-                            toast({
-                              title: "Playtime!",
-                              description: "Your pet had fun playing!",
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-                          }
-                        } catch (error) {
-                          toast({
-                            title: "Error",
-                            description: "Failed to play with pet",
-                            variant: "destructive",
-                          });
-                        }
-                      }
-                    }}
-                  >
-                    <div className="text-2xl">🎾</div>
-                    <div className="text-xs font-bold">Play</div>
-                  </button>
-                  {(() => {
-                    const lastGameTime = currentPet?.lastGameTime ? new Date(currentPet.lastGameTime) : null;
-                    const now = new Date();
-                    const timeSinceLastGame = lastGameTime ? (now.getTime() - lastGameTime.getTime()) / 1000 / 60 : Infinity; // minutes
-                    const canEarnTokens = timeSinceLastGame >= 60 || !lastGameTime; // 60 minutes cooldown for earning tokens
-                    const timeUntilNext = canEarnTokens ? 0 : Math.ceil(60 - timeSinceLastGame);
-                    
-                    return (
-                      <button
-                        className="w-full bg-yellow-100 hover:bg-yellow-200 rounded-lg p-3 text-center transition-all hover:scale-105"
-                        onClick={() => setShowCoinGame(true)}
-                      >
-                        <div className="text-2xl">🪙</div>
-                        <div className="text-xs font-bold">Coin Game</div>
-                        {canEarnTokens ? (
-                          <div className="text-xs text-orange-600">Can earn tokens!</div>
-                        ) : (
-                          <div className="text-xs text-gray-500">
-                            <Clock className="w-3 h-3 inline mr-1" />
-                            Tokens in {timeUntilNext}m
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Battle Arena */}
-            <div className="bg-white/90 rounded-2xl p-4 shadow-xl">
-              <div className="text-center mb-3">
-                <div className="text-2xl">⚔️</div>
-                <h3 className="font-bold text-red-600">Battle Arena</h3>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  className="bg-green-100 hover:bg-green-200 rounded-xl p-4 text-center transition-all hover:scale-105 disabled:opacity-50"
-                  onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'wild' })}
-                  disabled={battlePetMutation.isPending}
-                >
-                  <div className="text-3xl">🌿</div>
-                  <div className="text-xs font-bold">Wild</div>
-                  <div className="text-xs text-gray-500">5-10🪙</div>
-                </button>
-                <button
-                  className="bg-red-100 hover:bg-red-200 rounded-xl p-4 text-center transition-all hover:scale-105 disabled:opacity-50"
-                  onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'boss' })}
-                  disabled={battlePetMutation.isPending}
-                >
-                  <div className="text-3xl">👹</div>
-                  <div className="text-xs font-bold">Boss</div>
-                  <div className="text-xs text-gray-500">15-25🪙</div>
-                </button>
-                <button
-                  className="bg-yellow-100 hover:bg-yellow-200 rounded-xl p-4 text-center transition-all hover:scale-105 disabled:opacity-50"
-                  onClick={() => battlePetMutation.mutate({ petId: currentPet.id, battleType: 'tournament' })}
-                  disabled={battlePetMutation.isPending}
-                >
-                  <div className="text-3xl">🏆</div>
-                  <div className="text-xs font-bold">Tournament</div>
-                  <div className="text-xs text-gray-500">30-50🪙</div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Old Pet Care Component (keeping for reference but not used)
+// Pet Care Component
 function PetCareSection({ language, user }: { language: string; user: any }) {
   const { toast } = useToast();
   
   // State for real-time timer updates
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
-  const [currentPetIndex, setCurrentPetIndex] = useState(0);
-  const [currentPet, setCurrentPet] = useState<any>(null);
-  const [careStatus, setCareStatus] = useState<any>(null);
-
-  const { data: pets } = useQuery({ queryKey: ["/api/pets"] });
-  const { data: userStats } = useQuery({ queryKey: ["/api/user-stats"] });
-  const { data: toys } = useQuery({ queryKey: ["/api/toys"] });
-  const { data: marketplaceToys } = useQuery({ queryKey: ["/api/marketplace/toys"] });
-  const { data: appointments } = useQuery({ queryKey: ["/api/appointments"] });
-  const { data: banners } = useQuery({ queryKey: ["/api/banners"] });
-  const { data: rewardItems } = useQuery({ queryKey: ["/api/reward-items"] });
-  const { data: leaderboard } = useQuery({ queryKey: ["/api/game-scores/leaderboard"] });
-
-  // Initialize pet data handling
-  const petList = Array.isArray(pets) ? pets : [];
-  const ownedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned) : [];
-  const unactivatedToys = Array.isArray(toys) ? toys.filter((toy: any) => toy.isOwned && !toy.isActivated) : [];
-
-  // Set current pet when pets data changes
-  useEffect(() => {
-    if (petList.length > 0) {
-      setCurrentPet(petList[currentPetIndex] || petList[0]);
-    }
-  }, [petList, currentPetIndex]);
-
-  // Navigation functions for pet selection
-  const navigatePet = (direction: 'prev' | 'next') => {
-    if (petList.length === 0) return;
-    
-    setCurrentPetIndex((prev) => {
-      if (direction === 'prev') {
-        return prev > 0 ? prev - 1 : petList.length - 1;
-      } else {
-        return prev < petList.length - 1 ? prev + 1 : 0;
-      }
-    });
-  };
-
-  // Update timer every second for real-time display
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-
-
-  const trainPetMutation = useMutation({
-    mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
-      return await apiRequest("POST", `/api/pets/${petId}/train`, { trainingType });
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Training Complete!",
-        description: `Training successful! Strength increased, weight reduced.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Training Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const battlePetMutation = useMutation({
-    mutationFn: async ({ petId, opponentType }: { petId: number; opponentType: string }) => {
-      return await apiRequest("POST", `/api/pets/${petId}/battle`, { opponentType });
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Battle Complete!",
-        description: `Battle finished! Your pet's stats have been updated.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Battle Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const healPetMutation = useMutation({
-    mutationFn: async (petId: number) => {
-      return await apiRequest("POST", `/api/pets/${petId}/heal`, {});
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Healing Complete!",
-        description: `${data.message}. Healed ${data.injuriesHealed} injuries.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Healing Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const respondToCallMutation = useMutation({
-    mutationFn: async (petId: number) => {
-      return await apiRequest("POST", `/api/pets/${petId}/respond`, {});
-    },
-    onSuccess: (data) => {
-      toast({
-        title: data.wasCareMistake ? "Care Mistake!" : "Responded Successfully!",
-        description: data.wasCareMistake 
-          ? `Late response (${data.responseDelayMinutes} min). Care mistake recorded.`
-          : "Your pet is happy you responded quickly!",
-        variant: data.wasCareMistake ? "destructive" : "default",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Response Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Helper functions for pet care actions
-  const feedPet = (petId: number, foodType: string) => {
-    feedPetMutation.mutate({ petId, foodType });
-  };
-
-  const trainPet = (petId: number, trainingType: string) => {
-    trainPetMutation.mutate({ petId, trainingType });
-  };
-
-  const battlePet = (petId: number, opponentType: string) => {
-    battlePetMutation.mutate({ petId, opponentType });
-  };
-
-  const healPet = (petId: number) => {
-    healPetMutation.mutate(petId);
-  };
-
-  const respondToCall = (petId: number) => {
-    respondToCallMutation.mutate(petId);
-  };
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -1068,57 +296,50 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Remove duplicate toy queries (already declared above)
+  // Fetch user's toys that can become pets
+  const { data: userToys = [], isLoading: toysLoading } = useQuery({
+    queryKey: ["/api/toys"],
+    enabled: !!user?.id,
+    retry: 1,
+  });
 
-  // Remove duplicate pets query (already declared above)
+  // Fetch marketplace listings to filter out listed toys
+  const { data: marketplaceListings = [], isLoading: listingsLoading } = useQuery({
+    queryKey: ["/api/listings"],
+    enabled: !!user?.id,
+    retry: 1,
+  });
+
+  // Fetch user's pets with real-time updates
+  const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
+    queryKey: ["/api/pets"],
+    enabled: !!user?.id,
+    retry: 1,
+    refetchInterval: 3000, // Update every 3 seconds for real-time pet data
+    refetchOnWindowFocus: true,
+  });
 
   const queryClient = useQueryClient();
 
-  // Pet feeding mutation with food types
-  const feedPetMutation = useMutation({
-    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
-      return apiRequest("POST", `/api/pets/${petId}/feed`, { foodType });
-    },
-    onSuccess: (data: any) => {
-      // Immediately invalidate and refetch to get updated timestamp
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-      }, 100);
-      toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: `${language === "id" ? "Pet diberi makan" : "Pet fed"} ${data.foodType}! Weight: +${data.weightGain}G`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal memberi makan pet" : "Failed to feed pet"),
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Pet cleaning mutation
-  const cleanPetMutation = useMutation({
-    mutationFn: async (petId: number) => {
-      return apiRequest("POST", `/api/pets/${petId}/clean`);
+  // Pet care mutations
+  const careActivityMutation = useMutation({
+    mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
+      return apiRequest("POST", `/api/pets/${petId}/care`, { careType });
     },
     onSuccess: () => {
-      // Immediately invalidate and refetch to get updated timestamp
+      // Invalidate pets query to trigger real-time updates
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-      }, 100);
+      // Force a refetch to update status bars immediately
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Pet berhasil dibersihkan!" : "Pet cleaned successfully!",
+        description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
       });
     },
     onError: (error: any) => {
       toast({
         title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal membersihkan pet" : "Failed to clean pet"),
+        description: error.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
         variant: "destructive"
       });
     }
@@ -1174,7 +395,18 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           </p>
         </div>
 
-
+        {/* Coin Catching Game Modal */}
+        {showCoinGame && selectedPet && (
+          <CoinCatchingGame 
+            pet={selectedPet}
+            language={language}
+            onClose={() => {
+              setShowCoinGame(false);
+              setSelectedPet(null);
+            }}
+            user={user}
+          />
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {userPets.map((pet: any) => {
@@ -1189,18 +421,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
             const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
             const seconds = totalSeconds % 60;
-
-            // Calculate real-time hunger and cleanliness decay (100% to 1% over 6 hours)
-            // Use the pet's updatedAt timestamp as the reference point for decay
-            const lastUpdateTime = new Date(pet.updatedAt || pet.createdAt).getTime();
-            const hoursSinceUpdate = (now - lastUpdateTime) / (1000 * 60 * 60);
-            
-            // Decay rate: 16.5% per hour (99% decay over 6 hours)
-            const decayAmount = Math.min(hoursSinceUpdate * 16.5, 99);
-            
-            // Apply decay to both hunger and cleanliness from their stored values
-            const currentHunger = Math.max(1, (pet.hunger || 100) - decayAmount);
-            const currentCleanliness = Math.max(1, (pet.cleanliness || 100) - decayAmount);
             
             // Format timer as DD:HH:MM:SS
             const timerDisplay = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -1252,9 +472,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             };
 
             // Real-time status calculations that decay over time
-            const hunger = isDead ? 0 : Math.round(currentHunger);
+            const hunger = calculateStatus(pet.lastFedAt);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = isDead ? 0 : Math.round(currentCleanliness);
+            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6))); // Decreases every 6 hours
             const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
@@ -1365,59 +585,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <h4 className="font-semibold text-gray-900">
                       {language === "id" ? "Aktivitas Harian" : "Daily Activities"}
                     </h4>
-                    
-                    {/* Feeding Section */}
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-700">
-                        {language === "id" ? "Beri Makan (Menambah Berat)" : "Feeding (Adds Weight)"}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
-                          onClick={() => {
-                            feedPetMutation.mutate({ petId: pet.id, foodType: 'fish' });
-                          }}
-                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
-                        >
-                          <span className="text-xl">🐟</span>
-                          <span>Fish (+1G)</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
-                          onClick={() => {
-                            feedPetMutation.mutate({ petId: pet.id, foodType: 'meat' });
-                          }}
-                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
-                        >
-                          <span className="text-xl">🥩</span>
-                          <span>Meat (+2G)</span>
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
-                          onClick={() => {
-                            feedPetMutation.mutate({ petId: pet.id, foodType: 'protein' });
-                          }}
-                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
-                        >
-                          <span className="text-xl">💪</span>
-                          <span>Protein (+3G)</span>
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Other Care Activities */}
                     <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'feed' });
+                        }}
+                        disabled={careActivityMutation.isPending}
+                      >
+                        <span className="text-2xl">🍎</span>
+                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
+                      </Button>
 
                       <Button
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          cleanPetMutation.mutate(pet.id);
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathe' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
@@ -1618,7 +803,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     careActivityMutation.mutate({ petId, careType });
   };
 
-  // navigatePet function already declared above
+  const navigatePet = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : pets.length - 1));
+    } else {
+      setCurrentPetIndex((prev) => (prev < pets.length - 1 ? prev + 1 : 0));
+    }
+  };
 
   const getGrowthStageInfo = (stage: string) => {
     const stages: any = {
@@ -1655,10 +846,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
-  // Use existing safePets and ownedToys from above
+  // Add safety checks for all data arrays
+  const safePets = Array.isArray(pets) ? pets : [];
   const safeOwnedToys = Array.isArray(ownedToys) ? ownedToys : [];
 
-  if (!petList.length && !safeOwnedToys.length) {
+  if (!safePets.length && !safeOwnedToys.length) {
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
@@ -1788,28 +980,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               </p>
             </CardHeader>
             <CardContent>
-              {/* Pet Lifecycle Timer */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-purple-600" />
-                    <span className="font-semibold text-purple-800">Pet Lifecycle</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-purple-700">Day {currentPet.currentAge}</div>
-                    <div className="text-xs text-purple-600">of 100 days</div>
-                  </div>
-                </div>
-                <Progress value={(currentPet.currentAge / 100) * 100} className="h-3 bg-purple-200" />
-                <div className="flex justify-between text-xs text-purple-600 mt-1">
-                  <span>Baby</span>
-                  <span>Child</span>
-                  <span>Adult</span>
-                  <span>Elder</span>
-                  <span>Grand Dragon</span>
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -1821,252 +991,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Utensils className="w-4 h-4 text-orange-500" />
+                    <span className="w-4 h-4 text-orange-500">🍎</span>
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
-                  <Progress value={currentPet.hunger || 0} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.hunger || 0}%</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Droplets className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium">Cleanliness</span>
-                  </div>
-                  <Progress value={currentPet.cleanliness || 0} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.cleanliness || 0}%</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 text-green-500">⚡</span>
-                    <span className="text-sm font-medium">Weight</span>
-                  </div>
-                  <div className="text-lg font-bold text-green-600">
-                    {currentPet.weight || 20}GB
-                  </div>
-                  <span className="text-xs text-gray-600">Gigabytes</span>
-                </div>
-              </div>
-              
-              {/* Second row of stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-purple-500" />
-                    <span className="text-sm font-medium">Effort</span>
-                  </div>
-                  <div className="text-lg font-bold text-purple-600">
-                    {currentPet.effort || 0}
-                  </div>
-                  <span className="text-xs text-gray-600">Max: 999</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm font-medium">DP Energy</span>
-                  </div>
-                  <div className="text-lg font-bold text-yellow-600">
-                    {currentPet.dp || 10}
-                  </div>
-                  <span className="text-xs text-gray-600">Battle energy</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm font-medium">Win Ratio</span>
-                  </div>
-                  <div className="text-lg font-bold text-amber-600">
-                    {currentPet.winRatio || "0.00"}%
-                  </div>
-                  <span className="text-xs text-gray-600">{currentPet.battlesWon || 0}/{currentPet.totalBattles || 0}</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                    <span className="text-sm font-medium">Status</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {currentPet.isDead && (
-                      <Badge variant="destructive" className="text-xs">Dead</Badge>
-                    )}
-                    {currentPet.injuries > 0 && (
-                      <Badge variant="outline" className="text-xs">Injured ({currentPet.injuries})</Badge>
-                    )}
-                    {currentPet.careMistakes > 0 && (
-                      <Badge variant="secondary" className="text-xs">Mistakes: {currentPet.careMistakes}</Badge>
-                    )}
-                    {!currentPet.isDead && currentPet.injuries === 0 && (
-                      <Badge variant="outline" className="text-xs text-green-600">Healthy</Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Enhanced Digimon Care Actions */}
-              <div className="mt-6 space-y-4">
-                <h3 className="text-lg font-semibold">Digimon Care Actions</h3>
-                
-                {/* Feeding Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Utensils className="w-4 h-4" />
-                      Feeding
-                    </h4>
-                    <div className="space-y-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.hunger >= 4}
-                        onClick={() => feedPet(currentPet.id, 'meat')}
-                      >
-                        Meat (+1G)
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.hunger >= 4}
-                        onClick={() => feedPet(currentPet.id, 'fish')}
-                      >
-                        Fish (+1G)
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.hunger >= 4}
-                        onClick={() => feedPet(currentPet.id, 'protein')}
-                      >
-                        Protein (+2G)
-                      </Button>
-                    </div>
-                  </Card>
-
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Dumbbell className="w-4 h-4" />
-                      Training
-                    </h4>
-                    <div className="space-y-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.weight <= 5}
-                        onClick={() => trainPet(currentPet.id, 'strength')}
-                      >
-                        Strength (-2G)
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.weight <= 5}
-                        onClick={() => trainPet(currentPet.id, 'effort')}
-                      >
-                        Effort (-2G)
-                      </Button>
-                    </div>
-                  </Card>
-
-                  <Card className="p-4">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Battle
-                    </h4>
-                    <div className="space-y-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 5}
-                        onClick={() => battlePet(currentPet.id, 'wild')}
-                      >
-                        Wild (5 DP)
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 10}
-                        onClick={() => battlePet(currentPet.id, 'boss')}
-                      >
-                        Boss (10 DP)
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                        disabled={currentPet.isDead || currentPet.dp < 15}
-                        onClick={() => battlePet(currentPet.id, 'tournament')}
-                      >
-                        Tournament (15 DP)
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Healing and Care */}
-                {(currentPet.injuries > 0 || currentPet.needsAttention) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentPet.injuries > 0 && (
-                      <Card className="p-4 border-red-200">
-                        <h4 className="font-medium mb-2 text-red-600">Injury Treatment</h4>
-                        <p className="text-sm text-gray-600 mb-2">
-                          Your Digimon has {currentPet.injuries} injuries
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => healPet(currentPet.id)}
-                        >
-                          Heal Injuries
-                        </Button>
-                      </Card>
-                    )}
-                    
-                    {currentPet.needsAttention && (
-                      <Card className="p-4 border-yellow-200">
-                        <h4 className="font-medium mb-2 text-yellow-600">Attention Required</h4>
-                        <p className="text-sm text-gray-600 mb-2">
-                          Type: {currentPet.attentionType}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => respondToCall(currentPet.id)}
-                        >
-                          Respond to Call
-                        </Button>
-                      </Card>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Care Status Card - Keep existing daily care */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-pink-500" />
-                Daily Care Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center ${
-                    careStatus?.fed ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    🍖
-                  </div>
-                  <p className="text-sm font-medium">Fed</p>
-                  <p className="text-xs text-gray-500">
-                    {careStatus?.fed ? 'Complete' : 'Pending'}
-                  </p>
+                  <Progress value={currentPet.hunger} className="h-2" />
+                  <span className="text-xs text-gray-600">{currentPet.hunger}%</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -2180,9 +1109,6 @@ export default function CompleteApp() {
   
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
-  
-  // Coin catching game state
-  const [showCoinGame, setShowCoinGame] = useState(false);
   
   // History modal states
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -6160,12 +5086,7 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <PetCareTabContent 
-            setActiveTab={setActiveTab} 
-            toast={toast} 
-            queryClient={queryClient}
-            setShowCoinGame={setShowCoinGame}
-          />
+          <PetCareSection language={language} user={user} />
         )}
 
         {/* Profile Tab */}
