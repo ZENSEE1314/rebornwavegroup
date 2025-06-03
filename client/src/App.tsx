@@ -36,6 +36,9 @@ function Router() {
 
   return (
     <Switch>
+      {/* Public test route - no authentication required */}
+      <Route path="/test-pet-care" component={TestPetCare} />
+      
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
@@ -50,7 +53,6 @@ function Router() {
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
-          <Route path="/test-pet-care" component={TestPetCare} />
         </>
       )}
       <Route component={NotFound} />
