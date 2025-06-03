@@ -15,6 +15,7 @@ import Profile from "@/pages/profile";
 import AdminDashboard from "@/pages/enhanced-admin-dashboard";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
+import PetCareWithEnergy from "@/pages/pet-care-with-energy";
 import Navigation from "@/components/navigation";
 import MobileNav from "@/components/mobile-nav";
 
@@ -42,11 +43,12 @@ function Router() {
           {user?.role === 'admin' ? (
             <Route path="/" component={AdminDashboard} />
           ) : (
-            <Route path="/" component={CompleteApp} />
+            <Route path="/" component={PetCareWithEnergy} />
           )}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
+          <Route path="/energy-potion" component={PetCareWithEnergy} />
         </>
       )}
       <Route component={NotFound} />
