@@ -1099,7 +1099,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get sleep progress - calculates energy gained during sleep
   app.get('/api/pets/:petId/sleep-progress', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);

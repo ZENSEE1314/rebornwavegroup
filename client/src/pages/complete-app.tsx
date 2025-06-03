@@ -1278,45 +1278,31 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
-              {/* Debug Info */}
-              <div className="mt-2 p-2 bg-gray-100 text-xs">
-                <div>Pet sleeping: {safePets[currentPetIndex]?.isSleeping ? 'YES' : 'NO'}</div>
-                <div>Pet energy: {safePets[currentPetIndex]?.energy}%</div>
-                <div>User tokens: {user?.tokens}</div>
-                <div>Sleep progress data: {sleepProgress ? 'YES' : 'NO'}</div>
-              </div>
-
-              {/* Sleep Timer Display */}
+              {/* Sleep Timer Display - Simplified */}
               {safePets[currentPetIndex]?.isSleeping && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="text-center">
                     <div className="text-lg font-bold text-blue-700 mb-2">
-                      💤 {language === "id" ? "Timer Tidur" : "Sleep Timer"}
-                    </div>
-                    <div className="text-3xl font-mono text-blue-600 mb-1">
-                      {sleepProgress ? 
-                        `${Math.floor((sleepProgress.nextEnergyIn || 0) / 60).toString().padStart(2, '0')}:${((sleepProgress.nextEnergyIn || 0) % 60).toString().padStart(2, '0')}` 
-                        : "00:00"
-                      }
+                      💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
                     <div className="text-sm text-blue-600 mb-3">
-                      {language === "id" ? "Sampai energi berikutnya (+1)" : "Until next energy (+1)"}
+                      {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 mb-3">
                       {language === "id" ? "Energi saat ini: " : "Current energy: "}
                       <span className="font-semibold text-blue-700">
-                        {sleepProgress?.currentEnergy || safePets[currentPetIndex]?.energy || 0}%
+                        {safePets[currentPetIndex]?.energy || 0}%
                       </span>
                     </div>
-                    {sleepProgress?.maxEnergy && (
-                      <div className="text-green-600 font-semibold text-sm mt-2">
+                    {safePets[currentPetIndex]?.energy >= 100 && (
+                      <div className="text-green-600 font-semibold text-sm mb-2">
                         ✨ {language === "id" ? "Energi penuh! Bisa bangun sekarang" : "Energy full! Can wake up now"}
                       </div>
                     )}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-3 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100"
                       onClick={() => wakeMutation.mutate(safePets[currentPetIndex].id)}
                       disabled={wakeMutation.isPending}
                     >
@@ -1333,7 +1319,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     {language === "id" ? "Item Khusus" : "Special Items"}
                   </h5>
                   <span className="text-sm text-gray-600">
-                    {language === "id" ? "Token: " : "Tokens: "}{user?.tokens || 0}
+                    {language === "id" ? "Token: " : "Tokens: "}{user?.loyaltyPoints || 0}
                   </span>
                 </div>
                 <Button
@@ -1342,7 +1328,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id })}
                   disabled={
                     energyPotionMutation.isPending || 
-                    (user?.tokens || 0) < 2 || 
+                    (user?.loyaltyPoints || 0) < 2 || 
                     safePets[currentPetIndex]?.energy === 100
                   }
                 >
@@ -1352,7 +1338,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {language === "id" ? "Ramuan Energi" : "Energy Potion"}
                     </div>
                     <div className="text-xs opacity-90">
-                      {(user?.tokens || 0) < 2 
+                      {(user?.loyaltyPoints || 0) < 2 
                         ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
                         : safePets[currentPetIndex]?.energy === 100
                         ? (language === "id" ? "Energi penuh" : "Energy full")
