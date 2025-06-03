@@ -339,11 +339,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     enabled: !!currentPet?.id,
   });
 
-  // Fetch sleep progress for sleeping pets
+  // Fetch sleep progress for sleeping pets with proper API endpoint
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
-    enabled: !!safePets[currentPetIndex]?.id,
+    enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
     refetchInterval: 1000, // Update every second for real-time timer
+    queryFn: async () => {
+      if (!safePets[currentPetIndex]?.id) return null;
+      const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
+      return response.json();
+    }
   });
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
@@ -1338,12 +1343,18 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
                     <div className="text-2xl font-mono text-blue-600 mb-2">
-                      {formatSleepTime(sleepProgress.timeRemaining || 0)}
+                      {formatSleepTime(sleepProgress.totalSleepTime || 0)}
                     </div>
                     <div className="text-sm text-blue-600">
                       {language === "id" 
-                        ? `Energi akan pulih dalam ${formatSleepTime(sleepProgress.timeRemaining || 0)}`
-                        : `Energy will restore in ${formatSleepTime(sleepProgress.timeRemaining || 0)}`
+                        ? `Telah tidur selama ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
+                        : `Sleeping for ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
+                      }
+                    </div>
+                    <div className="text-sm text-blue-600">
+                      {language === "id" 
+                        ? `Energi berikutnya dalam ${5 - (sleepProgress.totalSleepTime % 5)} menit`
+                        : `Next energy in ${5 - (sleepProgress.totalSleepTime % 5)} minutes`
                       }
                     </div>
                     <div className="text-sm text-blue-600 mb-3">
