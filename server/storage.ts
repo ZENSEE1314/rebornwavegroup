@@ -1376,7 +1376,7 @@ export class DatabaseStorage implements IStorage {
     return pet;
   }
 
-  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void> {
+  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; isSleeping?: boolean; sleepStartTime?: Date | null }): Promise<void> {
     await db.update(pets).set({
       ...stats,
       updatedAt: new Date(),

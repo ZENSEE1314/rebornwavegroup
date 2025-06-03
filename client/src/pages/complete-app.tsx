@@ -345,7 +345,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Pet sleep mutations
+  // Sleep mutation
   const sleepMutation = useMutation({
     mutationFn: async (petId: number) => {
       return apiRequest("POST", `/api/pets/${petId}/sleep`);
@@ -355,13 +355,35 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Pet sekarang tidur" : "Pet is now sleeping",
+        description: language === "id" ? "Hewan peliharaan sedang tidur" : "Pet is now sleeping",
       });
     },
     onError: (error: any) => {
       toast({
         title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal memulai tidur" : "Failed to start sleep"),
+        description: error.message || (language === "id" ? "Gagal menidurkan hewan" : "Failed to put pet to sleep"),
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Wake mutation
+  const wakeMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return apiRequest("POST", `/api/pets/${petId}/wake`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Hewan peliharaan sudah bangun" : "Pet is now awake",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal membangunkan hewan" : "Failed to wake up pet"),
         variant: "destructive"
       });
     }
@@ -558,18 +580,51 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     {/* Animated Dragon Turtle with Growth Stages */}
                     <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className={isDead ? '' : 'animate-bounce'}>
+                        <div className={isDead ? '' : pet.isSleeping ? '' : 'animate-bounce'}>
                           <div 
                             className="text-6xl transition-transform duration-1000 hover:scale-110"
                             style={{
-                              animation: isDead ? 'none' : 'walkLeftRight 4s ease-in-out infinite',
-                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : 'none',
+                              animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
                               transform: isDead ? 'rotate(90deg)' : 'none'
                             }}
                           >
                             {dragonEmoji}
                           </div>
                         </div>
+                        
+                        {/* Sleep indicator with floating Z's */}
+                        {pet.isSleeping && !isDead && (
+                          <div className="absolute top-2 right-2">
+                            <div 
+                              className="text-2xl"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '0s'
+                              }}
+                            >
+                              💤
+                            </div>
+                            <div 
+                              className="text-xl absolute -top-1 -right-1"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '0.5s'
+                              }}
+                            >
+                              z
+                            </div>
+                            <div 
+                              className="text-lg absolute -top-2 -right-2"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '1s'
+                              }}
+                            >
+                              z
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {/* Growth Stage Indicator */}
@@ -653,17 +708,39 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
                       </Button>
 
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'sleep' });
-                        }}
-                        disabled={careActivityMutation.isPending}
-                      >
-                        <span className="text-2xl">💤</span>
-                        <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
-                      </Button>
+                      {pet.isSleeping ? (
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50 border-blue-200"
+                          onClick={() => {
+                            wakeMutation.mutate(pet.id);
+                          }}
+                          disabled={wakeMutation.isPending}
+                        >
+                          <span className="text-2xl">☀️</span>
+                          <span className="text-sm">{language === "id" ? "Bangunkan" : "Wake Up"}</span>
+                          <span className="text-xs text-blue-600">
+                            {language === "id" ? "Sedang Tidur" : "Sleeping"}
+                          </span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 p-4 h-auto flex-col"
+                          onClick={() => {
+                            sleepMutation.mutate(pet.id);
+                          }}
+                          disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
+                        >
+                          <span className="text-2xl">💤</span>
+                          <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
+                          {(pet.energy || 50) >= 100 && (
+                            <span className="text-xs text-gray-500">
+                              {language === "id" ? "Penuh Energi" : "Full Energy"}
+                            </span>
+                          )}
+                        </Button>
+                      )}
 
                       <Button
                         variant="outline"
