@@ -836,11 +836,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
                         onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
-                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 10}
+                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
                       >
                         <span className="text-2xl">⚡</span>
                         <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
-                        <span className="text-xs">10 tokens</span>
+                        <span className="text-xs">2 tokens</span>
                       </Button>
 
                       {pet.isSleeping ? (
@@ -1318,11 +1318,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2 bg-purple-50 border-purple-200"
                   onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id })}
-                  disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 10}
+                  disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
                 >
                   <span className="text-2xl">⚡</span>
                   <span className="text-sm">Energy</span>
-                  <span className="text-xs">10 tokens</span>
+                  <span className="text-xs">2 tokens</span>
                 </Button>
               </div>
 
