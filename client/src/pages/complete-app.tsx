@@ -1196,14 +1196,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => {
-                    console.log('Bathe button clicked, currentPet:', currentPet);
-                    if (currentPet?.id) {
-                      careActivityMutation.mutate({ petId: currentPet.id, careType: 'bathe' });
-                    } else {
-                      console.error('No current pet ID available');
-                    }
-                  }}
+                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'bathe' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
