@@ -1199,7 +1199,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'feed' })}
                   disabled={careActivityMutation.isPending}
                 >
-                  <Droplets className="w-6 h-6" />
+                  <span className="text-2xl">🛁</span>
                   <span className="text-sm">Bath</span>
                 </Button>
                 <Button
