@@ -1060,10 +1060,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already clean" });
       }
 
-      // Update cleanliness to 100% and set last care time
+      // Update cleanliness to 100%
       await storage.updatePetStats(petId, {
-        cleanliness: 100,
-        updatedAt: new Date()
+        cleanliness: 100
       });
 
       res.json({ 
@@ -1104,11 +1103,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newWeight = pet.weight + weightGain;
       const newHunger = Math.min(pet.hunger + 25, 100); // Increase hunger by 25%
       
-      // Update last care time for hunger decay calculation
+      // Update pet stats
       await storage.updatePetStats(petId, {
         weight: newWeight,
-        hunger: newHunger,
-        updatedAt: new Date()
+        hunger: newHunger
       });
 
       // Record feeding activity

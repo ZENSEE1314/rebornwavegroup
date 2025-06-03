@@ -1187,6 +1187,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
             const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
             const seconds = totalSeconds % 60;
+
+            // Calculate real-time hunger and cleanliness decay (100% to 1% over 6 hours)
+            const lastUpdate = new Date(pet.updatedAt || pet.createdAt).getTime();
+            const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+            
+            // Decay rate: 16.5% per hour (99% decay over 6 hours)
+            const decayAmount = Math.min(hoursSinceUpdate * 16.5, 99);
+            const currentHunger = Math.max(1, (pet.hunger || 100) - decayAmount);
+            const currentCleanliness = Math.max(1, (pet.cleanliness || 100) - decayAmount);
             
             // Format timer as DD:HH:MM:SS
             const timerDisplay = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -1238,9 +1247,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             };
 
             // Real-time status calculations that decay over time
-            const hunger = calculateStatus(pet.lastFedAt);
+            const hunger = isDead ? 0 : Math.round(currentHunger);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6))); // Decreases every 6 hours
+            const cleanliness = isDead ? 0 : Math.round(currentCleanliness);
             const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
