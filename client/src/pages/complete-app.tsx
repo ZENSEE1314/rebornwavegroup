@@ -1182,17 +1182,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </Card>
       )}
 
-      {/* TEST ENERGY POTION - TOP OF PET CARE */}
+      {/* DEBUG INFO */}
+      <div className="mb-4 p-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg">
+        <h3 className="font-bold">Debug Info:</h3>
+        <p>Pets loading: {petsLoading ? 'YES' : 'NO'}</p>
+        <p>Raw pets data: {JSON.stringify(pets)}</p>
+        <p>Safe pets array length: {safePets.length}</p>
+        <p>Current pet index: {currentPetIndex}</p>
+        <p>Current pet: {JSON.stringify(safePets[currentPetIndex])}</p>
+      </div>
+
+      {/* FORCE ENERGY POTION ALWAYS VISIBLE */}
       <div className="mb-4 p-4 bg-red-100 border-2 border-red-500 rounded-lg">
         <Button
           className="w-full bg-purple-600 hover:bg-purple-700 text-white"
           onClick={() => {
-            if (safePets[0]?.id) {
-              energyPotionMutation.mutate({ petId: safePets[0].id });
-            }
+            // Force using pet ID 1 from server logs
+            energyPotionMutation.mutate({ petId: 1 });
           }}
         >
-          ⚡ ENERGY POTION TEST (186 tokens) ⚡
+          ⚡ FORCE ENERGY POTION (Pet ID: 1) ⚡
         </Button>
       </div>
 
