@@ -1080,8 +1080,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       return apiRequest("POST", `/api/pets/${petId}/feed`, { foodType });
     },
     onSuccess: (data: any) => {
+      // Immediately invalidate and refetch to get updated timestamp
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      }, 100);
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: `${language === "id" ? "Pet diberi makan" : "Pet fed"} ${data.foodType}! Weight: +${data.weightGain}G`,
@@ -1102,8 +1105,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       return apiRequest("POST", `/api/pets/${petId}/clean`);
     },
     onSuccess: () => {
+      // Immediately invalidate and refetch to get updated timestamp
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      }, 100);
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Pet berhasil dibersihkan!" : "Pet cleaned successfully!",
