@@ -832,6 +832,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
                       </Button>
 
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
+                        onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
+                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 10}
+                      >
+                        <span className="text-2xl">⚡</span>
+                        <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
+                        <span className="text-xs">10 tokens</span>
+                      </Button>
+
                       {pet.isSleeping ? (
                         <Button
                           variant="outline"
