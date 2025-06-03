@@ -4955,6 +4955,35 @@ export default function CompleteApp() {
                   </Card>
                 );
               })}
+              
+              {/* Pagination for toy inventory */}
+              {Array.isArray(toyInventory) && toyInventory.length > 10 && (
+                <div className="flex justify-center items-center gap-4 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setToyInventoryPage(prev => Math.max(1, prev - 1))}
+                    disabled={toyInventoryPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    {language === "id" ? "Sebelumnya" : "Previous"}
+                  </Button>
+                  
+                  <span className="text-sm text-gray-600">
+                    {language === "id" ? "Halaman" : "Page"} {toyInventoryPage} {language === "id" ? "dari" : "of"} {Math.ceil(toyInventory.length / 10)}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setToyInventoryPage(prev => Math.min(Math.ceil(toyInventory.length / 10), prev + 1))}
+                    disabled={toyInventoryPage >= Math.ceil(toyInventory.length / 10)}
+                  >
+                    {language === "id" ? "Selanjutnya" : "Next"}
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}
