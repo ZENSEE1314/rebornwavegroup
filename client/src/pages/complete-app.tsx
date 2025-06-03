@@ -324,8 +324,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const safePets = Array.isArray(pets) ? pets : [];
   
   // Get current pet from pets array
-  const safePetsForCurrent = Array.isArray(pets) ? pets : [];
-  const currentPet = safePetsForCurrent[currentPetIndex];
+  const currentPet = safePets[currentPetIndex];
 
   // Fetch care status for current pet
   const { data: careStatus } = useQuery({
@@ -1277,6 +1276,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <span className="text-sm">Play</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
+              </div>
+
+              {/* Debug Info */}
+              <div className="mt-2 p-2 bg-gray-100 text-xs">
+                <div>Pet sleeping: {safePets[currentPetIndex]?.isSleeping ? 'YES' : 'NO'}</div>
+                <div>Pet energy: {safePets[currentPetIndex]?.energy}%</div>
+                <div>User tokens: {user?.tokens}</div>
+                <div>Sleep progress data: {sleepProgress ? 'YES' : 'NO'}</div>
               </div>
 
               {/* Sleep Timer Display */}
