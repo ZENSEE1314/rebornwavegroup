@@ -344,9 +344,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Pet care mutations
   const careActivityMutation = useMutation({
     mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
-      console.log('Making API call to:', `/api/pets/${petId}/care-action/${careType}`);
+      console.log('Making API call to:', `/api/pets/${petId}/care/${careType}`);
       try {
-        const result = await apiRequest("POST", `/api/pets/${petId}/care-action/${careType}`, {});
+        const result = await apiRequest("POST", `/api/pets/${petId}/care/${careType}`, {});
         console.log('API call successful:', result);
         return result;
       } catch (error) {
@@ -745,7 +745,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathe' });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
@@ -1206,7 +1206,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   className="h-20 flex-col gap-2"
                   onClick={() => {
                     console.log('Bath button clicked - making API call');
-                    careActivityMutation.mutate({ petId: 1, careType: 'bathe' });
+                    careActivityMutation.mutate({ petId: 1, careType: 'bathed' });
                   }}
                   disabled={careActivityMutation.isPending}
                 >
