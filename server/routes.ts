@@ -887,6 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet care activity
   app.post('/api/pets/:petId/care-action/:careType', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('Pet care endpoint hit:', req.params.petId, req.params.careType);
       const userId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       const careType = req.params.careType;
