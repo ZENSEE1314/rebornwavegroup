@@ -20,6 +20,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 
+// Helper function to format sleep timer as MM:SS
+function formatSleepTime(timeRemaining: number): string {
+  const minutes = Math.floor(timeRemaining / 60);
+  const seconds = timeRemaining % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
 // Coin Catching Game Component
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
   const [gameStarted, setGameStarted] = useState(false);
@@ -338,6 +345,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     enabled: !!safePets[currentPetIndex]?.id,
     refetchInterval: 1000, // Update every second for real-time timer
   });
+
+  // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
+  useEffect(() => {
+    if (!safePets[currentPetIndex]?.id) return;
+
+    const decayInterval = setInterval(async () => {
+      try {
+        // Apply stat decay via backend endpoint
+        await apiRequest('POST', `/api/pets/${safePets[currentPetIndex].id}/auto-decay`);
+        // Refresh pet data to show updated stats
+        refetchPets();
+      } catch (error) {
+        console.error('Stat decay error:', error);
+      }
+    }, 180000); // 3 minutes = 180,000ms
+
+    return () => clearInterval(decayInterval);
+  }, [safePets[currentPetIndex]?.id]);
 
   // Get owned toys (filter out toys that are already pets or listed in marketplace)
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
@@ -1356,23 +1381,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
-              {/* Energy Potion Button */}
-              <div className="mt-6 p-4 bg-purple-100 border-2 border-purple-300 rounded-lg">
-                <Button
-                  className="w-full h-16 bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold"
-                  onClick={() => {
-                    if (safePets[currentPetIndex]?.id) {
-                      energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id });
-                    }
-                  }}
-                  disabled={energyPotionMutation.isPending}
-                >
-                  ⚡ Energy Potion (10 tokens) ⚡
-                </Button>
-                <p className="text-center text-sm text-purple-700 mt-2">
-                  Restores 20% energy instantly
-                </p>
-              </div>
+
 
               {/* ENERGY POTION BUTTON - ALWAYS VISIBLE */}
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
@@ -1391,7 +1400,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   }}
                   disabled={
                     energyPotionMutation.isPending || 
-                    (user?.loyaltyPoints || 0) < 2 || 
+                    (user?.loyaltyPoints || 0) < 10 || 
                     safePets[currentPetIndex]?.energy === 100 ||
                     !safePets[currentPetIndex]?.id
                   }
@@ -1416,12 +1425,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
-              {/* Sleep Timer Display - Simplified */}
-              {safePets[currentPetIndex]?.isSleeping && (
+              {/* Sleep Timer Display - MM:SS format */}
+              {safePets[currentPetIndex]?.isSleeping && sleepProgress && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="text-center">
                     <div className="text-lg font-bold text-blue-700 mb-2">
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
+                    </div>
+                    <div className="text-2xl font-mono text-blue-600 mb-2">
+                      {formatSleepTime(sleepProgress.timeRemaining || 0)}
+                    </div>
+                    <div className="text-sm text-blue-600">
+                      {language === "id" 
+                        ? `Energi akan pulih dalam ${formatSleepTime(sleepProgress.timeRemaining || 0)}`
+                        : `Energy will restore in ${formatSleepTime(sleepProgress.timeRemaining || 0)}`
+                      }
                     </div>
                     <div className="text-sm text-blue-600 mb-3">
                       {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}

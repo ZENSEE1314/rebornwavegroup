@@ -1170,6 +1170,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto decay system - reduce hunger and cleanliness by 1% every 3 minutes
+  app.post('/api/pets/:petId/auto-decay', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Apply 1% decay to hunger and cleanliness
+      const newHunger = Math.max(0, (pet.hunger || 100) - 1);
+      const newCleanliness = Math.max(0, (pet.cleanliness || 100) - 1);
+
+      await storage.updatePetStats(petId, {
+        hunger: newHunger,
+        cleanliness: newCleanliness,
+        lastCareDate: new Date()
+      });
+
+      res.json({
+        success: true,
+        newHunger,
+        newCleanliness,
+        message: "Stat decay applied"
+      });
+    } catch (error) {
+      console.error("Error applying stat decay:", error);
+      res.status(500).json({ message: "Failed to apply stat decay" });
+    }
+  });
+
   // Wake up pet
   app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
     try {
