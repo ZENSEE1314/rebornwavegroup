@@ -1320,13 +1320,15 @@ export class DatabaseStorage implements IStorage {
     return score;
   }
 
-  async getTopGameScores(limit: number = 10): Promise<any[]> {
+  async getTopGameScores(limit: number = 50): Promise<any[]> {
     const scores = await db
       .select({
         id: gameScores.id,
         score: gameScores.score,
         tokensEarned: gameScores.tokensEarned,
         createdAt: gameScores.createdAt,
+        userId: gameScores.userId,
+        petId: gameScores.petId,
         user: {
           id: users.id,
           firstName: users.firstName,
@@ -1341,7 +1343,7 @@ export class DatabaseStorage implements IStorage {
       .from(gameScores)
       .leftJoin(users, eq(gameScores.userId, users.id))
       .leftJoin(pets, eq(gameScores.petId, pets.id))
-      .orderBy(desc(gameScores.score))
+      .orderBy(desc(gameScores.score), desc(gameScores.createdAt))
       .limit(limit);
     
     return scores;

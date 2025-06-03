@@ -221,10 +221,7 @@ export default function EnhancedAdminDashboard() {
   const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
-  // Debug toy data
-  console.log('Toys Response:', toysResponse);
-  console.log('All Toys:', allToys);
-  console.log('Toys Length:', allToys?.length);
+
 
   // Filter functions
   const filteredUsers = (allUsers as any[]).filter((user: any) => {

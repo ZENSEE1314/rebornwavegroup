@@ -2700,7 +2700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/game-scores/leaderboard', async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 50;
       const leaderboard = await storage.getTopGameScores(limit);
       res.json(leaderboard);
     } catch (error: any) {
