@@ -19,9 +19,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
   
-  // Log all requests to debug routing
-  app.use('/api/pets', (req, res, next) => {
-    console.log('Pet API request:', req.method, req.url, req.params);
+  // Log all POST requests to debug routing
+  app.use('/api/pets/:petId/care/:careType', (req, res, next) => {
+    console.log('Pet care route hit:', req.method, req.url, req.params);
     next();
   });
 
