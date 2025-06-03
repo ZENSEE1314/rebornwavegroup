@@ -924,7 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           activityType: 'feed',
           completedAt: new Date(),
-          pointsEarned: 5
+          pointsEarned: 0
         });
       } else if (careType === 'bathe') {
         // Increase cleanliness by 50% (not reset to 100%)
@@ -943,9 +943,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           activityType: 'bathe',
           completedAt: new Date(),
-          pointsEarned: 3
+          pointsEarned: 0
         });
-        await storage.updateUserPoints(userId, 3);
       } else if (careType === 'play') {
         // Increase happiness by 25%
         const currentHappiness = pet.happiness || 50;
@@ -961,9 +960,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           activityType: 'play',
           completedAt: new Date(),
-          pointsEarned: 3
+          pointsEarned: 0
         });
-        await storage.updateUserPoints(userId, 3);
       } else if (careType === 'sleep') {
         // Increase energy by 40%
         const currentEnergy = pet.energy || 50;
@@ -980,9 +978,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           activityType: 'sleep',
           completedAt: new Date(),
-          pointsEarned: 3
+          pointsEarned: 0
         });
-        await storage.updateUserPoints(userId, 3);
       }
 
       res.json({ success: true });
