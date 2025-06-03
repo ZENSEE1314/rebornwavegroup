@@ -1278,6 +1278,45 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
+              {/* Energy Potion Button - Right under Sleep/Play buttons */}
+              <div className="mt-4">
+                <Button
+                  variant="default"
+                  className="w-full h-16 flex items-center gap-3 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500"
+                  onClick={() => {
+                    console.log('Energy Potion clicked', { petId: safePets[currentPetIndex]?.id });
+                    energyPotionMutation.mutate({ petId: safePets[currentPetIndex]?.id });
+                  }}
+                  disabled={
+                    energyPotionMutation.isPending || 
+                    (user?.loyaltyPoints || 0) < 2 || 
+                    safePets[currentPetIndex]?.energy === 100 ||
+                    !safePets[currentPetIndex]?.id
+                  }
+                >
+                  <span className="text-2xl">⚡</span>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold">
+                      {language === "id" ? "Ramuan Energi" : "Energy Potion"}
+                    </div>
+                    <div className="text-xs opacity-90">
+                      {!safePets[currentPetIndex]?.id 
+                        ? "No pet selected"
+                        : (user?.loyaltyPoints || 0) < 2 
+                        ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
+                        : safePets[currentPetIndex]?.energy === 100
+                        ? (language === "id" ? "Energi penuh" : "Energy full")
+                        : (language === "id" ? "Pulihkan energi ke 100%" : "Restore energy to 100%")
+                      }
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold">2🪙</span>
+                </Button>
+                <div className="mt-1 text-xs text-gray-600 text-center">
+                  {language === "id" ? "Token tersedia: " : "Tokens available: "}{user?.loyaltyPoints || 0}
+                </div>
+              </div>
+
               {/* Sleep Timer Display - Simplified */}
               {safePets[currentPetIndex]?.isSleeping && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1312,55 +1351,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
               )}
 
-              {/* Energy Potion - Special Item - Always Show */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h5 className="font-semibold text-gray-900">
-                    {language === "id" ? "Item Khusus" : "Special Items"}
-                  </h5>
-                  <span className="text-sm text-gray-600">
-                    {language === "id" ? "Token: " : "Tokens: "}{user?.loyaltyPoints || 0}
-                  </span>
-                </div>
-                
-                {/* Debug Info */}
-                <div className="mb-2 p-2 bg-yellow-100 text-xs">
-                  Pet ID: {safePets[currentPetIndex]?.id}, Energy: {safePets[currentPetIndex]?.energy}%, Tokens: {user?.loyaltyPoints}
-                </div>
-                
-                <Button
-                  variant="default"
-                  className="w-full h-16 flex items-center gap-3 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500"
-                  onClick={() => {
-                    console.log('Energy Potion clicked', { petId: safePets[currentPetIndex]?.id });
-                    energyPotionMutation.mutate({ petId: safePets[currentPetIndex]?.id });
-                  }}
-                  disabled={
-                    energyPotionMutation.isPending || 
-                    (user?.loyaltyPoints || 0) < 2 || 
-                    safePets[currentPetIndex]?.energy === 100 ||
-                    !safePets[currentPetIndex]?.id
-                  }
-                >
-                  <span className="text-2xl">⚡</span>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold">
-                      {language === "id" ? "Ramuan Energi" : "Energy Potion"}
-                    </div>
-                    <div className="text-xs opacity-90">
-                      {!safePets[currentPetIndex]?.id 
-                        ? "No pet selected"
-                        : (user?.loyaltyPoints || 0) < 2 
-                        ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
-                        : safePets[currentPetIndex]?.energy === 100
-                        ? (language === "id" ? "Energi penuh" : "Energy full")
-                        : (language === "id" ? "Pulihkan energi ke 100%" : "Restore energy to 100%")
-                      }
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold">2🪙</span>
-                </Button>
-              </div>
+
 
               {careStatus?.allCareCompleted && (
                 <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
