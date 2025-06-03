@@ -1581,12 +1581,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('Pet care endpoint hit! Params:', req.params);
       const userId = req.user?.claims?.sub;
       if (!userId) {
+        console.log('User not authenticated');
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const { petId, careType } = req.params;
+      console.log('Processing care:', { petId, careType, userId });
       
       if (!['fed', 'bathed', 'slept', 'cleaned'].includes(careType)) {
         return res.status(400).json({ message: "Invalid care type" });
