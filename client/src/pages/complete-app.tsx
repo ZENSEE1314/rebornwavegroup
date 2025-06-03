@@ -320,6 +320,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     refetchOnWindowFocus: true,
   });
 
+  // Safe pets array with proper fallback - define this first to avoid crashes
+  const safePets = Array.isArray(pets) ? pets : [];
+  
   // Get current pet from pets array
   const safePetsForCurrent = Array.isArray(pets) ? pets : [];
   const currentPet = safePetsForCurrent[currentPetIndex];
@@ -1064,7 +1067,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
   // Add safety checks for all data arrays
-  const safePets = Array.isArray(pets) ? pets : [];
   const safeOwnedToys = Array.isArray(ownedToys) ? ownedToys : [];
 
   if (!safePets.length && !safeOwnedToys.length) {
