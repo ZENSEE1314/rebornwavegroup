@@ -534,8 +534,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             // Real-time status calculations that decay over time
             const hunger = calculateHunger(pet.lastFedAt);
             const cleanliness = calculateCleanliness(pet.lastCareDate);
-            const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
             const energy = isDead ? 0 : pet.energy; // Use stored energy value
+            
+            // Happiness calculation: decreases by 1% for every 1% below 100 in hunger, cleanliness, or energy
+            const hungerDeficit = Math.max(0, 100 - hunger);
+            const cleanlinessDeficit = Math.max(0, 100 - cleanliness);
+            const energyDeficit = Math.max(0, 100 - energy);
+            const totalDeficit = hungerDeficit + cleanlinessDeficit + energyDeficit;
+            const happiness = isDead ? 0 : Math.max(0, (pet.happiness || 50) - totalDeficit);
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
@@ -741,12 +747,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'clean' });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
-                        <span className="text-2xl">🧹</span>
-                        <span className="text-sm">{language === "id" ? "Bersihkan" : "Clean"}</span>
+                        <span className="text-2xl">🎾</span>
+                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
                       </Button>
                     </div>
                   </div>

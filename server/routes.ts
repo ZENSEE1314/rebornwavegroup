@@ -898,18 +898,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate care type
-      if (!['feed', 'bathe', 'clean'].includes(careType)) {
+      if (!['feed', 'bathe', 'play'].includes(careType)) {
         return res.status(400).json({ message: "Invalid care type" });
       }
 
       // Update care status based on type
       if (careType === 'feed') {
-        // Update last fed time to current time (this resets hunger to 100%)
-        await storage.updatePetLastFed(petId);
+        // Increase hunger by 30% (not reset to 100%)
+        const currentHunger = pet.hunger || 50;
+        const newHunger = Math.min(100, currentHunger + 30);
         
-        // Decrease energy by 5%
-        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
-        await storage.updatePetStats(petId, { energy: newEnergy });
+        // Update last fed time and hunger level
+        await storage.updatePetLastFed(petId);
+        await storage.updatePetStats(petId, { 
+          hunger: newHunger,
+          energy: Math.max(0, (pet.energy || 50) - 5)
+        });
         
         // Award tokens for feeding
         await storage.updateUserTokens(userId, 5);
@@ -923,8 +927,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 5
         });
       } else if (careType === 'bathe') {
-        // Update last care date for cleanliness tracking
+        // Increase cleanliness by 50% (not reset to 100%)
+        const currentCleanliness = pet.cleanliness || 50;
+        const newCleanliness = Math.min(100, currentCleanliness + 50);
+        
+        // Update last care date and cleanliness level
         await storage.updatePetStats(petId, { 
+          cleanliness: newCleanliness,
           lastCareDate: new Date(),
           energy: Math.max(0, (pet.energy || 50) - 5)
         });
@@ -937,17 +946,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
-      } else if (careType === 'clean') {
-        // Update last care date for cleanliness tracking
+      } else if (careType === 'play') {
+        // Increase happiness by 25%
+        const currentHappiness = pet.happiness || 50;
+        const newHappiness = Math.min(100, currentHappiness + 25);
+        
         await storage.updatePetStats(petId, { 
-          lastCareDate: new Date(),
+          happiness: newHappiness,
           energy: Math.max(0, (pet.energy || 50) - 5)
         });
         
         await storage.createCareActivity({
           petId,
           userId,
-          activityType: 'clean',
+          activityType: 'play',
           completedAt: new Date(),
           pointsEarned: 3
         });
