@@ -341,6 +341,30 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const queryClient = useQueryClient();
 
+  // Simple bath mutation that uses the working feed endpoint
+  const bathMutation = useMutation({
+    mutationFn: async ({ petId }: { petId: number }) => {
+      console.log('Bath button clicked - calling feed endpoint');
+      const result = await apiRequest("POST", `/api/pets/${petId}/care/feed`, {});
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: "Bath Complete!",
+        description: "Your pet has been bathed and feels refreshed!",
+      });
+    },
+    onError: (error) => {
+      console.error('Bath failed:', error);
+      toast({
+        title: "Bath Failed",
+        description: "Something went wrong while bathing your pet.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Pet care mutations
   const careActivityMutation = useMutation({
     mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
@@ -1196,8 +1220,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'feed' })}
-                  disabled={careActivityMutation.isPending}
+                  onClick={() => bathMutation.mutate({ petId: safePets[currentPetIndex].id })}
+                  disabled={bathMutation.isPending}
                 >
                   <span className="text-2xl">🛁</span>
                   <span className="text-sm">Bath</span>
