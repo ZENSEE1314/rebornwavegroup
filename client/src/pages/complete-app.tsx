@@ -1121,19 +1121,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </Card>
       )}
 
-      {currentPet && (
+      {safePets.length > 0 && safePets[currentPetIndex] && (
         <>
           {/* Pet Info */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{currentPet.name}</CardTitle>
-                <Badge className={stageInfo.color}>
-                  {stageInfo.label}
+                <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
+                <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
+                  {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
                 </Badge>
               </div>
               <p className="text-gray-600">
-                Age: {currentPet.currentAge} days • Type: {currentPet.type}
+                Age: {safePets[currentPetIndex].currentAge} days • Type: {safePets[currentPetIndex].type}
               </p>
             </CardHeader>
             <CardContent>
@@ -1143,32 +1143,32 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Heart className="w-4 h-4 text-red-500" />
                     <span className="text-sm font-medium">Happiness</span>
                   </div>
-                  <Progress value={currentPet.happiness} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.happiness}%</span>
+                  <Progress value={safePets[currentPetIndex].happiness} className="h-2" />
+                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].happiness}%</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 text-orange-500">🍎</span>
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
-                  <Progress value={currentPet.hunger} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.hunger}%</span>
+                  <Progress value={safePets[currentPetIndex].hunger} className="h-2" />
+                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].hunger}%</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Droplets className="w-4 h-4 text-blue-500" />
                     <span className="text-sm font-medium">Cleanliness</span>
                   </div>
-                  <Progress value={currentPet.cleanliness} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.cleanliness}%</span>
+                  <Progress value={safePets[currentPetIndex].cleanliness} className="h-2" />
+                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].cleanliness}%</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Bed className="w-4 h-4 text-purple-500" />
                     <span className="text-sm font-medium">Energy</span>
                   </div>
-                  <Progress value={currentPet.energy} className="h-2" />
-                  <span className="text-xs text-gray-600">{currentPet.energy}%</span>
+                  <Progress value={safePets[currentPetIndex].energy} className="h-2" />
+                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].energy}%</span>
                 </div>
               </div>
             </CardContent>
@@ -1187,7 +1187,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'feed' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'feed' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <span className="text-2xl">🍎</span>
@@ -1196,7 +1196,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'bathe' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathe' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
@@ -1205,7 +1205,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'sleep' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'sleep' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
@@ -1214,7 +1214,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'play' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Sparkles className="w-6 h-6" />
