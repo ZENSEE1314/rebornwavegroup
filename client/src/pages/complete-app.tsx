@@ -344,7 +344,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Pet care mutations
   const careActivityMutation = useMutation({
     mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
-      return apiRequest("POST", `/api/pets/${petId}/care-action/${careType}`, {});
+      console.log('Making API call to:', `/api/pets/${petId}/care-action/${careType}`);
+      try {
+        const result = await apiRequest("POST", `/api/pets/${petId}/care-action/${careType}`, {});
+        console.log('API call successful:', result);
+        return result;
+      } catch (error) {
+        console.error('API call failed:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       // Invalidate pets query to trigger real-time updates
