@@ -1596,16 +1596,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
+      console.log('Care status updated successfully');
       
       // Check if all care is completed and award token
       const allCompleted = await storage.checkAllCareCompleted(parseInt(petId));
+      console.log('All care completed check:', allCompleted);
       if (allCompleted) {
         await storage.awardDailyToken(userId, parseInt(petId));
+        console.log('Daily token awarded');
       }
       
       res.json({ success: true, allCompleted });
+      console.log('Response sent successfully');
     } catch (error) {
       console.error("Error updating care status:", error);
+      console.error("Error details:", error.message, error.stack);
       res.status(500).json({ message: "Failed to update care status" });
     }
   });
