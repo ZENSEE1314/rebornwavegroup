@@ -1074,11 +1074,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simple feeding system - resets hunger to 100% for real-time decay
+  // Enhanced feeding system with food types and weight gain
   app.post('/api/pets/:petId/feed', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
+      const { foodType } = req.body;
+
+      // Validate food type
+      if (!['meat', 'fish', 'protein'].includes(foodType)) {
+        return res.status(400).json({ message: "Invalid food type. Must be meat, fish, or protein." });
+      }
 
       const pet = await storage.getPetById(petId);
       if (!pet || pet.userId !== userId) {
@@ -1093,9 +1099,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already full" });
       }
 
-      // Reset hunger to 100% and refresh the timestamp for decay calculation
+      // Calculate weight gain based on food type
+      const weightGain = foodType === 'protein' ? 3 : foodType === 'meat' ? 2 : 1;
+      const newWeight = pet.weight + weightGain;
+
+      // Reset hunger to 100% and update weight
       await storage.updatePetStats(petId, {
-        hunger: 100
+        hunger: 100,
+        weight: newWeight
       });
       
       // Update the pet's updatedAt timestamp in the database to restart decay timer
@@ -1103,7 +1114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         message: "Pet fed successfully", 
-        newHunger: 100
+        newHunger: 100,
+        weightGain,
+        newWeight,
+        foodType
       });
     } catch (error) {
       console.error("Error feeding pet:", error);

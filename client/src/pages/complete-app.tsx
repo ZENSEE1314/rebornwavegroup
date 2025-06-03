@@ -1074,17 +1074,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const queryClient = useQueryClient();
 
-  // Pet feeding mutation
+  // Pet feeding mutation with food types
   const feedPetMutation = useMutation({
-    mutationFn: async (petId: number) => {
-      return apiRequest("POST", `/api/pets/${petId}/feed`);
+    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
+      return apiRequest("POST", `/api/pets/${petId}/feed`, { foodType });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Pet berhasil diberi makan!" : "Pet fed successfully!",
+        description: `${language === "id" ? "Pet diberi makan" : "Pet fed"} ${data.foodType}! Weight: +${data.weightGain}G`,
       });
     },
     onError: (error: any) => {
@@ -1356,18 +1356,53 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <h4 className="font-semibold text-gray-900">
                       {language === "id" ? "Aktivitas Harian" : "Daily Activities"}
                     </h4>
+                    
+                    {/* Feeding Section */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">
+                        {language === "id" ? "Beri Makan (Menambah Berat)" : "Feeding (Adds Weight)"}
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
+                          onClick={() => {
+                            feedPetMutation.mutate({ petId: pet.id, foodType: 'fish' });
+                          }}
+                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
+                        >
+                          <span className="text-xl">🐟</span>
+                          <span>Fish (+1G)</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
+                          onClick={() => {
+                            feedPetMutation.mutate({ petId: pet.id, foodType: 'meat' });
+                          }}
+                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
+                        >
+                          <span className="text-xl">🥩</span>
+                          <span>Meat (+2G)</span>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-1 p-3 h-auto flex-col text-xs"
+                          onClick={() => {
+                            feedPetMutation.mutate({ petId: pet.id, foodType: 'protein' });
+                          }}
+                          disabled={feedPetMutation.isPending || pet.hunger >= 100}
+                        >
+                          <span className="text-xl">💪</span>
+                          <span>Protein (+3G)</span>
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Other Care Activities */}
                     <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          feedPetMutation.mutate(pet.id);
-                        }}
-                        disabled={feedPetMutation.isPending}
-                      >
-                        <span className="text-2xl">🍎</span>
-                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
-                      </Button>
 
                       <Button
                         variant="outline"
