@@ -503,6 +503,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const calculateHunger = (lastFeedTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
+              // If fed recently (within 2 minutes), use database value to show immediate effect
+              if (lastFeedTime) {
+                const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
+                if (minutesSinceLastFeed < 2) {
+                  return pet.hunger || 50; // Use fresh database value
+                }
+              }
+              
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
@@ -518,6 +526,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             // Cleanliness decreases from 100% to 1% over 6 hours if not cleaned
             const calculateCleanliness = (lastCareTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
+              
+              // If bathed recently (within 2 minutes), use database value to show immediate effect
+              if (lastCareTime) {
+                const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
+                if (minutesSinceLastCare < 2) {
+                  return pet.cleanliness || 50; // Use fresh database value
+                }
+              }
               
               if (!lastCareTime) {
                 // No care recorded, decay from birth
