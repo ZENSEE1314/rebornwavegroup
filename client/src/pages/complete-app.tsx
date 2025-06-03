@@ -1278,14 +1278,20 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
-              {/* Energy Potion Button - Right under Sleep/Play buttons */}
-              <div className="mt-4">
+              {/* ENERGY POTION BUTTON - ALWAYS VISIBLE */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
+                <div className="text-center mb-3">
+                  <h3 className="font-bold text-purple-700">⚡ ENERGY POTION ⚡</h3>
+                  <p className="text-sm text-gray-600">Tokens: {user?.loyaltyPoints || 0}</p>
+                </div>
                 <Button
-                  variant="default"
-                  className="w-full h-16 flex items-center gap-3 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500"
+                  size="lg"
+                  className="w-full h-16 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500 shadow-lg"
                   onClick={() => {
                     console.log('Energy Potion clicked', { petId: safePets[currentPetIndex]?.id });
-                    energyPotionMutation.mutate({ petId: safePets[currentPetIndex]?.id });
+                    if (safePets[currentPetIndex]?.id) {
+                      energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id });
+                    }
                   }}
                   disabled={
                     energyPotionMutation.isPending || 
@@ -1294,12 +1300,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     !safePets[currentPetIndex]?.id
                   }
                 >
-                  <span className="text-2xl">⚡</span>
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold">
+                  <span className="text-3xl mr-3">⚡</span>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg">
                       {language === "id" ? "Ramuan Energi" : "Energy Potion"}
                     </div>
-                    <div className="text-xs opacity-90">
+                    <div className="text-sm opacity-90">
                       {!safePets[currentPetIndex]?.id 
                         ? "No pet selected"
                         : (user?.loyaltyPoints || 0) < 2 
@@ -1310,11 +1316,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       }
                     </div>
                   </div>
-                  <span className="text-sm font-bold">2🪙</span>
+                  <span className="text-lg font-bold ml-3">2🪙</span>
                 </Button>
-                <div className="mt-1 text-xs text-gray-600 text-center">
-                  {language === "id" ? "Token tersedia: " : "Tokens available: "}{user?.loyaltyPoints || 0}
-                </div>
               </div>
 
               {/* Sleep Timer Display - Simplified */}
