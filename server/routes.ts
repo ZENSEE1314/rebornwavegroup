@@ -1600,6 +1600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Increase hunger by 30%
         const currentHunger = pet.hunger || 50;
         const newHunger = Math.min(100, currentHunger + 30);
+        console.log(`Feeding pet: current hunger ${currentHunger} -> new hunger ${newHunger}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           hunger: newHunger,
@@ -1609,6 +1610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Increase cleanliness by 50%
         const currentCleanliness = pet.cleanliness || 50;
         const newCleanliness = Math.min(100, currentCleanliness + 50);
+        console.log(`Bathing pet: current cleanliness ${currentCleanliness} -> new cleanliness ${newCleanliness}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           cleanliness: newCleanliness,
@@ -1618,6 +1620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Increase happiness by 25% (play activity)
         const currentHappiness = pet.happiness || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
+        console.log(`Playing with pet: current happiness ${currentHappiness} -> new happiness ${newHappiness}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           happiness: newHappiness,
