@@ -57,6 +57,47 @@ async function updatePetLifecycle(pet: any) {
     pet.growthStage = newStage;
   }
   
+  // Apply automatic hunger and cleanliness decay (100% to 1% over 6 hours)
+  await updatePetDecay(pet, now);
+}
+
+async function updatePetDecay(pet: any, now: Date) {
+  let needsUpdate = false;
+  let updates: any = {};
+  
+  // Calculate hunger decay
+  const lastFed = pet.lastFed ? new Date(pet.lastFed) : new Date(pet.birthDate);
+  const hoursSinceLastFed = (now.getTime() - lastFed.getTime()) / (1000 * 60 * 60);
+  
+  // Decay from 100% to 1% over 6 hours (16.5% per hour)
+  const hungerDecay = Math.min(hoursSinceLastFed * 16.5, 99);
+  const newHunger = Math.max(1, 100 - hungerDecay);
+  
+  if (Math.abs(newHunger - pet.hunger) > 0.5) {
+    updates.hunger = Math.round(newHunger);
+    needsUpdate = true;
+  }
+  
+  // Calculate cleanliness decay
+  const lastCleaned = pet.lastCleaned ? new Date(pet.lastCleaned) : new Date(pet.birthDate);
+  const hoursSinceLastCleaned = (now.getTime() - lastCleaned.getTime()) / (1000 * 60 * 60);
+  
+  // Decay from 100% to 1% over 6 hours (16.5% per hour)
+  const cleanlinessDecay = Math.min(hoursSinceLastCleaned * 16.5, 99);
+  const newCleanliness = Math.max(1, 100 - cleanlinessDecay);
+  
+  if (Math.abs(newCleanliness - pet.cleanliness) > 0.5) {
+    updates.cleanliness = Math.round(newCleanliness);
+    needsUpdate = true;
+  }
+  
+  // Update pet stats if needed
+  if (needsUpdate) {
+    await storage.updatePetStats(pet.id, updates);
+    pet.hunger = updates.hunger || pet.hunger;
+    pet.cleanliness = updates.cleanliness || pet.cleanliness;
+  }
+  
   // Check for daily token reward (every 24 hours)
   const lastClaim = pet.lastTokenClaimDate ? new Date(pet.lastTokenClaimDate) : null;
   const canClaimToken = !lastClaim || (now.getTime() - lastClaim.getTime()) >= (24 * 60 * 60 * 1000);
@@ -991,6 +1032,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching Digimon pets:", error);
       res.status(500).json({ message: "Failed to fetch Digimon pets" });
+    }
+  });
+
+  // Cleaning system - restores cleanliness to 100%
+  app.post('/api/pets/:petId/clean', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      if (pet.isDead) {
+        return res.status(400).json({ message: "Cannot clean a dead pet" });
+      }
+
+      if (pet.cleanliness >= 100) {
+        return res.status(400).json({ message: "Pet is already clean" });
+      }
+
+      // Update cleanliness to 100% and set last cleaned time
+      await storage.updatePetStats(petId, {
+        cleanliness: 100,
+        lastCleaned: new Date()
+      });
+
+      res.json({ 
+        message: "Pet cleaned successfully", 
+        newCleanliness: 100
+      });
+    } catch (error) {
+      console.error("Error cleaning pet:", error);
+      res.status(500).json({ message: "Failed to clean pet" });
     }
   });
 
