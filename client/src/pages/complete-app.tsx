@@ -1379,21 +1379,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <span className="text-sm">Play</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
-              </div>
-
-
-
-              {/* Energy Potion - Simple Button */}
-              <div className="mt-4">
                 <Button
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3"
+                  variant="outline"
+                  className="h-20 flex-col gap-2 bg-purple-50 border-purple-200"
                   onClick={async () => {
                     try {
-                      const response = await fetch(`/api/pets/${safePets[currentPetIndex]?.id}/energy-potion`, {
+                      const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/energy-potion`, {
                         method: 'POST'
                       });
                       if (response.ok) {
-                        // Refresh pet data
                         window.location.reload();
                       }
                     } catch (error) {
@@ -1402,9 +1396,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   }}
                   disabled={(user?.tokens || 0) < 10}
                 >
-                  ⚡ Energy Potion (10 tokens) - You have: {user?.tokens || 0}
+                  <span className="text-2xl">⚡</span>
+                  <span className="text-sm">Energy</span>
+                  <span className="text-xs">10 tokens</span>
                 </Button>
               </div>
+
+
+
+
 
               {/* Sleep Timer Display - MM:SS format */}
               {safePets[currentPetIndex]?.isSleeping && sleepProgress && (
