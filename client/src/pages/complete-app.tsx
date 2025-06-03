@@ -1312,7 +1312,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
               )}
 
-              {/* Energy Potion - Special Item */}
+              {/* Energy Potion - Special Item - Always Show */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <h5 className="font-semibold text-gray-900">
@@ -1322,14 +1322,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     {language === "id" ? "Token: " : "Tokens: "}{user?.loyaltyPoints || 0}
                   </span>
                 </div>
+                
+                {/* Debug Info */}
+                <div className="mb-2 p-2 bg-yellow-100 text-xs">
+                  Pet ID: {safePets[currentPetIndex]?.id}, Energy: {safePets[currentPetIndex]?.energy}%, Tokens: {user?.loyaltyPoints}
+                </div>
+                
                 <Button
-                  variant={safePets[currentPetIndex]?.energy === 100 ? "secondary" : "default"}
+                  variant="default"
                   className="w-full h-16 flex items-center gap-3 text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-400 disabled:to-gray-500"
-                  onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id })}
+                  onClick={() => {
+                    console.log('Energy Potion clicked', { petId: safePets[currentPetIndex]?.id });
+                    energyPotionMutation.mutate({ petId: safePets[currentPetIndex]?.id });
+                  }}
                   disabled={
                     energyPotionMutation.isPending || 
                     (user?.loyaltyPoints || 0) < 2 || 
-                    safePets[currentPetIndex]?.energy === 100
+                    safePets[currentPetIndex]?.energy === 100 ||
+                    !safePets[currentPetIndex]?.id
                   }
                 >
                   <span className="text-2xl">⚡</span>
@@ -1338,7 +1348,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {language === "id" ? "Ramuan Energi" : "Energy Potion"}
                     </div>
                     <div className="text-xs opacity-90">
-                      {(user?.loyaltyPoints || 0) < 2 
+                      {!safePets[currentPetIndex]?.id 
+                        ? "No pet selected"
+                        : (user?.loyaltyPoints || 0) < 2 
                         ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
                         : safePets[currentPetIndex]?.energy === 100
                         ? (language === "id" ? "Energi penuh" : "Energy full")
