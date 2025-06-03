@@ -885,11 +885,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pet care activity
-  app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/care-action/:careType', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
-      const { careType } = req.body;
+      const careType = req.params.careType;
 
       // Get the pet to verify ownership
       const pet = await storage.getPetById(petId);
