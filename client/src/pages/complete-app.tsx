@@ -324,7 +324,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Pet care mutations
   const careActivityMutation = useMutation({
     mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
-      return apiRequest("POST", `/api/pets/${petId}/care`, { careType });
+      return apiRequest("POST", `/api/pets/${petId}/care-action/${careType}`, {});
     },
     onSuccess: () => {
       // Invalidate pets query to trigger real-time updates
