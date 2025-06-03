@@ -1383,11 +1383,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
 
 
-              {/* ENERGY POTION BUTTON - ALWAYS VISIBLE */}
+              {/* ENERGY POTION BUTTON */}
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
                 <div className="text-center mb-3">
                   <h3 className="font-bold text-purple-700">⚡ ENERGY POTION ⚡</h3>
-                  <p className="text-sm text-gray-600">Tokens: {user?.loyaltyPoints || 0}</p>
+                  <p className="text-sm text-gray-600">Your Tokens: {user?.loyaltyPoints || 0}</p>
                 </div>
                 <Button
                   size="lg"
