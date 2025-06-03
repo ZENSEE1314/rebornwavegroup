@@ -1588,6 +1588,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!['fed', 'bathed', 'slept', 'cleaned'].includes(careType)) {
         return res.status(400).json({ message: "Invalid care type" });
       }
+
+      // Get the pet to verify ownership and get current stats
+      const pet = await storage.getPetById(parseInt(petId));
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Update pet stats based on care type
+      if (careType === 'fed') {
+        // Increase hunger by 30%
+        const currentHunger = pet.hunger || 50;
+        const newHunger = Math.min(100, currentHunger + 30);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          hunger: newHunger,
+          energy: Math.max(0, (pet.energy || 50) - 5)
+        });
+      } else if (careType === 'bathed') {
+        // Increase cleanliness by 50%
+        const currentCleanliness = pet.cleanliness || 50;
+        const newCleanliness = Math.min(100, currentCleanliness + 50);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          cleanliness: newCleanliness,
+          energy: Math.max(0, (pet.energy || 50) - 5)
+        });
+      } else if (careType === 'cleaned') {
+        // Increase happiness by 25% (play activity)
+        const currentHappiness = pet.happiness || 50;
+        const newHappiness = Math.min(100, currentHappiness + 25);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          happiness: newHappiness,
+          energy: Math.max(0, (pet.energy || 50) - 5)
+        });
+      }
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
