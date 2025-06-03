@@ -1148,14 +1148,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-red-500" />
-                    <span className="text-sm font-medium">Happiness</span>
-                  </div>
-                  <Progress value={safePets[currentPetIndex].happiness} className="h-2" />
-                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].happiness}%</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
                     <span className="w-4 h-4 text-orange-500">🍎</span>
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
@@ -1204,10 +1196,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => {
-                    console.log('Bath button clicked - making API call');
-                    careActivityMutation.mutate({ petId: 1, careType: 'bathed' });
-                  }}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'feed' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
