@@ -1320,7 +1320,17 @@ export class DatabaseStorage implements IStorage {
     return score;
   }
 
-  async getTopGameScores(limit: number = 100): Promise<any[]> {
+  async getTopGameScores(limit: number = 50): Promise<any[]> {
+    // Get the highest score for each user using a subquery
+    const highestScoresSubquery = db
+      .select({
+        userId: gameScores.userId,
+        maxScore: sql`MAX(${gameScores.score})`.as('max_score'),
+      })
+      .from(gameScores)
+      .groupBy(gameScores.userId)
+      .as('highest_scores');
+
     const scores = await db
       .select({
         id: gameScores.id,
@@ -1343,7 +1353,14 @@ export class DatabaseStorage implements IStorage {
       .from(gameScores)
       .leftJoin(users, eq(gameScores.userId, users.id))
       .leftJoin(pets, eq(gameScores.petId, pets.id))
-      .orderBy(desc(gameScores.createdAt))
+      .innerJoin(
+        highestScoresSubquery,
+        and(
+          eq(gameScores.userId, highestScoresSubquery.userId),
+          eq(gameScores.score, highestScoresSubquery.maxScore)
+        )
+      )
+      .orderBy(desc(gameScores.score))
       .limit(limit);
     
     return scores;
