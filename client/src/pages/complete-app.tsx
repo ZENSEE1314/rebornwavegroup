@@ -882,6 +882,40 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         </Button>
                       )}
 
+                      {/* Sleep Timer Display */}
+                      {pet.isSleeping && sleepProgress && (
+                        <div className="col-span-full mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-700 mb-2">
+                              💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
+                            </div>
+                            
+                            <div className="text-3xl font-mono text-blue-600 mb-2">
+                              {sleepProgress?.nextEnergyIn ? (
+                                (() => {
+                                  const nextEnergyMinutes = sleepProgress.nextEnergyIn;
+                                  const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
+                                  const minutes = Math.floor(totalSecondsRemaining / 60);
+                                  const seconds = totalSecondsRemaining % 60;
+                                  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                                })()
+                              ) : "05:00"}
+                            </div>
+                            
+                            <div className="text-sm text-blue-600 mb-2">
+                              {language === "id" 
+                                ? "Waktu hingga energi berikutnya"
+                                : "Time until next energy boost"
+                              }
+                            </div>
+                            
+                            <div className="text-sm text-blue-600">
+                              {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <Button
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
