@@ -147,28 +147,28 @@ export default function EnhancedAdminDashboard() {
     );
   }
 
-  // Fetch all data
-  const { data: allUsers = [] } = useQuery({
+  // Fetch all data with pagination
+  const { data: usersResponse }: any = useQuery({
     queryKey: ['/api/admin/users'],
     retry: false,
   });
 
-  const { data: cashOutRequests = [] } = useQuery({
+  const { data: cashOutResponse }: any = useQuery({
     queryKey: ['/api/admin/cash-outs'],
     retry: false,
   });
 
-  const { data: allTransactions = [] } = useQuery({
+  const { data: transactionsResponse }: any = useQuery({
     queryKey: ['/api/admin/transactions'],
     retry: false,
   });
 
-  const { data: allToys = [] } = useQuery({
+  const { data: toysResponse }: any = useQuery({
     queryKey: ['/api/admin/all-toys'],
     retry: false,
   });
 
-  const { data: allAppointments = [] } = useQuery({
+  const { data: appointmentsResponse }: any = useQuery({
     queryKey: ['/api/admin/appointments'],
     retry: false,
   });
@@ -178,7 +178,7 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // Content management queries
+  // Content management queries (these remain as arrays - not paginated yet)
   const { data: promotionBanners = [] } = useQuery({
     queryKey: ['/api/admin/banners'],
     retry: false,
@@ -194,8 +194,8 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // New queries for pet management and leaderboard
-  const { data: activatedPets = [] } = useQuery({
+  // New queries for pet management and token claims with pagination
+  const { data: activatedPetsResponse }: any = useQuery({
     queryKey: ['/api/admin/activated-pets'],
     retry: false,
   });
@@ -205,10 +205,19 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: tokenClaims = [] } = useQuery({
+  const { data: tokenClaimsResponse }: any = useQuery({
     queryKey: ['/api/admin/token-claims'],
     retry: false,
   });
+
+  // Extract data arrays from paginated responses
+  const allUsers = (usersResponse as any)?.data || [];
+  const cashOutRequests = (cashOutResponse as any)?.data || [];
+  const allTransactions = (transactionsResponse as any)?.data || [];
+  const allToys = (toysResponse as any)?.data || [];
+  const allAppointments = (appointmentsResponse as any)?.data || [];
+  const activatedPets = (activatedPetsResponse as any)?.data || [];
+  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
   // Filter functions
   const filteredUsers = (allUsers as any[]).filter((user: any) => {

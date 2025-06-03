@@ -47,6 +47,7 @@ function Router() {
             <Route path="/" component={CompleteApp} />
           )}
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
