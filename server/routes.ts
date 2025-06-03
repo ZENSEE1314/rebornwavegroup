@@ -65,28 +65,24 @@ async function updatePetDecay(pet: any, now: Date) {
   let needsUpdate = false;
   let updates: any = {};
   
-  // Calculate hunger decay
-  const lastFed = pet.lastFed ? new Date(pet.lastFed) : new Date(pet.birthDate);
-  const hoursSinceLastFed = (now.getTime() - lastFed.getTime()) / (1000 * 60 * 60);
+  // Calculate hunger decay - use updatedAt as reference point
+  const lastUpdate = pet.updatedAt ? new Date(pet.updatedAt) : new Date(pet.createdAt);
+  const hoursSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
   
   // Decay from 100% to 1% over 6 hours (16.5% per hour)
-  const hungerDecay = Math.min(hoursSinceLastFed * 16.5, 99);
+  const hungerDecay = Math.min(hoursSinceLastUpdate * 16.5, 99);
   const newHunger = Math.max(1, 100 - hungerDecay);
   
-  if (Math.abs(newHunger - pet.hunger) > 0.5) {
+  if (Math.abs(newHunger - (pet.hunger || 100)) > 1) {
     updates.hunger = Math.round(newHunger);
     needsUpdate = true;
   }
   
-  // Calculate cleanliness decay
-  const lastCleaned = pet.lastCleaned ? new Date(pet.lastCleaned) : new Date(pet.birthDate);
-  const hoursSinceLastCleaned = (now.getTime() - lastCleaned.getTime()) / (1000 * 60 * 60);
-  
-  // Decay from 100% to 1% over 6 hours (16.5% per hour)
-  const cleanlinessDecay = Math.min(hoursSinceLastCleaned * 16.5, 99);
+  // Calculate cleanliness decay using the same timing
+  const cleanlinessDecay = Math.min(hoursSinceLastUpdate * 16.5, 99);
   const newCleanliness = Math.max(1, 100 - cleanlinessDecay);
   
-  if (Math.abs(newCleanliness - pet.cleanliness) > 0.5) {
+  if (Math.abs(newCleanliness - (pet.cleanliness || 100)) > 1) {
     updates.cleanliness = Math.round(newCleanliness);
     needsUpdate = true;
   }
@@ -977,12 +973,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's pets
+  // Get user's pets with automatic decay applied
   app.get('/api/pets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const pets = await storage.getPetsByUserId(userId);
-      res.json(pets);
+      
+      // Apply automatic hunger and cleanliness decay to each pet
+      const updatedPets = await Promise.all(pets.map(async (pet: any) => {
+        await updatePetLifecycle(pet);
+        
+        // Return updated pet data
+        const refreshedPet = await storage.getPetById(pet.id);
+        return refreshedPet;
+      }));
+      
+      res.json(updatedPets);
     } catch (error) {
       console.error("Error fetching pets:", error);
       res.status(500).json({ message: "Failed to fetch pets" });
@@ -1054,10 +1060,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already clean" });
       }
 
-      // Update cleanliness to 100% and set last cleaned time
+      // Update cleanliness to 100% and set last care time
       await storage.updatePetStats(petId, {
         cleanliness: 100,
-        lastCleaned: new Date()
+        updatedAt: new Date()
       });
 
       res.json({ 
@@ -1098,11 +1104,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newWeight = pet.weight + weightGain;
       const newHunger = Math.min(pet.hunger + 25, 100); // Increase hunger by 25%
       
-      // Update last fed time for hunger decay calculation
+      // Update last care time for hunger decay calculation
       await storage.updatePetStats(petId, {
         weight: newWeight,
         hunger: newHunger,
-        lastFed: new Date()
+        updatedAt: new Date()
       });
 
       // Record feeding activity
