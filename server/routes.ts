@@ -1053,7 +1053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already clean" });
       }
 
-      // Update cleanliness to 100%
+      // Reset cleanliness to 100%
       await storage.updatePetStats(petId, {
         cleanliness: 100
       });
@@ -1068,16 +1068,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Feeding system - Food +1G, Protein +2G
+  // Simple feeding system - resets hunger to 100% for real-time decay
   app.post('/api/pets/:petId/feed', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
-      const { foodType } = req.body;
-
-      if (!['meat', 'fish', 'protein'].includes(foodType)) {
-        return res.status(400).json({ message: "Invalid food type" });
-      }
 
       const pet = await storage.getPetById(petId);
       if (!pet || pet.userId !== userId) {
@@ -1092,31 +1087,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already full" });
       }
 
-      const weightGain = foodType === 'protein' ? 2 : 1;
-      const newWeight = pet.weight + weightGain;
-      const newHunger = Math.min(pet.hunger + 25, 100); // Increase hunger by 25%
-      
-      // Update pet stats
+      // Reset hunger to 100%
       await storage.updatePetStats(petId, {
-        weight: newWeight,
-        hunger: newHunger
-      });
-
-      // Record feeding activity
-      await storage.createPetCareActivity({
-        petId,
-        userId,
-        activityType: 'feed',
-        foodType,
-        weightChange: weightGain,
-        statsChanged: JSON.stringify({ weight: weightGain, hunger: 1 })
+        hunger: 100
       });
 
       res.json({ 
         message: "Pet fed successfully", 
-        weightGain,
-        newWeight,
-        newHunger
+        newHunger: 100
       });
     } catch (error) {
       console.error("Error feeding pet:", error);

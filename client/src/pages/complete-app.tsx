@@ -953,31 +953,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Enhanced Digimon pet care mutations
-  const feedPetMutation = useMutation({
-    mutationFn: async ({ petId, foodType }: { petId: number; foodType: string }) => {
-      const response = await fetch(`/api/pets/${petId}/feed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodType }),
-      });
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Fed Successfully!",
-        description: `${data.message || 'Pet has been fed'}. Weight: +${data.weightGain || 1}G`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Feeding Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+
 
   const trainPetMutation = useMutation({
     mutationFn: async ({ petId, trainingType }: { petId: number; trainingType: string }) => {
@@ -1098,25 +1074,45 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const queryClient = useQueryClient();
 
-  // Pet care mutations
-  const careActivityMutation = useMutation({
-    mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
-      return apiRequest("POST", `/api/pets/${petId}/care`, { careType });
+  // Pet feeding mutation
+  const feedPetMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return apiRequest("POST", `/api/pets/${petId}/feed`);
     },
     onSuccess: () => {
-      // Invalidate pets query to trigger real-time updates
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      // Force a refetch to update status bars immediately
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
+        description: language === "id" ? "Pet berhasil diberi makan!" : "Pet fed successfully!",
       });
     },
     onError: (error: any) => {
       toast({
         title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
+        description: error.message || (language === "id" ? "Gagal memberi makan pet" : "Failed to feed pet"),
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Pet cleaning mutation
+  const cleanPetMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return apiRequest("POST", `/api/pets/${petId}/clean`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Pet berhasil dibersihkan!" : "Pet cleaned successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal membersihkan pet" : "Failed to clean pet"),
         variant: "destructive"
       });
     }
@@ -1365,9 +1361,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'feed' });
+                          feedPetMutation.mutate(pet.id);
                         }}
-                        disabled={careActivityMutation.isPending}
+                        disabled={feedPetMutation.isPending}
                       >
                         <span className="text-2xl">🍎</span>
                         <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
@@ -1377,7 +1373,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathe' });
+                          cleanPetMutation.mutate(pet.id);
                         }}
                         disabled={careActivityMutation.isPending}
                       >
