@@ -455,26 +455,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               dragonEmoji = "🐢"; // Baby turtle form
             }
             
-            // Status decreases from 100% to 0% over 12 hours if not fed
+            // Status decreases from 100% to 1% over 6 hours if not fed
             const calculateStatus = (lastFeedTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(0, 100 - (hoursSinceBirth / 12) * 100);
+                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
                 return Math.floor(decay);
               }
               
               const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(0, 100 - (hoursSinceLastFeed / 12) * 100);
+              const decay = Math.max(1, 100 - (hoursSinceLastFeed / 6) * 99);
               return Math.floor(decay);
             };
 
             // Real-time status calculations that decay over time
             const hunger = calculateStatus(pet.lastFedAt);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
-            const cleanliness = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 12))); // Decreases every 12 hours
+            const cleanliness = isDead ? 0 : Math.max(1, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6)) * (99/100)); // Decreases from 100% to 1% over 6 hours
             const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
