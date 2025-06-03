@@ -898,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate care type
-      if (!['feed', 'bathe', 'play'].includes(careType)) {
+      if (!['feed', 'bathe', 'play', 'sleep'].includes(careType)) {
         return res.status(400).json({ message: "Invalid care type" });
       }
 
@@ -960,6 +960,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petId,
           userId,
           activityType: 'play',
+          completedAt: new Date(),
+          pointsEarned: 3
+        });
+        await storage.updateUserPoints(userId, 3);
+      } else if (careType === 'sleep') {
+        // Increase energy by 40%
+        const currentEnergy = pet.energy || 50;
+        const newEnergy = Math.min(100, currentEnergy + 40);
+        
+        await storage.updatePetStats(petId, { 
+          energy: newEnergy,
+          isSleeping: true,
+          sleepStartTime: new Date()
+        });
+        
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'sleep',
           completedAt: new Date(),
           pointsEarned: 3
         });

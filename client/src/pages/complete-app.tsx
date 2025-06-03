@@ -1167,7 +1167,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(currentPet.id, 'fed')}
+                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'feed' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <span className="text-2xl">🍎</span>
@@ -1176,7 +1176,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(currentPet.id, 'bathed')}
+                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'bathe' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Droplets className="w-6 h-6" />
@@ -1185,7 +1185,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(currentPet.id, 'slept')}
+                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'sleep' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
@@ -1194,7 +1194,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => handleCareActivity(currentPet.id, 'cleaned')}
+                  onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'play' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <Sparkles className="w-6 h-6" />
