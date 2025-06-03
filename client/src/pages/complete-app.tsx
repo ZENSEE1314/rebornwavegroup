@@ -1413,15 +1413,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <div className="text-sm opacity-90">
                       {!safePets[currentPetIndex]?.id 
                         ? "No pet selected"
-                        : (user?.loyaltyPoints || 0) < 2 
-                        ? (language === "id" ? "Perlu 2 token" : "Need 2 tokens")
+                        : (user?.loyaltyPoints || 0) < 10 
+                        ? (language === "id" ? "Perlu 10 token" : "Need 10 tokens")
                         : safePets[currentPetIndex]?.energy === 100
                         ? (language === "id" ? "Energi penuh" : "Energy full")
-                        : (language === "id" ? "Pulihkan energi ke 100%" : "Restore energy to 100%")
+                        : (language === "id" ? "Pulihkan 20% energi" : "Restore 20% energy")
                       }
                     </div>
                   </div>
-                  <span className="text-lg font-bold ml-3">2🪙</span>
+                  <span className="text-lg font-bold ml-3">10🪙</span>
                 </Button>
               </div>
 
