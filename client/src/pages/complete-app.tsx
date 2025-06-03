@@ -344,8 +344,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Simple bath mutation that uses the working feed endpoint
   const bathMutation = useMutation({
     mutationFn: async ({ petId }: { petId: number }) => {
-      console.log('Bath button clicked - calling feed endpoint');
-      const result = await apiRequest("POST", `/api/pets/${petId}/care/feed`, {});
+      console.log('Bath button clicked - calling fed endpoint');
+      const result = await apiRequest("POST", `/api/pets/${petId}/care/fed`, {});
       return result;
     },
     onSuccess: () => {
@@ -1211,7 +1211,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'feed' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' })}
                   disabled={careActivityMutation.isPending}
                 >
                   <span className="text-2xl">🍎</span>
