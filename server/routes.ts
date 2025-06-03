@@ -6,6 +6,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
+import { db } from "./db";
+import { pets } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { 
   insertAppointmentSchema,
   insertTransactionSchema,
@@ -1053,10 +1056,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already clean" });
       }
 
-      // Reset cleanliness to 100%
+      // Reset cleanliness to 100% and refresh the timestamp for decay calculation
       await storage.updatePetStats(petId, {
         cleanliness: 100
       });
+      
+      // Update the pet's updatedAt timestamp in the database to restart decay timer
+      await db.update(pets).set({ updatedAt: new Date() }).where(eq(pets.id, petId));
 
       res.json({ 
         message: "Pet cleaned successfully", 
@@ -1087,10 +1093,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet is already full" });
       }
 
-      // Reset hunger to 100%
+      // Reset hunger to 100% and refresh the timestamp for decay calculation
       await storage.updatePetStats(petId, {
         hunger: 100
       });
+      
+      // Update the pet's updatedAt timestamp in the database to restart decay timer
+      await db.update(pets).set({ updatedAt: new Date() }).where(eq(pets.id, petId));
 
       res.json({ 
         message: "Pet fed successfully", 
