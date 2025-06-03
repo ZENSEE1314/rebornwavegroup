@@ -1356,6 +1356,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </Button>
               </div>
 
+              {/* Energy Potion Button */}
+              <div className="mt-6 p-4 bg-purple-100 border-2 border-purple-300 rounded-lg">
+                <Button
+                  className="w-full h-16 bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold"
+                  onClick={() => {
+                    if (safePets[currentPetIndex]?.id) {
+                      energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id });
+                    }
+                  }}
+                  disabled={energyPotionMutation.isPending}
+                >
+                  ⚡ Energy Potion (10 tokens) ⚡
+                </Button>
+                <p className="text-center text-sm text-purple-700 mt-2">
+                  Restores 20% energy instantly
+                </p>
+              </div>
+
               {/* ENERGY POTION BUTTON - ALWAYS VISIBLE */}
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
                 <div className="text-center mb-3">
