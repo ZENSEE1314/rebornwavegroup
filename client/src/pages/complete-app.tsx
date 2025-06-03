@@ -330,6 +330,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     enabled: !!currentPet?.id,
   });
 
+  // Fetch sleep progress for sleeping pets
+  const { data: sleepProgress } = useQuery({
+    queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
+    enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
+    refetchInterval: 1000, // Update every second for real-time timer
+  });
+
   // Get owned toys (filter out toys that are already pets or listed in marketplace)
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
     !pets?.some((pet: any) => pet.toyId === toy.id) &&
@@ -1269,6 +1276,42 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
               </div>
+
+              {/* Sleep Timer Display */}
+              {safePets[currentPetIndex]?.isSleeping && sleepProgress && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-700 mb-2">
+                      💤 {language === "id" ? "Timer Tidur" : "Sleep Timer"}
+                    </div>
+                    <div className="text-3xl font-mono text-blue-600 mb-1">
+                      {Math.floor((sleepProgress.nextEnergyIn || 0) / 60).toString().padStart(2, '0')}:
+                      {((sleepProgress.nextEnergyIn || 0) % 60).toString().padStart(2, '0')}
+                    </div>
+                    <div className="text-sm text-blue-600 mb-3">
+                      {language === "id" ? "Sampai energi berikutnya (+1)" : "Until next energy (+1)"}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {language === "id" ? "Energi saat ini: " : "Current energy: "}
+                      <span className="font-semibold text-blue-700">{sleepProgress.currentEnergy || safePets[currentPetIndex]?.energy}%</span>
+                    </div>
+                    {sleepProgress.maxEnergy && (
+                      <div className="text-green-600 font-semibold text-sm mt-2">
+                        ✨ {language === "id" ? "Energi penuh! Bisa bangun sekarang" : "Energy full! Can wake up now"}
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      onClick={() => wakeMutation.mutate(safePets[currentPetIndex].id)}
+                      disabled={wakeMutation.isPending}
+                    >
+                      {language === "id" ? "Bangunkan Pet" : "Wake Pet"}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Energy Potion - Special Item */}
               <div className="mt-4 pt-4 border-t border-gray-200">

@@ -1096,6 +1096,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get sleep progress - calculates energy gained during sleep
+  app.get('/api/pets/:petId/sleep-progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      if (!pet.isSleeping || !pet.sleepStartTime) {
+        return res.json({
+          isSleeping: false,
+          energyGained: 0,
+          nextEnergyIn: 0,
+          totalSleepTime: 0
+        });
+      }
+      
+      const now = new Date();
+      const sleepStart = new Date(pet.sleepStartTime);
+      const totalSleepMinutes = Math.floor((now.getTime() - sleepStart.getTime()) / (1000 * 60));
+      
+      // Every 5 minutes = 1 energy point
+      const energyGained = Math.floor(totalSleepMinutes / 5);
+      const minutesSinceLastEnergy = totalSleepMinutes % 5;
+      const nextEnergyIn = 5 - minutesSinceLastEnergy;
+      
+      // Calculate new energy level (max 100)
+      const currentEnergy = pet.energy || 0;
+      const newEnergy = Math.min(100, currentEnergy + energyGained);
+      
+      // Update energy if any was gained
+      if (energyGained > 0) {
+        await storage.updatePetStats(petId, { energy: newEnergy });
+      }
+      
+      res.json({
+        isSleeping: true,
+        currentEnergy: newEnergy,
+        energyGained,
+        nextEnergyIn,
+        totalSleepTime: totalSleepMinutes,
+        maxEnergy: newEnergy >= 100
+      });
+    } catch (error) {
+      console.error("Error getting sleep progress:", error);
+      res.status(500).json({ message: "Failed to get sleep progress" });
+    }
+  });
+
   // Wake up pet
   app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
     try {
