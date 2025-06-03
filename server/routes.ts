@@ -1185,7 +1185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auto decay system - reduce hunger and cleanliness by 1% every 3 minutes
+  // Auto decay system - reduce hunger, cleanliness, and happiness by 1% every 3 minutes
   app.post('/api/pets/:petId/auto-decay', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1196,13 +1196,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
-      // Apply 1% decay to hunger and cleanliness
+      // Apply 1% decay to hunger, cleanliness, and happiness
       const newHunger = Math.max(0, (pet.hunger || 100) - 1);
       const newCleanliness = Math.max(0, (pet.cleanliness || 100) - 1);
+      const newHappiness = Math.max(0, (pet.happiness || 100) - 1);
 
       await storage.updatePetStats(petId, {
         hunger: newHunger,
         cleanliness: newCleanliness,
+        happiness: newHappiness,
         lastCareDate: new Date()
       });
 
@@ -1210,7 +1212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         newHunger,
         newCleanliness,
-        message: "Stat decay applied"
+        newHappiness,
+        message: "Stat decay applied (hunger, cleanliness, happiness)"
       });
     } catch (error) {
       console.error("Error applying stat decay:", error);
