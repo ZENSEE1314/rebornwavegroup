@@ -345,6 +345,49 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
+  // Pet sleep mutations
+  const sleepMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return apiRequest("POST", `/api/pets/${petId}/sleep`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Pet sekarang tidur" : "Pet is now sleeping",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal memulai tidur" : "Failed to start sleep"),
+        variant: "destructive"
+      });
+    }
+  });
+
+  const wakeMutation = useMutation({
+    mutationFn: async (petId: number) => {
+      return apiRequest("POST", `/api/pets/${petId}/wake`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Pet terbangun" : "Pet woke up",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal membangunkan pet" : "Failed to wake pet"),
+        variant: "destructive"
+      });
+    }
+  });
+
   // Activate toy mutation for pet creation
   const activateToyMutation = useMutation({
     mutationFn: async (qrCode: string) => {

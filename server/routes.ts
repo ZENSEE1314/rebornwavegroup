@@ -903,7 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updatePetLastFed(petId);
         
         // Decrease energy by 5%
-        const newEnergy = Math.max(0, pet.energy - 5);
+        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
         await storage.updatePetStats(petId, { energy: newEnergy });
         
         // Award tokens for feeding
@@ -919,7 +919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else if (careType === 'bathed') {
         // Decrease energy by 5%
-        const newEnergy = Math.max(0, pet.energy - 5);
+        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
         await storage.updatePetStats(petId, { energy: newEnergy });
         
         await storage.createCareActivity({
@@ -947,7 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUserPoints(userId, 3);
       } else if (careType === 'cleaned') {
         // Decrease energy by 5%
-        const newEnergy = Math.max(0, pet.energy - 5);
+        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
         await storage.updatePetStats(petId, { energy: newEnergy });
         
         await storage.createCareActivity({
@@ -964,6 +964,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error performing pet care:", error);
       res.status(500).json({ message: "Failed to perform pet care" });
+    }
+  });
+
+  // Pet sleep management
+  app.post('/api/pets/:petId/sleep', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Start sleep - only if energy is below 100%
+      const currentEnergy = pet.energy || 50;
+      if (currentEnergy < 100) {
+        await storage.updatePetStats(petId, { 
+          isSleeping: true, 
+          sleepStartTime: new Date() 
+        });
+        
+        await storage.createCareActivity({
+          petId,
+          userId,
+          activityType: 'sleep',
+          completedAt: new Date(),
+          pointsEarned: 0
+        });
+
+        res.json({ message: "Pet is now sleeping", isSleeping: true });
+      } else {
+        res.status(400).json({ message: "Pet is already fully energized" });
+      }
+    } catch (error) {
+      console.error("Error starting pet sleep:", error);
+      res.status(500).json({ message: "Failed to start pet sleep" });
+    }
+  });
+
+  // Wake up pet
+  app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      if (!pet.isSleeping || !pet.sleepStartTime) {
+        return res.status(400).json({ message: "Pet is not sleeping" });
+      }
+
+      // Calculate energy recovery based on sleep duration
+      const sleepDuration = Date.now() - new Date(pet.sleepStartTime).getTime();
+      const hoursSlept = sleepDuration / (1000 * 60 * 60); // Convert to hours
+      
+      // 6 hours = 100% energy recovery, proportional recovery for less time
+      const energyRecovered = Math.min(100, Math.floor((hoursSlept / 6) * 100));
+      const newEnergy = Math.min(100, (pet.energy || 50) + energyRecovered);
+
+      await storage.updatePetStats(petId, { 
+        energy: newEnergy,
+        isSleeping: false, 
+        sleepStartTime: null 
+      });
+
+      res.json({ 
+        message: "Pet woke up", 
+        isSleeping: false, 
+        energyRecovered, 
+        newEnergy 
+      });
+    } catch (error) {
+      console.error("Error waking pet:", error);
+      res.status(500).json({ message: "Failed to wake pet" });
     }
   });
 
