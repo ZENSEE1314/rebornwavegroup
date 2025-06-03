@@ -96,11 +96,11 @@ async function updatePetDecay(pet: any, currentDateTime: Date) {
   
   // Check for daily token reward (every 24 hours)
   const lastClaim = pet.lastTokenClaimDate ? new Date(pet.lastTokenClaimDate) : null;
-  const canClaimToken = !lastClaim || (now.getTime() - lastClaim.getTime()) >= (24 * 60 * 60 * 1000);
+  const canClaimToken = !lastClaim || (currentDateTime.getTime() - lastClaim.getTime()) >= (24 * 60 * 60 * 1000);
   
   if (canClaimToken && pet.health > 0 && !pet.isDead && pet.canEarnTokens) {
     await storage.awardDailyToken(pet.userId, pet.id);
-    pet.lastTokenClaimDate = now;
+    pet.lastTokenClaimDate = currentDateTime;
     pet.totalTokensEarned += 1;
   }
   
