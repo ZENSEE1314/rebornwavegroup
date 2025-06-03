@@ -294,11 +294,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  const [sleepCountdown, setSleepCountdown] = useState<number>(0);
 
   // Update timer every second for real-time display
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now());
+      // Update sleep countdown
+      setSleepCountdown(prev => Math.max(0, prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);
@@ -350,6 +353,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       return response.json();
     }
   });
+
+  // Update countdown when sleep progress data changes
+  useEffect(() => {
+    if (sleepProgress?.nextEnergyIn) {
+      const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
+      setSleepCountdown(secondsRemaining);
+    }
+  }, [sleepProgress]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
@@ -891,15 +902,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             </div>
                             
                             <div className="text-3xl font-mono text-blue-600 mb-2">
-                              {sleepProgress?.nextEnergyIn ? (
-                                (() => {
-                                  const nextEnergyMinutes = sleepProgress.nextEnergyIn;
-                                  const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
-                                  const minutes = Math.floor(totalSecondsRemaining / 60);
-                                  const seconds = totalSecondsRemaining % 60;
-                                  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                                })()
-                              ) : "05:00"}
+                              {(() => {
+                                const minutes = Math.floor(sleepCountdown / 60);
+                                const seconds = sleepCountdown % 60;
+                                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                              })()}
                             </div>
                             
                             <div className="text-sm text-blue-600 mb-2">
