@@ -61,13 +61,13 @@ async function updatePetLifecycle(pet: any) {
   await updatePetDecay(pet, now);
 }
 
-async function updatePetDecay(pet: any, now: Date) {
+async function updatePetDecay(pet: any, currentDateTime: Date) {
   let needsUpdate = false;
   let updates: any = {};
   
   // Calculate hunger decay - use updatedAt as reference point
   const lastUpdate = pet.updatedAt ? new Date(pet.updatedAt) : new Date(pet.createdAt);
-  const hoursSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+  const hoursSinceLastUpdate = (currentDateTime.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
   
   // Decay from 100% to 1% over 6 hours (16.5% per hour)
   const hungerDecay = Math.min(hoursSinceLastUpdate * 16.5, 99);
@@ -111,6 +111,9 @@ async function updatePetDecay(pet: any, now: Date) {
   }
   
   // Add formatted timer
+  const birth = new Date(pet.birthDate);
+  const currentTime = new Date();
+  const ageInDays = Math.floor((currentTime.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
   pet.formattedAge = formatPetTimer(ageInDays, birth);
   
   return pet;
@@ -973,22 +976,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's pets with automatic decay applied
+  // Get user's pets
   app.get('/api/pets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const pets = await storage.getPetsByUserId(userId);
-      
-      // Apply automatic hunger and cleanliness decay to each pet
-      const updatedPets = await Promise.all(pets.map(async (pet: any) => {
-        await updatePetLifecycle(pet);
-        
-        // Return updated pet data
-        const refreshedPet = await storage.getPetById(pet.id);
-        return refreshedPet;
-      }));
-      
-      res.json(updatedPets);
+      res.json(pets);
     } catch (error) {
       console.error("Error fetching pets:", error);
       res.status(500).json({ message: "Failed to fetch pets" });
