@@ -1129,18 +1129,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnergy = pet.energy || 0;
       const newEnergy = Math.min(100, currentEnergy + energyGained);
       
-      // Update energy if any was gained
+      // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
+      const timeSinceLastCare = pet.lastCareDate ? 
+        Math.floor((now.getTime() - new Date(pet.lastCareDate).getTime()) / (1000 * 60)) : 0;
+      
+      const decayAmount = Math.floor(timeSinceLastCare / 3); // 1% every 3 minutes
+      const newHunger = Math.max(0, (pet.hunger || 100) - decayAmount);
+      const newCleanliness = Math.max(0, (pet.cleanliness || 100) - decayAmount);
+      
+      // Update energy if any was gained, and apply decay
+      const updates: any = {};
       if (energyGained > 0) {
-        await storage.updatePetStats(petId, { energy: newEnergy });
+        updates.energy = newEnergy;
+      }
+      if (decayAmount > 0) {
+        updates.hunger = newHunger;
+        updates.cleanliness = newCleanliness;
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await storage.updatePetStats(petId, updates);
       }
       
       res.json({
         isSleeping: true,
-        currentEnergy: newEnergy,
+        currentEnergy: energyGained > 0 ? newEnergy : pet.energy,
+        currentHunger: newHunger,
+        currentCleanliness: newCleanliness,
         energyGained,
         nextEnergyIn,
         totalSleepTime: totalSleepMinutes,
-        maxEnergy: newEnergy >= 100
+        maxEnergy: (energyGained > 0 ? newEnergy : pet.energy) >= 100
       });
     } catch (error) {
       console.error("Error getting sleep progress:", error);
