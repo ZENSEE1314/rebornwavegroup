@@ -258,6 +258,8 @@ export const pets = pgTable("pets", {
   isActive: boolean("is_active").default(true),
   lastCareDate: timestamp("last_care_date"),
   lastFedAt: timestamp("last_fed_at"),
+  isSleeping: boolean("is_sleeping").default(false),
+  sleepStartTime: timestamp("sleep_start_time"),
   totalTokensEarned: integer("total_tokens_earned").default(0),
   dailyTokensAvailable: integer("daily_tokens_available").default(1),
   createdAt: timestamp("created_at").defaultNow(),

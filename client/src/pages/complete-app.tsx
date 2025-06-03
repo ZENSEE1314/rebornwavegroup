@@ -475,7 +475,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const hunger = calculateStatus(pet.lastFedAt);
             const happiness = isDead ? 0 : Math.max(0, hunger - 10); // Happiness follows hunger
             const cleanliness = isDead ? 0 : Math.max(1, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 6)) * (99/100)); // Decreases from 100% to 1% over 6 hours
-            const energy = isDead ? 0 : Math.max(0, 100 - Math.floor(elapsedMs / (1000 * 60 * 60 * 8))); // Decreases every 8 hours
+            const energy = isDead ? 0 : pet.energy; // Use stored energy value
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;

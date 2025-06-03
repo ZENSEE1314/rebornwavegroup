@@ -898,11 +898,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update care status based on type
-      if (careType === 'feed') {
+      if (careType === 'fed') {
         // Update last fed time to current time (this resets hunger to 100%)
         await storage.updatePetLastFed(petId);
         
-        // Award tokens for feeding (instead of points)
+        // Decrease energy by 5%
+        const newEnergy = Math.max(0, pet.energy - 5);
+        await storage.updatePetStats(petId, { energy: newEnergy });
+        
+        // Award tokens for feeding
         await storage.updateUserTokens(userId, 5);
         
         // Create activity record
@@ -913,7 +917,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedAt: new Date(),
           pointsEarned: 5
         });
-      } else if (careType === 'bathe') {
+      } else if (careType === 'bathed') {
+        // Decrease energy by 5%
+        const newEnergy = Math.max(0, pet.energy - 5);
+        await storage.updatePetStats(petId, { energy: newEnergy });
+        
         await storage.createCareActivity({
           petId,
           userId,
@@ -922,7 +930,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
-      } else if (careType === 'sleep') {
+      } else if (careType === 'slept') {
+        // Sleep starts energy recovery process - set to 100% after 6 hours
+        // For now, we'll simulate instant recovery but store sleep start time
+        await storage.updatePetStats(petId, { 
+          energy: Math.min(100, pet.energy + 50) // Partial recovery for testing
+        });
+        
         await storage.createCareActivity({
           petId,
           userId,
@@ -931,7 +945,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 3
         });
         await storage.updateUserPoints(userId, 3);
-      } else if (careType === 'clean') {
+      } else if (careType === 'cleaned') {
+        // Decrease energy by 5%
+        const newEnergy = Math.max(0, pet.energy - 5);
+        await storage.updatePetStats(petId, { energy: newEnergy });
+        
         await storage.createCareActivity({
           petId,
           userId,
