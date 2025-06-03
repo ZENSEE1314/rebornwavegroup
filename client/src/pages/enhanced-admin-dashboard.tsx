@@ -166,8 +166,7 @@ export default function EnhancedAdminDashboard() {
   });
 
   const { data: toysResponse }: any = useQuery({
-    queryKey: ['/api/admin/all-toys', toysPage],
-    queryFn: () => apiRequest('GET', `/api/admin/all-toys?page=${toysPage}&limit=10`),
+    queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
     retry: false,
   });
 
@@ -221,6 +220,11 @@ export default function EnhancedAdminDashboard() {
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
+
+  // Debug toy data
+  console.log('Toys Response:', toysResponse);
+  console.log('All Toys:', allToys);
+  console.log('Toys Length:', allToys?.length);
 
   // Filter functions
   const filteredUsers = (allUsers as any[]).filter((user: any) => {
