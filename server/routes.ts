@@ -908,7 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Pet Care activation endpoint
+  // Pet creation endpoint for activated toys
   app.post('/api/toys/activate', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -918,26 +918,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "QR code is required" });
       }
       
-      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
-      
-      if (!activatedToy) {
-        return res.status(400).json({ message: "Failed to activate toy" });
+      // Get the toy by QR code
+      const toy = await storage.getToyByQrCode(qrCode.trim());
+      if (!toy) {
+        return res.status(404).json({ message: "Toy not found" });
       }
+      
+      // Check if toy is owned by user and activated
+      if (toy.ownerId !== userId) {
+        return res.status(403).json({ message: "You don't own this toy" });
+      }
+      
+      if (!toy.isActivated) {
+        return res.status(400).json({ message: "Toy must be activated first" });
+      }
+      
+      // Check if pet already exists for this toy
+      const existingPets = await storage.getPetsByUserId(userId);
+      if (existingPets.some(pet => pet.toyId === toy.id)) {
+        return res.status(409).json({ message: "Pet already exists for this toy" });
+      }
+      
+      // Create pet from the toy
+      const newPet = await storage.createPet({
+        userId,
+        toyId: toy.id,
+        name: toy.name,
+        species: 'Doluruu',
+        happiness: 100,
+        hunger: 100,
+        cleanliness: 100,
+        energy: 100,
+        currentAge: 0,
+        growthStage: 'baby',
+        birthDate: new Date(),
+        isActive: true
+      });
 
       res.json({ 
-        message: "Toy activated successfully!", 
-        toy: activatedToy 
+        message: "Pet created successfully!", 
+        pet: newPet 
       });
     } catch (error: any) {
-      // Return appropriate status codes based on error type
-      if (error.message.includes("Invalid QR code") || error.message.includes("not found")) {
-        return res.status(404).json({ message: error.message });
-      }
-      if (error.message.includes("already own") || error.message.includes("owned by someone else")) {
-        return res.status(409).json({ message: error.message });
-      }
-      
-      res.status(400).json({ message: error.message || "Failed to activate toy" });
+      console.error("Error creating pet:", error);
+      res.status(500).json({ message: error.message || "Failed to create pet" });
     }
   });
 
