@@ -1778,6 +1778,23 @@ export class DatabaseStorage implements IStorage {
       .set(updateData)
       .where(eq(topUpRequests.id, id));
   }
+
+  async getUserTopUpHistory(userId: string) {
+    const results = await db
+      .select({
+        id: topUpRequests.id,
+        amount: topUpRequests.amount,
+        paymentMethod: topUpRequests.paymentMethod,
+        status: topUpRequests.status,
+        createdAt: topUpRequests.createdAt,
+        processedAt: topUpRequests.processedAt,
+      })
+      .from(topUpRequests)
+      .where(eq(topUpRequests.userId, userId))
+      .orderBy(desc(topUpRequests.createdAt));
+    
+    return results;
+  }
 }
 
 export const storage = new DatabaseStorage();

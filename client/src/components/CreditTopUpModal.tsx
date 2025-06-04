@@ -8,9 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import PayPalButton from "./PayPalButton";
-import { Upload, CreditCard, Building, Wallet } from "lucide-react";
+import { Upload, CreditCard, Building, Wallet, History, Eye, X, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
 interface CreditTopUpModalProps {
   isOpen: boolean;
@@ -30,6 +30,12 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
   const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch user's top-up history
+  const { data: topUpHistory, isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["/api/topup/history"],
+    enabled: showHistory,
+  });
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

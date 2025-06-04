@@ -1793,6 +1793,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User top-up history route
+  app.get("/api/topup/history", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const history = await storage.getUserTopUpHistory(userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching top-up history:", error);
+      res.status(500).json({ message: "Failed to fetch top-up history" });
+    }
+  });
+
   // Admin routes for top-up management
   app.get("/api/admin/topup-requests", isAuthenticated, async (req, res) => {
     try {
