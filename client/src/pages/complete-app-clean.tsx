@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Heart, Star, MessageCircle, ShoppingBag, Clock, Trophy, Gift, Zap, ChevronLeft, ChevronRight, Users, CreditCard, Calendar, MapPin, Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
-import QRCode from "qrcode";
 import CoinCatchingGame from "@/components/coin-catching-game";
 
 interface CompleteAppProps {
