@@ -382,8 +382,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Get owned toys (filter out toys that are already pets or listed in marketplace)
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
+    toy.ownerId === user?.id &&
     !pets?.some((pet: any) => pet.toyId === toy.id) &&
-    !marketplaceListings?.some((listing: any) => listing.toyId === toy.id)
+    !marketplaceListings?.some((listing: any) => listing.toyId === toy.id && listing.status === 'active')
   ) : [];
 
   // Get unactivated toys (toys without QR codes activated)
