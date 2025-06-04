@@ -387,8 +387,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <h4 className="text-white font-semibold">Our Location</h4>
-                      <p className="text-white/70">Reborn Wave House, Ruko Batamas</p>
-                      <p className="text-white/70">Jl. Pasir Putih No.49-51 Blok A4, Sadai</p>
+                      <p className="text-white/70">42RX+GWX, Jl. Gajah Mada, Sadai</p>
                       <p className="text-white/70">Kec. Bengkong, Kota Batam</p>
                       <p className="text-white/70">Kepulauan Riau 29444, Indonesia</p>
                     </div>
@@ -406,7 +405,7 @@ export default function Landing() {
                       <p className="text-white/70 text-sm">Click to view our location on Google Maps</p>
                       <Button 
                         className="mt-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0"
-                        onClick={() => window.open('https://maps.google.com/?q=Reborn+Wave+House+Ruko+Batamas+Jl.+Pasir+Putih+No.49-51+Blok+A4+Sadai+Kec.+Bengkong+Kota+Batam+Kepulauan+Riau+29444+Indonesia', '_blank')}
+                        onClick={() => window.open('https://maps.google.com/?q=42RX%2BGWX+Jl.+Gajah+Mada+Sadai+Kec.+Bengkong+Kota+Batam+Kepulauan+Riau+29444+Indonesia', '_blank')}
                       >
                         Open in Google Maps
                       </Button>
