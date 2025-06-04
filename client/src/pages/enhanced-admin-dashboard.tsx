@@ -78,6 +78,7 @@ export default function EnhancedAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState("all");
+  const [adminNotes, setAdminNotes] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [toysPage, setToysPage] = useState(1);
