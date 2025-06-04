@@ -564,6 +564,37 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           <p className="text-slate-600">
             {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
           </p>
+          
+          {/* Pet Navigation - Only show if user has multiple pets */}
+          {userPets.length > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : userPets.length - 1))}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {language === "id" ? "Sebelumnya" : "Previous"}
+              </Button>
+              
+              <div className="bg-white border rounded-lg px-4 py-2 shadow-sm">
+                <span className="text-sm font-medium">
+                  {language === "id" ? `Hewan ${currentPetIndex + 1} dari ${userPets.length}` : `Pet ${currentPetIndex + 1} of ${userPets.length}`}
+                </span>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPetIndex((prev) => (prev < userPets.length - 1 ? prev + 1 : 0))}
+                className="flex items-center gap-2"
+              >
+                {language === "id" ? "Selanjutnya" : "Next"}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Coin Catching Game Modal */}
@@ -579,8 +610,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {userPets.map((pet: any) => {
+        <div className="grid grid-cols-1 gap-8">
+          {userPets.slice(currentPetIndex, currentPetIndex + 1).map((pet: any) => {
             // Calculate comprehensive pet lifecycle timer using real-time updates
             const now = currentTime;
             const birthTime = new Date(pet.birthDate || pet.createdAt).getTime();

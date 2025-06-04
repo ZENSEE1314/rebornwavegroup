@@ -137,7 +137,7 @@ export default function EnhancedAdminDashboard() {
   });
 
   // Check if user is admin
-  if (!user || user.role !== 'admin') {
+  if (!user || (user as any).role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
