@@ -83,6 +83,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Credit top-up routes
+  // PayPal routes required by PayPalButton component
+  app.get("/setup", async (req, res) => {
+    await loadPaypalDefault(req, res);
+  });
+
+  app.post("/order", async (req, res) => {
+    await createPaypalOrder(req, res);
+  });
+
+  app.post("/order/:orderID/capture", async (req, res) => {
+    await capturePaypalOrder(req, res);
+  });
+
   app.post('/api/topup/paypal', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -2860,6 +2873,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const { status, adminNotes } = req.body;
+      
+      await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
+      res.json({ message: "Cash out request updated successfully" });
+    } catch (error) {
+      console.error("Error updating cash out:", error);
+      res.status(500).json({ message: "Failed to update cash out request" });
+    }
+  });
+
+  app.put('/api/admin/cashouts/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+      
+      const cashOut = await storage.getCashOutRequest(parseInt(id));
+      if (!cashOut) {
+        return res.status(404).json({ message: "Cash out request not found" });
+      }
+
+      // If rejecting, refund the credits
+      if (status === 'rejected' && cashOut.status === 'pending') {
+        const user = await storage.getUser(cashOut.userId);
+        if (user) {
+          const currentCredits = parseFloat(user.credits || '0');
+          const refundAmount = parseFloat(cashOut.amount);
+          await storage.updateUserCredits(cashOut.userId, (currentCredits + refundAmount).toString());
+          
+          // Create transaction record for refund
+          await storage.createTransaction({
+            userId: cashOut.userId,
+            type: 'credit',
+            amount: refundAmount.toString(),
+            description: `Credit refund - Cash-out request rejected`,
+            status: 'completed'
+          });
+        }
+      }
       
       await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
       res.json({ message: "Cash out request updated successfully" });

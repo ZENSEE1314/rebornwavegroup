@@ -253,7 +253,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               <div className="flex justify-center py-4">
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
               </div>
-            ) : topUpHistory && topUpHistory.length > 0 ? (
+            ) : Array.isArray(topUpHistory) && topUpHistory.length > 0 ? (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {topUpHistory.map((item: any) => (
                   <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded border">

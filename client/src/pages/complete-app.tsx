@@ -2353,9 +2353,9 @@ export default function CompleteApp() {
     ...cashOutHistory.map((cashOut: any) => ({
       id: `cashout-${cashOut.id}`,
       description: `Cash out request: ${cashOut.bankName} ${cashOut.accountNumber}`,
-      amount: parseFloat(cashOut.amount),
+      amount: -parseFloat(cashOut.amount), // Negative for debit transactions
       type: 'spent',
-      createdAt: cashOut.createdAt
+      createdAt: cashOut.createdAt || cashOut.date || new Date().toISOString()
     })),
     // From credit history database (reward redemptions, etc.)
     ...(creditHistoryData || []).map((credit: any) => ({
