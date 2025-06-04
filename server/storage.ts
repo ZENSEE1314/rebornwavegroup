@@ -128,6 +128,7 @@ export interface IStorage {
   
   // Cash-out operations
   createCashOutRequest(cashOut: InsertCashOutTransaction): Promise<CashOutTransaction>;
+  getCashOutRequest(id: number): Promise<CashOutTransaction | undefined>;
   getCashOutsByUserId(userId: string): Promise<CashOutTransaction[]>;
   getAllCashOuts(): Promise<CashOutTransaction[]>;
   updateCashOutStatus(id: number, status: string, adminNotes?: string): Promise<void>;
@@ -746,6 +747,14 @@ export class DatabaseStorage implements IStorage {
       .insert(cashOutTransactions)
       .values(cashOut)
       .returning();
+    return result;
+  }
+
+  async getCashOutRequest(id: number): Promise<CashOutTransaction | undefined> {
+    const [result] = await db
+      .select()
+      .from(cashOutTransactions)
+      .where(eq(cashOutTransactions.id, id));
     return result;
   }
 

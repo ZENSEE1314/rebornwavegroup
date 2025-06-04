@@ -2349,14 +2349,16 @@ export default function CompleteApp() {
       type: p.buyerId === user?.id ? 'spent' : 'earned',
       createdAt: p.createdAt
     })),
-    // Add cash-out requests as credit transactions
-    ...cashOutHistory.map((cashOut: any) => ({
-      id: `cashout-${cashOut.id}`,
-      description: `Cash out request: ${cashOut.bankName} ${cashOut.accountNumber}`,
-      amount: -parseFloat(cashOut.amount), // Negative for debit transactions
-      type: 'spent',
-      createdAt: cashOut.createdAt || cashOut.date || new Date().toISOString()
-    })),
+    // Add cash-out requests as credit transactions - only show approved ones as completed transactions
+    ...cashOutHistory
+      .filter((cashOut: any) => cashOut.status === 'approved')
+      .map((cashOut: any) => ({
+        id: `cashout-${cashOut.id}`,
+        description: `Cash out approved: ${cashOut.bankName} ${cashOut.accountNumber}`,
+        amount: -parseFloat(cashOut.amount), // Negative for debit transactions
+        type: 'spent',
+        createdAt: cashOut.updatedAt || cashOut.createdAt || cashOut.date || new Date().toISOString()
+      })),
     // From credit history database (reward redemptions, etc.)
     ...(creditHistoryData || []).map((credit: any) => ({
       id: `credit-${credit.id}`,
