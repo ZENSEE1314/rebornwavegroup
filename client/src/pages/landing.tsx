@@ -387,9 +387,10 @@ export default function Landing() {
                     </div>
                     <div>
                       <h4 className="text-white font-semibold">Our Location</h4>
-                      <p className="text-white/70">Pt. Batamas Puri Permai</p>
-                      <p className="text-white/70">Pasir Putih A-49~51</p>
-                      <p className="text-white/70">Singapore</p>
+                      <p className="text-white/70">Oceanic Bliss, Ruko Batamas</p>
+                      <p className="text-white/70">Jl. Pasir Putih No.49-51 Blok A4, Sadai</p>
+                      <p className="text-white/70">Kec. Bengkong, Kota Batam</p>
+                      <p className="text-white/70">Kepulauan Riau 29444, Indonesia</p>
                     </div>
                   </div>
                 </div>
@@ -405,7 +406,7 @@ export default function Landing() {
                       <p className="text-white/70 text-sm">Click to view our location on Google Maps</p>
                       <Button 
                         className="mt-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0"
-                        onClick={() => window.open('https://maps.google.com/?q=Pt.+Batamas+Puri+Permai,+Pasir+Putih+A-49~51,+Singapore', '_blank')}
+                        onClick={() => window.open('https://maps.google.com/?q=Oceanic+Bliss+Ruko+Batamas+Jl.+Pasir+Putih+No.49-51+Blok+A4+Sadai+Kec.+Bengkong+Kota+Batam+Kepulauan+Riau+29444+Indonesia', '_blank')}
                       >
                         Open in Google Maps
                       </Button>
