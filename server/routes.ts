@@ -1865,9 +1865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      console.log(`API: Fetching pets for user ${userId}`);
       const pets = await storage.getPetsByUserId(userId);
-      console.log(`API: Found ${pets.length} pets for user ${userId}:`, pets.map(p => ({ id: p.id, name: p.name })));
       res.json(pets);
     } catch (error) {
       console.error("Error fetching pets:", error);
