@@ -871,8 +871,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { qrCode } = req.body;
       
-      console.log("*** QR SCAN DEBUG - User:", userId, "QR:", qrCode);
-      
       if (!qrCode || qrCode.trim() === '') {
         return res.status(400).json({ message: "QR code is required" });
       }
@@ -880,20 +878,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
       
       if (!activatedToy) {
-        console.log("*** NO TOY RETURNED FROM ACTIVATION");
         return res.status(400).json({ message: "Failed to activate toy" });
       }
 
-      console.log("*** QR SCAN SUCCESS - Toy:", activatedToy.id, activatedToy.name);
       res.json({ 
         message: "Toy activated successfully!", 
         toy: activatedToy 
       });
     } catch (error: any) {
-      console.log("*** QR SCAN ERROR:", error.message);
-      console.log("*** FULL ERROR OBJECT:", error);
-      
-      // Return appropriate status codes based on error type
       if (error.message.includes("Invalid QR code") || error.message.includes("not found")) {
         return res.status(404).json({ message: error.message });
       }
