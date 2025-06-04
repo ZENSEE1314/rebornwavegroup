@@ -871,18 +871,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { qrCode } = req.body;
       
-      const activatedToy = await storage.activateToyByQrCode(qrCode, userId);
+      console.log("*** QR CODE ACTIVATION ATTEMPT:", { userId, qrCode });
+      
+      if (!qrCode || qrCode.trim() === '') {
+        return res.status(400).json({ message: "QR code is required" });
+      }
+      
+      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
       
       if (!activatedToy) {
+        console.log("*** ACTIVATION FAILED - No toy returned");
         return res.status(400).json({ message: "Failed to activate toy" });
       }
 
+      console.log("*** ACTIVATION SUCCESS:", activatedToy.id);
       res.json({ 
         message: "Toy activated successfully!", 
         toy: activatedToy 
       });
     } catch (error: any) {
-      console.error("Error activating toy:", error);
+      console.error("*** QR ACTIVATION ERROR:", error.message, error);
+      
+      // Return appropriate status codes based on error type
+      if (error.message.includes("Invalid QR code") || error.message.includes("not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      if (error.message.includes("already been activated") || error.message.includes("only activate toys")) {
+        return res.status(409).json({ message: error.message });
+      }
+      
       res.status(400).json({ message: error.message || "Failed to activate toy" });
     }
   });
