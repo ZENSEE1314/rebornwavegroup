@@ -45,7 +45,7 @@ function Router() {
           {user?.role === 'admin' ? (
             <Route path="/" component={AdminDashboard} />
           ) : (
-            <Route path="/" component={PetCare} />
+            <Route path="/" component={CompleteApp} />
           )}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
