@@ -516,17 +516,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Activate toy mutation for pet creation
+  // Simple toy activation mutation (no pet creation)
   const activateToyMutation = useMutation({
     mutationFn: async (qrCode: string) => {
-      return apiRequest("POST", "/api/toys/activate", { qrCode });
+      return apiRequest("POST", "/api/toys/scan", { qrCode });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Mainan berhasil diaktifkan menjadi hewan peliharaan!" : "Toy successfully activated as pet!",
+        description: language === "id" ? "Mainan berhasil diaktifkan!" : "Toy successfully activated!",
       });
     },
     onError: (error: any) => {
@@ -1088,7 +1087,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Heart className="w-4 h-4 mr-2" />
                     {activateToyMutation.isPending 
                       ? (language === "id" ? "Memproses..." : "Processing...") 
-                      : (language === "id" ? "Lahirkan Hewan Peliharaan" : "Born Pet")
+                      : (language === "id" ? "Aktifkan Mainan" : "Activate Toy")
                     }
                   </Button>
                 )}
