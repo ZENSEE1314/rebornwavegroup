@@ -741,13 +741,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       </div>
     );
   }
-                        <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
-                          🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Pet Stats with Real-time Values */}
+  // Pet care section for each pet
+  const renderPetCard = (pet: any, index: number) => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600 mb-1">
