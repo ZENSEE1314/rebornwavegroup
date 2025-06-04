@@ -2768,8 +2768,14 @@ export default function CompleteApp() {
     }
 
     try {
-      // API call would go here
-      // Credits are managed through database
+      // Submit cash-out request to backend
+      await apiRequest('POST', '/api/cash-out', {
+        amount: amount.toString(),
+        bankName,
+        accountNumber,
+        accountHolderName
+      });
+      
       setShowCashOutModal(false);
       setCashOutAmount("");
       setBankName("");

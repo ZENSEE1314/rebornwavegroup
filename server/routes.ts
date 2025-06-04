@@ -30,17 +30,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
 
   // PayPal payment routes
-  app.get("/paypal/setup", async (req, res) => {
+  app.get("/setup", async (req, res) => {
     await loadPaypalDefault(req, res);
   });
 
-  app.post("/paypal/order", async (req, res) => {
+  app.post("/order", async (req, res) => {
     // Request body should contain: { intent, amount, currency }
     await createPaypalOrder(req, res);
   });
 
-  app.post("/paypal/order/:orderID/capture", async (req, res) => {
+  app.post("/order/:orderID/capture", async (req, res) => {
     await capturePaypalOrder(req, res);
+  });
+
+  // Cash-out routes
+  app.post('/api/cash-out', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, bankName, accountNumber, accountHolderName } = req.body;
+      
+      const cashOutRequest = await storage.createCashOutRequest({
+        userId,
+        amount,
+        bankName,
+        accountNumber,
+        accountHolderName,
+        status: 'pending'
+      });
+      
+      res.json({ success: true, cashOutId: cashOutRequest.id });
+    } catch (error) {
+      console.error("Error creating cash-out request:", error);
+      res.status(500).json({ message: "Failed to create cash-out request" });
+    }
   });
 
   // Credit top-up routes

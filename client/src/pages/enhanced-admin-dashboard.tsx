@@ -30,6 +30,7 @@ import {
   Package,
   ShoppingCart,
   Gift,
+  Calendar,
   Award,
   Search,
   Download,
