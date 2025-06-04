@@ -380,10 +380,10 @@ export default function Landing() {
             
             <div className="text-center md:text-right">
               <p className="text-white/60 text-sm">
-                © 2024 Reborn Wave Group. All rights reserved.
+                © 2025 Reborn Wave Group. All rights reserved.
               </p>
               <p className="text-white/40 text-xs mt-1">
-                The future of beauty, fun & entertainment
+                The future of beauty, food & beverage, entertainment & corporate events
               </p>
             </div>
           </div>
