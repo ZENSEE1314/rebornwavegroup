@@ -834,7 +834,7 @@ export default function EnhancedAdminDashboard() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card className="bg-white/20 backdrop-blur border-gray-300/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -875,10 +875,39 @@ export default function EnhancedAdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Volume</p>
-                  <p className="text-3xl font-bold text-white">RP {formatMoney((feesReport as any).totalVolume || 0)}</p>
+                  <p className="text-gray-200 text-sm">Approved Top-ups (IDR)</p>
+                  <p className="text-3xl font-bold text-white">
+                    {topUpRequests
+                      .filter((req: any) => req.status === 'approved')
+                      .reduce((total: number, req: any) => total + parseFloat(req.amount), 0)
+                      .toLocaleString()}
+                  </p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-orange-400" />
+                <TrendingUp className="h-8 w-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Total Toys</p>
+                  <p className="text-3xl font-bold text-white">{allToys.length}</p>
+                </div>
+                <Package className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Total Pets</p>
+                  <p className="text-3xl font-bold text-white">{activatedPets.length}</p>
+                </div>
+                <Heart className="h-8 w-8 text-pink-400" />
               </div>
             </CardContent>
           </Card>
@@ -1358,11 +1387,11 @@ export default function EnhancedAdminDashboard() {
                                   )}
                                   <div>
                                     <Label>Payment Proof</Label>
-                                    <div className="mt-2 border rounded-lg overflow-hidden">
+                                    <div className="mt-2 border rounded-lg overflow-auto max-h-96">
                                       <img 
                                         src={request.paymentProof} 
                                         alt="Payment proof" 
-                                        className="w-full max-h-96 object-contain"
+                                        className="w-full object-contain"
                                       />
                                     </div>
                                   </div>
@@ -1387,42 +1416,21 @@ export default function EnhancedAdminDashboard() {
                         <TableCell>
                           {request.status === 'pending' && (
                             <div className="flex gap-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="default" size="sm">
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Approve
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Approve Top-up Request</DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <p>Approve top-up of IDR {parseFloat(request.amount).toLocaleString()} for {request.user?.firstName} {request.user?.lastName}?</p>
-                                    <Textarea
-                                      placeholder="Admin notes (optional)"
-                                      value={adminNotes}
-                                      onChange={(e) => setAdminNotes(e.target.value)}
-                                    />
-                                    <div className="flex gap-2">
-                                      <Button 
-                                        onClick={() => {
-                                          updateTopUpMutation.mutate({ 
-                                            id: request.id, 
-                                            status: 'approved', 
-                                            adminNotes 
-                                          });
-                                          setAdminNotes('');
-                                        }}
-                                        disabled={updateTopUpMutation.isPending}
-                                      >
-                                        Confirm Approval
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={() => {
+                                  updateTopUpMutation.mutate({ 
+                                    id: request.id, 
+                                    status: 'approved', 
+                                    adminNotes: '' 
+                                  });
+                                }}
+                                disabled={updateTopUpMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button variant="destructive" size="sm">

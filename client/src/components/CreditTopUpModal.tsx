@@ -26,8 +26,41 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     referenceNumber: "",
   });
   const [paymentProof, setPaymentProof] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPaymentProof(e.target?.result as string);
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setIsUploading(false);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const paypalTopUpMutation = useMutation({
     mutationFn: async (data: { amount: number }) => {
