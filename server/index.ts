@@ -3,6 +3,15 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Force HTTPS redirect for custom domain
+app.use((req, res, next) => {
+  if (req.hostname === 'rebornwavegroup.com' && req.header('x-forwarded-proto') !== 'https') {
+    return res.redirect(301, `https://${req.hostname}${req.url}`);
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
