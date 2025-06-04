@@ -111,10 +111,10 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
   const handleBankTransfer = () => {
     const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum <= 0) {
+    if (!amountNum || amountNum < 10000) {
       toast({
         title: "Invalid Amount",
-        description: "Please enter a valid amount greater than 0",
+        description: "Please enter a valid amount (minimum IDR 10,000)",
         variant: "destructive",
       });
       return;
@@ -129,6 +129,15 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
       return;
     }
 
+    if (!paymentProof || paymentProof.trim().length < 10) {
+      toast({
+        title: "Photo Proof Required",
+        description: "Please upload photo proof of your bank transfer receipt",
+        variant: "destructive",
+      });
+      return;
+    }
+
     bankTransferMutation.mutate({
       amount: amountNum,
       bankTransferDetails: bankDetails,
@@ -138,19 +147,19 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
   const handleCashDeposit = () => {
     const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum <= 0) {
+    if (!amountNum || amountNum < 10000) {
       toast({
         title: "Invalid Amount",
-        description: "Please enter a valid amount greater than 0",
+        description: "Please enter a valid amount (minimum IDR 10,000)",
         variant: "destructive",
       });
       return;
     }
 
-    if (!paymentProof) {
+    if (!paymentProof || paymentProof.trim().length < 10) {
       toast({
-        title: "Missing Proof",
-        description: "Please provide payment proof details",
+        title: "Photo Proof Required",
+        description: "Please upload photo proof of your cash deposit receipt",
         variant: "destructive",
       });
       return;
@@ -201,16 +210,17 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="paypal-amount">Amount (USD)</Label>
+                  <Label htmlFor="paypal-amount">Amount (IDR)</Label>
                   <Input
                     id="paypal-amount"
                     type="number"
-                    step="0.01"
-                    min="1"
-                    placeholder="Enter amount"
+                    step="1000"
+                    min="10000"
+                    placeholder="Enter amount in Rupiah"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -246,16 +256,17 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="bank-amount">Amount (USD)</Label>
+                  <Label htmlFor="bank-amount">Amount (IDR)</Label>
                   <Input
                     id="bank-amount"
                     type="number"
-                    step="0.01"
-                    min="1"
-                    placeholder="Enter amount"
+                    step="1000"
+                    min="10000"
+                    placeholder="Enter amount in Rupiah"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -290,13 +301,25 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                 </div>
 
                 <div>
-                  <Label htmlFor="bank-proof">Payment Proof (Optional)</Label>
+                  <Label htmlFor="bank-proof">Payment Proof (Required)</Label>
                   <Textarea
                     id="bank-proof"
-                    placeholder="Upload screenshot URL or provide additional details..."
+                    placeholder="Upload bank transfer receipt photo URL or describe payment details..."
                     value={paymentProof}
                     onChange={(e) => setPaymentProof(e.target.value)}
+                    required
                   />
+                  <p className="text-xs text-red-500 mt-1">* Photo proof of bank transfer is required for verification</p>
+                </div>
+
+                <div className="bg-orange-50 dark:bg-orange-950 p-4 rounded-lg">
+                  <h4 className="font-semibold text-orange-800 dark:text-orange-200">Bank Transfer Instructions:</h4>
+                  <div className="text-sm text-orange-700 dark:text-orange-300 mt-1 space-y-1">
+                    <p><strong>Bank:</strong> Bank Mandiri</p>
+                    <p><strong>Account Number:</strong> 1234-5678-9012</p>
+                    <p><strong>Account Name:</strong> Reborn Wave Group</p>
+                    <p className="mt-2 font-medium">After transfer, upload receipt photo and admin will approve within 24 hours.</p>
+                  </div>
                 </div>
 
                 <Button 
@@ -320,33 +343,39 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="cash-amount">Amount (USD)</Label>
+                  <Label htmlFor="cash-amount">Amount (IDR)</Label>
                   <Input
                     id="cash-amount"
                     type="number"
-                    step="0.01"
-                    min="1"
-                    placeholder="Enter amount"
+                    step="1000"
+                    min="10000"
+                    placeholder="Enter amount in Rupiah"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="cash-proof">Payment Proof</Label>
+                  <Label htmlFor="cash-proof">Payment Proof (Required)</Label>
                   <Textarea
                     id="cash-proof"
-                    placeholder="Describe your cash deposit details, receipt number, or upload receipt URL..."
+                    placeholder="Upload cash deposit receipt photo URL or describe deposit details..."
                     value={paymentProof}
                     onChange={(e) => setPaymentProof(e.target.value)}
+                    required
                   />
+                  <p className="text-xs text-red-500 mt-1">* Photo proof of cash deposit receipt is required for verification</p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200">Deposit Instructions:</h4>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    Visit our office in Batam, Indonesia to make a cash deposit. Please keep your receipt for verification.
-                  </p>
+                  <h4 className="font-semibold text-blue-800 dark:text-blue-200">Cash Deposit Instructions:</h4>
+                  <div className="text-sm text-blue-700 dark:text-blue-300 mt-1 space-y-1">
+                    <p><strong>Location:</strong> Reborn Wave Group Office, Batam, Indonesia</p>
+                    <p><strong>Address:</strong> Jl. Raya Batam Center No. 123, Batam 29432</p>
+                    <p><strong>Hours:</strong> Monday - Sunday, 9:00 AM - 9:00 PM</p>
+                    <p className="mt-2 font-medium">After deposit, upload receipt photo and admin will approve within 24 hours.</p>
+                  </div>
                 </div>
 
                 <Button 

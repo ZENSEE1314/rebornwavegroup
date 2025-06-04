@@ -47,10 +47,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/topup/paypal', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { amount, currency = 'USD' } = req.body;
+      const { amount, currency = 'IDR' } = req.body;
 
-      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
+        return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
       }
 
       // Create payment transaction record
@@ -80,15 +80,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { amount, bankTransferDetails, paymentProof } = req.body;
 
-      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
+        return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
+      }
+
+      if (!paymentProof || paymentProof.trim().length < 10) {
+        return res.status(400).json({ error: "Photo proof of bank transfer receipt is required" });
+      }
+
+      if (!bankTransferDetails || !bankTransferDetails.bankName || !bankTransferDetails.accountNumber || !bankTransferDetails.referenceNumber) {
+        return res.status(400).json({ error: "Complete bank transfer details are required" });
       }
 
       const request = await storage.createTopUpRequest({
         userId,
         amount: amount.toString(),
         paymentMethod: 'bank_transfer',
-        bankTransferDetails,
+        bankTransferDetails: JSON.stringify(bankTransferDetails),
         paymentProof,
         status: 'pending',
       });
@@ -96,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         requestId: request.id,
-        message: "Bank transfer request submitted. Credits will be added after admin approval."
+        message: "Bank transfer request submitted. Admin will verify payment proof and approve within 24 hours."
       });
     } catch (error) {
       console.error("Error creating bank transfer request:", error);
