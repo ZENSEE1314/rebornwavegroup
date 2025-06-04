@@ -867,25 +867,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Activate toy with QR code (replaces the old scan functionality)
   app.post('/api/toys/scan', isAuthenticated, async (req: any, res) => {
+    console.log("=== QR SCAN REQUEST ===");
+    console.log("Body:", req.body);
+    console.log("User:", req.user?.claims?.sub);
+    
     try {
       const userId = req.user.claims.sub;
       const { qrCode } = req.body;
       
       if (!qrCode || qrCode.trim() === '') {
+        console.log("ERROR: QR code missing");
         return res.status(400).json({ message: "QR code is required" });
       }
       
+      console.log("Calling activateToyByQrCode with:", qrCode.trim(), userId);
       const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
       
       if (!activatedToy) {
+        console.log("ERROR: No toy returned");
         return res.status(400).json({ message: "Failed to activate toy" });
       }
 
+      console.log("SUCCESS: Toy activated:", activatedToy);
       res.json({ 
         message: "Toy activated successfully!", 
         toy: activatedToy 
       });
     } catch (error: any) {
+      console.log("ERROR in QR scan:", error.message);
+      console.log("Full error:", error);
+      
       if (error.message.includes("Invalid QR code") || error.message.includes("not found")) {
         return res.status(404).json({ message: error.message });
       }
