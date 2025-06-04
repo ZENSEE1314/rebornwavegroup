@@ -57,6 +57,7 @@ function updateUserSession(
 async function upsertUser(claims: any) {
   await storage.upsertUser({
     id: claims["sub"],
+    referralCode: await storage.createReferralCode(),
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
@@ -105,14 +106,24 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    // Use fallback domain for custom domains not yet registered with OAuth
+    const authDomain = req.hostname === 'rebornwavegroup.com' 
+      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+      : req.hostname;
+    
+    passport.authenticate(`replitauth:${authDomain}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    // Use fallback domain for custom domains not yet registered with OAuth
+    const authDomain = req.hostname === 'rebornwavegroup.com' 
+      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+      : req.hostname;
+    
+    passport.authenticate(`replitauth:${authDomain}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
