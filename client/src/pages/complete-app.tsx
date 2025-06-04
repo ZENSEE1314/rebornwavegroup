@@ -580,10 +580,49 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         )}
 
         {/* Single Pet Display with Navigation */}
-        <div className="space-y-6">
-          {(() => {
-            const pet = userPets[currentPetIndex];
-            if (!pet) return null;
+        {userPets.length > 0 && (
+          <div className="space-y-6">
+            {(() => {
+              const pet = userPets[currentPetIndex];
+              if (!pet) return null;
+              
+              return (
+                <div className="space-y-6">{/* Pet content will go here */}</div>
+              );
+            })()}
+            
+            {/* Pet Navigation Controls */}
+            {userPets.length > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
+                  disabled={currentPetIndex === 0}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {language === "id" ? "Sebelumnya" : "Previous"}
+                </Button>
+                
+                <div className="text-sm font-medium text-gray-600">
+                  Pet {currentPetIndex + 1} of {userPets.length}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPetIndex(Math.min(userPets.length - 1, currentPetIndex + 1))}
+                  disabled={currentPetIndex === userPets.length - 1}
+                  className="flex items-center gap-2"
+                >
+                  {language === "id" ? "Berikutnya" : "Next"}
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
             // Calculate comprehensive pet lifecycle timer using real-time updates
             const now = currentTime;
             const birthTime = new Date(pet.birthDate || pet.createdAt).getTime();
@@ -996,205 +1035,42 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               </CardContent>
             </Card>
 
-            return (
-              <>
-                <Card className="overflow-hidden">
-                  <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>{pet.name}</span>
-                      <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
-                        {growthStage}
-                      </Badge>
-                    </CardTitle>
-                    <div className="text-sm space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
-                        <span className="font-mono text-lg">{timerDisplay}</span>
-                      </div>
-                      <div className="text-lg">{dragonEmoji}</div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="p-6">
-                    {/* Pet Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Heart className="w-4 h-4 text-red-500" />
-                          <span className="text-sm font-medium">Happiness</span>
-                        </div>
-                        <Progress value={happiness} className="h-2" />
-                        <span className="text-xs text-gray-600">{happiness}%</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-4 h-4 text-orange-500">🍎</span>
-                          <span className="text-sm font-medium">Hunger</span>
-                        </div>
-                        <Progress value={hunger} className="h-2" />
-                        <span className="text-xs text-gray-600">{hunger}%</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Droplets className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm font-medium">Cleanliness</span>
-                        </div>
-                        <Progress value={cleanliness} className="h-2" />
-                        <span className="text-xs text-gray-600">{cleanliness}%</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Bed className="w-4 h-4 text-purple-500" />
-                          <span className="text-sm font-medium">Energy</span>
-                        </div>
-                        <Progress value={energy} className="h-2" />
-                        <span className="text-xs text-gray-600">{energy}%</span>
-                      </div>
-                    </div>
-
-                    {/* Pet Care Actions */}
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
-                        }}
-                        disabled={careActivityMutation.isPending || isDead}
-                      >
-                        <span className="text-2xl">🍎</span>
-                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
-                        }}
-                        disabled={careActivityMutation.isPending || isDead}
-                      >
-                        <span className="text-2xl">🛁</span>
-                        <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'slept' });
-                        }}
-                        disabled={careActivityMutation.isPending || isDead}
-                      >
-                        <span className="text-2xl">💤</span>
-                        <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
-                        }}
-                        disabled={careActivityMutation.isPending || isDead}
-                      >
-                        <span className="text-2xl">🎾</span>
-                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
-                      </Button>
-                    </div>
-
-                    {/* Mini Game */}
-                    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg mb-6">
-                      <h5 className="font-semibold text-gray-900 mb-3">
-                        {language === "id" ? "🎮 Mini Game: Feeding Time" : "🎮 Mini Game: Feeding Time"}
-                      </h5>
-                      <Button 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => {
-                          setSelectedPet(pet);
-                          setShowCoinGame(true);
-                        }}
-                        disabled={isDead}
-                      >
-                        🪙 {language === "id" ? "Mulai Coin Catching Game" : "Start Coin Catching Game"}
-                      </Button>
-                    </div>
-
-                    {/* Pet Information */}
-                    <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-semibold text-gray-900 text-center">
-                        {language === "id" ? "Informasi Hewan Peliharaan" : "Pet Information"}
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-gray-600">{language === "id" ? "Lahir:" : "Born:"}</span>
-                          <p className="font-medium">{new Date(pet.birthDate || pet.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">{language === "id" ? "Umur:" : "Age:"}</span>
-                          <p className="font-medium">{ageInYears} {language === "id" ? "tahun" : "years"}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
-                          <p className={`font-medium ${isDead ? 'text-red-600' : canEarnTokens ? 'text-green-600' : 'text-orange-600'}`}>
-                            {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
-                             canEarnTokens ? (language === "id" ? "Sehat" : "Healthy") : 
-                             (language === "id" ? "Perlu Perawatan" : "Needs Care")}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">{language === "id" ? "Token:" : "Tokens:"}</span>
-                          <p className="font-medium">{canEarnTokens ? (pet.dailyTokensAvailable || 1) : 0}</p>
-                        </div>
-                      </div>
-                      {!isDead && (
-                        <div className="text-center text-xs text-gray-500">
-                          {language === "id" ? 
-                            `Sisa hidup: ${100 - days} hari (${100 - ageInYears} tahun)` : 
-                            `Life remaining: ${100 - days} days (${100 - ageInYears} years)`}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Pet Navigation Controls */}
-                {userPets.length > 1 && (
-                  <div className="flex items-center justify-center gap-4 mt-6">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
-                      disabled={currentPetIndex === 0}
-                      className="flex items-center gap-2"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      {language === "id" ? "Sebelumnya" : "Previous"}
-                    </Button>
-                    
-                    <div className="text-sm font-medium text-gray-600">
-                      Pet {currentPetIndex + 1} of {userPets.length}
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPetIndex(Math.min(userPets.length - 1, currentPetIndex + 1))}
-                      disabled={currentPetIndex === userPets.length - 1}
-                      className="flex items-center gap-2"
-                    >
-                      {language === "id" ? "Berikutnya" : "Next"}
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
-      </div>
-    );
-  }
+            {/* Pet Navigation Controls */}
+            <div className="mt-6">{/* Navigation container */}</div>
+            {userPets.length > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPetIndex(Math.max(0, currentPetIndex - 1))}
+                  disabled={currentPetIndex === 0}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {language === "id" ? "Sebelumnya" : "Previous"}
+                </Button>
+                
+                <div className="text-sm font-medium text-gray-600">
+                  Pet {currentPetIndex + 1} of {userPets.length}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPetIndex(Math.min(userPets.length - 1, currentPetIndex + 1))}
+                  disabled={currentPetIndex === userPets.length - 1}
+                  className="flex items-center gap-2"
+                >
+                  {language === "id" ? "Berikutnya" : "Next"}
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </>
+        );
+      })()}
+    </div>
+  )}
 
   // Safe data handling - filter owned toys and exclude marketplace listings
   const userOwnedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
