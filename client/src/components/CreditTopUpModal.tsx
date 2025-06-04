@@ -217,11 +217,62 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
             Add Credits to Account
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory(!showHistory)}
+              className="ml-auto"
+            >
+              <History className="h-4 w-4 mr-1" />
+              {showHistory ? "Hide History" : "View History"}
+            </Button>
           </DialogTitle>
           <DialogDescription>
-            Current Balance: <span className="font-semibold">${currentCredits}</span>
+            Current Balance: <span className="font-semibold">IDR {currentCredits}</span>
           </DialogDescription>
         </DialogHeader>
+
+        {showHistory && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Top-up History
+            </h3>
+            {isLoadingHistory ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : topUpHistory && topUpHistory.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {topUpHistory.map((item: any) => (
+                  <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded border">
+                    <div>
+                      <div className="font-medium">IDR {parseFloat(item.amount).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">{item.paymentMethod}</div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {item.status === 'approved' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                      {item.status === 'pending' && <Clock className="h-4 w-4 text-yellow-500" />}
+                      {item.status === 'rejected' && <AlertCircle className="h-4 w-4 text-red-500" />}
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        item.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No top-up history found</p>
+            )}
+          </div>
+        )}
 
         <Tabs defaultValue="paypal" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -341,13 +392,69 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
                 <div>
                   <Label htmlFor="bank-proof">Payment Proof (Required)</Label>
-                  <Textarea
-                    id="bank-proof"
-                    placeholder="Upload bank transfer receipt photo URL or describe payment details..."
-                    value={paymentProof}
-                    onChange={(e) => setPaymentProof(e.target.value)}
-                    required
-                  />
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    {paymentProof ? (
+                      <div className="space-y-4">
+                        <div className="relative inline-block">
+                          <img 
+                            src={paymentProof} 
+                            alt="Payment proof" 
+                            className="max-w-full max-h-48 rounded-lg shadow-md"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2"
+                            onClick={() => setPaymentProof("")}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(paymentProof, '_blank')}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Full Size
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                        <div>
+                          <p className="text-sm text-gray-600">Upload bank transfer receipt</p>
+                          <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="bank-file-upload"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => document.getElementById('bank-file-upload')?.click()}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Choose File
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-xs text-red-500 mt-1">* Photo proof of bank transfer is required for verification</p>
                 </div>
 
@@ -397,13 +504,69 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
                 <div>
                   <Label htmlFor="cash-proof">Payment Proof (Required)</Label>
-                  <Textarea
-                    id="cash-proof"
-                    placeholder="Upload cash deposit receipt photo URL or describe deposit details..."
-                    value={paymentProof}
-                    onChange={(e) => setPaymentProof(e.target.value)}
-                    required
-                  />
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    {paymentProof ? (
+                      <div className="space-y-4">
+                        <div className="relative inline-block">
+                          <img 
+                            src={paymentProof} 
+                            alt="Payment proof" 
+                            className="max-w-full max-h-48 rounded-lg shadow-md"
+                          />
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2"
+                            onClick={() => setPaymentProof("")}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(paymentProof, '_blank')}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Full Size
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                        <div>
+                          <p className="text-sm text-gray-600">Upload cash deposit receipt</p>
+                          <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="cash-file-upload"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => document.getElementById('cash-file-upload')?.click()}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Choose File
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-xs text-red-500 mt-1">* Photo proof of cash deposit receipt is required for verification</p>
                 </div>
 
