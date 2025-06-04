@@ -1858,6 +1858,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
             status: 'completed',
           });
+
+          // Create credit history record
+          await storage.createCreditHistory({
+            userId: request.userId,
+            amount: request.amount,
+            type: 'credit_topup',
+            description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
+            status: 'completed',
+            referenceId: request.id.toString(),
+          });
         }
       }
 

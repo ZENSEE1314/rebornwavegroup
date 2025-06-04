@@ -156,11 +156,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
       return;
     }
 
-    toast({
-      title: "PayPal Not Available",
-      description: "PayPal payments are currently not configured. Please use bank transfer or cash deposit.",
-      variant: "destructive",
-    });
+    paypalTopUpMutation.mutate({ amount: amountNum });
   };
 
   const handleBankTransfer = () => {
