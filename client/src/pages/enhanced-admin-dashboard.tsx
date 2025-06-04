@@ -1485,7 +1485,7 @@ export default function EnhancedAdminDashboard() {
                           {formatDate(request.createdAt)}
                         </TableCell>
                         <TableCell>
-                          {request.status === 'pending' && (
+                          {request.status === 'pending' ? (
                             <div className="flex gap-2">
                               <Button 
                                 variant="default" 
@@ -1540,8 +1540,7 @@ export default function EnhancedAdminDashboard() {
                                 </DialogContent>
                               </Dialog>
                             </div>
-                          )}
-                          {request.status !== 'pending' && (
+                          ) : (
                             <span className="text-gray-400">Processed</span>
                           )}
                         </TableCell>
@@ -1556,8 +1555,8 @@ export default function EnhancedAdminDashboard() {
                   )}
                 </div>
                 
-                {/* Pagination Controls - Always show if more than 10 items */}
-                {Array.isArray(topUpRequests) && topUpRequests.length > topUpItemsPerPage && (
+                {/* Pagination Controls - Force display for testing */}
+                {true && (
                   <div className="flex justify-between items-center mt-4 px-4 pb-4">
                     <div className="text-sm text-gray-400">
                       Showing {((topUpCurrentPage - 1) * topUpItemsPerPage) + 1} to {Math.min(topUpCurrentPage * topUpItemsPerPage, topUpRequests.length)} of {topUpRequests.length} requests

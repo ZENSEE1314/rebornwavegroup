@@ -49,6 +49,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { amount, bankName, accountNumber, accountHolderName } = req.body;
       
+      // Get current user to check credits
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const userCredits = parseFloat(user.credits);
+      const cashOutAmount = parseFloat(amount);
+      
+      if (cashOutAmount > userCredits) {
+        return res.status(400).json({ message: "Insufficient credits" });
+      }
+      
+      // Deduct credits immediately when cash-out is created
+      const newCredits = (userCredits - cashOutAmount).toString();
+      await storage.updateUserCredits(userId, newCredits);
+      
       const cashOutRequest = await storage.createCashOutRequest({
         userId,
         amount,
@@ -1926,6 +1943,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const { status, adminNotes } = req.body;
+
+      // Get the cash-out request details
+      const cashOutRequests = await storage.getAllCashOuts();
+      const request = cashOutRequests.find(r => r.id === parseInt(id));
+      
+      if (!request) {
+        return res.status(404).json({ message: "Cash-out request not found" });
+      }
+
+      // If rejecting, restore credits to user
+      if (status === 'rejected') {
+        const requestUser = await storage.getUser(request.userId);
+        if (requestUser) {
+          const currentCredits = parseFloat(requestUser.credits);
+          const refundAmount = parseFloat(request.amount);
+          const newCredits = (currentCredits + refundAmount).toString();
+          await storage.updateUserCredits(request.userId, newCredits);
+          
+          // Create credit history record for refund
+          await storage.createCreditHistory({
+            userId: request.userId,
+            amount: request.amount,
+            type: 'cash_out_refund',
+            description: `Cash-out refund - Admin rejected: ${adminNotes || 'No reason provided'}`,
+            status: 'completed',
+            referenceId: request.id.toString(),
+          });
+        }
+      }
 
       await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
       res.json({ message: "Cash-out status updated successfully" });
