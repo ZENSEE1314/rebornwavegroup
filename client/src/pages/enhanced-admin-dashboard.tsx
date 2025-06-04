@@ -1323,18 +1323,19 @@ export default function EnhancedAdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-gray-300">User</TableHead>
-                      <TableHead className="text-gray-300">Amount</TableHead>
-                      <TableHead className="text-gray-300">Payment Method</TableHead>
-                      <TableHead className="text-gray-300">Payment Proof</TableHead>
-                      <TableHead className="text-gray-300">Status</TableHead>
-                      <TableHead className="text-gray-300">Date</TableHead>
-                      <TableHead className="text-gray-300">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Amount</TableHead>
+                        <TableHead className="text-gray-300">Payment Method</TableHead>
+                        <TableHead className="text-gray-300">Payment Proof</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {topUpRequests.map((request: any) => (
                       <TableRow key={request.id}>
@@ -1360,11 +1361,11 @@ export default function EnhancedAdminDashboard() {
                                   View Proof
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
+                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                                 <DialogHeader>
                                   <DialogTitle>Payment Proof - {request.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash Deposit'}</DialogTitle>
                                 </DialogHeader>
-                                <div className="space-y-4">
+                                <div className="flex-1 overflow-y-auto space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <Label>User</Label>
@@ -1387,11 +1388,11 @@ export default function EnhancedAdminDashboard() {
                                   )}
                                   <div>
                                     <Label>Payment Proof</Label>
-                                    <div className="mt-2 border rounded-lg overflow-auto max-h-96">
+                                    <div className="mt-2 border rounded-lg overflow-auto">
                                       <img 
                                         src={request.paymentProof} 
                                         alt="Payment proof" 
-                                        className="w-full object-contain"
+                                        className="w-full h-auto object-contain max-h-[60vh]"
                                       />
                                     </div>
                                   </div>
@@ -1476,13 +1477,14 @@ export default function EnhancedAdminDashboard() {
                         </TableCell>
                       </TableRow>
                     ))}
-                  </TableBody>
-                </Table>
-                {topUpRequests.length === 0 && (
-                  <div className="text-center text-gray-400 py-8">
-                    No top-up requests found
-                  </div>
-                )}
+                    </TableBody>
+                  </Table>
+                  {topUpRequests.length === 0 && (
+                    <div className="text-center text-gray-400 py-8">
+                      No top-up requests found
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
