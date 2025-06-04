@@ -113,7 +113,7 @@ export default function Landing() {
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                Three Revolutionary Sectors
+                Four Revolutionary Sectors
               </span>
             </h2>
             <p className="text-xl text-white/70 max-w-3xl mx-auto">
@@ -121,7 +121,7 @@ export default function Landing() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
             {/* Beauty Sector */}
             <div className="group relative bg-gradient-to-br from-pink-900/20 to-rose-900/20 backdrop-blur-sm border border-pink-500/20 rounded-3xl p-8 hover:border-pink-400/40 transition-all duration-500">
               <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -151,30 +151,30 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Fun Sector */}
+            {/* Food & Beverage Sector */}
             <div className="group relative bg-gradient-to-br from-purple-900/20 to-indigo-900/20 backdrop-blur-sm border border-purple-500/20 rounded-3xl p-8 hover:border-purple-400/40 transition-all duration-500">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative z-10">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mb-6">
-                  <Music className="w-8 h-8 text-white" />
+                  <span className="text-3xl">🍽️</span>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Fun & Activities</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">Food & Beverage</h3>
                 <p className="text-white/70 mb-6 leading-relaxed">
-                  Exciting recreational activities, music sessions, creative workshops, and interactive experiences. 
-                  Unleash your creativity and enjoy memorable moments with friends and family.
+                  Premium culinary experiences, artisan coffee, craft beverages, and gourmet dining services. 
+                  Savor exceptional flavors and enjoy memorable dining moments with friends and family.
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Creative Workshops</span>
+                    <span>Gourmet Dining Experiences</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Music & Performance Sessions</span>
+                    <span>Artisan Coffee & Beverages</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Interactive Group Activities</span>
+                    <span>Catering & Event Services</span>
                   </div>
                 </div>
               </div>
@@ -204,6 +204,35 @@ export default function Landing() {
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
                     <span>Exclusive Entertainment Events</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Corporate Event Sector */}
+            <div className="group relative bg-gradient-to-br from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-emerald-500/20 rounded-3xl p-8 hover:border-emerald-400/40 transition-all duration-500">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">Corporate Events</h3>
+                <p className="text-white/70 mb-6 leading-relaxed">
+                  Professional event planning, corporate retreats, team building activities, and business conferences. 
+                  Create memorable corporate experiences that strengthen relationships and drive success.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3 text-white/80">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                    <span>Business Conferences</span>
+                  </div>
+                  <div className="flex items-center space-x-3 text-white/80">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                    <span>Team Building Events</span>
+                  </div>
+                  <div className="flex items-center space-x-3 text-white/80">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                    <span>Corporate Retreats</span>
                   </div>
                 </div>
               </div>
