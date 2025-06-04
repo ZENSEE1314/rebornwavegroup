@@ -41,7 +41,8 @@ import {
   Settings,
   Heart,
   Trophy,
-  LogOut
+  LogOut,
+  ArrowUp
 } from "lucide-react";
 
 export default function EnhancedAdminDashboard() {
@@ -213,9 +214,15 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  const { data: topUpRequestsResponse }: any = useQuery({
+    queryKey: ['/api/admin/topup-requests'],
+    retry: false,
+  });
+
   // Extract data arrays from paginated responses
   const allUsers = (usersResponse as any)?.data || [];
   const cashOutRequests = (cashOutResponse as any)?.data || [];
+  const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
   const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
@@ -873,6 +880,10 @@ export default function EnhancedAdminDashboard() {
               <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Calendar className="h-4 w-4 mr-2" />
                 Appointments
+              </TabsTrigger>
+              <TabsTrigger value="topups" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <ArrowUp className="h-4 w-4 mr-2" />
+                Top-ups
               </TabsTrigger>
               <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <CreditCard className="h-4 w-4 mr-2" />

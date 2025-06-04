@@ -1725,6 +1725,59 @@ export class DatabaseStorage implements IStorage {
       }
     }
   }
+
+  // Top-up request management methods
+  async getAllTopUpRequests() {
+    const results = await db
+      .select({
+        id: topUpRequests.id,
+        userId: topUpRequests.userId,
+        amount: topUpRequests.amount,
+        paymentMethod: topUpRequests.paymentMethod,
+        bankTransferDetails: topUpRequests.bankTransferDetails,
+        paymentProof: topUpRequests.paymentProof,
+        status: topUpRequests.status,
+        adminNotes: topUpRequests.adminNotes,
+        createdAt: topUpRequests.createdAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
+      .from(topUpRequests)
+      .leftJoin(users, eq(topUpRequests.userId, users.id))
+      .orderBy(desc(topUpRequests.createdAt));
+    
+    return results;
+  }
+
+  async getTopUpRequestById(id: number) {
+    const [result] = await db
+      .select()
+      .from(topUpRequests)
+      .where(eq(topUpRequests.id, id))
+      .limit(1);
+    
+    return result;
+  }
+
+  async updateTopUpRequestStatus(id: number, status: string, adminNotes?: string) {
+    const updateData: any = { 
+      status,
+      updatedAt: new Date(),
+    };
+    
+    if (adminNotes) {
+      updateData.adminNotes = adminNotes;
+    }
+
+    await db
+      .update(topUpRequests)
+      .set(updateData)
+      .where(eq(topUpRequests.id, id));
+  }
 }
 
 export const storage = new DatabaseStorage();

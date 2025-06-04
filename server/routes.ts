@@ -1793,6 +1793,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes for top-up management
+  app.get("/api/admin/topup-requests", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const topUpRequests = await storage.getAllTopUpRequests();
+      res.json(topUpRequests);
+    } catch (error) {
+      console.error("Error fetching all top-up requests:", error);
+      res.status(500).json({ message: "Failed to fetch top-up requests" });
+    }
+  });
+
+  app.put("/api/admin/topup-requests/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes } = req.body;
+
+      if (status === 'approved') {
+        // Get the top-up request details
+        const request = await storage.getTopUpRequestById(parseInt(id));
+        if (!request) {
+          return res.status(404).json({ error: "Top-up request not found" });
+        }
+
+        // Add credits to user account
+        const currentUser = await storage.getUser(request.userId);
+        if (currentUser) {
+          const newCredits = parseFloat(currentUser.credits || '0') + parseFloat(request.amount);
+          await storage.updateUserCredits(request.userId, newCredits.toString());
+
+          // Create transaction record
+          await storage.createPaymentTransaction({
+            userId: request.userId,
+            amount: request.amount,
+            type: 'credit_topup',
+            description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
+            status: 'completed',
+            referenceId: request.id.toString(),
+          });
+        }
+      }
+
+      await storage.updateTopUpRequestStatus(parseInt(id), status, adminNotes);
+      res.json({ message: "Top-up request status updated successfully" });
+    } catch (error) {
+      console.error("Error updating top-up request status:", error);
+      res.status(500).json({ message: "Failed to update top-up request status" });
+    }
+  });
+
   // Admin routes for cash-out management
   app.get("/api/admin/cashouts", isAuthenticated, async (req, res) => {
     try {
