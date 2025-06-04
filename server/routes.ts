@@ -117,8 +117,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { amount, paymentProof } = req.body;
 
-      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
+        return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
+      }
+
+      if (!paymentProof || paymentProof.trim().length < 10) {
+        return res.status(400).json({ error: "Photo proof of cash deposit receipt is required" });
       }
 
       const request = await storage.createTopUpRequest({
@@ -132,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         requestId: request.id,
-        message: "Cash deposit request submitted. Credits will be added after admin approval."
+        message: "Cash deposit request submitted. Admin will verify payment proof and approve within 24 hours."
       });
     } catch (error) {
       console.error("Error creating cash deposit request:", error);
