@@ -601,19 +601,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           </p>
         </div>
 
-        {/* Coin Catching Game Modal */}
-        {showCoinGame && selectedPet && (
-          <CoinCatchingGame 
-            pet={selectedPet}
-            language={language}
-            onClose={() => {
-              setShowCoinGame(false);
-              setSelectedPet(null);
-            }}
-            user={user}
-          />
-        )}
-
         {/* Single Pet Display */}
         <div className="max-w-2xl mx-auto">
           <Card className="overflow-hidden">
@@ -747,23 +734,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     </Button>
                   </div>
                 )}
-
-                {/* Mini Game */}
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
-                  <h5 className="font-semibold text-gray-900 mb-3">
-                    {language === "id" ? "🎮 Mini Game" : "🎮 Mini Game"}
-                  </h5>
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => {
-                      setSelectedPet(currentPet);
-                      setShowCoinGame(true);
-                    }}
-                    disabled={isDead}
-                  >
-                    🪙 {language === "id" ? "Mulai Game" : "Start Game"}
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -771,68 +741,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       </div>
     );
   }
-                <CardContent className="p-6">
-                  <div className="space-y-6">
-                    {/* Animated Dragon Turtle with Growth Stages */}
-                    <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className={isDead ? '' : pet.isSleeping ? '' : 'animate-bounce'}>
-                          <div 
-                            className="text-6xl transition-transform duration-1000 hover:scale-110"
-                            style={{
-                              animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
-                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
-                              transform: isDead ? 'rotate(90deg)' : 'none'
-                            }}
-                          >
-                            {dragonEmoji}
-                          </div>
-                        </div>
-                        
-                        {/* Sleep indicator with floating Z's */}
-                        {pet.isSleeping && !isDead && (
-                          <div className="absolute top-2 right-2">
-                            <div 
-                              className="text-2xl"
-                              style={{
-                                animation: 'sleepZzz 2s ease-in-out infinite',
-                                animationDelay: '0s'
-                              }}
-                            >
-                              💤
-                            </div>
-                            <div 
-                              className="text-xl absolute -top-1 -right-1"
-                              style={{
-                                animation: 'sleepZzz 2s ease-in-out infinite',
-                                animationDelay: '0.5s'
-                              }}
-                            >
-                              z
-                            </div>
-                            <div 
-                              className="text-lg absolute -top-2 -right-2"
-                              style={{
-                                animation: 'sleepZzz 2s ease-in-out infinite',
-                                animationDelay: '1s'
-                              }}
-                            >
-                              z
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Growth Stage Indicator */}
-                      <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                        {language === "id" ? `Tahap: ${growthStage}` : `Stage: ${growthStage}`}
-                      </div>
-                      {hunger === 0 && (
-                        <div className="absolute top-2 right-2 text-red-500 font-bold">
-                          💀 {language === "id" ? "Lapar" : "Starving"}
-                        </div>
-                      )}
-                      {!canEarnTokens && days < 1 && !isDead && (
                         <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
                           🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
                         </div>
