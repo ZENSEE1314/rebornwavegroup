@@ -46,7 +46,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="mb-8">
             <span className="px-4 py-2 bg-gradient-to-r from-purple-600/20 to-cyan-600/20 border border-purple-500/30 rounded-full text-sm font-medium">
-              ✨ The Future of Beauty, Fun & Entertainment
+              ✨ The Future of Beauty, Food & Beverage & Entertainment
             </span>
           </div>
           
@@ -93,9 +93,9 @@ export default function Landing() {
             </div>
             <div className="flex flex-col items-center space-y-3 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center">
-                <Music className="w-6 h-6 text-white" />
+                <span className="text-xl">🍽️</span>
               </div>
-              <span className="text-sm font-medium text-white/80">Fun</span>
+              <span className="text-sm font-medium text-white/80">Food & Beverage</span>
             </div>
             <div className="flex flex-col items-center space-y-3 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center">
@@ -223,74 +223,32 @@ export default function Landing() {
             </div>
             <h2 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                3-Level Reward System
+                Share with Friends
               </span>
             </h2>
             <p className="text-xl text-white/70 max-w-4xl mx-auto">
-              Build your network and earn passive income. The more friends you invite, the more rewards you unlock.
+              Invite your friends and earn 10% commission every time they spend on our platform.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            {/* Level 1 */}
-            <div className="group relative bg-gradient-to-br from-emerald-900/30 to-green-900/30 backdrop-blur-sm border border-emerald-500/30 rounded-3xl p-8 hover:border-emerald-400/50 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="flex justify-center mb-16">
+            {/* Friend Referral Card */}
+            <div className="group relative bg-gradient-to-br from-emerald-900/30 to-blue-900/30 backdrop-blur-sm border border-emerald-500/30 rounded-3xl p-12 hover:border-emerald-400/50 transition-all duration-500 max-w-md">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="relative z-10 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-white">1</span>
+                <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-12 h-12 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Direct Friends</h3>
-                <div className="text-5xl font-bold bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent mb-4">
+                <h3 className="text-3xl font-bold text-white mb-3">Invite Friends</h3>
+                <div className="text-6xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-4">
                   10%
                 </div>
-                <p className="text-white/70 mb-6">
-                  Earn 10% commission from every service your direct referrals purchase
+                <p className="text-white/70 mb-6 text-lg">
+                  Earn 10% commission every time your friends spend on our platform
                 </p>
                 <div className="flex items-center justify-center space-x-2 text-emerald-400">
-                  <Users className="w-5 h-5" />
-                  <span className="text-sm font-medium">Direct Referrals</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Level 2 */}
-            <div className="group relative bg-gradient-to-br from-blue-900/30 to-indigo-900/30 backdrop-blur-sm border border-blue-500/30 rounded-3xl p-8 hover:border-blue-400/50 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-white">2</span>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Extended Network</h3>
-                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-4">
-                  3%
-                </div>
-                <p className="text-white/70 mb-6">
-                  Earn 3% commission from friends referred by your direct referrals
-                </p>
-                <div className="flex items-center justify-center space-x-2 text-blue-400">
-                  <TrendingUp className="w-5 h-5" />
-                  <span className="text-sm font-medium">2nd Level Network</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Level 3 */}
-            <div className="group relative bg-gradient-to-br from-purple-900/30 to-pink-900/30 backdrop-blur-sm border border-purple-500/30 rounded-3xl p-8 hover:border-purple-400/50 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-white">3</span>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Ultimate Reach</h3>
-                <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
-                  2%
-                </div>
-                <p className="text-white/70 mb-6">
-                  Earn 2% commission from third-level referrals in your network
-                </p>
-                <div className="flex items-center justify-center space-x-2 text-purple-400">
-                  <Award className="w-5 h-5" />
-                  <span className="text-sm font-medium">3rd Level Network</span>
+                  <Gift className="w-5 h-5" />
+                  <span className="text-sm font-medium">Lifetime Earnings</span>
                 </div>
               </div>
             </div>
@@ -299,9 +257,9 @@ export default function Landing() {
           {/* Rewards Calculation */}
           <div className="bg-gradient-to-r from-emerald-900/20 to-blue-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-white mb-4">Maximum Earning Potential</h3>
+              <h3 className="text-2xl font-bold text-white mb-4">Simple & Rewarding</h3>
               <p className="text-white/70">
-                With our 3-level system, you can earn up to <span className="text-emerald-400 font-bold">15% total commission</span> from your entire network
+                Share with friends and earn <span className="text-emerald-400 font-bold">10% commission</span> from every purchase they make
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
@@ -352,8 +310,8 @@ export default function Landing() {
               </h2>
               
               <p className="text-xl text-white/70 mb-12 max-w-3xl mx-auto">
-                Join thousands of users who are already experiencing the future of beauty, fun, and entertainment. 
-                Start building your network and earning rewards today.
+                Join thousands of users who are already experiencing the future of beauty, food & beverage, and entertainment. 
+                Start sharing with friends and earning 10% from their spending today.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
