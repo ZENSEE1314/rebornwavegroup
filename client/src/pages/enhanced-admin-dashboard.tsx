@@ -69,6 +69,10 @@ export default function EnhancedAdminDashboard() {
     qrCode: ""
   });
   
+  // Pagination states
+  const [topUpCurrentPage, setTopUpCurrentPage] = useState(1);
+  const topUpItemsPerPage = 10;
+  
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
   const [cashOutSearch, setCashOutSearch] = useState("");
@@ -1337,7 +1341,9 @@ export default function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                   <TableBody>
-                    {topUpRequests.map((request: any) => (
+                    {topUpRequests
+                      .slice((topUpCurrentPage - 1) * topUpItemsPerPage, topUpCurrentPage * topUpItemsPerPage)
+                      .map((request: any) => (
                       <TableRow key={request.id}>
                         <TableCell className="text-white">
                           {request.user?.firstName} {request.user?.lastName}
@@ -1485,6 +1491,35 @@ export default function EnhancedAdminDashboard() {
                     </div>
                   )}
                 </div>
+                
+                {/* Pagination Controls */}
+                {topUpRequests.length > topUpItemsPerPage && (
+                  <div className="flex justify-between items-center mt-4 px-4 pb-4">
+                    <div className="text-sm text-gray-400">
+                      Showing {((topUpCurrentPage - 1) * topUpItemsPerPage) + 1} to {Math.min(topUpCurrentPage * topUpItemsPerPage, topUpRequests.length)} of {topUpRequests.length} requests
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTopUpCurrentPage(Math.max(1, topUpCurrentPage - 1))}
+                        disabled={topUpCurrentPage === 1}
+                        className="bg-white/10 text-white border-white/20"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTopUpCurrentPage(Math.min(Math.ceil(topUpRequests.length / topUpItemsPerPage), topUpCurrentPage + 1))}
+                        disabled={topUpCurrentPage >= Math.ceil(topUpRequests.length / topUpItemsPerPage)}
+                        className="bg-white/10 text-white border-white/20"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
