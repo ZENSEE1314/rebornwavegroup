@@ -305,7 +305,7 @@ export default function EnhancedAdminDashboard() {
 
   const approveCashOutMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: number; status: string; notes?: string }) => {
-      return apiRequest('POST', '/api/admin/approve-cash-out', { id, status, adminNotes: notes });
+      return apiRequest('PUT', `/api/admin/cashouts/${id}/status`, { status, adminNotes: notes });
     },
     onSuccess: () => {
       toast({ title: "Cash out request updated" });
