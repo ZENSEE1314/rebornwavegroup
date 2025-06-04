@@ -19,6 +19,7 @@ import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-previ
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
+import CreditTopUpModal from "@/components/CreditTopUpModal";
 
 // Helper function to format sleep timer as MM:SS
 function formatSleepTime(timeRemaining: number): string {
@@ -1665,6 +1666,7 @@ export default function CompleteApp() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showCreditTopUpModal, setShowCreditTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [newToyCode, setNewToyCode] = useState("");
   const [newListingTitle, setNewListingTitle] = useState("");
@@ -3682,9 +3684,9 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                   <div className="space-y-1 mt-2">
-                    <Button size="sm" onClick={() => setShowTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700">
                       <Plus className="w-3 h-3 mr-1" />
-                      {language === "id" ? "Top Up Kredit" : "Top Up Credits"}
+                      {language === "id" ? "Top Up Kredit" : "Add Credits"}
                     </Button>
                     <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700">
                       <DollarSign className="w-3 h-3 mr-1" />
@@ -6459,6 +6461,13 @@ export default function CompleteApp() {
           </div>
         </div>
       )}
+
+      {/* Credit Top-Up Modal */}
+      <CreditTopUpModal 
+        isOpen={showCreditTopUpModal}
+        onClose={() => setShowCreditTopUpModal(false)}
+        currentCredits={userCredits.toString()}
+      />
     </div>
   );
 }
