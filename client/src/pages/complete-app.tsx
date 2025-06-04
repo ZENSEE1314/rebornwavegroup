@@ -554,193 +554,229 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const userPets = Array.isArray(pets) ? pets : [];
   
   if (userPets.length > 0) {
-    // Single pet display with navigation
-    const currentPet = userPets[currentPetIndex] || userPets[0];
-    
-    // Calculate real-time stats for current pet
-    const now = currentTime;
-    const birthTime = new Date(currentPet.birthDate || currentPet.createdAt).getTime();
-    const elapsedMs = now - birthTime;
-    const days = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
-    const isDead = days >= 100;
-    
-    // Growth stages
-    let growthStage = "Baby";
-    let dragonEmoji = "🐢";
-    
-    if (isDead) {
-      growthStage = "Deceased";
-      dragonEmoji = "💀";
-    } else if (days >= 80) {
-      growthStage = "Grand Dragon";
-      dragonEmoji = "🐉";
-    } else if (days >= 60) {
-      growthStage = "Adult Dragon";
-      dragonEmoji = "🐲";
-    } else if (days >= 40) {
-      growthStage = "Teen Dragon";
-      dragonEmoji = "🦕";
-    } else if (days >= 20) {
-      growthStage = "Youth Dragon";
-      dragonEmoji = "🐢";
-    }
-
-    const hunger = isDead ? 0 : (currentPet.hunger || 50);
-    const happiness = isDead ? 0 : (currentPet.happiness || 50);
-    const cleanliness = isDead ? 0 : (currentPet.cleanliness || 50);
-    const energy = isDead ? 0 : (currentPet.energy || 50);
-
+    // Show pet care interface with feeding games
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            {language === "id" ? "Perawatan Hewan Peliharaan" : "Pet Care"}
+            {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
           </h2>
           <p className="text-slate-600">
-            {language === "id" ? "Rawat hewan digital Anda" : "Take care of your digital pet"}
+            {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
           </p>
         </div>
 
-        {/* Single Pet Display */}
-        <div className="max-w-2xl mx-auto">
-          <Card className="overflow-hidden">
-            <CardHeader className={`text-white ${isDead ? 'bg-gray-600' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
-              <CardTitle className="flex items-center justify-between">
-                <span>{currentPet.name}</span>
-                <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
-                  {growthStage}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
+        {/* Coin Catching Game Modal */}
+        {showCoinGame && selectedPet && (
+          <CoinCatchingGame 
+            pet={selectedPet}
+            language={language}
+            onClose={() => {
+              setShowCoinGame(false);
+              setSelectedPet(null);
+            }}
+            user={user}
+          />
+        )}
 
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                {/* Pet Animation */}
-                <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className={isDead ? '' : currentPet.isSleeping ? '' : 'animate-bounce'}>
-                      <div 
-                        className="text-6xl transition-transform duration-1000 hover:scale-110"
-                        style={{
-                          filter: isDead ? 'grayscale(100%) opacity(0.3)' : currentPet.isSleeping ? 'brightness(0.7)' : 'none',
-                          transform: isDead ? 'rotate(90deg)' : 'none'
-                        }}
-                      >
-                        {dragonEmoji}
-                      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {userPets.map((pet: any) => {
+            // Calculate comprehensive pet lifecycle timer using real-time updates
+            const now = currentTime;
+            const birthTime = new Date(pet.birthDate || pet.createdAt).getTime();
+            const elapsedMs = now - birthTime;
+            
+            // Convert to days:hours:minutes:seconds format
+            const totalSeconds = Math.floor(elapsedMs / 1000);
+            const days = Math.floor(totalSeconds / (24 * 60 * 60));
+            const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+            const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+            const seconds = totalSeconds % 60;
+            
+            // Format timer as DD:HH:MM:SS
+            const timerDisplay = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Pet age in years (each day = 1 year)
+            const ageInYears = days;
+            
+            // Death check - pet dies at 100 days (100 years)
+            const isDead = days >= 100;
+            
+            // Growth stage based on age (every 20 days)
+            let growthStage = "Baby";
+            let dragonEmoji = "🥚"; // Default baby stage
+            
+            if (isDead) {
+              growthStage = "Deceased";
+              dragonEmoji = "💀";
+            } else if (ageInYears >= 80) {
+              growthStage = language === "id" ? "Grand Turtle Dragon" : "Grand Turtle Dragon";
+              dragonEmoji = "🐉"; // Majestic dragon
+            } else if (ageInYears >= 60) {
+              growthStage = language === "id" ? "Adult Turtle Dragon" : "Adult Turtle Dragon";
+              dragonEmoji = "🐲"; // Full grown dragon
+            } else if (ageInYears >= 40) {
+              growthStage = language === "id" ? "Teenager Turtle Dragon" : "Teenager Turtle Dragon";
+              dragonEmoji = "🦕"; // Large dinosaur
+            } else if (ageInYears >= 20) {
+              growthStage = language === "id" ? "Youth Turtle Dragon" : "Youth Turtle Dragon";
+              dragonEmoji = "🐢"; // Turtle form
+            } else {
+              growthStage = language === "id" ? "Baby Turtle Dragon" : "Baby Turtle Dragon";
+              dragonEmoji = "🐢"; // Baby turtle form
+            }
+            
+            // Hunger decreases from 100% to 1% over 6 hours if not fed
+            const calculateHunger = (lastFeedTime?: Date) => {
+              if (isDead) return 0; // Dead pets have 0 status
+              
+              // If fed recently (within 2 minutes), use database value to show immediate effect
+              if (lastFeedTime) {
+                const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
+                if (minutesSinceLastFeed < 2) {
+                  return pet.hunger || 50; // Use fresh database value
+                }
+              }
+              
+              if (!lastFeedTime) {
+                // No feeding recorded, decay from birth
+                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
+                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
+                return Math.floor(decay);
+              }
+              
+              const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
+              const decay = Math.max(1, 100 - (hoursSinceLastFeed / 6) * 99);
+              return Math.floor(decay);
+            };
+
+            // Cleanliness decreases from 100% to 1% over 6 hours if not cleaned
+            const calculateCleanliness = (lastCareTime?: Date) => {
+              if (isDead) return 0; // Dead pets have 0 status
+              
+              // If bathed recently (within 2 minutes), use database value to show immediate effect
+              if (lastCareTime) {
+                const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
+                if (minutesSinceLastCare < 2) {
+                  return pet.cleanliness || 50; // Use fresh database value
+                }
+              }
+              
+              if (!lastCareTime) {
+                // No care recorded, decay from birth
+                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
+                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
+                return Math.floor(decay);
+              }
+              
+              const hoursSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60 * 60);
+              const decay = Math.max(1, 100 - (hoursSinceLastCare / 6) * 99);
+              return Math.floor(decay);
+            };
+
+            // Use actual database values for stats, with time decay as fallback
+            const hunger = isDead ? 0 : (pet.hunger || calculateHunger(pet.lastFedAt));
+            const cleanliness = isDead ? 0 : (pet.cleanliness || calculateCleanliness(pet.lastCareDate));
+            const energy = isDead ? 0 : pet.energy; // Use stored energy value
+            
+            // Use actual database value for happiness instead of calculated deficit
+            const happiness = isDead ? 0 : (pet.happiness || 50);
+
+            // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
+            const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
+
+            return (
+              <Card key={pet.id} className="overflow-hidden">
+                <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{pet.name}</span>
+                    <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
+                      {growthStage}
+                    </Badge>
+                  </CardTitle>
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
+                      <span className="font-mono text-lg">{timerDisplay}</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span>{language === "id" ? "Umur:" : "Age:"}</span>
+                      <span>{ageInYears} {language === "id" ? "tahun" : "years old"}</span>
+                    </div>
+                    {isDead && (
+                      <div className="text-red-300 font-bold text-center">
+                        💀 {language === "id" ? "Meninggal pada usia 100 tahun" : "Died at age 100"}
+                      </div>
+                    )}
+                    {days >= 90 && !isDead && (
+                      <div className="text-yellow-300 font-bold text-center">
+                        ⚠️ {language === "id" ? "Mendekati usia maksimal!" : "Approaching maximum age!"}
+                      </div>
+                    )}
                   </div>
-                  
-                  {currentPet.isSleeping && !isDead && (
-                    <div className="absolute top-2 right-2 text-2xl animate-pulse">💤</div>
-                  )}
-                </div>
-
-                {/* Pet Stats */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {language === "id" ? "Kebahagiaan" : "Happiness"}
-                    </p>
-                    <Progress value={happiness} className="h-3" />
-                    <p className="text-xs text-center mt-1">{happiness}/100</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {language === "id" ? "Rasa Lapar" : "Hunger"}
-                    </p>
-                    <Progress value={hunger} className="h-3" />
-                    <p className="text-xs text-center mt-1">{hunger}/100</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {language === "id" ? "Kebersihan" : "Cleanliness"}
-                    </p>
-                    <Progress value={cleanliness} className="h-3" />
-                    <p className="text-xs text-center mt-1">{cleanliness}/100</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {language === "id" ? "Energi" : "Energy"}
-                    </p>
-                    <Progress value={energy} className="h-3" />
-                    <p className="text-xs text-center mt-1">{energy}/100</p>
-                  </div>
-                </div>
-
-                {/* Care Actions */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 p-4 h-auto flex-col"
-                    onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'fed' })}
-                    disabled={careActivityMutation.isPending || isDead}
-                  >
-                    <span className="text-2xl">🍎</span>
-                    <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 p-4 h-auto flex-col"
-                    onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'bathed' })}
-                    disabled={careActivityMutation.isPending || isDead}
-                  >
-                    <span className="text-2xl">🛁</span>
-                    <span className="text-sm">{language === "id" ? "Mandi" : "Bathe"}</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2 p-4 h-auto flex-col"
-                    onClick={() => careActivityMutation.mutate({ petId: currentPet.id, careType: 'cleaned' })}
-                    disabled={careActivityMutation.isPending || isDead}
-                  >
-                    <span className="text-2xl">🎾</span>
-                    <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
-                  </Button>
-
-                  {currentPet.isSleeping ? (
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50"
-                      onClick={() => wakeMutation.mutate(currentPet.id)}
-                      disabled={wakeMutation.isPending}
-                    >
-                      <span className="text-2xl">☀️</span>
-                      <span className="text-sm">{language === "id" ? "Bangunkan" : "Wake Up"}</span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 p-4 h-auto flex-col"
-                      onClick={() => sleepMutation.mutate(currentPet.id)}
-                      disabled={sleepMutation.isPending || energy >= 100}
-                    >
-                      <span className="text-2xl">💤</span>
-                      <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
-                    </Button>
-                  )}
-                </div>
-
-                {/* Pet Navigation */}
-                {userPets.length > 1 && (
-                  <div className="text-center">
-                    <Button
-                      onClick={() => setCurrentPetIndex((prev) => (prev + 1) % userPets.length)}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      {language === "id" ? "Hewan Berikutnya" : "Next Pet"} ({currentPetIndex + 1}/{userPets.length})
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Animated Dragon Turtle with Growth Stages */}
+                    <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className={isDead ? '' : pet.isSleeping ? '' : 'animate-bounce'}>
+                          <div 
+                            className="text-6xl transition-transform duration-1000 hover:scale-110"
+                            style={{
+                              animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                              transform: isDead ? 'rotate(90deg)' : 'none'
+                            }}
+                          >
+                            {dragonEmoji}
+                          </div>
+                        </div>
+                        
+                        {/* Sleep indicator with floating Z's */}
+                        {pet.isSleeping && !isDead && (
+                          <div className="absolute top-2 right-2">
+                            <div 
+                              className="text-2xl"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '0s'
+                              }}
+                            >
+                              💤
+                            </div>
+                            <div 
+                              className="text-xl absolute -top-1 -right-1"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '0.5s'
+                              }}
+                            >
+                              z
+                            </div>
+                            <div 
+                              className="text-lg absolute -top-2 -right-2"
+                              style={{
+                                animation: 'sleepZzz 2s ease-in-out infinite',
+                                animationDelay: '1s'
+                              }}
+                            >
+                              z
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Growth Stage Indicator */}
+                      <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                        {language === "id" ? `Tahap: ${growthStage}` : `Stage: ${growthStage}`}
+                      </div>
+                      {hunger === 0 && (
+                        <div className="absolute top-2 right-2 text-red-500 font-bold">
+                          💀 {language === "id" ? "Lapar" : "Starving"}
+                        </div>
+                      )}
+                      {!canEarnTokens && days < 1 && !isDead && (
                         <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
                           🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
                         </div>
@@ -1271,13 +1307,22 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       {/* Pet Navigation */}
       {safePets.length > 1 && (
         <Card>
-          <CardContent className="flex items-center justify-center py-4">
+          <CardContent className="flex items-center justify-between py-4">
             <Button
               variant="outline"
-              onClick={() => navigatePet('next')}
-              className="flex items-center gap-2"
+              size="sm"
+              onClick={() => navigatePet('prev')}
             >
-              Next Pet
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-gray-600">
+              Pet {currentPetIndex + 1} of {safePets.length}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigatePet('next')}
+            >
               <ArrowRight className="w-4 h-4" />
             </Button>
           </CardContent>
