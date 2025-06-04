@@ -580,10 +580,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null> {
+    console.log("*** STORAGE: activateToyByQrCode called with:", { qrCode, userId });
+    
     const [toy] = await db
       .select()
       .from(toys)
       .where(eq(toys.qrCode, qrCode));
+
+    console.log("*** STORAGE: Found toy:", toy ? { id: toy.id, isActivated: toy.isActivated, purchasedBy: toy.purchasedBy } : "null");
 
     if (!toy) {
       throw new Error("Invalid QR code");
@@ -610,26 +614,35 @@ export class DatabaseStorage implements IStorage {
       updateData.purchasedBy = userId;
     }
 
+    console.log("*** STORAGE: Updating toy with data:", updateData);
+
     const [updatedToy] = await db
       .update(toys)
       .set(updateData)
       .where(eq(toys.qrCode, qrCode))
       .returning();
 
+    console.log("*** STORAGE: Toy updated successfully, creating pet...");
+
     // Create a pet from this activated toy
-    await this.createPet({
-      userId: userId,
-      toyId: toy.id,
-      name: toy.name || `Pet ${toy.name}`,
-      type: "virtual", // Add the required type field
-      species: "Doluruu",
-      happiness: 100,
-      hunger: 100,
-      cleanliness: 100,
-      energy: 100,
-      currentAge: 0,
-      growthStage: "baby"
-    });
+    try {
+      await this.createPet({
+        userId: userId,
+        toyId: toy.id,
+        name: toy.name || `Pet ${toy.name}`,
+        species: "Doluruu",
+        happiness: 100,
+        hunger: 100,
+        cleanliness: 100,
+        energy: 100,
+        currentAge: 0,
+        growthStage: "baby"
+      });
+      console.log("*** STORAGE: Pet created successfully");
+    } catch (petError) {
+      console.error("*** STORAGE: Error creating pet:", petError);
+      throw petError;
+    }
 
     return updatedToy;
   }
