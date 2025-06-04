@@ -630,6 +630,7 @@ export class DatabaseStorage implements IStorage {
         userId: userId,
         toyId: toy.id,
         name: toy.name || `Pet ${toy.name}`,
+        type: "virtual",
         species: "Doluruu",
         happiness: 100,
         hunger: 100,
