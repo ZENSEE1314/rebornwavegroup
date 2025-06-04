@@ -297,13 +297,11 @@ export class DatabaseStorage implements IStorage {
 
     const genealogyTree = {
       totalDirectReferrals: level1Referrals.length,
-      totalLevel2Referrals: 0,
-      totalLevel3Referrals: 0,
       totalEarnings: 0,
       levels: []
     };
 
-    // Build tree for each level 1 referral
+    // Build tree for each direct referral only
     for (const level1 of level1Referrals) {
       const level1Data = {
         id: level1.id,
@@ -314,86 +312,10 @@ export class DatabaseStorage implements IStorage {
         email: level1.referredUser?.email,
         level: 1,
         earnings: parseFloat(level1.totalEarnings || '0'),
-        joinDate: level1.createdAt,
-        children: []
+        joinDate: level1.createdAt
       };
 
       genealogyTree.totalEarnings += level1Data.earnings;
-
-      // Get level 2 referrals (people referred by this level 1 user)
-      const level2Referrals = await db
-        .select({
-          id: referrals.id,
-          referredId: referrals.referredId,
-          totalEarnings: referrals.totalEarnings,
-          createdAt: referrals.createdAt,
-          referredUser: {
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          }
-        })
-        .from(referrals)
-        .leftJoin(users, eq(referrals.referredId, users.id))
-        .where(and(eq(referrals.referrerId, level1.referredId), eq(referrals.level, 1)));
-
-      genealogyTree.totalLevel2Referrals += level2Referrals.length;
-
-      for (const level2 of level2Referrals) {
-        const level2Data = {
-          id: level2.id,
-          userId: level2.referredId,
-          name: level2.referredUser?.firstName ? 
-            `${level2.referredUser.firstName} ${level2.referredUser.lastName || ''}`.trim() : 
-            level2.referredUser?.email?.split('@')[0] || 'User',
-          email: level2.referredUser?.email,
-          level: 2,
-          earnings: parseFloat(level2.totalEarnings || '0'),
-          joinDate: level2.createdAt,
-          children: []
-        };
-
-        genealogyTree.totalEarnings += level2Data.earnings;
-
-        // Get level 3 referrals (people referred by this level 2 user)
-        const level3Referrals = await db
-          .select({
-            id: referrals.id,
-            referredId: referrals.referredId,
-            totalEarnings: referrals.totalEarnings,
-            createdAt: referrals.createdAt,
-            referredUser: {
-              firstName: users.firstName,
-              lastName: users.lastName,
-              email: users.email
-            }
-          })
-          .from(referrals)
-          .leftJoin(users, eq(referrals.referredId, users.id))
-          .where(and(eq(referrals.referrerId, level2.referredId), eq(referrals.level, 1)));
-
-        genealogyTree.totalLevel3Referrals += level3Referrals.length;
-
-        for (const level3 of level3Referrals) {
-          const level3Data = {
-            id: level3.id,
-            userId: level3.referredId,
-            name: level3.referredUser?.firstName ? 
-              `${level3.referredUser.firstName} ${level3.referredUser.lastName || ''}`.trim() : 
-              level3.referredUser?.email?.split('@')[0] || 'User',
-            email: level3.referredUser?.email,
-            level: 3,
-            earnings: parseFloat(level3.totalEarnings || '0'),
-            joinDate: level3.createdAt
-          };
-
-          genealogyTree.totalEarnings += level3Data.earnings;
-          level2Data.children.push(level3Data);
-        }
-
-        level1Data.children.push(level2Data);
-      }
-
       genealogyTree.levels.push(level1Data);
     }
 
@@ -401,45 +323,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReferralRelationship(referrerId: string, referredId: string): Promise<void> {
-    // Create direct referral (level 1)
+    // Create only direct referral (level 1) with 10% commission
     await db.insert(referrals).values({
       referrerId,
       referredId,
       level: 1,
       commissionRate: "10.00",
     });
-
-    // Find level 2 referrer
-    const level1Referrer = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, referrerId))
-      .limit(1);
-
-    if (level1Referrer[0]?.referredById) {
-      await db.insert(referrals).values({
-        referrerId: level1Referrer[0].referredById,
-        referredId,
-        level: 2,
-        commissionRate: "3.00",
-      });
-
-      // Find level 3 referrer
-      const level2Referrer = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, level1Referrer[0].referredById))
-        .limit(1);
-
-      if (level2Referrer[0]?.referredById) {
-        await db.insert(referrals).values({
-          referrerId: level2Referrer[0].referredById,
-          referredId,
-          level: 3,
-          commissionRate: "2.00",
-        });
-      }
-    }
   }
 
   async calculateReferralEarnings(userId: string): Promise<number> {
