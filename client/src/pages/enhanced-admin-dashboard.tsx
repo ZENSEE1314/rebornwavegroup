@@ -30,7 +30,6 @@ import {
   Package,
   ShoppingCart,
   Gift,
-  Calendar,
   Award,
   Search,
   Download,
@@ -42,7 +41,9 @@ import {
   Heart,
   Trophy,
   LogOut,
-  ArrowUp
+  ArrowUp,
+  TrendingDown,
+  Clock
 } from "lucide-react";
 
 export default function EnhancedAdminDashboard() {
@@ -917,6 +918,68 @@ export default function EnhancedAdminDashboard() {
           </Card>
         </div>
 
+        {/* Additional Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Total Cash-Outs (IDR)</p>
+                  <p className="text-3xl font-bold text-white">
+                    {cashOutRequests
+                      .filter((req: any) => req.status === 'approved')
+                      .reduce((total: number, req: any) => total + parseFloat(req.amount || '0'), 0)
+                      .toLocaleString()}
+                  </p>
+                </div>
+                <TrendingDown className="h-8 w-8 text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Pending Cash-Outs</p>
+                  <p className="text-3xl font-bold text-white">
+                    {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                  </p>
+                </div>
+                <Clock className="h-8 w-8 text-yellow-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Pending Top-Ups</p>
+                  <p className="text-3xl font-bold text-white">
+                    {topUpRequests.filter((req: any) => req.status === 'pending').length}
+                  </p>
+                </div>
+                <Clock className="h-8 w-8 text-orange-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-200 text-sm">Active Appointments</p>
+                  <p className="text-3xl font-bold text-white">
+                    {allAppointments.filter((apt: any) => apt.status === 'confirmed').length}
+                  </p>
+                </div>
+                <Calendar className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide">
             <TabsList className="bg-white/20 backdrop-blur border-gray-300/30 flex min-w-max">
@@ -1492,8 +1555,8 @@ export default function EnhancedAdminDashboard() {
                   )}
                 </div>
                 
-                {/* Pagination Controls */}
-                {topUpRequests.length > topUpItemsPerPage && (
+                {/* Pagination Controls - Always show if more than 10 items */}
+                {Array.isArray(topUpRequests) && topUpRequests.length > topUpItemsPerPage && (
                   <div className="flex justify-between items-center mt-4 px-4 pb-4">
                     <div className="text-sm text-gray-400">
                       Showing {((topUpCurrentPage - 1) * topUpItemsPerPage) + 1} to {Math.min(topUpCurrentPage * topUpItemsPerPage, topUpRequests.length)} of {topUpRequests.length} requests
