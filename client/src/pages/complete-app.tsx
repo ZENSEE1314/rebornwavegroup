@@ -1307,22 +1307,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       {/* Pet Navigation */}
       {safePets.length > 1 && (
         <Card>
-          <CardContent className="flex items-center justify-between py-4">
+          <CardContent className="flex items-center justify-center py-4">
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => navigatePet('prev')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm text-gray-600">
-              Pet {currentPetIndex + 1} of {safePets.length}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => navigatePet('next')}
+              className="flex items-center gap-2"
             >
+              Next Pet
               <ArrowRight className="w-4 h-4" />
             </Button>
           </CardContent>
