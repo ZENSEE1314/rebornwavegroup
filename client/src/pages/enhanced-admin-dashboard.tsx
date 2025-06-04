@@ -309,6 +309,19 @@ export default function EnhancedAdminDashboard() {
     }
   });
 
+  const updateTopUpMutation = useMutation({
+    mutationFn: async ({ id, status, adminNotes }: { id: number; status: string; adminNotes?: string }) => {
+      return apiRequest('PUT', `/api/admin/topup-requests/${id}/status`, { status, adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Top-up request updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/topup-requests'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update top-up request", variant: "destructive" });
+    }
+  });
+
   const updateToyOwnerMutation = useMutation({
     mutationFn: async ({ toyId, newOwnerId }: { toyId: number; newOwnerId: string | null }) => {
       return apiRequest('PATCH', `/api/admin/toys/${toyId}/owner`, { newOwnerId });
@@ -1251,6 +1264,214 @@ export default function EnhancedAdminDashboard() {
                         )}
                       </PaginationContent>
                     </Pagination>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Top-ups Tab */}
+          <TabsContent value="topups">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Credit Top-up Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Requests: <span className="font-semibold">{topUpRequests.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(topUpRequests, 'topups')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-gray-300">User</TableHead>
+                      <TableHead className="text-gray-300">Amount</TableHead>
+                      <TableHead className="text-gray-300">Payment Method</TableHead>
+                      <TableHead className="text-gray-300">Payment Proof</TableHead>
+                      <TableHead className="text-gray-300">Status</TableHead>
+                      <TableHead className="text-gray-300">Date</TableHead>
+                      <TableHead className="text-gray-300">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topUpRequests.map((request: any) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="text-white">
+                          {request.user?.firstName} {request.user?.lastName}
+                          <div className="text-sm text-gray-400">{request.user?.email}</div>
+                        </TableCell>
+                        <TableCell className="text-green-300 font-semibold">
+                          IDR {parseFloat(request.amount).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          <Badge variant={request.paymentMethod === 'paypal' ? 'default' : 'secondary'}>
+                            {request.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 
+                             request.paymentMethod === 'cash' ? 'Cash Deposit' : 'PayPal'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {request.paymentProof && (request.paymentMethod === 'bank_transfer' || request.paymentMethod === 'cash') ? (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="bg-white/10 text-white border-white/20">
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View Proof
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Payment Proof - {request.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash Deposit'}</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label>User</Label>
+                                      <p className="text-sm">{request.user?.firstName} {request.user?.lastName}</p>
+                                    </div>
+                                    <div>
+                                      <Label>Amount</Label>
+                                      <p className="text-sm font-semibold">IDR {parseFloat(request.amount).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                  {request.bankTransferDetails && (
+                                    <div>
+                                      <Label>Bank Details</Label>
+                                      <div className="text-sm bg-gray-50 p-3 rounded mt-1">
+                                        <p><strong>Bank:</strong> {request.bankTransferDetails.bankName}</p>
+                                        <p><strong>Account:</strong> {request.bankTransferDetails.accountNumber}</p>
+                                        <p><strong>Holder:</strong> {request.bankTransferDetails.accountHolderName}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <Label>Payment Proof</Label>
+                                    <div className="mt-2 border rounded-lg overflow-hidden">
+                                      <img 
+                                        src={request.paymentProof} 
+                                        alt="Payment proof" 
+                                        className="w-full max-h-96 object-contain"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={request.status === 'approved' ? 'default' : 
+                                   request.status === 'rejected' ? 'destructive' : 'secondary'}
+                          >
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {formatDate(request.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          {request.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="default" size="sm">
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Approve Top-up Request</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <p>Approve top-up of IDR {parseFloat(request.amount).toLocaleString()} for {request.user?.firstName} {request.user?.lastName}?</p>
+                                    <Textarea
+                                      placeholder="Admin notes (optional)"
+                                      value={adminNotes}
+                                      onChange={(e) => setAdminNotes(e.target.value)}
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={() => {
+                                          updateTopUpMutation.mutate({ 
+                                            id: request.id, 
+                                            status: 'approved', 
+                                            adminNotes 
+                                          });
+                                          setAdminNotes('');
+                                        }}
+                                        disabled={updateTopUpMutation.isPending}
+                                      >
+                                        Confirm Approval
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="destructive" size="sm">
+                                    <X className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Reject Top-up Request</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <p>Reject top-up request for {request.user?.firstName} {request.user?.lastName}?</p>
+                                    <Textarea
+                                      placeholder="Rejection reason (required)"
+                                      value={adminNotes}
+                                      onChange={(e) => setAdminNotes(e.target.value)}
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={() => {
+                                          updateTopUpMutation.mutate({ 
+                                            id: request.id, 
+                                            status: 'rejected', 
+                                            adminNotes 
+                                          });
+                                          setAdminNotes('');
+                                        }}
+                                        disabled={updateTopUpMutation.isPending || !adminNotes.trim()}
+                                        variant="destructive"
+                                      >
+                                        Confirm Rejection
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          )}
+                          {request.status !== 'pending' && (
+                            <span className="text-gray-400">Processed</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {topUpRequests.length === 0 && (
+                  <div className="text-center text-gray-400 py-8">
+                    No top-up requests found
                   </div>
                 )}
               </CardContent>
