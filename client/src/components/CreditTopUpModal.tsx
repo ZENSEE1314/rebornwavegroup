@@ -147,16 +147,20 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
   const handlePayPalTopUp = () => {
     const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum <= 0) {
+    if (!amountNum || amountNum < 10000) {
       toast({
         title: "Invalid Amount",
-        description: "Please enter a valid amount greater than 0",
+        description: "Please enter a valid amount (minimum IDR 10,000)",
         variant: "destructive",
       });
       return;
     }
 
-    paypalTopUpMutation.mutate({ amount: amountNum });
+    toast({
+      title: "PayPal Not Available",
+      description: "PayPal payments are currently not configured. Please use bank transfer or cash deposit.",
+      variant: "destructive",
+    });
   };
 
   const handleBankTransfer = () => {

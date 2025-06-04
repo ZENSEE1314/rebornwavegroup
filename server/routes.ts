@@ -1854,10 +1854,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createPaymentTransaction({
             userId: request.userId,
             amount: request.amount,
-            type: 'credit_topup',
+            paymentMethod: 'credit_topup',
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
             status: 'completed',
-            referenceId: request.id.toString(),
           });
         }
       }

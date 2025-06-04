@@ -1355,11 +1355,11 @@ export default function EnhancedAdminDashboard() {
                         <TableCell className="text-gray-300">
                           <Badge variant={request.paymentMethod === 'paypal' ? 'default' : 'secondary'}>
                             {request.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 
-                             request.paymentMethod === 'cash' ? 'Cash Deposit' : 'PayPal'}
+                             request.paymentMethod === 'cash_deposit' ? 'Cash Deposit' : 'PayPal'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {request.paymentProof && (request.paymentMethod === 'bank_transfer' || request.paymentMethod === 'cash') ? (
+                          {request.paymentProof && (request.paymentMethod === 'bank_transfer' || request.paymentMethod === 'cash_deposit') ? (
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button variant="outline" size="sm" className="bg-white/10 text-white border-white/20">
