@@ -84,7 +84,7 @@ export default function Landing() {
           </div>
 
           {/* Floating Service Icons */}
-          <div className="grid grid-cols-3 gap-8 max-w-md mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
             <div className="flex flex-col items-center space-y-3 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
                 <Palette className="w-6 h-6 text-white" />
@@ -102,6 +102,12 @@ export default function Landing() {
                 <GamepadIcon className="w-6 h-6 text-white" />
               </div>
               <span className="text-sm font-medium text-white/80">Entertainment</span>
+            </div>
+            <div className="flex flex-col items-center space-y-3 p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 hover:bg-white/10 transition-all duration-300">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-sm font-medium text-white/80">Corporate Events</span>
             </div>
           </div>
         </div>
@@ -306,6 +312,106 @@ export default function Landing() {
                 <Star className="w-12 h-12 text-purple-400 mx-auto mb-4" />
                 <h4 className="text-lg font-bold text-white mb-2">Loyalty Points</h4>
                 <p className="text-white/70 text-sm">Earn points with every transaction and level up your status</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* About Us Section */}
+      <section className="relative z-10 py-32 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <div className="mb-6">
+              <span className="px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-sm font-medium text-white">
+                🌟 Singapore Innovation
+              </span>
+            </div>
+            <h2 className="text-4xl md:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                About Reborn Wave Group
+              </span>
+            </h2>
+            <p className="text-xl text-white/70 max-w-4xl mx-auto">
+              The world's first 5-in-1 business concept revolutionizing lifestyle experiences
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* About Content */}
+            <div className="space-y-8">
+              <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                <h3 className="text-2xl font-bold text-white mb-6">Our Vision</h3>
+                <p className="text-white/70 leading-relaxed mb-6">
+                  Based in Singapore, Reborn Wave Group is pioneering the world's first 5-in-1 business concept that seamlessly 
+                  integrates beauty, food & beverage, gaming, KTV, and cutting-edge IT solutions into one extraordinary destination.
+                </p>
+                <p className="text-white/70 leading-relaxed mb-6">
+                  We are a comprehensive one-stop station designed for tours, couples, families, and corporate clients to enjoy 
+                  a full-day experience with us. From beauty treatments from top to tail, three complete meals (breakfast, lunch, dinner), 
+                  to entertainment for adults and kids - we offer it all.
+                </p>
+                <p className="text-white/70 leading-relaxed">
+                  Our venue features breathtaking scenery including a sky bar with stunning sea views, beautiful night lighting, 
+                  and Instagram-worthy photo spots throughout the facility. As a 5G-enabled company, we've developed this innovative 
+                  app with advanced booking and loyalty systems to enhance your experience.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
+                    <span className="text-2xl">🏢</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white mb-2">5-in-1 Concept</h4>
+                  <p className="text-white/70 text-sm">Beauty • F&B • Gaming • KTV • IT Solutions</p>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
+                    <span className="text-2xl">🌏</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white mb-2">Global First</h4>
+                  <p className="text-white/70 text-sm">World's first integrated lifestyle destination</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Location & Map */}
+            <div className="space-y-8">
+              <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                <h3 className="text-2xl font-bold text-white mb-6">Visit Us</h3>
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
+                      <span className="text-sm">📍</span>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold">Our Location</h4>
+                      <p className="text-white/70">Pt. Batamas Puri Permai</p>
+                      <p className="text-white/70">Pasir Putih A-49~51</p>
+                      <p className="text-white/70">Singapore</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Google Map Embed */}
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="aspect-video bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-xl flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <span className="text-2xl">🗺️</span>
+                      </div>
+                      <p className="text-white font-semibold mb-2">Interactive Map</p>
+                      <p className="text-white/70 text-sm">Click to view our location on Google Maps</p>
+                      <Button 
+                        className="mt-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0"
+                        onClick={() => window.open('https://maps.google.com/?q=Pt.+Batamas+Puri+Permai,+Pasir+Putih+A-49~51,+Singapore', '_blank')}
+                      >
+                        Open in Google Maps
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
