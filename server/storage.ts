@@ -580,23 +580,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null> {
+    console.log("*** STORAGE: activateToyByQrCode called with:", { qrCode, userId });
+    
     const [toy] = await db
       .select()
       .from(toys)
       .where(eq(toys.qrCode, qrCode));
 
+    console.log("*** STORAGE: Found toy:", toy);
+
     if (!toy) {
+      console.log("*** STORAGE: No toy found for QR code");
       throw new Error("Invalid QR code");
     }
 
     if (toy.ownerId === userId) {
+      console.log("*** STORAGE: User already owns this toy");
       throw new Error("You already own this toy");
     }
 
     if (toy.ownerId && toy.ownerId !== userId) {
+      console.log("*** STORAGE: Toy owned by someone else");
       throw new Error("This toy is already owned by someone else");
     }
 
+    console.log("*** STORAGE: Attempting to update toy ownership");
+    
     // Simply assign ownership to the user
     const [updatedToy] = await db
       .update(toys)
@@ -609,6 +618,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(toys.qrCode, qrCode))
       .returning();
 
+    console.log("*** STORAGE: Updated toy:", updatedToy);
     return updatedToy;
   }
 
