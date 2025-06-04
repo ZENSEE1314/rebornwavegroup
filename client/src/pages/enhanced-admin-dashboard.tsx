@@ -2114,7 +2114,7 @@ export default function EnhancedAdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {cashOut.status === 'pending' && (
+                          {cashOut.status === 'pending' ? (
                             <div className="flex gap-2">
                               <Button 
                                 size="sm"
@@ -2123,20 +2123,57 @@ export default function EnhancedAdminDashboard() {
                                   status: 'approved' 
                                 })}
                                 className="bg-green-600 hover:bg-green-700"
+                                disabled={approveCashOutMutation.isPending}
                               >
                                 <Check className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                size="sm"
-                                onClick={() => approveCashOutMutation.mutate({ 
-                                  id: cashOut.id, 
-                                  status: 'rejected' 
-                                })}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    size="sm"
+                                    className="bg-red-600 hover:bg-red-700"
+                                    disabled={approveCashOutMutation.isPending}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Reject Cash-out Request</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <p>Reject cash-out request for {cashOut.user?.firstName} {cashOut.user?.lastName}?</p>
+                                    <Textarea
+                                      placeholder="Rejection reason (required)"
+                                      value={adminNotes}
+                                      onChange={(e) => setAdminNotes(e.target.value)}
+                                      className="bg-gray-800 border-gray-600 text-white"
+                                    />
+                                    <div className="flex justify-end gap-3">
+                                      <Button variant="outline" onClick={() => setAdminNotes('')}>
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        onClick={() => {
+                                          approveCashOutMutation.mutate({ 
+                                            id: cashOut.id, 
+                                            status: 'rejected',
+                                            notes: adminNotes
+                                          });
+                                          setAdminNotes('');
+                                        }}
+                                        disabled={approveCashOutMutation.isPending || !adminNotes.trim()}
+                                        variant="destructive"
+                                      >
+                                        Confirm Rejection
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
                             </div>
+                          ) : (
+                            <span className="text-gray-400">Processed</span>
                           )}
                         </TableCell>
                       </TableRow>
