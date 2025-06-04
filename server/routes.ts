@@ -681,8 +681,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const toy = await storage.createToy(validatedData);
       res.json(toy);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating toy:", error);
+      
+      // Handle specific database constraint errors
+      if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+        return res.status(400).json({ 
+          message: "QR code already exists. Please use a different QR code." 
+        });
+      }
+      
+      // Handle validation errors
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid toy data provided.",
+          details: error.errors 
+        });
+      }
+      
       res.status(500).json({ message: "Failed to create toy" });
     }
   });
@@ -2172,6 +2188,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint - Single toy creation
+  app.post('/api/admin/create-toy', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toyData = req.body;
+      // Generate QR code if not provided
+      if (!toyData.qrCode) {
+        toyData.qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+      
+      const newToy = await storage.createToy(toyData);
+      res.json(newToy);
+    } catch (error: any) {
+      console.error("Error creating toy:", error);
+      
+      // Handle specific database constraint errors
+      if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+        return res.status(400).json({ 
+          message: "QR code already exists. Please use a different QR code." 
+        });
+      }
+      
+      // Handle validation errors
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid toy data provided.",
+          details: error.errors 
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to create toy" });
+    }
+  });
+
   // Admin endpoint - Bulk toy upload
   app.post('/api/admin/toys/bulk', isAuthenticated, async (req: any, res) => {
     try {
@@ -2184,13 +2240,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { toys } = req.body;
       const createdToys = [];
+      const errors = [];
       
-      for (const toyData of toys) {
-        const toy = await storage.createToy(toyData);
-        createdToys.push(toy);
+      for (let i = 0; i < toys.length; i++) {
+        const toyData = toys[i];
+        try {
+          // Generate QR code if not provided
+          if (!toyData.qrCode) {
+            toyData.qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          }
+          
+          const toy = await storage.createToy(toyData);
+          createdToys.push(toy);
+        } catch (error: any) {
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            errors.push(`Row ${i + 1}: QR code already exists - ${toyData.qrCode || 'generated'}`);
+          } else {
+            errors.push(`Row ${i + 1}: ${error.message}`);
+          }
+        }
       }
       
-      res.json({ success: true, toys: createdToys });
+      res.json({ 
+        success: true, 
+        toys: createdToys,
+        createdCount: createdToys.length,
+        errorCount: errors.length,
+        errors: errors
+      });
     } catch (error) {
       console.error('Error bulk creating toys:', error);
       res.status(500).json({ message: 'Failed to create toys' });

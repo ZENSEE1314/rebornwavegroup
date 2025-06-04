@@ -337,8 +337,17 @@ export default function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "" });
     },
-    onError: () => {
-      toast({ title: "Failed to create toy", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to create toy";
+      if (errorMessage.includes("QR code already exists")) {
+        toast({ 
+          title: "QR Code Error", 
+          description: "This QR code is already in use. Please use a different QR code or leave it empty to auto-generate one.",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: errorMessage, variant: "destructive" });
+      }
     }
   });
 
@@ -346,13 +355,22 @@ export default function EnhancedAdminDashboard() {
     mutationFn: async (toys: any[]) => {
       return apiRequest('POST', '/api/admin/toys/bulk', { toys });
     },
-    onSuccess: () => {
-      toast({ title: "Toys uploaded successfully" });
+    onSuccess: (data: any) => {
+      if (data.errorCount > 0) {
+        toast({ 
+          title: `Partial Success: ${data.createdCount} toys created, ${data.errorCount} errors`,
+          description: data.errors?.slice(0, 3).join('; ') + (data.errors?.length > 3 ? '...' : ''),
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: `Successfully created ${data.createdCount} toys` });
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       setBulkToyData("");
     },
-    onError: () => {
-      toast({ title: "Failed to upload toys", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to upload toys";
+      toast({ title: errorMessage, variant: "destructive" });
     }
   });
 
