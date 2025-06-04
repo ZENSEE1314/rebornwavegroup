@@ -1865,7 +1865,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
+      console.log(`Fetching pets for user: ${userId}`);
       const pets = await storage.getPetsByUserId(userId);
+      console.log(`Found ${pets.length} pets:`, pets.map(p => ({ id: p.id, name: p.name })));
+      
+      // Disable caching for this endpoint
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json(pets);
     } catch (error) {
       console.error("Error fetching pets:", error);
