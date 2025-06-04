@@ -41,10 +41,21 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file (PNG, JPG, JPEG)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Allow up to 10MB for payment proof images
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please select an image smaller than 5MB",
+        description: "Please select an image smaller than 10MB",
         variant: "destructive",
       });
       return;
@@ -212,7 +223,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
@@ -274,7 +285,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
           </div>
         )}
 
-        <Tabs defaultValue="paypal" className="w-full">
+        <div className="flex-1 overflow-y-auto">
+          <Tabs defaultValue="paypal" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="paypal" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -426,7 +438,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                         <Upload className="h-12 w-12 text-gray-400 mx-auto" />
                         <div>
                           <p className="text-sm text-gray-600">Upload bank transfer receipt</p>
-                          <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                          <p className="text-xs text-gray-400">PNG, JPG up to 10MB</p>
                         </div>
                         <input
                           type="file"
@@ -538,7 +550,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                         <Upload className="h-12 w-12 text-gray-400 mx-auto" />
                         <div>
                           <p className="text-sm text-gray-600">Upload cash deposit receipt</p>
-                          <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                          <p className="text-xs text-gray-400">PNG, JPG up to 10MB</p>
                         </div>
                         <input
                           type="file"
@@ -590,7 +602,8 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
