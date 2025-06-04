@@ -19,6 +19,9 @@ import {
   dailyCareStatus,
   gameScores,
   tokenClaims,
+  paymentMethods,
+  topUpRequests,
+  paymentTransactions,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -40,9 +43,12 @@ import {
   type InsertGameScore,
   type TokenClaim,
   type InsertTokenClaim,
-  type Pet,
-  type PetCareActivity,
-  type DailyCareStatus,
+  type PaymentMethod,
+  type InsertPaymentMethod,
+  type TopUpRequest,
+  type InsertTopUpRequest,
+  type PaymentTransaction,
+  type InsertPaymentTransaction,
   type Appointment,
   type Transaction,
   type Toy,
@@ -126,6 +132,21 @@ export interface IStorage {
   getAllCashOuts(): Promise<CashOutTransaction[]>;
   updateCashOutStatus(id: number, status: string, adminNotes?: string): Promise<void>;
   updateUserBankDetails(userId: string, bankName: string, accountNumber: string, accountHolderName: string): Promise<void>;
+  
+  // Payment and top-up operations
+  createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod>;
+  getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]>;
+  updatePaymentMethod(id: number, method: Partial<InsertPaymentMethod>): Promise<void>;
+  deletePaymentMethod(id: number): Promise<void>;
+  
+  createTopUpRequest(request: InsertTopUpRequest): Promise<TopUpRequest>;
+  getTopUpRequestsByUserId(userId: string): Promise<TopUpRequest[]>;
+  getAllTopUpRequests(): Promise<TopUpRequest[]>;
+  updateTopUpRequestStatus(id: number, status: string, adminId: string, adminNotes?: string): Promise<void>;
+  
+  createPaymentTransaction(transaction: InsertPaymentTransaction): Promise<PaymentTransaction>;
+  getPaymentTransactionsByUserId(userId: string): Promise<PaymentTransaction[]>;
+  updatePaymentTransactionStatus(id: number, status: string, transactionId?: string): Promise<void>;
   
   // Purchase confirmation operations
   createPendingPurchase(purchase: InsertPendingPurchase): Promise<PendingPurchase>;

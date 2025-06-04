@@ -649,3 +649,68 @@ export const insertTokenClaimSchema = createInsertSchema(tokenClaims).omit({
   requestedAt: true,
 });
 export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
+
+// Payment methods and top-up tables
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: varchar("type").notNull(), // 'bank_transfer', 'cash_deposit', 'paypal', 'stripe'
+  details: jsonb("details").notNull(), // Store bank details, paypal email, etc.
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const topUpRequests = pgTable("topup_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method").notNull(), // 'bank_transfer', 'cash_deposit', 'paypal'
+  paymentProof: text("payment_proof"), // File path or URL to payment proof
+  bankTransferDetails: jsonb("bank_transfer_details"), // Bank name, account number, reference number
+  status: varchar("status").default("pending").notNull(), // pending, approved, rejected
+  adminId: varchar("admin_id").references(() => users.id),
+  adminNotes: text("admin_notes"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("USD").notNull(),
+  paymentMethod: varchar("payment_method").notNull(), // 'paypal', 'stripe', 'bank_transfer', 'cash'
+  transactionId: varchar("transaction_id"), // PayPal/Stripe transaction ID
+  status: varchar("status").default("pending").notNull(), // pending, completed, failed, cancelled
+  description: text("description").notNull(),
+  metadata: jsonb("metadata"), // Additional payment details
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+
+export type TopUpRequest = typeof topUpRequests.$inferSelect;
+export const insertTopUpRequestSchema = createInsertSchema(topUpRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertTopUpRequest = z.infer<typeof insertTopUpRequestSchema>;
+
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
