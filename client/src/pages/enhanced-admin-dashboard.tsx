@@ -40,7 +40,8 @@ import {
   Filter,
   Settings,
   Heart,
-  Trophy
+  Trophy,
+  LogOut
 } from "lucide-react";
 
 export default function EnhancedAdminDashboard() {
@@ -775,9 +776,22 @@ export default function EnhancedAdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
-          <p className="text-gray-300">Comprehensive system management and reporting</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">Admin Dashboard</h1>
+            <p className="text-gray-300">Comprehensive system management and reporting</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-gray-300">Welcome, {user?.firstName || user?.email}</span>
+            <Button
+              onClick={() => window.location.href = '/api/logout'}
+              variant="outline"
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Stats Overview */}
