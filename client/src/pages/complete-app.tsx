@@ -1238,8 +1238,73 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </Card>
       )}
 
+      {/* Activated Toys (can create pets from these) */}
+      {ownedToys.filter((toy: any) => toy.isActivated && !pets?.some((pet: any) => pet.toyId === toy.id)).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{language === "id" ? "Mainan Aktif - Buat Hewan Peliharaan" : "Active Toys - Create Pets"}</CardTitle>
+            <p className="text-sm text-gray-600">
+              {language === "id" ? "Ubah mainan aktif menjadi hewan peliharaan virtual" : "Turn active toys into virtual pets"}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ownedToys.filter((toy: any) => toy.isActivated && !pets?.some((pet: any) => pet.toyId === toy.id)).map((toy: any) => (
+                <Card key={toy.id} className="border-2 border-dashed border-green-300">
+                  <CardContent className="p-4 text-center">
+                    <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
+                      <img 
+                        src={toy.imageUrl} 
+                        alt={toy.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjNmNGY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjM3MzkxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn6e4PC90ZXh0Pgo8L3N2Zz4=';
+                        }}
+                      />
+                    </div>
+                    <h4 className="font-semibold">{toy.name}</h4>
+                    <p className="text-xs text-gray-500 mb-1">{toy.series}</p>
+                    <div className="mb-3">
+                      <Badge className="bg-green-100 text-green-800">
+                        {language === "id" ? "Aktif" : "Active"}
+                      </Badge>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        // Use the pet creation endpoint
+                        fetch('/api/toys/activate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ qrCode: toy.qrCode })
+                        }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+                          toast({
+                            title: language === "id" ? "Berhasil!" : "Success!",
+                            description: language === "id" ? "Hewan peliharaan berhasil dibuat!" : "Pet successfully created!",
+                          });
+                        }).catch((error) => {
+                          toast({
+                            title: language === "id" ? "Error" : "Error", 
+                            description: error.message || (language === "id" ? "Gagal membuat hewan peliharaan" : "Failed to create pet"),
+                            variant: "destructive"
+                          });
+                        });
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      <Heart className="w-4 h-4 mr-2" />
+                      {language === "id" ? "Buat Pet" : "Create Pet"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pet Navigation */}
-      {pets.length > 1 && (
+      {safePets.length > 1 && (
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <Button
@@ -1250,7 +1315,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm text-gray-600">
-              Pet {currentPetIndex + 1} of {pets.length}
+              Pet {currentPetIndex + 1} of {safePets.length}
             </span>
             <Button
               variant="outline"
