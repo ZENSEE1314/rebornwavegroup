@@ -43,6 +43,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await capturePaypalOrder(req, res);
   });
 
+  // Credit top-up routes
+  app.post('/api/topup/paypal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, currency = 'USD' } = req.body;
+
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      // Create payment transaction record
+      const transaction = await storage.createPaymentTransaction({
+        userId,
+        amount: amount.toString(),
+        currency,
+        paymentMethod: 'paypal',
+        status: 'pending',
+        description: `Credit top-up via PayPal - $${amount}`,
+        metadata: { topUpAmount: amount },
+      });
+
+      res.json({ 
+        success: true, 
+        transactionId: transaction.id,
+        message: "PayPal payment initiated. Credits will be added upon successful payment completion."
+      });
+    } catch (error) {
+      console.error("Error creating PayPal top-up:", error);
+      res.status(500).json({ error: "Failed to initiate PayPal top-up" });
+    }
+  });
+
+  app.post('/api/topup/bank-transfer', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, bankTransferDetails, paymentProof } = req.body;
+
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const request = await storage.createTopUpRequest({
+        userId,
+        amount: amount.toString(),
+        paymentMethod: 'bank_transfer',
+        bankTransferDetails,
+        paymentProof,
+        status: 'pending',
+      });
+
+      res.json({ 
+        success: true, 
+        requestId: request.id,
+        message: "Bank transfer request submitted. Credits will be added after admin approval."
+      });
+    } catch (error) {
+      console.error("Error creating bank transfer request:", error);
+      res.status(500).json({ error: "Failed to submit bank transfer request" });
+    }
+  });
+
+  app.post('/api/topup/cash-deposit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { amount, paymentProof } = req.body;
+
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const request = await storage.createTopUpRequest({
+        userId,
+        amount: amount.toString(),
+        paymentMethod: 'cash_deposit',
+        paymentProof,
+        status: 'pending',
+      });
+
+      res.json({ 
+        success: true, 
+        requestId: request.id,
+        message: "Cash deposit request submitted. Credits will be added after admin approval."
+      });
+    } catch (error) {
+      console.error("Error creating cash deposit request:", error);
+      res.status(500).json({ error: "Failed to submit cash deposit request" });
+    }
+  });
+
+  // Get user's top-up requests
+  app.get('/api/topup/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const requests = await storage.getTopUpRequestsByUserId(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching top-up requests:", error);
+      res.status(500).json({ error: "Failed to fetch top-up requests" });
+    }
+  });
+
+  // Get user's payment transactions
+  app.get('/api/payment/transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const transactions = await storage.getPaymentTransactionsByUserId(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching payment transactions:", error);
+      res.status(500).json({ error: "Failed to fetch payment transactions" });
+    }
+  });
+
+  // Admin routes for managing top-up requests
+  app.get('/api/admin/topup-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const requests = await storage.getAllTopUpRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching all top-up requests:", error);
+      res.status(500).json({ error: "Failed to fetch top-up requests" });
+    }
+  });
+
+  app.put('/api/admin/topup-requests/:requestId', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { status, adminNotes } = req.body;
+
+      await storage.updateTopUpRequestStatus(
+        parseInt(requestId),
+        status,
+        req.user.claims.sub,
+        adminNotes
+      );
+
+      res.json({ success: true, message: "Top-up request updated successfully" });
+    } catch (error) {
+      console.error("Error updating top-up request:", error);
+      res.status(500).json({ error: "Failed to update top-up request" });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {

@@ -1567,6 +1567,164 @@ export class DatabaseStorage implements IStorage {
       }).where(eq(users.id, claim.userId));
     }
   }
+
+  // Payment and top-up operations
+  async createPaymentMethod(methodData: InsertPaymentMethod): Promise<PaymentMethod> {
+    const [method] = await db
+      .insert(paymentMethods)
+      .values(methodData)
+      .returning();
+    return method;
+  }
+
+  async getPaymentMethodsByUserId(userId: string): Promise<PaymentMethod[]> {
+    return await db
+      .select()
+      .from(paymentMethods)
+      .where(and(eq(paymentMethods.userId, userId), eq(paymentMethods.isActive, true)))
+      .orderBy(desc(paymentMethods.isDefault), desc(paymentMethods.createdAt));
+  }
+
+  async updatePaymentMethod(id: number, methodData: Partial<InsertPaymentMethod>): Promise<void> {
+    await db
+      .update(paymentMethods)
+      .set({
+        ...methodData,
+        updatedAt: new Date(),
+      })
+      .where(eq(paymentMethods.id, id));
+  }
+
+  async deletePaymentMethod(id: number): Promise<void> {
+    await db
+      .update(paymentMethods)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(paymentMethods.id, id));
+  }
+
+  async createTopUpRequest(requestData: InsertTopUpRequest): Promise<TopUpRequest> {
+    const [request] = await db
+      .insert(topUpRequests)
+      .values(requestData)
+      .returning();
+    return request;
+  }
+
+  async getTopUpRequestsByUserId(userId: string): Promise<TopUpRequest[]> {
+    return await db
+      .select()
+      .from(topUpRequests)
+      .where(eq(topUpRequests.userId, userId))
+      .orderBy(desc(topUpRequests.createdAt));
+  }
+
+  async getAllTopUpRequests(): Promise<TopUpRequest[]> {
+    return await db
+      .select()
+      .from(topUpRequests)
+      .orderBy(desc(topUpRequests.createdAt));
+  }
+
+  async updateTopUpRequestStatus(id: number, status: string, adminId: string, adminNotes?: string): Promise<void> {
+    const updateData: any = {
+      status,
+      adminId,
+      processedAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    if (adminNotes) {
+      updateData.adminNotes = adminNotes;
+    }
+
+    await db
+      .update(topUpRequests)
+      .set(updateData)
+      .where(eq(topUpRequests.id, id));
+
+    // If approved, add credits to user account
+    if (status === 'approved') {
+      const [request] = await db
+        .select()
+        .from(topUpRequests)
+        .where(eq(topUpRequests.id, id))
+        .limit(1);
+
+      if (request) {
+        // Add credits to user account
+        await this.updateUserCredits(request.userId, request.amount);
+        
+        // Create credit history record
+        await this.createCreditHistory({
+          userId: request.userId,
+          amount: request.amount,
+          type: 'credit_topup',
+          description: `Credit top-up via ${request.paymentMethod} - Request #${id}`,
+          status: 'completed',
+          referenceId: id.toString(),
+        });
+      }
+    }
+  }
+
+  async createPaymentTransaction(transactionData: InsertPaymentTransaction): Promise<PaymentTransaction> {
+    const [transaction] = await db
+      .insert(paymentTransactions)
+      .values(transactionData)
+      .returning();
+    return transaction;
+  }
+
+  async getPaymentTransactionsByUserId(userId: string): Promise<PaymentTransaction[]> {
+    return await db
+      .select()
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.userId, userId))
+      .orderBy(desc(paymentTransactions.createdAt));
+  }
+
+  async updatePaymentTransactionStatus(id: number, status: string, transactionId?: string): Promise<void> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (transactionId) {
+      updateData.transactionId = transactionId;
+    }
+
+    await db
+      .update(paymentTransactions)
+      .set(updateData)
+      .where(eq(paymentTransactions.id, id));
+
+    // If payment completed, add credits to user account
+    if (status === 'completed') {
+      const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.id, id))
+        .limit(1);
+
+      if (transaction) {
+        // Add credits to user account
+        await this.updateUserCredits(transaction.userId, transaction.amount);
+        
+        // Create credit history record
+        await this.createCreditHistory({
+          userId: transaction.userId,
+          amount: transaction.amount,
+          type: 'payment_credit',
+          description: `Credit purchase via ${transaction.paymentMethod} - ${transaction.description}`,
+          status: 'completed',
+          referenceId: transaction.transactionId || id.toString(),
+        });
+      }
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
