@@ -593,21 +593,26 @@ export class DatabaseStorage implements IStorage {
       throw new Error("This toy has already been activated");
     }
 
-    if (!toy.purchasedBy) {
-      throw new Error("This toy has not been purchased yet");
+    // Check if toy has been purchased by someone else
+    if (toy.purchasedBy && toy.purchasedBy !== userId) {
+      throw new Error("You can only activate toys you have purchased");
     }
 
-    if (toy.purchasedBy !== userId) {
-      throw new Error("You can only activate toys you have purchased");
+    // If toy hasn't been purchased yet, automatically assign it to the activating user
+    const updateData: any = { 
+      isActivated: true, 
+      ownerId: userId,
+      updatedAt: new Date() 
+    };
+
+    // If toy wasn't purchased yet, mark it as purchased by the activating user
+    if (!toy.purchasedBy) {
+      updateData.purchasedBy = userId;
     }
 
     const [updatedToy] = await db
       .update(toys)
-      .set({ 
-        isActivated: true, 
-        ownerId: userId,
-        updatedAt: new Date() 
-      })
+      .set(updateData)
       .where(eq(toys.qrCode, qrCode))
       .returning();
 
