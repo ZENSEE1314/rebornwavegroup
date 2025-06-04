@@ -1967,7 +1967,7 @@ export default function CompleteApp() {
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountHolderName, setAccountHolderName] = useState("");
-  const [cashOutHistory, setCashOutHistory] = useState([]);
+
   
   // Reward redemption confirmation states
   const [showRedeemConfirmation, setShowRedeemConfirmation] = useState(false);
@@ -2268,6 +2268,14 @@ export default function CompleteApp() {
   });
   
   const tokenClaimsHistory = tokenClaimsData || [];
+
+  // Fetch cash-out history
+  const { data: cashOutHistoryData = [] } = useQuery({
+    queryKey: ['/api/cashout/history'],
+    enabled: !!user?.id,
+  });
+  
+  const cashOutHistory = cashOutHistoryData || [];
 
   // Mutation to create credit history entry
   const createCreditHistoryMutation = useMutation({
@@ -2789,17 +2797,9 @@ export default function CompleteApp() {
         description: language === "id" ? "Permintaan penarikan berhasil diajukan" : "Cash-out request submitted successfully",
       });
 
-      // Add to cash-out history
-      const newCashOut = {
-        id: Date.now(),
-        amount: amount,
-        bankName,
-        accountNumber,
-        accountHolderName,
-        status: "pending",
-        date: new Date().toISOString().split('T')[0]
-      };
-      setCashOutHistory([newCashOut, ...cashOutHistory]);
+      // Refresh cash-out history from API
+      queryClient.invalidateQueries({ queryKey: ['/api/cashout/history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       
       // Add transaction to history
       const newTransaction = {
