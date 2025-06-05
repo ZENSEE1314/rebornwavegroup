@@ -1800,7 +1800,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const userTokens = userStats?.tokens || 0;
+                      const userTokens = (user as any)?.tokens || 0;
                       if (userTokens < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
@@ -1813,7 +1813,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={(userStats?.tokens || 0) < 5}
+                    disabled={((user as any)?.tokens || 0) < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
@@ -2192,89 +2192,61 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Pet Name Editing Modal */}
+      {/* Simple Working Edit Modal */}
       {editingPetName !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Ubah Nama Pet" : "Edit Pet Name"}
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Edit Pet Name</h3>
             <p className="text-sm text-gray-600 mb-4">
-              {language === "id" 
-                ? "Biaya untuk mengubah nama pet adalah 5 token. Token saat ini: " 
-                : "Cost to change pet name is 5 tokens. Current tokens: "}
-{(user as any)?.tokens || 0}
+              Cost: 5 tokens (You have: {(user as any)?.tokens || 0})
             </p>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Lama:" : "Current Name:"}
-                </label>
-                <div className="p-2 bg-gray-100 rounded border">
-                  {safePets.find(pet => pet.id === editingPetName)?.name || "Pet"}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Baru:" : "New Name:"}
-                </label>
+                <label className="block text-sm font-medium mb-2">New Name:</label>
                 <input
                   type="text"
                   value={newPetName}
                   onChange={(e) => setNewPetName(e.target.value)}
                   className="w-full p-2 border rounded-md"
-                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
-                  maxLength={50}
+                  placeholder="Enter new name..."
+                  maxLength={20}
+                  autoFocus
                 />
               </div>
             </div>
             
             <div className="flex gap-2 mt-6">
-              <Button
-                variant="outline"
+              <button
                 onClick={() => {
                   setEditingPetName(null);
                   setNewPetName("");
                 }}
-                className="flex-1"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                {language === "id" ? "Batal" : "Cancel"}
-              </Button>
-              <Button
+                Cancel
+              </button>
+              <button
                 onClick={() => {
                   if (!newPetName.trim()) {
                     toast({
-                      title: language === "id" ? "Error" : "Error",
-                      description: language === "id" ? "Nama tidak boleh kosong" : "Name cannot be empty",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  
-                  if (((user as any)?.tokens || 0) < 5) {
-                    toast({
-                      title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
-                      description: language === "id" ? "Anda memerlukan 5 token untuk mengubah nama pet" : "You need 5 tokens to change pet name",
+                      title: "Error",
+                      description: "Name cannot be empty",
                       variant: "destructive",
                     });
                     return;
                   }
                   
                   petNameMutation.mutate({
-                    petId: editingPetName!,
+                    petId: editingPetName,
                     newName: newPetName.trim()
                   });
                 }}
-                disabled={petNameMutation.isPending}
-                className="flex-1"
+                disabled={petNameMutation.isPending || !newPetName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
               >
-                {petNameMutation.isPending 
-                  ? (language === "id" ? "Mengubah..." : "Updating...")
-                  : (language === "id" ? "Ubah (5 token)" : "Update (5 tokens)")
-                }
-              </Button>
+                {petNameMutation.isPending ? "Saving..." : "Save (5 tokens)"}
+              </button>
             </div>
           </div>
         </div>
