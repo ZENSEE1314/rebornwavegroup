@@ -1792,7 +1792,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={(userStats?.tokens || 0) < 5}
+                    disabled={userTokens < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
