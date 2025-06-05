@@ -1878,15 +1878,76 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </CardContent>
           </Card>
 
-          {/* Progress Info */}
+          {/* Token Eligibility Status */}
           <Card>
             <CardContent className="py-4">
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-3">
                 <p className="text-sm text-gray-600">
                   Current Tokens: {user?.loyaltyPoints || 0}
                 </p>
+                
+                {/* Token Eligibility Display */}
+                <div className="p-3 rounded-lg border">
+                  <div className="text-sm font-medium mb-2">Token Eligibility Status</div>
+                  
+                  {(() => {
+                    const currentPet = safePets[currentPetIndex];
+                    if (!currentPet) return null;
+                    
+                    const energy = currentPet.energy || 0;
+                    const hunger = currentPet.hunger || 0;
+                    const cleanliness = currentPet.cleanliness || 0;
+                    const minimumLevel = 80;
+                    
+                    const energyMeetsRequirement = energy >= minimumLevel;
+                    const hungerMeetsRequirement = hunger >= minimumLevel;
+                    const cleanlinessMeetsRequirement = cleanliness >= minimumLevel;
+                    
+                    const allRequirementsMet = energyMeetsRequirement && hungerMeetsRequirement && cleanlinessMeetsRequirement;
+                    const tokenAlreadyClaimed = careStatus?.tokenEarned || false;
+                    
+                    if (tokenAlreadyClaimed) {
+                      return (
+                        <div className="text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                          <div className="font-semibold">Token Already Claimed Today</div>
+                          <div className="text-xs">This pet has already earned a token today. Try again tomorrow!</div>
+                        </div>
+                      );
+                    }
+                    
+                    if (allRequirementsMet) {
+                      return (
+                        <div className="text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                          <div className="font-semibold">✓ Eligible for Token</div>
+                          <div className="text-xs">All stats are 80%+ - Complete any care activity to earn a token!</div>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                        <div className="font-semibold">Not Eligible for Token</div>
+                        <div className="text-xs space-y-1">
+                          <div>Need all stats at 80% or higher:</div>
+                          <div className="flex justify-between text-xs">
+                            <span className={energyMeetsRequirement ? 'text-green-600' : 'text-red-600'}>
+                              Energy: {energy}% {energyMeetsRequirement ? '✓' : '✗'}
+                            </span>
+                            <span className={hungerMeetsRequirement ? 'text-green-600' : 'text-red-600'}>
+                              Hunger: {hunger}% {hungerMeetsRequirement ? '✓' : '✗'}
+                            </span>
+                            <span className={cleanlinessMeetsRequirement ? 'text-green-600' : 'text-red-600'}>
+                              Clean: {cleanliness}% {cleanlinessMeetsRequirement ? '✓' : '✗'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+                
                 <p className="text-xs text-gray-500">
-                  Complete daily care to earn 1 token per day. Pets generate tokens for 100 days.
+                  Each pet can earn 1 token per day when all stats reach 80%. Pets generate tokens for 100 days.
                 </p>
               </div>
             </CardContent>
