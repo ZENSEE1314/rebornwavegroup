@@ -443,8 +443,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Calculate sleep timer from server data (nextEnergyIn is already in minutes)
-  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn)) : 0;
+  // Calculate sleep timer from server data - convert minutes to seconds for display
+  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn * 60)) : 0;
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
@@ -1792,7 +1792,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={userTokens < 5}
+                    disabled={(userStats?.tokens || 0) < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
