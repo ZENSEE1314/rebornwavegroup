@@ -882,7 +882,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                                 background: happiness >= 100 
                                   ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)' 
                                   : happiness >= 75 
-                                  ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)'
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
                                   : happiness >= 50
                                   ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
                                   : happiness >= 25
