@@ -1406,6 +1406,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: '-5'
       });
       
+      // Record in claim token history
+      await storage.createTokenClaim({
+        userId,
+        petId,
+        tokensAwarded: -5,
+        activityType: 'pet_name_change',
+        description: `Pet name changed to "${name.trim()}" (-5 tokens)`
+      });
+      
       res.json({ 
         message: "Pet name updated successfully",
         newName: name.trim(),
