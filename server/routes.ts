@@ -1465,14 +1465,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newHunger = Math.max(0, (pet.hunger || 100) - decayAmount);
       const newCleanliness = Math.max(0, (pet.cleanliness || 100) - decayAmount);
       
+      // Calculate happiness decay (2% every 30 minutes)
+      const happinessDecayAmount = Math.floor(timeSinceLastCare / 30) * 2;
+      const newHappiness = Math.max(0, (pet.happiness || 100) - happinessDecayAmount);
+      
+      // Award tokens for sleep cycles completed (1 token every 30 minutes of sleep)
+      const sleepCyclesCompleted = Math.floor(totalSleepMinutes / 30);
+      const lastTokenAwardTime = pet.lastTokenAwardTime ? new Date(pet.lastTokenAwardTime) : sleepStart;
+      const minutesSinceLastToken = Math.floor((now.getTime() - lastTokenAwardTime.getTime()) / (1000 * 60));
+      const newTokensToAward = Math.floor(minutesSinceLastToken / 30);
+      
       // Update energy if any was gained, and apply decay
       const updates: any = {};
       if (energyGained > 0) {
         updates.energy = newEnergy;
       }
-      if (decayAmount > 0) {
+      if (decayAmount > 0 || happinessDecayAmount > 0) {
         updates.hunger = newHunger;
         updates.cleanliness = newCleanliness;
+        updates.happiness = newHappiness;
+        updates.lastCareDate = now; // Update last care time when decay is applied
+      }
+      
+      // Award tokens for sleep cycles and update token award time
+      if (newTokensToAward > 0) {
+        await storage.addUserTokens(userId, newTokensToAward);
+        updates.lastTokenAwardTime = now;
+        
+        // Create points history for token award
+        await storage.createPointsHistory({
+          userId,
+          points: newTokensToAward,
+          type: 'earned',
+          description: `Pet sleep reward - ${newTokensToAward} tokens earned`
+        });
       }
       
       if (Object.keys(updates).length > 0) {
@@ -1484,10 +1510,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentEnergy: energyGained > 0 ? newEnergy : pet.energy,
         currentHunger: newHunger,
         currentCleanliness: newCleanliness,
+        currentHappiness: newHappiness,
         energyGained,
         nextEnergyIn,
         totalSleepTime: totalSleepMinutes,
-        maxEnergy: (energyGained > 0 ? newEnergy : pet.energy) >= 100
+        maxEnergy: (energyGained > 0 ? newEnergy : pet.energy) >= 100,
+        tokensAwarded: newTokensToAward || 0
       });
     } catch (error) {
       console.error("Error getting sleep progress:", error);
