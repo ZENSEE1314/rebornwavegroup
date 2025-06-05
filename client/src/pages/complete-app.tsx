@@ -443,33 +443,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Update countdown when sleep progress data changes - sync with server data
-  useEffect(() => {
-    if (sleepProgress?.nextEnergyIn) {
-      const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
-      // Always sync with server data when available
-      if (secondsRemaining > 0) {
-        setSleepCountdown(secondsRemaining);
-      }
-    }
-  }, [sleepProgress]);
-
-  // Continuous countdown timer that runs independently of server updates
-  useEffect(() => {
-    if (safePets[currentPetIndex]?.isSleeping && sleepCountdown > 0) {
-      const timer = setInterval(() => {
-        setSleepCountdown(prev => {
-          if (prev <= 1) {
-            // Timer reached 0, will be updated by next server sync
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [safePets[currentPetIndex]?.isSleeping, sleepCountdown > 0]);
+  // Simple timer display - use server data directly without local countdown
+  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn * 60)) : 0;
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
@@ -1805,7 +1780,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (userTokens < 5) {
+                      const currentTokens = userStats?.tokens || 0;
+                      if (currentTokens < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1817,7 +1793,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={userTokens < 5}
+                    disabled={!userStats?.tokens || userStats.tokens < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
@@ -2047,17 +2023,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
                     
-                    {/* Real-time countdown timer */}
+                    {/* Server-synced timer display */}
                     <div className="text-3xl font-mono text-blue-600 mb-2">
-                      {sleepProgress?.nextEnergyIn ? (
-                        (() => {
-                          const nextEnergyMinutes = sleepProgress.nextEnergyIn;
-                          const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
-                          const minutes = Math.floor(totalSecondsRemaining / 60);
-                          const seconds = totalSecondsRemaining % 60;
-                          return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                        })()
-                      ) : "05:00"}
+                      {(() => {
+                        const minutes = Math.floor(displayTimer / 60);
+                        const seconds = displayTimer % 60;
+                        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                      })()}
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-2">
@@ -2343,7 +2315,7 @@ export default function CompleteApp() {
   // Real-time updates disabled temporarily to resolve connection issues
   // TODO: Re-enable WebSocket functionality once connection issues are resolved
   
-  // User data - fetch from database with real-time updates
+  // User data - fetch from database with real-time updates (early definition for edit button)
   const { data: userStats, refetch: refetchUserStats } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
