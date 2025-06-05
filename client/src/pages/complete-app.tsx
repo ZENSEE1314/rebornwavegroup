@@ -1495,8 +1495,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </p>
                 <p className="text-xs text-yellow-600 mt-1">
                   {language === "id" 
-                    ? `Token saat ini: ${user?.tokens || 0}`
-                    : `Current tokens: ${user?.tokens || 0}`
+                    ? `Token saat ini: ${userTokens}`
+                    : `Current tokens: ${userTokens}`
                   }
                 </p>
               </div>
@@ -1780,8 +1780,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const currentTokens = userStats?.tokens || 0;
-                      if (currentTokens < 5) {
+                      if (userTokens < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1793,7 +1792,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={!userStats?.tokens || userStats.tokens < 5}
+                    disabled={userTokens < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
