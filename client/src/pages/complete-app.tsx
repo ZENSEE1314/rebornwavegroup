@@ -513,12 +513,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setEditingPetName(null);
       setNewPetName("");
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+        description: language === "id" ? "Nama pet berhasil diubah! (-5 token)" : "Pet name updated successfully! (-5 tokens)",
       });
     },
     onError: (error: any) => {
