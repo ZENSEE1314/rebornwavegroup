@@ -2047,11 +2047,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     
                     {/* Server-synced timer display */}
                     <div className="text-3xl font-mono text-blue-600 mb-2">
-                      {(() => {
-                        const minutes = Math.floor(displayTimer / 60);
-                        const seconds = displayTimer % 60;
-                        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                      })()}
+                      {sleepProgress?.nextEnergyIn ? 
+                        formatSleepTimer(sleepProgress.nextEnergyIn) : 
+                        "00:00"
+                      }
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-2">
@@ -2263,7 +2262,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   }
                   
                   petNameMutation.mutate({
-                    petId: safePets[editingPetName].id,
+                    petId: editingPetName!,
                     newName: newPetName.trim()
                   });
                 }}
