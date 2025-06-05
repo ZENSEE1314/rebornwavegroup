@@ -1811,7 +1811,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         return;
                       }
                       setNewPetName(safePets[currentPetIndex].name);
-                      setEditingPetName(currentPetIndex);
+                      setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
                     disabled={!user?.loyaltyPoints || user.loyaltyPoints < 5}

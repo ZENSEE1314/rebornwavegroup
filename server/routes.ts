@@ -1516,16 +1516,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sleepStart = new Date(pet.sleepStartTime);
       const totalSleepMinutes = Math.floor((now.getTime() - sleepStart.getTime()) / (1000 * 60));
       
-      // Every 5 minutes = 1 energy point
-      const energyGained = Math.floor(totalSleepMinutes / 5);
-      const minutesSinceLastEnergy = totalSleepMinutes % 5;
+      // Energy recovery: 1 point every 5 minutes, but track what's already been awarded
+      const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
+      const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
+      
+      // Only award new energy if at least 5 minutes have passed since last update
+      const newEnergyPoints = Math.floor(minutesSinceLastEnergyUpdate / 5);
+      const minutesSinceLastEnergy = minutesSinceLastEnergyUpdate % 5;
       const nextEnergyIn = 5 - minutesSinceLastEnergy;
       
-      // Calculate new energy level (max 100) - only update if energy was actually gained
+      // Calculate new energy level (max 100)
       const currentEnergy = pet.energy || 0;
-      const calculatedNewEnergy = Math.min(100, currentEnergy + energyGained);
-      const actualEnergyGained = calculatedNewEnergy - currentEnergy;
-      const newEnergy = actualEnergyGained > 0 ? calculatedNewEnergy : currentEnergy;
+      const newEnergy = Math.min(100, currentEnergy + newEnergyPoints);
+      const actualEnergyGained = newEnergy - currentEnergy;
       
       // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
       const timeSinceLastCare = pet.lastCareDate ? 
@@ -1549,6 +1552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates: any = {};
       if (actualEnergyGained > 0) {
         updates.energy = newEnergy;
+        updates.lastEnergyUpdate = now; // Track when energy was last updated
       }
       if (decayAmount > 0 || happinessDecayAmount > 0) {
         updates.hunger = newHunger;
