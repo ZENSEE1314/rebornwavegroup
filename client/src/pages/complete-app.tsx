@@ -423,7 +423,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    refetchInterval: 1000, // Update every second for real-time timer
+    refetchInterval: 10000, // Update every 10 seconds to reduce API calls
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
@@ -456,12 +456,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Continuous countdown timer that runs independently of server updates
   useEffect(() => {
-    if (safePets[currentPetIndex]?.isSleeping) {
+    if (safePets[currentPetIndex]?.isSleeping && sleepCountdown > 0) {
       const timer = setInterval(() => {
         setSleepCountdown(prev => {
           if (prev <= 1) {
-            // Timer reached 0, fetch fresh data from server
-            refetchPets();
+            // Timer reached 0, will be updated by next server sync
             return 0;
           }
           return prev - 1;
@@ -470,7 +469,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
       return () => clearInterval(timer);
     }
-  }, [safePets[currentPetIndex]?.isSleeping]);
+  }, [safePets[currentPetIndex]?.isSleeping, sleepCountdown > 0]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
@@ -1806,7 +1805,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if ((user?.tokens || 0) < 5) {
+                      if (userTokens < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1818,7 +1817,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={!user?.tokens || user.tokens < 5}
+                    disabled={userTokens < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
