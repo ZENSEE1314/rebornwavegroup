@@ -351,7 +351,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
-      return response.json();
+      const data = await response.json();
+      
+      // Check for auto wake-up
+      if (data.autoWoken) {
+        toast({
+          title: language === "id" ? "Pet Bangun Otomatis!" : "Pet Auto-Woke!",
+          description: language === "id" ? "Energi pet sudah penuh (100%)!" : "Pet's energy is now full (100%)!",
+        });
+        // Refresh pet data to show updated status
+        refetchPets();
+      }
+      
+      return data;
     }
   });
 
