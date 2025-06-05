@@ -882,13 +882,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
-                        onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
-                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
+                        }}
+                        disabled={careActivityMutation.isPending}
                       >
-                        <span className="text-2xl">⚡</span>
-                        <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
-                        <span className="text-xs">2 tokens</span>
+                        <span className="text-2xl">🎾</span>
+                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
                       </Button>
 
                       {pet.isSleeping ? (
@@ -925,6 +926,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         </Button>
                       )}
 
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
+                        onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
+                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
+                      >
+                        <span className="text-2xl">⚡</span>
+                        <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
+                        <span className="text-xs">2 tokens</span>
+                      </Button>
+
                       {/* Sleep Timer Display */}
                       {pet.isSleeping && sleepProgress && (
                         <div className="col-span-full mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -954,18 +966,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           </div>
                         </div>
                       )}
-
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
-                        onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
-                        }}
-                        disabled={careActivityMutation.isPending}
-                      >
-                        <span className="text-2xl">🎾</span>
-                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
-                      </Button>
                     </div>
                   </div>
 
@@ -1441,21 +1441,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' })}
-                  disabled={careActivityMutation.isPending}
-                >
-                  <Bed className="w-6 h-6" />
-                  <span className="text-sm">Sleep</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex-col gap-2"
                   onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'cleaned' })}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
                   <span className="text-sm">Play</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2"
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' })}
+                  disabled={careActivityMutation.isPending}
+                >
+                  <Bed className="w-6 h-6" />
+                  <span className="text-sm">Sleep</span>
                 </Button>
                 <Button
                   variant="outline"
