@@ -1380,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      const currentTokens = user.loyaltyPoints || 0;
+      const currentTokens = user.tokens || 0;
       if (currentTokens < 5) {
         return res.status(400).json({ 
           message: "Not enough tokens! You need 5 tokens to change pet name.",
@@ -1395,7 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Deduct 5 tokens and update pet name
-      await storage.updateUserPoints(userId, currentTokens - 5);
+      await storage.updateUserTokens(userId, currentTokens - 5);
       await storage.updatePetName(petId, name.trim());
       
       // Record transaction
