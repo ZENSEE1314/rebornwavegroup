@@ -850,7 +850,124 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       </div>
                     </div>
 
+                  {/* Daily Care Activities */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">
+                      {language === "id" ? "Aktivitas Harian" : "Daily Activities"}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
+                        }}
+                        disabled={careActivityMutation.isPending}
+                      >
+                        <span className="text-2xl">🍎</span>
+                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
+                      </Button>
 
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
+                        }}
+                        disabled={careActivityMutation.isPending}
+                      >
+                        <span className="text-2xl">🛁</span>
+                        <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        onClick={() => {
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
+                        }}
+                        disabled={careActivityMutation.isPending}
+                      >
+                        <span className="text-2xl">🎾</span>
+                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
+                      </Button>
+
+                      {pet.isSleeping ? (
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50 border-blue-200"
+                          onClick={() => {
+                            wakeMutation.mutate(pet.id);
+                          }}
+                          disabled={wakeMutation.isPending}
+                        >
+                          <span className="text-2xl">☀️</span>
+                          <span className="text-sm">{language === "id" ? "Bangunkan" : "Wake Up"}</span>
+                          <span className="text-xs text-blue-600">
+                            {language === "id" ? "Sedang Tidur" : "Sleeping"}
+                          </span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 p-4 h-auto flex-col"
+                          onClick={() => {
+                            sleepMutation.mutate(pet.id);
+                          }}
+                          disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
+                        >
+                          <span className="text-2xl">💤</span>
+                          <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
+                          {(pet.energy || 50) >= 100 && (
+                            <span className="text-xs text-gray-500">
+                              {language === "id" ? "Penuh Energi" : "Full Energy"}
+                            </span>
+                          )}
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
+                        onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
+                        disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
+                      >
+                        <span className="text-2xl">⚡</span>
+                        <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
+                        <span className="text-xs">2 tokens</span>
+                      </Button>
+
+                      {/* Sleep Timer Display */}
+                      {pet.isSleeping && sleepProgress && (
+                        <div className="col-span-full mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-700 mb-2">
+                              💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
+                            </div>
+                            
+                            <div className="text-3xl font-mono text-blue-600 mb-2">
+                              {(() => {
+                                const minutes = Math.floor(sleepCountdown / 60);
+                                const seconds = sleepCountdown % 60;
+                                return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                              })()}
+                            </div>
+                            
+                            <div className="text-sm text-blue-600 mb-2">
+                              {language === "id" 
+                                ? "Waktu hingga energi berikutnya"
+                                : "Time until next energy boost"
+                              }
+                            </div>
+                            
+                            <div className="text-sm text-blue-600">
+                              {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Feeding Game */}
                   <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
