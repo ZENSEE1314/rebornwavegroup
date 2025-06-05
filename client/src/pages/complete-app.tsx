@@ -1018,26 +1018,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <Progress 
-                            value={energy} 
-                            className={`h-4 transition-all duration-700 ${
-                              energy >= 100 ? 'energy-full' : 
-                              pet.isSleeping ? 'energy-charging' :
-                              energy < 25 ? 'energy-low' : ''
-                            }`}
-                            style={{
-                              background: energy >= 100 
-                                ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                                : energy >= 75 
-                                ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
-                                : energy >= 50
-                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                : energy >= 25
-                                ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
-                              backgroundSize: pet.isSleeping ? '200% 100%' : '100% 100%'
-                            }}
-                          />
+                          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-700 ${
+                                energy >= 100 ? 'energy-full' : 
+                                pet.isSleeping ? 'energy-charging' :
+                                energy < 25 ? 'energy-low' : ''
+                              }`}
+                              style={{
+                                width: `${energy}%`,
+                                background: energy >= 100 
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
+                                  : energy >= 75 
+                                  ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
+                                  : energy >= 50
+                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                  : energy >= 25
+                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
+                                backgroundSize: pet.isSleeping ? '200% 100%' : '100% 100%'
+                              }}
+                            />
+                          </div>
                           {energy >= 100 && (
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-ping">
                             </div>
