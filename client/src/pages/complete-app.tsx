@@ -443,22 +443,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Update countdown when sleep progress data changes - only set initial value
+  // Update countdown when sleep progress data changes - sync with server data
   useEffect(() => {
-    if (sleepProgress?.nextEnergyIn && sleepCountdown === 0) {
+    if (sleepProgress?.nextEnergyIn) {
       const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
-      setSleepCountdown(secondsRemaining);
+      // Always sync with server data when available
+      if (secondsRemaining > 0) {
+        setSleepCountdown(secondsRemaining);
+      }
     }
   }, [sleepProgress]);
 
   // Continuous countdown timer that runs independently of server updates
   useEffect(() => {
-    if (safePets[currentPetIndex]?.isSleeping && sleepCountdown > 0) {
+    if (safePets[currentPetIndex]?.isSleeping) {
       const timer = setInterval(() => {
         setSleepCountdown(prev => {
           if (prev <= 1) {
-            // Timer reached 0, reset to 5 minutes for next energy cycle
-            return 300; // 5 minutes = 300 seconds
+            // Timer reached 0, fetch fresh data from server
+            refetchPets();
+            return 0;
           }
           return prev - 1;
         });
@@ -466,7 +470,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
       return () => clearInterval(timer);
     }
-  }, [safePets[currentPetIndex]?.isSleeping, sleepCountdown]);
+  }, [safePets[currentPetIndex]?.isSleeping]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
