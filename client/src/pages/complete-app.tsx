@@ -28,86 +28,36 @@ function formatSleepTime(timeRemaining: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// Sound effect function to play custom voice + "Doluruu" sound
+// Sound effect function to play custom voice
 function playDoluruuSound() {
   try {
-    // Play custom voice recording first
+    // Play custom voice recording saying "how do you call my name?"
     const audio = new Audio('/src/assets/custom-voice.m4a');
     audio.volume = 0.8;
     
-    audio.play().then(() => {
-      // After custom voice finishes, play "Doluruu" with text-to-speech
-      audio.addEventListener('ended', () => {
-        if ('speechSynthesis' in window) {
-          const createUtterance = (text: string, delay: number = 0) => {
-            setTimeout(() => {
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.rate = 0.6; // Slower for cuteness
-              utterance.pitch = 1.8; // Much higher pitch for cute effect
-              utterance.volume = 0.8;
-              
-              // Try to find the most suitable voice
-              const voices = speechSynthesis.getVoices();
-              const preferredVoice = voices.find(voice => 
-                voice.name.toLowerCase().includes('female') || 
-                voice.name.toLowerCase().includes('child') ||
-                voice.name.toLowerCase().includes('cute') ||
-                voice.name.toLowerCase().includes('samantha') ||
-                voice.name.toLowerCase().includes('karen') ||
-                voice.lang.includes('en-US')
-              ) || voices[0];
-              
-              if (preferredVoice) {
-                utterance.voice = preferredVoice;
-              }
-              
-              speechSynthesis.speak(utterance);
-            }, delay);
-          };
-          
-          // Play main "Doluruu" sound
-          createUtterance('Doluruu~', 0);
-          
-          // Add a cute giggle effect after a short delay
-          createUtterance('hehe', 800);
-        }
-      });
-    }).catch(() => {
+    audio.play().catch(() => {
       // Fallback to text-to-speech if audio file fails
       if ('speechSynthesis' in window) {
-        const createUtterance = (text: string, delay: number = 0) => {
-          setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.6;
-            utterance.pitch = 1.8;
-            utterance.volume = 0.8;
-            
-            const voices = speechSynthesis.getVoices();
-            const preferredVoice = voices.find(voice => 
-              voice.name.toLowerCase().includes('female') || 
-              voice.name.toLowerCase().includes('child') ||
-              voice.name.toLowerCase().includes('cute') ||
-              voice.name.toLowerCase().includes('samantha') ||
-              voice.name.toLowerCase().includes('karen') ||
-              voice.lang.includes('en-US')
-            ) || voices[0];
-            
-            if (preferredVoice) {
-              utterance.voice = preferredVoice;
-            }
-            
-            speechSynthesis.speak(utterance);
-          }, delay);
-        };
+        const utterance = new SpeechSynthesisUtterance('How do you call my name?');
+        utterance.rate = 0.6;
+        utterance.pitch = 1.8;
+        utterance.volume = 0.8;
         
-        // Play intro question first (fallback)
-        createUtterance('How do you call my name?', 0);
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('female') || 
+          voice.name.toLowerCase().includes('child') ||
+          voice.name.toLowerCase().includes('cute') ||
+          voice.name.toLowerCase().includes('samantha') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.lang.includes('en-US')
+        ) || voices[0];
         
-        // Play main "Doluruu" sound after intro
-        createUtterance('Doluruu~', 2000);
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
         
-        // Add a cute giggle effect after a short delay
-        createUtterance('hehe', 2800);
+        speechSynthesis.speak(utterance);
       }
     });
   } catch (error) {
