@@ -1543,9 +1543,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const navigatePet = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
-      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : pets.length - 1));
+      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : safePets.length - 1));
     } else {
-      setCurrentPetIndex((prev) => (prev < pets.length - 1 ? prev + 1 : 0));
+      setCurrentPetIndex((prev) => (prev < safePets.length - 1 ? prev + 1 : 0));
     }
   };
 
