@@ -28,73 +28,88 @@ function formatSleepTime(timeRemaining: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// Sound effect function to play cute "Doluruu" sound
+// Sound effect function to play custom voice + "Doluruu" sound
 function playDoluruuSound() {
   try {
-    // Use Speech Synthesis API to say "Doluruu" with cute effects
-    if ('speechSynthesis' in window) {
-      // Create multiple layered utterances for a more interesting sound
-      const createUtterance = (text: string, delay: number = 0) => {
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 0.6; // Slower for cuteness
-          utterance.pitch = 1.8; // Much higher pitch for cute effect
-          utterance.volume = 0.8;
+    // Play custom voice recording first
+    const audio = new Audio('/src/assets/custom-voice.m4a');
+    audio.volume = 0.8;
+    
+    audio.play().then(() => {
+      // After custom voice finishes, play "Doluruu" with text-to-speech
+      audio.addEventListener('ended', () => {
+        if ('speechSynthesis' in window) {
+          const createUtterance = (text: string, delay: number = 0) => {
+            setTimeout(() => {
+              const utterance = new SpeechSynthesisUtterance(text);
+              utterance.rate = 0.6; // Slower for cuteness
+              utterance.pitch = 1.8; // Much higher pitch for cute effect
+              utterance.volume = 0.8;
+              
+              // Try to find the most suitable voice
+              const voices = speechSynthesis.getVoices();
+              const preferredVoice = voices.find(voice => 
+                voice.name.toLowerCase().includes('female') || 
+                voice.name.toLowerCase().includes('child') ||
+                voice.name.toLowerCase().includes('cute') ||
+                voice.name.toLowerCase().includes('samantha') ||
+                voice.name.toLowerCase().includes('karen') ||
+                voice.lang.includes('en-US')
+              ) || voices[0];
+              
+              if (preferredVoice) {
+                utterance.voice = preferredVoice;
+              }
+              
+              speechSynthesis.speak(utterance);
+            }, delay);
+          };
           
-          // Try to find the most suitable voice
-          const voices = speechSynthesis.getVoices();
-          const preferredVoice = voices.find(voice => 
-            voice.name.toLowerCase().includes('female') || 
-            voice.name.toLowerCase().includes('child') ||
-            voice.name.toLowerCase().includes('cute') ||
-            voice.name.toLowerCase().includes('samantha') ||
-            voice.name.toLowerCase().includes('karen') ||
-            voice.lang.includes('en-US')
-          ) || voices[0];
+          // Play main "Doluruu" sound
+          createUtterance('Doluruu~', 0);
           
-          if (preferredVoice) {
-            utterance.voice = preferredVoice;
-          }
-          
-          speechSynthesis.speak(utterance);
-        }, delay);
-      };
-      
-      // Play main "Doluruu" sound
-      createUtterance('Doluruu~');
-      
-      // Add a cute giggle effect after a short delay
-      createUtterance('hehe', 800);
-      
-    } else {
-      // Fallback: Create a simple beep sound using Web Audio API
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      // Create a cute melody
-      const frequencies = [523, 659, 784]; // C, E, G notes
-      frequencies.forEach((freq, index) => {
-        setTimeout(() => {
-          const osc = audioContext.createOscillator();
-          const gain = audioContext.createGain();
-          
-          osc.connect(gain);
-          gain.connect(audioContext.destination);
-          
-          osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-          osc.type = 'sine';
-          gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-          
-          osc.start(audioContext.currentTime);
-          osc.stop(audioContext.currentTime + 0.3);
-        }, index * 150);
+          // Add a cute giggle effect after a short delay
+          createUtterance('hehe', 800);
+        }
       });
-    }
+    }).catch(() => {
+      // Fallback to text-to-speech if audio file fails
+      if ('speechSynthesis' in window) {
+        const createUtterance = (text: string, delay: number = 0) => {
+          setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.6;
+            utterance.pitch = 1.8;
+            utterance.volume = 0.8;
+            
+            const voices = speechSynthesis.getVoices();
+            const preferredVoice = voices.find(voice => 
+              voice.name.toLowerCase().includes('female') || 
+              voice.name.toLowerCase().includes('child') ||
+              voice.name.toLowerCase().includes('cute') ||
+              voice.name.toLowerCase().includes('samantha') ||
+              voice.name.toLowerCase().includes('karen') ||
+              voice.lang.includes('en-US')
+            ) || voices[0];
+            
+            if (preferredVoice) {
+              utterance.voice = preferredVoice;
+            }
+            
+            speechSynthesis.speak(utterance);
+          }, delay);
+        };
+        
+        // Play intro question first (fallback)
+        createUtterance('How do you call my name?', 0);
+        
+        // Play main "Doluruu" sound after intro
+        createUtterance('Doluruu~', 2000);
+        
+        // Add a cute giggle effect after a short delay
+        createUtterance('hehe', 2800);
+      }
+    });
   } catch (error) {
     console.log('Audio not available');
   }
