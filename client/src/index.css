@@ -25,6 +25,40 @@
   100% { opacity: 0; transform: translateY(-40px) scale(0.6); }
 }
 
+/* Energy Bar Animation Styles */
+@keyframes energy-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.8);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes energy-charge {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes energy-low-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes energy-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes energy-bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+  60% { transform: translateY(-2px); }
+}
+
 /* Achievement Animation Styles */
 @keyframes achievement-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.3); }
@@ -39,6 +73,34 @@
 @keyframes confetti-fall {
   0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
   100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+.energy-full {
+  animation: energy-pulse 2s ease-in-out infinite;
+}
+
+.energy-charging {
+  animation: energy-charge 3s linear infinite;
+  background-size: 200% 100%;
+}
+
+.energy-low {
+  animation: energy-low-warning 1s ease-in-out infinite;
+}
+
+.energy-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: energy-shimmer 2s infinite;
+}
+
+.energy-icon {
+  animation: energy-bounce 2s ease-in-out infinite;
 }
 
 .achievement-glow {

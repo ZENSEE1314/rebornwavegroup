@@ -854,11 +854,64 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         <p className="text-xs text-center mt-1">{cleanliness}/100</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
                           {language === "id" ? "Energi" : "Energy"}
+                          {pet.isSleeping && (
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
+                              💤 {language === "id" ? "Mengisi" : "Charging"}
+                            </span>
+                          )}
                         </p>
-                        <Progress value={energy} className="h-3" />
-                        <p className="text-xs text-center mt-1">{energy}/100</p>
+                        <div className="relative energy-shimmer">
+                          <Progress 
+                            value={energy} 
+                            className={`h-4 transition-all duration-700 ${
+                              energy >= 100 ? 'energy-full' : 
+                              pet.isSleeping ? 'energy-charging' :
+                              energy < 25 ? 'energy-low' : ''
+                            }`}
+                            style={{
+                              background: energy >= 100 
+                                ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
+                                : energy >= 75 
+                                ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
+                                : energy >= 50
+                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                : energy >= 25
+                                ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
+                              backgroundSize: pet.isSleeping ? '200% 100%' : '100% 100%'
+                            }}
+                          />
+                          {energy >= 100 && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-ping">
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                              energy >= 100 ? 'animate-bounce' : ''
+                            }`}>
+                              ⚡ {energy}/100
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-1 text-center">
+                          {energy >= 100 && (
+                            <span className="text-xs text-green-600 font-bold animate-bounce">
+                              ✨ {language === "id" ? "Penuh!" : "Full!"}
+                            </span>
+                          )}
+                          {energy < 25 && (
+                            <span className="text-xs text-red-600 font-bold animate-pulse">
+                              ⚠️ {language === "id" ? "Rendah" : "Low"}
+                            </span>
+                          )}
+                          {pet.isSleeping && energy < 100 && (
+                            <span className="text-xs text-blue-600">
+                              ⏳ {language === "id" ? "+1 setiap 5 menit" : "+1 every 5 minutes"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -1410,11 +1463,64 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Bed className="w-4 h-4 text-purple-500" />
+                    <span className={`w-4 h-4 ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
+                      ⚡
+                    </span>
                     <span className="text-sm font-medium">Energy</span>
+                    {safePets[currentPetIndex].isSleeping && (
+                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
+                        💤 Charging
+                      </span>
+                    )}
                   </div>
-                  <Progress value={safePets[currentPetIndex].energy} className="h-2" />
-                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].energy}%</span>
+                  <div className="relative energy-shimmer">
+                    <Progress 
+                      value={safePets[currentPetIndex].energy} 
+                      className={`h-4 transition-all duration-700 ${
+                        safePets[currentPetIndex].energy >= 100 ? 'energy-full' : 
+                        safePets[currentPetIndex].isSleeping ? 'energy-charging' :
+                        safePets[currentPetIndex].energy < 25 ? 'energy-low' : ''
+                      }`}
+                      style={{
+                        background: safePets[currentPetIndex].energy >= 100 
+                          ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
+                          : safePets[currentPetIndex].energy >= 75 
+                          ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
+                          : safePets[currentPetIndex].energy >= 50
+                          ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                          : safePets[currentPetIndex].energy >= 25
+                          ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                          : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
+                        backgroundSize: safePets[currentPetIndex].isSleeping ? '200% 100%' : '100% 100%'
+                      }}
+                    />
+                    {safePets[currentPetIndex].energy >= 100 && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-50 animate-ping">
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                        safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''
+                      }`}>
+                        ⚡ {safePets[currentPetIndex].energy}/100
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">
+                      {safePets[currentPetIndex].energy}%
+                    </span>
+                    {safePets[currentPetIndex].energy >= 100 && (
+                      <span className="text-xs text-green-600 font-bold animate-bounce">
+                        ✨ Full!
+                      </span>
+                    )}
+                    {safePets[currentPetIndex].energy < 25 && (
+                      <span className="text-xs text-red-600 font-bold animate-pulse">
+                        ⚠️ Low
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
