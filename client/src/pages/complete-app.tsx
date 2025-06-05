@@ -443,8 +443,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Calculate sleep timer from server data
-  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn * 60)) : 0;
+  // Calculate sleep timer from server data (nextEnergyIn is already in minutes)
+  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn)) : 0;
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {

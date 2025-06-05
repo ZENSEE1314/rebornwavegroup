@@ -17,6 +17,7 @@ import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
 import PetCareWithEnergy from "@/pages/pet-care-with-energy";
 import TestPetCare from "@/pages/test-pet-care";
+import SimplePetTest from "@/pages/simple-pet-test";
 import Navigation from "@/components/navigation";
 import MobileNav from "@/components/mobile-nav";
 
@@ -51,8 +52,10 @@ function Router() {
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
+          <Route path="/pet-test" component={SimplePetTest} />
         </>
       )}
+      <Route path="/pet-test" component={SimplePetTest} />
       <Route component={NotFound} />
     </Switch>
   );
