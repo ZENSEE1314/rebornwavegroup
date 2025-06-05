@@ -308,36 +308,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Auto decay system - runs every 3 minutes for all pets
-  useEffect(() => {
-    if (safePets && safePets.length > 0) {
-      const decayInterval = setInterval(async () => {
-        for (const pet of safePets) {
-          try {
-            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log(`Decay applied to pet ${pet.name}:`, data.message);
-              
-              // Refresh pets to get updated stats
-              refetchPets();
-            }
-          } catch (error) {
-            console.error(`Error applying decay to pet ${pet.name}:`, error);
-          }
-        }
-      }, 180000); // Run every 3 minutes (180,000 milliseconds)
-
-      return () => clearInterval(decayInterval);
-    }
-  }, [safePets]);
-
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading } = useQuery({
     queryKey: ["/api/toys"],
@@ -363,6 +333,38 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Safe pets array with proper fallback - define this first to avoid crashes
   const safePets = Array.isArray(pets) ? pets : [];
+
+  // Auto decay system - runs every 3 minutes for all pets
+  useEffect(() => {
+    if (pets && Array.isArray(pets) && pets.length > 0) {
+      const decayInterval = setInterval(async () => {
+        for (const pet of pets) {
+          if (!pet?.id) continue;
+          
+          try {
+            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`Decay applied to pet ${pet.name}:`, data.message);
+              
+              // Refresh pets to get updated stats
+              refetchPets();
+            }
+          } catch (error) {
+            console.error(`Error applying decay to pet ${pet.name}:`, error);
+          }
+        }
+      }, 180000); // Run every 3 minutes (180,000 milliseconds)
+
+      return () => clearInterval(decayInterval);
+    }
+  }, [pets]);
   
   // Get current pet from pets array
   const currentPet = safePets[currentPetIndex];
