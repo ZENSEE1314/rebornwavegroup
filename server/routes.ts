@@ -1512,9 +1512,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const minutesSinceLastEnergy = totalSleepMinutes % 5;
       const nextEnergyIn = 5 - minutesSinceLastEnergy;
       
-      // Calculate new energy level (max 100)
+      // Calculate new energy level (max 100) - only update if energy was actually gained
       const currentEnergy = pet.energy || 0;
-      const newEnergy = Math.min(100, currentEnergy + energyGained);
+      const calculatedNewEnergy = Math.min(100, currentEnergy + energyGained);
+      const actualEnergyGained = calculatedNewEnergy - currentEnergy;
+      const newEnergy = actualEnergyGained > 0 ? calculatedNewEnergy : currentEnergy;
       
       // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
       const timeSinceLastCare = pet.lastCareDate ? 
@@ -1536,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update energy if any was gained, and apply decay
       const updates: any = {};
-      if (energyGained > 0) {
+      if (actualEnergyGained > 0) {
         updates.energy = newEnergy;
       }
       if (decayAmount > 0 || happinessDecayAmount > 0) {

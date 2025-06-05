@@ -849,8 +849,27 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
             
-            // Check if pet is healthy based on actual stats (requires all stats above 25%)
-            const isHealthy = !isDead && hunger >= 25 && cleanliness >= 25 && happiness >= 25;
+            // Determine pet health status based on lowest stat
+            const lowestStat = Math.min(hunger, cleanliness, happiness);
+            let healthStatus;
+            let healthColor;
+            
+            if (isDead) {
+              healthStatus = language === "id" ? "Meninggal" : "Deceased";
+              healthColor = "text-red-600";
+            } else if (lowestStat >= 75) {
+              healthStatus = language === "id" ? "Sehat" : "Healthy";
+              healthColor = "text-green-600";
+            } else if (lowestStat >= 50) {
+              healthStatus = language === "id" ? "Baik" : "Good";
+              healthColor = "text-blue-600";
+            } else if (lowestStat >= 25) {
+              healthStatus = language === "id" ? "Normal" : "Normal";
+              healthColor = "text-yellow-600";
+            } else {
+              healthStatus = language === "id" ? "Buruk" : "Bad";
+              healthColor = "text-red-600";
+            }
 
             return (
               <Card key={pet.id} className="overflow-hidden">
@@ -1331,10 +1350,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
-                        <p className={`font-medium ${isDead ? 'text-red-600' : isHealthy ? 'text-green-600' : 'text-orange-600'}`}>
-                          {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
-                           isHealthy ? (language === "id" ? "Sehat" : "Healthy") : 
-                           (language === "id" ? "Perlu Perawatan" : "Needs Care")}
+                        <p className={`font-medium ${healthColor}`}>
+                          {healthStatus}
                         </p>
                       </div>
                       <div>
