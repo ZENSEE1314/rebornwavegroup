@@ -1549,7 +1549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auto decay system - reduce hunger, cleanliness, and happiness by 1% every 3 minutes
+  // Auto decay system - reduce hunger and cleanliness by 1% every 3 minutes, happiness drops when other stats drop
   app.post('/api/pets/:petId/auto-decay', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1560,16 +1560,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
-      // Apply 1% decay to hunger, cleanliness, and happiness
-      const newHunger = Math.max(0, (pet.hunger || 100) - 1);
-      const newCleanliness = Math.max(0, (pet.cleanliness || 100) - 1);
-      const newHappiness = Math.max(0, (pet.happiness || 100) - 1);
+      const now = new Date();
+      const lastDecayTime = pet.lastDecayTime ? new Date(pet.lastDecayTime) : new Date(pet.createdAt || now);
+      const minutesSinceLastDecay = Math.floor((now.getTime() - lastDecayTime.getTime()) / (1000 * 60));
+      
+      // Calculate decay intervals (every 3 minutes)
+      const decayIntervals = Math.floor(minutesSinceLastDecay / 3);
+      
+      if (decayIntervals === 0) {
+        return res.json({
+          success: true,
+          message: "No decay needed yet",
+          minutesUntilNextDecay: 3 - (minutesSinceLastDecay % 3)
+        });
+      }
+
+      // Apply decay to hunger and cleanliness (1% per 3-minute interval)
+      const currentHunger = pet.hunger || 100;
+      const currentCleanliness = pet.cleanliness || 100;
+      const currentHappiness = pet.happiness || 100;
+      
+      const newHunger = Math.max(0, currentHunger - decayIntervals);
+      const newCleanliness = Math.max(0, currentCleanliness - decayIntervals);
+      
+      // Happiness drops when hunger or cleanliness drops
+      const hungerDrop = currentHunger - newHunger;
+      const cleanlinessDrop = currentCleanliness - newCleanliness;
+      const totalStatDrop = hungerDrop + cleanlinessDrop;
+      const newHappiness = Math.max(0, currentHappiness - totalStatDrop);
 
       await storage.updatePetStats(petId, {
         hunger: newHunger,
         cleanliness: newCleanliness,
         happiness: newHappiness,
-        lastCareDate: new Date()
+        lastDecayTime: now
       });
 
       res.json({
@@ -1577,7 +1601,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newHunger,
         newCleanliness,
         newHappiness,
-        message: "Stat decay applied (hunger, cleanliness, happiness)"
+        decayIntervals,
+        hungerDrop,
+        cleanlinessDrop,
+        happinessDrop: currentHappiness - newHappiness,
+        minutesUntilNextDecay: 3,
+        message: `Stat decay applied: ${decayIntervals} intervals (${decayIntervals * 3} minutes)`
       });
     } catch (error) {
       console.error("Error applying stat decay:", error);

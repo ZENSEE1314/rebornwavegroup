@@ -308,6 +308,36 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto decay system - runs every 3 minutes for all pets
+  useEffect(() => {
+    if (safePets && safePets.length > 0) {
+      const decayInterval = setInterval(async () => {
+        for (const pet of safePets) {
+          try {
+            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`Decay applied to pet ${pet.name}:`, data.message);
+              
+              // Refresh pets to get updated stats
+              refetchPets();
+            }
+          } catch (error) {
+            console.error(`Error applying decay to pet ${pet.name}:`, error);
+          }
+        }
+      }, 180000); // Run every 3 minutes (180,000 milliseconds)
+
+      return () => clearInterval(decayInterval);
+    }
+  }, [safePets]);
+
   // Fetch user's toys that can become pets
   const { data: userToys = [], isLoading: toysLoading } = useQuery({
     queryKey: ["/api/toys"],
@@ -830,28 +860,151 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     {/* Pet Stats with Real-time Values */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
                           {language === "id" ? "Kebahagiaan" : "Happiness"}
+                          {happiness < 25 && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
+                              😢 {language === "id" ? "Sedih" : "Sad"}
+                            </span>
+                          )}
                         </p>
-                        <Progress value={happiness} className="h-3" />
-                        <p className="text-xs text-center mt-1">{happiness}/100</p>
+                        <div className="relative energy-shimmer">
+                          <Progress 
+                            value={happiness} 
+                            className={`h-4 transition-all duration-700 ${
+                              happiness >= 100 ? 'energy-full' : 
+                              happiness < 25 ? 'energy-low' : ''
+                            }`}
+                            style={{
+                              background: happiness >= 100 
+                                ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)' 
+                                : happiness >= 75 
+                                ? 'linear-gradient(90deg, #34d399, #10b981, #34d399)'
+                                : happiness >= 50
+                                ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)'
+                                : happiness >= 25
+                                ? 'linear-gradient(90deg, #fb923c, #f97316, #fb923c)'
+                                : 'linear-gradient(90deg, #ef4444, #dc2626, #ef4444)'
+                            }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                              happiness >= 100 ? 'animate-bounce' : ''
+                            }`}>
+                              😊 {happiness}/100
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-1 text-center">
+                          {happiness >= 100 && (
+                            <span className="text-xs text-yellow-600 font-bold animate-bounce">
+                              ✨ {language === "id" ? "Sangat Bahagia!" : "Very Happy!"}
+                            </span>
+                          )}
+                          {happiness < 25 && (
+                            <span className="text-xs text-red-600 font-bold animate-pulse">
+                              💔 {language === "id" ? "Tidak Bahagia" : "Unhappy"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
                           {language === "id" ? "Rasa Lapar" : "Hunger"}
+                          {hunger < 25 && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
+                              🍽️ {language === "id" ? "Kelaparan" : "Starving"}
+                            </span>
+                          )}
                         </p>
-                        <Progress 
-                          value={hunger} 
-                          className={`h-3 ${hunger < 20 ? 'bg-red-100' : ''}`}
-                        />
-                        <p className="text-xs text-center mt-1 font-semibold">{hunger}/100</p>
+                        <div className="relative energy-shimmer">
+                          <Progress 
+                            value={hunger} 
+                            className={`h-4 transition-all duration-700 ${
+                              hunger >= 100 ? 'energy-full' : 
+                              hunger < 25 ? 'energy-low' : ''
+                            }`}
+                            style={{
+                              background: hunger >= 100 
+                                ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
+                                : hunger >= 75 
+                                ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
+                                : hunger >= 50
+                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                : hunger >= 25
+                                ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
+                            }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                              hunger >= 100 ? 'animate-bounce' : ''
+                            }`}>
+                              🍎 {hunger}/100
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-1 text-center">
+                          {hunger >= 100 && (
+                            <span className="text-xs text-green-600 font-bold animate-bounce">
+                              ✨ {language === "id" ? "Kenyang!" : "Full!"}
+                            </span>
+                          )}
+                          {hunger < 25 && (
+                            <span className="text-xs text-red-600 font-bold animate-pulse">
+                              ⚠️ {language === "id" ? "Sangat Lapar" : "Very Hungry"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
                           {language === "id" ? "Kebersihan" : "Cleanliness"}
+                          {cleanliness < 25 && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
+                              🧼 {language === "id" ? "Kotor" : "Dirty"}
+                            </span>
+                          )}
                         </p>
-                        <Progress value={cleanliness} className="h-3" />
-                        <p className="text-xs text-center mt-1">{cleanliness}/100</p>
+                        <div className="relative energy-shimmer">
+                          <Progress 
+                            value={cleanliness} 
+                            className={`h-4 transition-all duration-700 ${
+                              cleanliness >= 100 ? 'energy-full' : 
+                              cleanliness < 25 ? 'energy-low' : ''
+                            }`}
+                            style={{
+                              background: cleanliness >= 100 
+                                ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)' 
+                                : cleanliness >= 75 
+                                ? 'linear-gradient(90deg, #34d399, #10b981, #34d399)'
+                                : cleanliness >= 50
+                                ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)'
+                                : cleanliness >= 25
+                                ? 'linear-gradient(90deg, #fb923c, #f97316, #fb923c)'
+                                : 'linear-gradient(90deg, #ef4444, #dc2626, #ef4444)'
+                            }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                              cleanliness >= 100 ? 'animate-bounce' : ''
+                            }`}>
+                              🛁 {cleanliness}/100
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-1 text-center">
+                          {cleanliness >= 100 && (
+                            <span className="text-xs text-blue-600 font-bold animate-bounce">
+                              ✨ {language === "id" ? "Bersih Sekali!" : "Very Clean!"}
+                            </span>
+                          )}
+                          {cleanliness < 25 && (
+                            <span className="text-xs text-red-600 font-bold animate-pulse">
+                              ⚠️ {language === "id" ? "Sangat Kotor" : "Very Dirty"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
