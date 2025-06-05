@@ -1501,22 +1501,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Auto-wake pet when energy reaches 100%
+      const finalEnergy = energyGained > 0 ? newEnergy : pet.energy;
+      if (finalEnergy >= 100) {
+        updates.isSleeping = false;
+        updates.sleepStartTime = null;
+        console.log(`Pet ${petId} automatically woke up - energy reached 100%`);
+      }
+      
       if (Object.keys(updates).length > 0) {
         await storage.updatePetStats(petId, updates);
       }
       
-      res.json({
-        isSleeping: true,
-        currentEnergy: energyGained > 0 ? newEnergy : pet.energy,
-        currentHunger: newHunger,
-        currentCleanliness: newCleanliness,
-        currentHappiness: newHappiness,
-        energyGained,
-        nextEnergyIn,
-        totalSleepTime: totalSleepMinutes,
-        maxEnergy: (energyGained > 0 ? newEnergy : pet.energy) >= 100,
-        tokensAwarded: newTokensToAward || 0
-      });
+      // If pet was auto-woken, return different response
+      if (finalEnergy >= 100 && updates.isSleeping === false) {
+        res.json({
+          isSleeping: false,
+          currentEnergy: finalEnergy,
+          currentHunger: newHunger,
+          currentCleanliness: newCleanliness,
+          currentHappiness: newHappiness,
+          energyGained,
+          nextEnergyIn: 0,
+          totalSleepTime: totalSleepMinutes,
+          maxEnergy: true,
+          tokensAwarded: newTokensToAward || 0,
+          autoWoken: true,
+          message: "Pet automatically woke up - energy is full!"
+        });
+      } else {
+        res.json({
+          isSleeping: true,
+          currentEnergy: finalEnergy,
+          currentHunger: newHunger,
+          currentCleanliness: newCleanliness,
+          currentHappiness: newHappiness,
+          energyGained,
+          nextEnergyIn,
+          totalSleepTime: totalSleepMinutes,
+          maxEnergy: finalEnergy >= 100,
+          tokensAwarded: newTokensToAward || 0
+        });
+      }
     } catch (error) {
       console.error("Error getting sleep progress:", error);
       res.status(500).json({ message: "Failed to get sleep progress" });
