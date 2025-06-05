@@ -848,6 +848,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
+            
+            // Check if pet is healthy based on actual stats (requires all stats above 25%)
+            const isHealthy = !isDead && hunger >= 25 && cleanliness >= 25 && happiness >= 25;
 
             return (
               <Card key={pet.id} className="overflow-hidden">
@@ -1328,9 +1331,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
-                        <p className={`font-medium ${isDead ? 'text-red-600' : canEarnTokens ? 'text-green-600' : 'text-orange-600'}`}>
+                        <p className={`font-medium ${isDead ? 'text-red-600' : isHealthy ? 'text-green-600' : 'text-orange-600'}`}>
                           {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
-                           canEarnTokens ? (language === "id" ? "Sehat" : "Healthy") : 
+                           isHealthy ? (language === "id" ? "Sehat" : "Healthy") : 
                            (language === "id" ? "Perlu Perawatan" : "Needs Care")}
                         </p>
                       </div>
