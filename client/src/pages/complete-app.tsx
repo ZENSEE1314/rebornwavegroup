@@ -2273,6 +2273,10 @@ export default function CompleteApp() {
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
   
+  // Pet name editing states
+  const [editingPetName, setEditingPetName] = useState<number | null>(null);
+  const [newPetName, setNewPetName] = useState("");
+  
   // Global error handler for unhandled promise rejections
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -2894,18 +2898,24 @@ export default function CompleteApp() {
     mutationFn: (tokenData: { tokensRequested: number }) => apiRequest('POST', '/api/token-claims', tokenData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-      setShowTokenClaimModal(false);
-      setTokenClaimAmount("");
+    },
+  });
+
+  // Mutation to update pet name
+  const petNameMutation = useMutation({
+    mutationFn: ({ petId, newName }: { petId: number; newName: string }) => 
+      apiRequest('PUT', `/api/pets/${petId}/name`, { name: newName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      setEditingPetName(null);
+      setNewPetName("");
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
+        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
       });
     },
-    onError: () => {
-      toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Gagal mengajukan klaim token" : "Failed to submit token claim",
-        variant: "destructive",
+  });
       });
     },
   });
