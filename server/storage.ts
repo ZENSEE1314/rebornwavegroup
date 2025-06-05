@@ -1492,6 +1492,15 @@ export class DatabaseStorage implements IStorage {
       activityType: 'daily_complete',
       pointsEarned: 1,
     });
+
+    // Record in claim token history
+    await this.createTokenClaim({
+      userId,
+      petId,
+      tokensAwarded: 1,
+      activityType: 'daily_care_complete',
+      description: 'Daily pet care activities completed (+1 token)'
+    });
     
     console.log(`Token awarded to user ${userId} for pet ${petId}`);
   }

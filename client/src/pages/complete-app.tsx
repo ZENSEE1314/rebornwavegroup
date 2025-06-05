@@ -1802,7 +1802,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if ((user?.tokens || 0) < 5) {
+                      if ((user?.loyaltyPoints || 0) < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1814,7 +1814,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(currentPetIndex);
                     }}
                     className="text-xs"
-                    disabled={!user?.tokens || user.tokens < 5}
+                    disabled={!user?.loyaltyPoints || user.loyaltyPoints < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
