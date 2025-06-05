@@ -1820,7 +1820,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       console.log("Edit modal should now be open");
                     }}
                     className="text-xs"
-                    disabled={((user as any)?.tokens || 0) < 5}
+                    disabled={false}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
