@@ -443,13 +443,30 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Update countdown when sleep progress data changes
+  // Update countdown when sleep progress data changes - only set initial value
   useEffect(() => {
-    if (sleepProgress?.nextEnergyIn) {
+    if (sleepProgress?.nextEnergyIn && sleepCountdown === 0) {
       const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
       setSleepCountdown(secondsRemaining);
     }
   }, [sleepProgress]);
+
+  // Continuous countdown timer that runs independently of server updates
+  useEffect(() => {
+    if (safePets[currentPetIndex]?.isSleeping && sleepCountdown > 0) {
+      const timer = setInterval(() => {
+        setSleepCountdown(prev => {
+          if (prev <= 1) {
+            // Timer reached 0, reset to 5 minutes for next energy cycle
+            return 300; // 5 minutes = 300 seconds
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [safePets[currentPetIndex]?.isSleeping, sleepCountdown]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
