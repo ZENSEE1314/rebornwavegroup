@@ -1358,6 +1358,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet name change - spend 5 tokens to change pet name
+  app.patch('/api/pets/:petId/name', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { name } = req.body;
+      
+      // Validate new name
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ message: "Pet name cannot be empty" });
+      }
+      
+      if (name.trim().length > 50) {
+        return res.status(400).json({ message: "Pet name cannot be longer than 50 characters" });
+      }
+      
+      // Get user's current token balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const currentTokens = user.loyaltyPoints || 0;
+      if (currentTokens < 5) {
+        return res.status(400).json({ 
+          message: "Not enough tokens! You need 5 tokens to change pet name.",
+          insufficientTokens: true
+        });
+      }
+      
+      // Get pet to verify ownership
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      // Deduct 5 tokens and update pet name
+      await storage.updateUserLoyaltyPoints(userId, currentTokens - 5);
+      await storage.updatePetName(petId, name.trim());
+      
+      // Record transaction
+      await storage.createTransaction({
+        type: 'token_spent',
+        description: `Pet name changed to "${name.trim()}"`,
+        userId: userId,
+        amount: '-5',
+        relatedId: petId
+      });
+      
+      res.json({ 
+        message: "Pet name updated successfully",
+        newName: name.trim(),
+        tokensRemaining: currentTokens - 5
+      });
+    } catch (error) {
+      console.error("Error updating pet name:", error);
+      res.status(500).json({ message: "Failed to update pet name" });
+    }
+  });
+
   // Energy potion - spend 2 tokens to restore energy to 100%
   app.post('/api/pets/:petId/energy-potion', isAuthenticated, async (req: any, res) => {
     try {

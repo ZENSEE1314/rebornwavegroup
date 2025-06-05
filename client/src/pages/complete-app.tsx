@@ -338,6 +338,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
+  const [editingPetName, setEditingPetName] = useState<number | null>(null);
+  const [newPetName, setNewPetName] = useState("");
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -498,6 +500,31 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       toast({
         title: "Bath Failed",
         description: "Something went wrong while bathing your pet.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Pet name editing mutation
+  const petNameMutation = useMutation({
+    mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
+      const result = await apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      setEditingPetName(null);
+      setNewPetName("");
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Gagal!" : "Error!",
+        description: error.message || (language === "id" ? "Gagal mengubah nama pet" : "Failed to update pet name"),
         variant: "destructive",
       });
     }
@@ -1639,14 +1666,61 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingPetName(currentPetIndex)}
+                    className="text-xs"
+                  >
+                    ✏️ Edit (5 tokens)
+                  </Button>
+                </div>
                 <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
                 </Badge>
               </div>
-              <p className="text-gray-600">
-                Age: {safePets[currentPetIndex].currentAge} days • Type: {safePets[currentPetIndex].type}
-              </p>
+              <div className="space-y-1">
+                <p className="text-gray-600">
+                  Age: {safePets[currentPetIndex].currentAge} days • Type: {safePets[currentPetIndex].type}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Status:</span>
+                  {(() => {
+                    const currentPet = safePets[currentPetIndex];
+                    const hunger = currentPet.hunger || 0;
+                    const cleanliness = currentPet.cleanliness || 0;
+                    const energy = currentPet.energy || 0;
+                    const happiness = currentPet.happiness || 0;
+                    
+                    const lowestStat = Math.min(hunger, cleanliness, energy, happiness);
+                    
+                    let status = "Healthy";
+                    let statusColor = "text-green-600 bg-green-50";
+                    
+                    if (lowestStat >= 0 && lowestStat <= 24) {
+                      status = "Bad";
+                      statusColor = "text-red-600 bg-red-50";
+                    } else if (lowestStat >= 25 && lowestStat <= 49) {
+                      status = "Poor";
+                      statusColor = "text-orange-600 bg-orange-50";
+                    } else if (lowestStat >= 50 && lowestStat <= 74) {
+                      status = "Good";
+                      statusColor = "text-blue-600 bg-blue-50";
+                    } else if (lowestStat >= 75) {
+                      status = "Healthy";
+                      statusColor = "text-green-600 bg-green-50";
+                    }
+                    
+                    return (
+                      <Badge className={`${statusColor} border-0`}>
+                        {status}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1987,6 +2061,93 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
+      {/* Pet Name Editing Modal */}
+      {editingPetName !== null && safePets[editingPetName] && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Ubah Nama Pet" : "Edit Pet Name"}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {language === "id" 
+                ? "Biaya untuk mengubah nama pet adalah 5 token. Token saat ini: " 
+                : "Cost to change pet name is 5 tokens. Current tokens: "}
+              {user?.loyaltyPoints || 0}
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Lama:" : "Current Name:"}
+                </label>
+                <div className="p-2 bg-gray-100 rounded border">
+                  {safePets[editingPetName].name}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Baru:" : "New Name:"}
+                </label>
+                <input
+                  type="text"
+                  value={newPetName}
+                  onChange={(e) => setNewPetName(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
+                  maxLength={50}
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingPetName(null);
+                  setNewPetName("");
+                }}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!newPetName.trim()) {
+                    toast({
+                      title: language === "id" ? "Error" : "Error",
+                      description: language === "id" ? "Nama tidak boleh kosong" : "Name cannot be empty",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if ((user?.loyaltyPoints || 0) < 5) {
+                    toast({
+                      title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
+                      description: language === "id" ? "Anda memerlukan 5 token untuk mengubah nama pet" : "You need 5 tokens to change pet name",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  petNameMutation.mutate({
+                    petId: safePets[editingPetName].id,
+                    newName: newPetName.trim()
+                  });
+                }}
+                disabled={petNameMutation.isPending}
+                className="flex-1"
+              >
+                {petNameMutation.isPending 
+                  ? (language === "id" ? "Mengubah..." : "Updating...")
+                  : (language === "id" ? "Ubah (5 token)" : "Update (5 tokens)")
+                }
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
