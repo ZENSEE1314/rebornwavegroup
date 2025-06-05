@@ -210,6 +210,11 @@ export interface IStorage {
   checkAllCareCompleted(petId: number): Promise<boolean>;
   checkTokenEligibility(petId: number): Promise<{ eligible: boolean; reason?: string }>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
+  
+  // User stats
+  getUserStats(userId: string): Promise<{ tokens: number; loyaltyPoints: number; credits: number; lifetimePoints: number; referralEarnings: number } | undefined>;
+  updateUserTokens(userId: string, newTokenAmount: number): Promise<void>;
+  updatePetName(petId: number, userId: string, newName: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1491,6 +1496,15 @@ export class DatabaseStorage implements IStorage {
     console.log(`Token awarded to user ${userId} for pet ${petId}`);
   }
 
+  async updatePetName(petId: number, userId: string, newName: string): Promise<void> {
+    await db.update(pets)
+      .set({ 
+        name: newName,
+        updatedAt: new Date()
+      })
+      .where(and(eq(pets.id, petId), eq(pets.userId, userId)));
+  }
+
   async updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void> {
     try {
       const updateData: any = {};
@@ -1540,6 +1554,18 @@ export class DatabaseStorage implements IStorage {
       console.error('Error updating pet tokens:', error);
       throw error;
     }
+  }
+
+  async getUserStats(userId: string): Promise<{ tokens: number; loyaltyPoints: number; credits: number; lifetimePoints: number; referralEarnings: number } | undefined> {
+    const [user] = await db.select({
+      tokens: users.tokens,
+      loyaltyPoints: users.loyaltyPoints,
+      credits: users.credits,
+      lifetimePoints: users.lifetimePoints,
+      referralEarnings: users.referralEarnings
+    }).from(users).where(eq(users.id, userId));
+    
+    return user;
   }
 
   async updateUserTokens(userId: string, tokens: number): Promise<void> {

@@ -1750,6 +1750,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update pet name (costs 5 tokens)
+  app.put('/api/pets/:petId/name', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      const { name } = req.body;
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ message: "Pet name is required" });
+      }
+
+      // Check if user has enough tokens (5 tokens required)
+      const userStats = await storage.getUserStats(userId);
+      if (!userStats || userStats.tokens < 5) {
+        return res.status(400).json({ message: "Insufficient tokens. 5 tokens required." });
+      }
+
+      // Update pet name
+      await storage.updatePetName(petId, userId, name.trim());
+
+      // Deduct 5 tokens
+      await storage.updateUserTokens(userId, userStats.tokens - 5);
+
+      res.json({ message: "Pet name updated successfully", newName: name.trim() });
+    } catch (error) {
+      console.error("Error updating pet name:", error);
+      res.status(500).json({ message: "Failed to update pet name" });
+    }
+  });
+
   // Marketplace routes
   app.get('/api/marketplace/listings', async (req, res) => {
     try {

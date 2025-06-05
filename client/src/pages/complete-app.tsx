@@ -2916,9 +2916,6 @@ export default function CompleteApp() {
       });
     },
   });
-      });
-    },
-  });
 
   // Fetch pending purchases for current user (both buyer and seller)
   const { data: userPendingPurchases } = useQuery({
