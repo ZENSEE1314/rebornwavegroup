@@ -2170,7 +2170,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       )}
 
       {/* Pet Name Editing Modal */}
-      {editingPetName !== null && safePets[editingPetName] && (
+      {editingPetName !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">
@@ -2189,7 +2189,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   {language === "id" ? "Nama Lama:" : "Current Name:"}
                 </label>
                 <div className="p-2 bg-gray-100 rounded border">
-                  {safePets[editingPetName].name}
+                  {safePets.find(pet => pet.id === editingPetName)?.name || "Pet"}
                 </div>
               </div>
               
