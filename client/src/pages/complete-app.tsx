@@ -446,6 +446,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Calculate sleep timer from server data - convert minutes to seconds for display
   const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn * 60)) : 0;
 
+  // Timer formatting functions
+  const formatSleepTimer = (minutes: number) => {
+    const totalSeconds = Math.max(0, Math.floor(minutes * 60));
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatLifetime = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
     if (!safePets[currentPetIndex]?.id) return;
@@ -862,7 +880,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           setEditingPetName(pet.id);
                           setNewPetName(pet.name || "");
                         }}
-                        disabled={!user || user.tokens < 5}
+                        disabled={!user || (user as any)?.tokens < 5}
                         className="h-6 w-6 p-0 text-white hover:bg-white/20"
                       >
                         <Edit3 className="w-3 h-3" />
@@ -875,7 +893,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between items-center">
                       <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
-                      <span className="font-mono text-lg">{timerDisplay}</span>
+                      <span className="font-mono text-lg">
+                        {pet.isSleeping && sleepProgress?.nextEnergyIn ? 
+                          formatSleepTimer(sleepProgress.nextEnergyIn) : 
+                          formatLifetime(elapsedMs)
+                        }
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>{language === "id" ? "Umur:" : "Age:"}</span>
@@ -2180,7 +2203,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               {language === "id" 
                 ? "Biaya untuk mengubah nama pet adalah 5 token. Token saat ini: " 
                 : "Cost to change pet name is 5 tokens. Current tokens: "}
-              {user?.loyaltyPoints || 0}
+{(user as any)?.tokens || 0}
             </p>
             
             <div className="space-y-4">
@@ -2230,7 +2253,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     return;
                   }
                   
-                  if ((user?.loyaltyPoints || 0) < 5) {
+                  if (((user as any)?.tokens || 0) < 5) {
                     toast({
                       title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                       description: language === "id" ? "Anda memerlukan 5 token untuk mengubah nama pet" : "You need 5 tokens to change pet name",
