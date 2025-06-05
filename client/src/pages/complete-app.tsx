@@ -894,10 +894,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <div className="flex justify-between items-center">
                       <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
                       <span className="font-mono text-lg">
-                        {pet.isSleeping && sleepProgress?.nextEnergyIn ? 
-                          formatSleepTimer(sleepProgress.nextEnergyIn) : 
-                          formatLifetime(elapsedMs)
-                        }
+                        {formatLifetime(elapsedMs)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -1803,6 +1800,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      const userTokens = userStats?.tokens || 0;
                       if (userTokens < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
@@ -1815,7 +1813,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={userTokens < 5}
+                    disabled={(userStats?.tokens || 0) < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
@@ -2045,12 +2043,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
                     
-                    {/* Server-synced timer display */}
+                    {/* Timer display - working version */}
                     <div className="text-3xl font-mono text-blue-600 mb-2">
-                      {sleepProgress?.nextEnergyIn ? 
-                        formatSleepTimer(sleepProgress.nextEnergyIn) : 
-                        "00:00"
-                      }
+                      {sleepProgress?.nextEnergyIn ? (
+                        (() => {
+                          const mins = Math.floor(sleepProgress.nextEnergyIn);
+                          const secs = Math.floor((sleepProgress.nextEnergyIn - mins) * 60);
+                          return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                        })()
+                      ) : "Loading..."}
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-2">
