@@ -28,38 +28,43 @@ function formatSleepTime(timeRemaining: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// Sound effect function to play custom voice
+// Sound effect function to play text-to-speech + custom voice
 function playDoluruuSound() {
   try {
-    // Play custom voice recording saying "how do you call my name?"
-    const audio = new Audio('/src/assets/custom-voice.m4a');
-    audio.volume = 0.8;
-    
-    audio.play().catch(() => {
-      // Fallback to text-to-speech if audio file fails
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance('How do you call my name?');
-        utterance.rate = 0.6;
-        utterance.pitch = 1.8;
-        utterance.volume = 0.8;
-        
-        const voices = speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice => 
-          voice.name.toLowerCase().includes('female') || 
-          voice.name.toLowerCase().includes('child') ||
-          voice.name.toLowerCase().includes('cute') ||
-          voice.name.toLowerCase().includes('samantha') ||
-          voice.name.toLowerCase().includes('karen') ||
-          voice.lang.includes('en-US')
-        ) || voices[0];
-        
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
-        
-        speechSynthesis.speak(utterance);
+    // First: Play text-to-speech "how do you call my name?"
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance('How do you call my name?');
+      utterance.rate = 0.6;
+      utterance.pitch = 1.8;
+      utterance.volume = 0.8;
+      
+      const voices = speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice => 
+        voice.name.toLowerCase().includes('female') || 
+        voice.name.toLowerCase().includes('child') ||
+        voice.name.toLowerCase().includes('cute') ||
+        voice.name.toLowerCase().includes('samantha') ||
+        voice.name.toLowerCase().includes('karen') ||
+        voice.lang.includes('en-US')
+      ) || voices[0];
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
-    });
+      
+      // After text-to-speech finishes, play custom voice recording
+      utterance.onend = () => {
+        setTimeout(() => {
+          const audio = new Audio('/src/assets/custom-voice.m4a');
+          audio.volume = 0.8;
+          audio.play().catch(() => {
+            console.log('Custom voice recording failed to play');
+          });
+        }, 500); // Small delay between the two sounds
+      };
+      
+      speechSynthesis.speak(utterance);
+    }
   } catch (error) {
     console.log('Audio not available');
   }
