@@ -60,7 +60,7 @@ function playDoluruuSound() {
           audio.play().catch(() => {
             console.log('Custom voice recording failed to play');
           });
-        }, 500); // Small delay between the two sounds
+        }, 100); // Faster transition between the two sounds
       };
       
       speechSynthesis.speak(utterance);
