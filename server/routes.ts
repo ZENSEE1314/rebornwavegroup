@@ -1395,7 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Deduct 5 tokens and update pet name
-      await storage.updateUserLoyaltyPoints(userId, currentTokens - 5);
+      await storage.updateUserPoints(userId, currentTokens - 5);
       await storage.updatePetName(petId, name.trim());
       
       // Record transaction
@@ -1403,8 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'token_spent',
         description: `Pet name changed to "${name.trim()}"`,
         userId: userId,
-        amount: '-5',
-        relatedId: petId
+        amount: '-5'
       });
       
       res.json({ 

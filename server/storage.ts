@@ -1338,6 +1338,13 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(pets.id, id));
   }
 
+  async updatePetName(id: number, name: string): Promise<void> {
+    await db.update(pets).set({
+      name,
+      updatedAt: new Date(),
+    }).where(eq(pets.id, id));
+  }
+
   private calculateGrowthStage(age: number): string {
     if (age < 10) return "baby";
     if (age < 30) return "child";
