@@ -871,7 +871,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
                             <div 
                               className={`h-full transition-all duration-700 ${
                                 happiness >= 100 ? 'energy-full' : 
@@ -922,7 +922,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
                             <div 
                               className={`h-full transition-all duration-700 ${
                                 hunger >= 100 ? 'energy-full' : 
@@ -973,7 +973,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
                             <div 
                               className={`h-full transition-all duration-700 ${
                                 cleanliness >= 100 ? 'energy-full' : 
@@ -984,7 +984,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                                 background: cleanliness >= 100 
                                   ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)' 
                                   : cleanliness >= 75 
-                                  ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)'
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
                                   : cleanliness >= 50
                                   ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
                                   : cleanliness >= 25
@@ -1024,7 +1024,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
                             <div 
                               className={`h-full transition-all duration-700 ${
                                 energy >= 100 ? 'energy-full' : 
@@ -1036,7 +1036,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                                 background: energy >= 100 
                                   ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
                                   : energy >= 75 
-                                  ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
                                   : energy >= 50
                                   ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
                                   : energy >= 25
