@@ -1576,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Auto-wake pet when energy reaches 100%
-      const finalEnergy = energyGained > 0 ? newEnergy : pet.energy;
+      const finalEnergy = actualEnergyGained > 0 ? newEnergy : pet.energy;
       if (finalEnergy >= 100) {
         updates.isSleeping = false;
         updates.sleepStartTime = null;
