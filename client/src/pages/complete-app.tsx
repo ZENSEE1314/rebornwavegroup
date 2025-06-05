@@ -1515,8 +1515,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </p>
                 <p className="text-xs text-yellow-600 mt-1">
                   {language === "id" 
-                    ? `Token saat ini: ${userTokens}`
-                    : `Current tokens: ${userTokens}`
+                    ? `Token saat ini: ${(user as any)?.tokens || 0}`
+                    : `Current tokens: ${(user as any)?.tokens || 0}`
                   }
                 </p>
               </div>
@@ -2192,65 +2192,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Simple Working Edit Modal */}
-      {editingPetName !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Edit Pet Name</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Cost: 5 tokens (You have: {(user as any)?.tokens || 0})
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">New Name:</label>
-                <input
-                  type="text"
-                  value={newPetName}
-                  onChange={(e) => setNewPetName(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                  placeholder="Enter new name..."
-                  maxLength={20}
-                  autoFocus
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => {
-                  setEditingPetName(null);
-                  setNewPetName("");
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!newPetName.trim()) {
-                    toast({
-                      title: "Error",
-                      description: "Name cannot be empty",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  
-                  petNameMutation.mutate({
-                    petId: editingPetName,
-                    newName: newPetName.trim()
-                  });
-                }}
-                disabled={petNameMutation.isPending || !newPetName.trim()}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {petNameMutation.isPending ? "Saving..." : "Save (5 tokens)"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
     </div>
   );
