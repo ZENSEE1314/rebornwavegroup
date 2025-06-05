@@ -1796,34 +1796,33 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <button
                     onClick={() => {
-                      console.log("Edit button clicked!");
-                      console.log("Current user tokens:", (user as any)?.tokens);
-                      console.log("Current pet:", safePets[currentPetIndex]);
-                      
-                      const userTokens = (user as any)?.tokens || 0;
-                      if (userTokens < 5) {
-                        console.log("Not enough tokens, showing toast");
-                        toast({
-                          title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
-                          description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
-                          variant: "destructive"
+                      const newName = prompt("Enter new pet name:", safePets[currentPetIndex].name);
+                      if (newName && newName.trim() && newName !== safePets[currentPetIndex].name) {
+                        if (((user as any)?.tokens || 0) < 5) {
+                          alert("You need 5 tokens to change pet name");
+                          return;
+                        }
+                        // Call API to update pet name
+                        fetch(`/api/pets/${safePets[currentPetIndex].id}/name`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ name: newName.trim() })
+                        }).then(response => {
+                          if (response.ok) {
+                            alert("Pet name updated successfully!");
+                            window.location.reload();
+                          } else {
+                            alert("Failed to update pet name");
+                          }
                         });
-                        return;
                       }
-                      console.log("Setting edit modal state");
-                      setNewPetName(safePets[currentPetIndex].name);
-                      setEditingPetName(safePets[currentPetIndex].id);
-                      console.log("Edit modal should now be open");
                     }}
-                    className="text-xs"
-                    disabled={false}
+                    className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
                   >
                     ✏️ Edit (5 tokens)
-                  </Button>
+                  </button>
                 </div>
                 <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
