@@ -28,6 +28,35 @@ function formatSleepTime(timeRemaining: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// Sound effect function to play "Doluruu" sound
+function playDoluruuSound() {
+  try {
+    // Use Speech Synthesis API to say "Doluruu"
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance('Doluruu');
+      utterance.rate = 0.8;
+      utterance.pitch = 1.2;
+      utterance.volume = 0.7;
+      
+      // Try to find a cute/child-like voice
+      const voices = speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice => 
+        voice.name.toLowerCase().includes('female') || 
+        voice.name.toLowerCase().includes('child') ||
+        voice.name.toLowerCase().includes('cute')
+      ) || voices[0];
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+      
+      speechSynthesis.speak(utterance);
+    }
+  } catch (error) {
+    console.log('Speech synthesis not available');
+  }
+}
+
 // Coin Catching Game Component
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
   const [gameStarted, setGameStarted] = useState(false);
@@ -3661,7 +3690,13 @@ export default function CompleteApp() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  // Play Doluruu sound when pet care tab is clicked
+                  if (tab.id === "petcare") {
+                    playDoluruuSound();
+                  }
+                  setActiveTab(tab.id);
+                }}
                 className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
