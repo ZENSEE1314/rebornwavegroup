@@ -871,26 +871,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <Progress 
-                            value={happiness} 
-                            className={`h-4 transition-all duration-700 ${
-                              happiness >= 100 ? 'energy-full' : 
-                              happiness < 25 ? 'energy-low' : ''
-                            }`}
-                            style={{
-                              background: happiness >= 100 
-                                ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)' 
-                                : happiness >= 75 
-                                ? 'linear-gradient(90deg, #34d399, #10b981, #34d399)'
-                                : happiness >= 50
-                                ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)'
-                                : happiness >= 25
-                                ? 'linear-gradient(90deg, #fb923c, #f97316, #fb923c)'
-                                : 'linear-gradient(90deg, #ef4444, #dc2626, #ef4444)'
-                            }}
-                          />
+                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                            <div 
+                              className={`h-full transition-all duration-700 ${
+                                happiness >= 100 ? 'energy-full' : 
+                                happiness < 25 ? 'energy-low' : ''
+                              }`}
+                              style={{
+                                width: `${happiness}%`,
+                                background: happiness >= 100 
+                                  ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)' 
+                                  : happiness >= 75 
+                                  ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)'
+                                  : happiness >= 50
+                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                  : happiness >= 25
+                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
+                              }}
+                            />
+                          </div>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                            <span className={`text-xs font-bold ${happiness >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
                               happiness >= 100 ? 'animate-bounce' : ''
                             }`}>
                               😊 {happiness}/100
@@ -920,26 +922,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <Progress 
-                            value={hunger} 
-                            className={`h-4 transition-all duration-700 ${
-                              hunger >= 100 ? 'energy-full' : 
-                              hunger < 25 ? 'energy-low' : ''
-                            }`}
-                            style={{
-                              background: hunger >= 100 
-                                ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                                : hunger >= 75 
-                                ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
-                                : hunger >= 50
-                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                : hunger >= 25
-                                ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                            }}
-                          />
+                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                            <div 
+                              className={`h-full transition-all duration-700 ${
+                                hunger >= 100 ? 'energy-full' : 
+                                hunger < 25 ? 'energy-low' : ''
+                              }`}
+                              style={{
+                                width: `${hunger}%`,
+                                background: hunger >= 100 
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
+                                  : hunger >= 75 
+                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
+                                  : hunger >= 50
+                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                  : hunger >= 25
+                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
+                              }}
+                            />
+                          </div>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                            <span className={`text-xs font-bold ${hunger >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
                               hunger >= 100 ? 'animate-bounce' : ''
                             }`}>
                               🍎 {hunger}/100
@@ -969,26 +973,28 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           )}
                         </p>
                         <div className="relative energy-shimmer">
-                          <Progress 
-                            value={cleanliness} 
-                            className={`h-4 transition-all duration-700 ${
-                              cleanliness >= 100 ? 'energy-full' : 
-                              cleanliness < 25 ? 'energy-low' : ''
-                            }`}
-                            style={{
-                              background: cleanliness >= 100 
-                                ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)' 
-                                : cleanliness >= 75 
-                                ? 'linear-gradient(90deg, #34d399, #10b981, #34d399)'
-                                : cleanliness >= 50
-                                ? 'linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)'
-                                : cleanliness >= 25
-                                ? 'linear-gradient(90deg, #fb923c, #f97316, #fb923c)'
-                                : 'linear-gradient(90deg, #ef4444, #dc2626, #ef4444)'
-                            }}
-                          />
+                          <div className="w-full bg-white rounded-full h-4 overflow-hidden border border-gray-200">
+                            <div 
+                              className={`h-full transition-all duration-700 ${
+                                cleanliness >= 100 ? 'energy-full' : 
+                                cleanliness < 25 ? 'energy-low' : ''
+                              }`}
+                              style={{
+                                width: `${cleanliness}%`,
+                                background: cleanliness >= 100 
+                                  ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)' 
+                                  : cleanliness >= 75 
+                                  ? 'linear-gradient(90deg, #60a5fa, #3b82f6, #60a5fa)'
+                                  : cleanliness >= 50
+                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
+                                  : cleanliness >= 25
+                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
+                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
+                              }}
+                            />
+                          </div>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
+                            <span className={`text-xs font-bold ${cleanliness >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
                               cleanliness >= 100 ? 'animate-bounce' : ''
                             }`}>
                               🛁 {cleanliness}/100
