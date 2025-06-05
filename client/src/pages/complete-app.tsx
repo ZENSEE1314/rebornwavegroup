@@ -1726,24 +1726,34 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 text-pink-500">💖</span>
+                    <span className="text-sm font-medium">Happiness</span>
+                  </div>
+                  <div className="relative">
+                    <Progress 
+                      value={safePets[currentPetIndex].happiness} 
+                      className={`h-2 ${safePets[currentPetIndex].happiness >= 100 ? '[&>div]:bg-green-500' : 
+                        safePets[currentPetIndex].happiness >= 75 ? '[&>div]:bg-blue-500' :
+                        safePets[currentPetIndex].happiness >= 50 ? '[&>div]:bg-yellow-500' :
+                        safePets[currentPetIndex].happiness >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].happiness}%</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
                     <span className="w-4 h-4 text-orange-500">🍎</span>
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
                   <div className="relative">
                     <Progress 
                       value={safePets[currentPetIndex].hunger} 
-                      className="h-2"
-                      style={{
-                        background: safePets[currentPetIndex].hunger >= 100 
-                          ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                          : safePets[currentPetIndex].hunger >= 75 
-                          ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
-                          : safePets[currentPetIndex].hunger >= 50
-                          ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                          : safePets[currentPetIndex].hunger >= 25
-                          ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                          : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                      }}
+                      className={`h-2 ${safePets[currentPetIndex].hunger >= 100 ? '[&>div]:bg-green-500' : 
+                        safePets[currentPetIndex].hunger >= 75 ? '[&>div]:bg-blue-500' :
+                        safePets[currentPetIndex].hunger >= 50 ? '[&>div]:bg-yellow-500' :
+                        safePets[currentPetIndex].hunger >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      }`}
                     />
                   </div>
                   <span className="text-xs text-gray-600">{safePets[currentPetIndex].hunger}%</span>
@@ -1756,18 +1766,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="relative">
                     <Progress 
                       value={safePets[currentPetIndex].cleanliness} 
-                      className="h-2"
-                      style={{
-                        background: safePets[currentPetIndex].cleanliness >= 100 
-                          ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                          : safePets[currentPetIndex].cleanliness >= 75 
-                          ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
-                          : safePets[currentPetIndex].cleanliness >= 50
-                          ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                          : safePets[currentPetIndex].cleanliness >= 25
-                          ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                          : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                      }}
+                      className={`h-2 ${safePets[currentPetIndex].cleanliness >= 100 ? '[&>div]:bg-green-500' : 
+                        safePets[currentPetIndex].cleanliness >= 75 ? '[&>div]:bg-blue-500' :
+                        safePets[currentPetIndex].cleanliness >= 50 ? '[&>div]:bg-yellow-500' :
+                        safePets[currentPetIndex].cleanliness >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      }`}
                     />
                   </div>
                   <span className="text-xs text-gray-600">{safePets[currentPetIndex].cleanliness}%</span>
@@ -1788,22 +1791,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Progress 
                       value={safePets[currentPetIndex].energy} 
                       className={`h-4 transition-all duration-700 ${
-                        safePets[currentPetIndex].energy >= 100 ? 'energy-full' : 
-                        safePets[currentPetIndex].isSleeping ? 'energy-charging' :
-                        safePets[currentPetIndex].energy < 25 ? 'energy-low' : ''
+                        safePets[currentPetIndex].energy >= 100 ? '[&>div]:bg-green-500' : 
+                        safePets[currentPetIndex].energy >= 75 ? '[&>div]:bg-blue-500' :
+                        safePets[currentPetIndex].energy >= 50 ? '[&>div]:bg-yellow-500' :
+                        safePets[currentPetIndex].energy >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
                       }`}
-                      style={{
-                        background: safePets[currentPetIndex].energy >= 100 
-                          ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                          : safePets[currentPetIndex].energy >= 75 
-                          ? 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)'
-                          : safePets[currentPetIndex].energy >= 50
-                          ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                          : safePets[currentPetIndex].energy >= 25
-                          ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                          : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
-                        backgroundSize: safePets[currentPetIndex].isSleeping ? '200% 100%' : '100% 100%'
-                      }}
                     />
                     {safePets[currentPetIndex].energy >= 100 && (
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-50 animate-ping">
