@@ -1800,8 +1800,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      console.log("Edit button clicked!");
+                      console.log("Current user tokens:", (user as any)?.tokens);
+                      console.log("Current pet:", safePets[currentPetIndex]);
+                      
                       const userTokens = (user as any)?.tokens || 0;
                       if (userTokens < 5) {
+                        console.log("Not enough tokens, showing toast");
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1809,8 +1814,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         });
                         return;
                       }
+                      console.log("Setting edit modal state");
                       setNewPetName(safePets[currentPetIndex].name);
                       setEditingPetName(safePets[currentPetIndex].id);
+                      console.log("Edit modal should now be open");
                     }}
                     className="text-xs"
                     disabled={((user as any)?.tokens || 0) < 5}
