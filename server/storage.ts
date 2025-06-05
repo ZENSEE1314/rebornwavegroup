@@ -208,6 +208,7 @@ export interface IStorage {
   updateCareStatus(petId: number, userId: string, careType: 'fed' | 'bathed' | 'slept' | 'cleaned', completed: boolean): Promise<void>;
   createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
   checkAllCareCompleted(petId: number): Promise<boolean>;
+  checkTokenEligibility(petId: number): Promise<{ eligible: boolean; reason?: string }>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
 }
 
@@ -1410,12 +1411,52 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(pets.id, id));
   }
 
+  async checkTokenEligibility(petId: number): Promise<{ eligible: boolean; reason?: string }> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get pet stats
+    const pet = await this.getPetById(petId);
+    if (!pet) {
+      return { eligible: false, reason: 'Pet not found' };
+    }
+    
+    // Check if token already awarded today for this pet
+    const careStatus = await this.getTodaysCareStatus(petId);
+    if (careStatus?.tokenEarned) {
+      return { eligible: false, reason: 'Token already claimed today for this pet' };
+    }
+    
+    // Check pet status bars - require minimum 80% in all three stats
+    const energy = pet.energy || 0;
+    const hunger = pet.hunger || 0;
+    const cleanliness = pet.cleanliness || 0;
+    
+    const minimumLevel = 80;
+    
+    if (energy < minimumLevel) {
+      return { eligible: false, reason: `Energy too low (${energy}%). Need ${minimumLevel}% or higher.` };
+    }
+    
+    if (hunger < minimumLevel) {
+      return { eligible: false, reason: `Hunger too low (${hunger}%). Need ${minimumLevel}% or higher.` };
+    }
+    
+    if (cleanliness < minimumLevel) {
+      return { eligible: false, reason: `Cleanliness too low (${cleanliness}%). Need ${minimumLevel}% or higher.` };
+    }
+    
+    return { eligible: true, reason: 'Pet meets all requirements for token' };
+  }
+
   async awardDailyToken(userId: string, petId: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     
-    // Check if token already awarded today
-    const careStatus = await this.getTodaysCareStatus(petId);
-    if (careStatus?.tokenEarned) return;
+    // Double-check eligibility before awarding
+    const eligibility = await this.checkTokenEligibility(petId);
+    if (!eligibility.eligible) {
+      console.log(`Token award blocked: ${eligibility.reason}`);
+      return;
+    }
     
     // Award 1 token (using loyalty points as tokens for now)
     await db.update(users).set({
@@ -1424,6 +1465,7 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, userId));
 
     // Mark token as earned
+    const careStatus = await this.getTodaysCareStatus(petId);
     if (careStatus) {
       await db.update(dailyCareStatus).set({
         tokenEarned: true,
@@ -1438,6 +1480,8 @@ export class DatabaseStorage implements IStorage {
       activityType: 'daily_complete',
       pointsEarned: 1,
     });
+    
+    console.log(`Token awarded to user ${userId} for pet ${petId}`);
   }
 
   async updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void> {

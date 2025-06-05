@@ -2406,17 +2406,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
       
-      // Check if all care is completed and award token
-      const allCompleted = await storage.checkAllCareCompleted(parseInt(petId));
-      console.log('All care completed check:', allCompleted);
-      if (allCompleted) {
+      // Check token eligibility based on pet status and daily limit
+      const tokenEligible = await storage.checkTokenEligibility(parseInt(petId));
+      console.log('Token eligibility check:', tokenEligible);
+      
+      let tokenAwarded = false;
+      if (tokenEligible.eligible) {
         await storage.awardDailyToken(userId, parseInt(petId));
+        tokenAwarded = true;
         console.log('Daily token awarded');
+      } else {
+        console.log('Token not awarded:', tokenEligible.reason);
       }
       
-      res.json({ success: true, allCompleted });
+      res.json({ 
+        success: true, 
+        tokenEligible: tokenEligible.eligible,
+        tokenReason: tokenEligible.reason,
+        tokenAwarded 
+      });
       console.log('Response sent successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating care status:", error);
       console.error("Error details:", error.message, error.stack);
       res.status(500).json({ message: "Failed to update care status" });
