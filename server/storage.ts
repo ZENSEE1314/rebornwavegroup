@@ -1505,6 +1505,13 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, userId));
   }
 
+  async addUserTokens(userId: string, tokens: number): Promise<void> {
+    await db.update(users).set({ 
+      tokens: sql`${users.tokens} + ${tokens}`,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
+
   async createTokenClaim(claimData: InsertTokenClaim): Promise<TokenClaim> {
     const [claim] = await db.insert(tokenClaims).values(claimData).returning();
     return claim;

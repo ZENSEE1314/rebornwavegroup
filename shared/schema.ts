@@ -263,6 +263,7 @@ export const pets = pgTable("pets", {
   sleepDuration: integer("sleepduration").default(360), // 6 hours in minutes
   totalTokensEarned: integer("total_tokens_earned").default(0),
   dailyTokensAvailable: integer("daily_tokens_available").default(1),
+  lastTokenAwardTime: timestamp("last_token_award_time"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
