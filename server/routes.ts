@@ -74,6 +74,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
+      // Broadcast new verification submission to all connected clients
+      broadcastPaymentVerificationUpdate('submitted', verification);
+
       res.status(201).json(verification);
     } catch (error) {
       console.error("Error creating payment verification:", error);
@@ -252,6 +255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
+
+      // Broadcast payment verification update to all connected clients
+      broadcastPaymentVerificationUpdate(status === 'approved' ? 'approved' : 'rejected', updatedVerification);
 
       res.json(updatedVerification);
     } catch (error) {

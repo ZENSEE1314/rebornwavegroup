@@ -2862,8 +2862,62 @@ export default function CompleteApp() {
     };
   }, []);
 
-  // Real-time updates disabled temporarily to resolve connection issues
-  // TODO: Re-enable WebSocket functionality once connection issues are resolved
+  // WebSocket connection for real-time payment verification updates
+  useEffect(() => {
+    if (!user) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log('WebSocket connected for real-time updates');
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === 'payment_verification') {
+          // Invalidate payment verification queries for instant updates
+          queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
+          
+          // Show notification based on update type
+          if (message.subtype === 'submitted') {
+            toast({
+              title: "New Verification Submitted",
+              description: "A payment verification has been submitted for review",
+            });
+          } else if (message.subtype === 'approved') {
+            toast({
+              title: "Verification Approved",
+              description: "Your payment verification has been approved!",
+            });
+          } else if (message.subtype === 'rejected') {
+            toast({
+              title: "Verification Rejected", 
+              description: "A payment verification has been rejected",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    socket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [user, queryClient, toast]);
   
   // User data - fetch from database with real-time updates
   const { data: userStats, refetch: refetchUserStats } = useQuery({
