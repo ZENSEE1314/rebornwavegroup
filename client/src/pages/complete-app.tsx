@@ -2550,7 +2550,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       }
       
       const submissionData = {
-        amount: amount,
+        amount: parseFloat(amount).toString(),
         description: description,
         receiptImageUrl: imageUrl,
       };
@@ -2705,20 +2705,10 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </p>
               </div>
 
-              {/* Debug info */}
-              <div className="text-xs text-gray-500 mb-2">
-                Debug: amount={amount}, description={description}, receiptImage={!!receiptImage}, isSubmitting={isSubmitting}
-              </div>
-
               {/* Submit Button */}
               <Button
                 type="button"
-                onClick={(e) => {
-                  console.log('Submit button clicked!');
-                  console.log('Form state:', { amount, description, receiptImage: !!receiptImage, isSubmitting });
-                  console.log('Button disabled?', isSubmitting || !amount || !description || !receiptImage);
-                  handleSubmit(e);
-                }}
+                onClick={handleSubmit}
                 className="w-full"
                 disabled={isSubmitting || !amount || !description || !receiptImage}
               >
