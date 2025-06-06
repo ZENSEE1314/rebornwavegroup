@@ -143,15 +143,8 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
-  
-  console.log('isAuthenticated middleware check:');
-  console.log('- req.isAuthenticated():', req.isAuthenticated?.());
-  console.log('- user object:', user);
-  console.log('- user.expires_at:', user?.expires_at);
-  console.log('- session:', req.session);
 
   if (!req.isAuthenticated() || !user?.expires_at) {
-    console.log('Authentication failed - redirecting or returning 401');
     return res.status(401).json({ message: "Unauthorized" });
   }
 
