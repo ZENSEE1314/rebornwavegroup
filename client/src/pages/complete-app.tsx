@@ -1886,19 +1886,39 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
                 </Badge>
               </div>
-              <div className="mt-2">
+              <div className="mt-2 space-y-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    alert("Edit button clicked!"); // Test if this works
+                    alert("Button clicked!");
                     setNewPetName(safePets[currentPetIndex].name);
                     setEditingPetName(safePets[currentPetIndex].id);
                   }}
-                  className="text-xs bg-blue-50 hover:bg-blue-100"
+                  className="bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200"
                 >
                   ✏️ Edit Pet Name (5 tokens)
                 </Button>
+                
+                {/* Fallback HTML button for testing */}
+                <button
+                  onClick={() => {
+                    alert("HTML button works!");
+                    setNewPetName(safePets[currentPetIndex].name);
+                    setEditingPetName(safePets[currentPetIndex].id);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f97316',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  🖊️ Test Edit Button
+                </button>
               </div>
               <div className="space-y-1">
                 <p className="text-gray-600">
