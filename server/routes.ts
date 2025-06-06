@@ -2931,14 +2931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Token not awarded:', tokenEligible.reason);
       }
 
-      // Broadcast pet care update
-      broadcastPetUpdate('care_performed', {
-        userId,
-        petId: parseInt(petId),
-        careType,
-        tokenAwarded,
-        tokenEligible: tokenEligible.eligible
-      });
+      // Pet care update completed (broadcast functionality can be added later if needed)
       
       res.json({ 
         success: true, 

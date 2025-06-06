@@ -1,0 +1,83 @@
+Making API call to: /api/pets/1/care/fed
+queryClient.ts:15 
+            
+            
+           POST https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/api/pets/1/care/fed 500 (Internal Server Error)
+apiRequest @ queryClient.ts:15
+mutationFn @ complete-app.tsx:705
+fn @ @tanstack_react-query.js?v=18526d82:1189
+run @ @tanstack_react-query.js?v=18526d82:494
+start @ @tanstack_react-query.js?v=18526d82:536
+execute @ @tanstack_react-query.js?v=18526d82:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=18526d82:2630
+(anonymous) @ @tanstack_react-query.js?v=18526d82:3295
+onClick @ complete-app.tsx:1453
+callCallback2 @ chunk-WERSD76P.js?v=18526d82:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=18526d82:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=18526d82:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=18526d82:3736
+executeDispatch @ chunk-WERSD76P.js?v=18526d82:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=18526d82:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=18526d82:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=18526d82:7051
+(anonymous) @ chunk-WERSD76P.js?v=18526d82:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=18526d82:18913
+batchedUpdates @ chunk-WERSD76P.js?v=18526d82:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=18526d82:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=18526d82:5478
+dispatchEvent @ chunk-WERSD76P.js?v=18526d82:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=18526d82:5449Understand this error
+complete-app.tsx:709 API call failed: Error: 500: {"message":"Failed to update care status","error":"broadcastPetUpdate is not defined"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:22:3)
+    at async Object.mutationFn (complete-app.tsx:705:24)
+mutationFn @ complete-app.tsx:709
+await in mutationFn
+fn @ @tanstack_react-query.js?v=18526d82:1189
+run @ @tanstack_react-query.js?v=18526d82:494
+start @ @tanstack_react-query.js?v=18526d82:536
+execute @ @tanstack_react-query.js?v=18526d82:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=18526d82:2630
+(anonymous) @ @tanstack_react-query.js?v=18526d82:3295
+onClick @ complete-app.tsx:1453
+callCallback2 @ chunk-WERSD76P.js?v=18526d82:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=18526d82:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=18526d82:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=18526d82:3736
+executeDispatch @ chunk-WERSD76P.js?v=18526d82:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=18526d82:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=18526d82:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=18526d82:7051
+(anonymous) @ chunk-WERSD76P.js?v=18526d82:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=18526d82:18913
+batchedUpdates @ chunk-WERSD76P.js?v=18526d82:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=18526d82:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=18526d82:5478
+dispatchEvent @ chunk-WERSD76P.js?v=18526d82:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=18526d82:5449Understand this error
+chunk-WERSD76P.js?v=18526d82:521 Warning: Updating a style property during rerender (background) when a conflicting property is set (backgroundSize) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values.
+    at div
+    at div
+    at div
+    at div
+    at div
+    at div
+    at div
+    at _c9 (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at PetCareSection (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:704:27)
+    at div
+    at div
+    at CompleteApp (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:4673:20)
+    at Route (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:323:16)
+    at Switch (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:379:17)
+    at Router (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/App.tsx?v=Be47yaqMJ1_RAyee3Ua6:32:48)
+    at Provider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=18526d82:38:15)
+    at TooltipProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=18526d82:60:5)
+    at QueryClientProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=18526d82:2805:3)
+    at App
