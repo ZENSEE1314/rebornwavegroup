@@ -3559,18 +3559,49 @@ export default function EnhancedAdminDashboard() {
                                 <DialogHeader>
                                   <DialogTitle className="text-white">Receipt Image</DialogTitle>
                                 </DialogHeader>
-                                <div className="flex justify-center">
-                                  <img 
-                                    src={verification.receiptImageUrl}
-                                    alt="Receipt" 
-                                    className="max-w-full max-h-96 object-contain rounded"
-                                    onLoad={() => console.log('Image loaded successfully')}
-                                    onError={(e) => {
-                                      console.error('Failed to load image:', verification.receiptImageUrl);
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f3f4f6"/><text x="100" y="100" text-anchor="middle" dy="0.3em" font-family="sans-serif" font-size="14" fill="%236b7280">Receipt image unavailable</text></svg>';
-                                    }}
-                                  />
+                                <div className="flex flex-col items-center space-y-4">
+                                  {verification.receiptImageUrl ? (
+                                    verification.receiptImageUrl.startsWith('data:image') ? (
+                                      <img 
+                                        src={verification.receiptImageUrl}
+                                        alt="Receipt" 
+                                        className="max-w-full max-h-96 object-contain rounded border border-gray-600"
+                                        onLoad={() => console.log('Base64 image loaded successfully')}
+                                        onError={(e) => {
+                                          console.error('Failed to load base64 image:', verification.receiptImageUrl);
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <img 
+                                        src={verification.receiptImageUrl.startsWith('http') ? verification.receiptImageUrl : `/uploaded-images/${verification.receiptImageUrl}`}
+                                        alt="Receipt" 
+                                        className="max-w-full max-h-96 object-contain rounded border border-gray-600"
+                                        onLoad={() => console.log('URL image loaded successfully')}
+                                        onError={(e) => {
+                                          console.error('Failed to load URL image:', verification.receiptImageUrl);
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                        }}
+                                      />
+                                    )
+                                  ) : (
+                                    <div className="w-64 h-48 bg-gray-700 rounded flex items-center justify-center">
+                                      <span className="text-gray-400">No receipt image</span>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="text-center">
+                                    <p className="text-gray-400 text-sm break-all">
+                                      Image URL: {verification.receiptImageUrl}
+                                    </p>
+                                    {verification.receiptImageUrl?.startsWith('data:image') && (
+                                      <p className="text-yellow-400 text-xs mt-1">
+                                        Base64 encoded image ({Math.round(verification.receiptImageUrl.length / 1024)}KB)
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                                 <p className="text-center text-gray-400 text-sm mt-2">
                                   {verification.receiptImageUrl}
