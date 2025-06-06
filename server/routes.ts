@@ -3762,6 +3762,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
+      console.log("Fetching token history for user:", userId);
+
       // Get all transactions related to tokens (spending)
       const tokenTransactions = await db
         .select({
@@ -3789,8 +3791,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .orderBy(desc(transactions.createdAt));
 
+      console.log("Found token transactions:", tokenTransactions.length);
+
       // Get token claims (earning tokens)
       const tokenClaims = await storage.getTokenClaimsByUserId(userId);
+      console.log("Found token claims:", tokenClaims.length);
       
       // Format token claims to match transaction format
       const formattedClaims = tokenClaims.map((claim: any) => ({
@@ -3809,6 +3814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allTokenHistory = [...tokenTransactions, ...formattedClaims]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+      console.log("Total token history items:", allTokenHistory.length);
       res.json(allTokenHistory);
     } catch (error) {
       console.error("Error fetching token history:", error);
