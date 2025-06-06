@@ -2510,10 +2510,13 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     const response = await fetch('/api/upload-image', {
       method: 'POST',
       body: formData,
+      credentials: 'include', // Include session cookies for authentication
     });
     
     if (!response.ok) {
-      throw new Error('Failed to upload image');
+      const errorText = await response.text();
+      console.error('Image upload failed:', response.status, errorText);
+      throw new Error(`Failed to upload image: ${response.status}`);
     }
     
     const data = await response.json();
