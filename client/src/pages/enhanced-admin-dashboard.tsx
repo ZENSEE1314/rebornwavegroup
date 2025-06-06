@@ -2940,6 +2940,9 @@ function EnhancedAdminDashboard() {
                               )}
                             </TableCell>
                             <TableCell className="text-gray-300">
+                              {formatDate(pet.createdAt)}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
                               🪙 {pet.dailyTokensAvailable || 0}
                             </TableCell>
                             <TableCell>
