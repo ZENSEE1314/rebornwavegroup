@@ -2778,6 +2778,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                         <p className="text-sm text-gray-600">{verification.description}</p>
                         <p className="text-xs text-gray-500">
                           {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                          {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       <Badge className={getStatusColor(verification.status)}>

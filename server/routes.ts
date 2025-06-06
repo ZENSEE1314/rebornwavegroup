@@ -3750,6 +3750,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+
+  // Function to broadcast payment verification updates
+  function broadcastPaymentVerificationUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'payment_verification', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
   
   // Export broadcast function for use in routes
   (app as any).broadcastMarketplaceUpdate = broadcastMarketplaceUpdate;

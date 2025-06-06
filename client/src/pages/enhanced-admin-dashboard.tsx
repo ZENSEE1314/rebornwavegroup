@@ -2329,7 +2329,7 @@ export default function EnhancedAdminDashboard() {
                       <TableHead className="text-blue-200">Type</TableHead>
                       <TableHead className="text-blue-200">Amount</TableHead>
                       <TableHead className="text-blue-200">Description</TableHead>
-                      <TableHead className="text-blue-200">Date</TableHead>
+                      <TableHead className="text-blue-200">Date & Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2346,7 +2346,8 @@ export default function EnhancedAdminDashboard() {
                         <TableCell className="text-green-300">RP {transaction.amount}</TableCell>
                         <TableCell className="text-gray-300">{transaction.description}</TableCell>
                         <TableCell className="text-gray-300">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                          <div>{new Date(transaction.createdAt).toLocaleDateString()}</div>
+                          <div className="text-xs text-gray-400">{new Date(transaction.createdAt).toLocaleTimeString()}</div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -3371,15 +3372,20 @@ export default function EnhancedAdminDashboard() {
                                 </DialogHeader>
                                 <div className="flex justify-center">
                                   <img 
-                                    src={verification.receiptImageUrl} 
+                                    src={verification.receiptImageUrl.startsWith('http') ? verification.receiptImageUrl : `/uploaded-images/${verification.receiptImageUrl}`}
                                     alt="Receipt" 
                                     className="max-w-full max-h-96 object-contain rounded"
+                                    onLoad={() => console.log('Image loaded successfully')}
                                     onError={(e) => {
+                                      console.error('Failed to load image:', verification.receiptImageUrl);
                                       const target = e.target as HTMLImageElement;
-                                      target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f3f4f6"/><text x="100" y="100" text-anchor="middle" dy="0.3em" font-family="sans-serif" font-size="14" fill="%236b7280">Image not available</text></svg>';
+                                      target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f3f4f6"/><text x="100" y="100" text-anchor="middle" dy="0.3em" font-family="sans-serif" font-size="14" fill="%236b7280">Receipt image unavailable</text></svg>';
                                     }}
                                   />
                                 </div>
+                                <p className="text-center text-gray-400 text-sm mt-2">
+                                  {verification.receiptImageUrl}
+                                </p>
                               </DialogContent>
                             </Dialog>
                           )}
