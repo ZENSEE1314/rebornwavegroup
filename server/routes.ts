@@ -1444,6 +1444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const petId = parseInt(req.params.petId);
       const { name } = req.body;
       
+      console.log(`Pet name edit request: userId=${userId}, petId=${petId}, newName=${name}`);
+      
       // Validate new name
       if (!name || typeof name !== 'string' || name.trim().length === 0) {
         return res.status(400).json({ message: "Pet name cannot be empty" });
@@ -1460,6 +1462,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const currentTokens = user.loyaltyPoints || 0;
+      console.log(`Current user tokens: ${currentTokens}`);
+      
       if (currentTokens < 5) {
         return res.status(400).json({ 
           message: "Not enough tokens! You need 5 tokens to change pet name.",
@@ -1473,6 +1477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
+      console.log(`About to deduct 5 tokens: ${currentTokens} -> ${currentTokens - 5}`);
+      
       // Deduct 5 tokens and update pet name
       await storage.updateUserPoints(userId, currentTokens - 5);
       await storage.updatePetName(petId, name.trim());
@@ -1485,6 +1491,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Pet name changed to "${name.trim()}" (-5 tokens)`,
         relatedId: petId
       });
+      
+      console.log(`Pet name edit completed successfully`);
       
       res.json({ 
         message: "Pet name updated successfully",

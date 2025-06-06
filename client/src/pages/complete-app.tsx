@@ -799,10 +799,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Edit pet name mutation
   const editPetNameMutation = useMutation({
     mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
+      console.log(`Making PATCH request to /api/pets/${petId}/name with name:`, newName);
       const response = await apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
+      console.log("Edit pet name response:", response);
       return response;
     },
     onSuccess: (data, variables) => {
+      console.log("Edit pet name success, clearing edit state");
       // Clear edit state immediately
       setEditingPetName(null);
       setNewPetName("");
@@ -819,6 +822,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
     onError: (error: any) => {
       console.error("Edit pet name error:", error);
+      // Clear edit state on error too
+      setEditingPetName(null);
+      setNewPetName("");
+      
       toast({
         title: "Error",
         description: error.message || "Failed to update pet name",
