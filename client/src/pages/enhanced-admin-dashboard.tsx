@@ -1094,62 +1094,130 @@ export default function EnhancedAdminDashboard() {
             </TabsList>
           </div>
 
-          {/* User Management Tab */}
-          <TabsContent value="users">
+          {/* Appointments Tab */}
+          <TabsContent value="appointments">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Appointment Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-white">User</TableHead>
+                        <TableHead className="text-white">Service</TableHead>
+                        <TableHead className="text-white">Date</TableHead>
+                        <TableHead className="text-white">Time</TableHead>
+                        <TableHead className="text-white">Status</TableHead>
+                        <TableHead className="text-white">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allAppointments.map((appointment: any) => (
+                        <TableRow key={appointment.id} className="border-white/20">
+                          <TableCell className="text-gray-300">
+                            {appointment.user?.firstName || 'N/A'} {appointment.user?.lastName || ''}
+                          </TableCell>
+                          <TableCell className="text-gray-300">{appointment.service}</TableCell>
+                          <TableCell className="text-gray-300">
+                            {new Date(appointment.appointmentDate).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-gray-300">{appointment.appointmentTime}</TableCell>
+                          <TableCell>
+                            <Badge className={appointment.status === 'confirmed' ? 'bg-green-500' : 
+                                             appointment.status === 'cancelled' ? 'bg-red-500' : 'bg-yellow-500'}>
+                              {appointment.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                Confirm
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-red-500 text-red-400 hover:bg-red-500">
+                                Cancel
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Top-ups Tab */}
+          <TabsContent value="topups">
             <Card className="bg-white/10 backdrop-blur border-white/20">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">User Management</CardTitle>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => downloadCSV(filteredUsers, 'users')}
-                      variant="outline" 
-                      size="sm"
-                      className="bg-white/10 text-white border-white/20"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex gap-4 mt-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search users..."
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
-                    />
-                  </div>
+                  <CardTitle className="text-white">Top-up Requests</CardTitle>
+                  <Button 
+                    onClick={() => downloadCSV(topUpRequests, 'topup-requests')}
+                    variant="outline" 
+                    size="sm"
+                    className="bg-white/10 text-white border-white/20"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {/* 10x10 Grid Layout for Users */}
-                <div className="grid grid-cols-10 gap-4">
-                  {filteredUsers.slice(0, 100).map((user: any, index: number) => (
-                    <div 
-                      key={user.id} 
-                      className={`bg-white/10 backdrop-blur border border-white/20 rounded-lg p-3 hover:bg-white/20 transition-all cursor-pointer ${
-                        highlightedUserId === user.id ? 'ring-2 ring-blue-400 bg-blue-500/20' : ''
-                      }`}
-                      onClick={() => setHighlightedUserId(highlightedUserId === user.id ? null : user.id)}
-                    >
-                      <div className="text-center space-y-2">
-                        <div className="w-8 h-8 mx-auto bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                          {(user.firstName || user.email || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        
-                        <div className="text-white text-xs font-medium truncate" title={`${user.firstName || ''} ${user.lastName || ''}`}>
-                          {user.firstName || user.email?.split('@')[0] || 'User'}
-                        </div>
-                        
-                        <div className="text-gray-300 text-xs truncate" title={user.email}>
-                          {user.email?.substring(0, 8)}...
-                        </div>
-                        
-                        <div className="flex flex-col gap-1 text-xs">
-                          <div className="text-green-400">RP {formatMoney(user.credits || 0)}</div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-white">User</TableHead>
+                        <TableHead className="text-white">Amount</TableHead>
+                        <TableHead className="text-white">Bank</TableHead>
+                        <TableHead className="text-white">Account</TableHead>
+                        <TableHead className="text-white">Date</TableHead>
+                        <TableHead className="text-white">Status</TableHead>
+                        <TableHead className="text-white">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topUpRequests.map((request: any) => (
+                        <TableRow key={request.id} className="border-white/20">
+                          <TableCell className="text-gray-300">
+                            {request.user?.firstName || 'N/A'} {request.user?.lastName || ''}
+                          </TableCell>
+                          <TableCell className="text-green-300">RP {formatMoney(request.amount)}</TableCell>
+                          <TableCell className="text-gray-300">{request.bankCode}</TableCell>
+                          <TableCell className="text-gray-300">{request.accountNumber}</TableCell>
+                          <TableCell className="text-gray-300">
+                            {new Date(request.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={request.status === 'approved' ? 'bg-green-500' : 
+                                             request.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500'}>
+                              {request.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                Approve
+                              </Button>
+                              <Button size="sm" variant="outline" className="border-red-500 text-red-400 hover:bg-red-500">
+                                Reject
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Cash Outs Tab */}
+          <TabsContent value="cashouts">
                           <div className="text-yellow-400">{user.loyaltyPoints || 0} pts</div>
                           <div className="text-blue-400">{user.tokens || 0} tokens</div>
                         </div>
