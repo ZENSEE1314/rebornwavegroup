@@ -2484,12 +2484,11 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     }
   };
 
-  const uploadImageToCloudinary = async (file: File): Promise<string> => {
+  const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'reborn-wave'); // You'll need to set this up in Cloudinary
+    formData.append('image', file);
     
-    const response = await fetch('https://api.cloudinary.com/v1_1/your-cloud-name/image/upload', {
+    const response = await fetch('/api/upload-image', {
       method: 'POST',
       body: formData,
     });
@@ -2499,7 +2498,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     }
     
     const data = await response.json();
-    return data.secure_url;
+    return data.imageUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -2517,17 +2516,42 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     setIsSubmitting(true);
     
     try {
-      // For now, we'll use a placeholder URL since Cloudinary setup requires configuration
-      // In production, you would upload to Cloudinary or another image service
-      const imageUrl = `/attached_assets/receipt_${Date.now()}.jpg`;
+      // Upload image first
+      let imageUrl;
+      try {
+        imageUrl = await uploadImage(receiptImage);
+      } catch (uploadError) {
+        // Fallback to base64 data URL if upload fails
+        const reader = new FileReader();
+        imageUrl = await new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(receiptImage);
+        });
+      }
       
       await submitMutation.mutateAsync({
-        amount,
+        amount: amount,
         description: description || `Purchase verification - RP ${amount}`,
         receiptImageUrl: imageUrl,
       });
+      
+      // Reset form on success
+      setAmount("");
+      setDescription("");
+      setReceiptImage(null);
+      setImagePreview(null);
+      
+      toast({
+        title: language === "id" ? "Berhasil" : "Success",
+        description: language === "id" ? "Verifikasi pembelian berhasil dikirim" : "Purchase verification submitted successfully",
+      });
     } catch (error) {
       console.error('Error submitting verification:', error);
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

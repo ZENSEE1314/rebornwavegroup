@@ -3789,6 +3789,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Image upload endpoint for receipts
+  app.post('/api/upload-image', isAuthenticated, async (req: any, res) => {
+    try {
+      // For now, return a placeholder URL since we need proper image upload service configuration
+      // In production, this would handle actual file upload to a service like Cloudinary
+      const imageUrl = `data:image/jpeg;base64,placeholder_${Date.now()}`;
+      
+      res.json({ imageUrl });
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
   // Admin pet editing
   app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
     try {
