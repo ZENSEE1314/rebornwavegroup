@@ -1557,6 +1557,7 @@ export default function EnhancedAdminDashboard() {
                   </TableBody>
                   </Table>
                 </div>
+                </div>
                 
                 {/* Pagination for Users */}
                 {(usersResponse as any)?.pagination && (
@@ -3421,7 +3422,7 @@ export default function EnhancedAdminDashboard() {
                   </TableBody>
                 </Table>
 
-                {/* Pagination for Token Transactions */}
+                {/* 10x10 Pagination for Token Transactions */}
                 {tokenTransactionsResponse?.pagination && tokenTransactionsResponse.pagination.totalPages > 1 && (
                   <div className="mt-4 flex justify-center">
                     <Pagination>
@@ -3440,8 +3441,23 @@ export default function EnhancedAdminDashboard() {
                         )}
                         
                         {Array.from({ 
-                          length: tokenTransactionsResponse.pagination.totalPages 
-                        }, (_, i) => i + 1).map((page) => (
+                          length: Math.min(10, tokenTransactionsResponse.pagination.totalPages)
+                        }, (_, i) => {
+                          // Calculate page range to show maximum 10 pages centered around current page
+                          const totalPages = tokenTransactionsResponse.pagination.totalPages;
+                          const currentPage = tokenTransactionsPage;
+                          const maxPagesToShow = 10;
+                          
+                          let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                          let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                          
+                          // Adjust if we're near the end
+                          if (endPage - startPage + 1 < maxPagesToShow) {
+                            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                          }
+                          
+                          return startPage + i;
+                        }).filter(page => page <= tokenTransactionsResponse.pagination.totalPages).map((page) => (
                           <PaginationItem key={page}>
                             <PaginationLink
                               href="#"
@@ -3728,35 +3744,82 @@ export default function EnhancedAdminDashboard() {
                   </div>
                 )}
                 
-                {/* Payment Verification Pagination */}
+                {/* 10x10 Pagination for Payment Verifications */}
                 {paymentVerificationsResponse?.pagination && paymentVerificationsResponse.pagination.totalPages > 1 && (
-                  <div className="flex justify-between items-center mt-4 text-gray-300">
-                    <div className="text-sm">
-                      Showing {((paymentVerificationsPage - 1) * paymentVerificationsPerPage) + 1} to {Math.min(paymentVerificationsPage * paymentVerificationsPerPage, paymentVerificationsResponse.pagination.total)} of {paymentVerificationsResponse.pagination.total} verifications
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setPaymentVerificationsPage(prev => Math.max(1, prev - 1))}
-                        disabled={paymentVerificationsPage === 1}
-                        variant="outline"
-                        size="sm"
-                        className="border-white/20 text-white hover:bg-white/10"
-                      >
-                        Previous
-                      </Button>
-                      <span className="px-3 py-1 text-sm">
-                        Page {paymentVerificationsPage} of {paymentVerificationsResponse.pagination.totalPages}
-                      </span>
-                      <Button
-                        onClick={() => setPaymentVerificationsPage(prev => Math.min(paymentVerificationsResponse.pagination.totalPages, prev + 1))}
-                        disabled={paymentVerificationsPage === paymentVerificationsResponse.pagination.totalPages}
-                        variant="outline"
-                        size="sm"
-                        className="border-white/20 text-white hover:bg-white/10"
-                      >
-                        Next
-                      </Button>
-                    </div>
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {paymentVerificationsResponse.pagination.page > 1 && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPaymentVerificationsPage(paymentVerificationsPage - 1);
+                              }}
+                              className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        {Array.from({ 
+                          length: Math.min(10, paymentVerificationsResponse.pagination.totalPages)
+                        }, (_, i) => {
+                          // Calculate page range to show maximum 10 pages centered around current page
+                          const totalPages = paymentVerificationsResponse.pagination.totalPages;
+                          const currentPage = paymentVerificationsPage;
+                          const maxPagesToShow = 10;
+                          
+                          let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                          let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                          
+                          // Adjust if we're near the end
+                          if (endPage - startPage + 1 < maxPagesToShow) {
+                            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                          }
+                          
+                          return startPage + i;
+                        }).filter(page => page <= paymentVerificationsResponse.pagination.totalPages).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPaymentVerificationsPage(page);
+                              }}
+                              isActive={page === paymentVerificationsPage}
+                              className={`${
+                                page === paymentVerificationsPage 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                              }`}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        {paymentVerificationsResponse.pagination.page < paymentVerificationsResponse.pagination.totalPages && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPaymentVerificationsPage(paymentVerificationsPage + 1);
+                              }}
+                              className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+                
+                {/* Pagination Info */}
+                {paymentVerificationsResponse?.pagination && (
+                  <div className="mt-2 text-center text-sm text-gray-400">
+                    Showing {((paymentVerificationsPage - 1) * paymentVerificationsPerPage) + 1} to {Math.min(paymentVerificationsPage * paymentVerificationsPerPage, paymentVerificationsResponse.pagination.total || 0)} of {paymentVerificationsResponse.pagination.total || 0} verifications
                   </div>
                 )}
               </CardContent>
