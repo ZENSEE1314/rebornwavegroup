@@ -574,13 +574,47 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Update countdown when sleep progress data changes
+  // Persistent sleep timer that maintains state across page navigation
   useEffect(() => {
-    if (sleepProgress?.nextEnergyIn) {
-      const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
-      setSleepCountdown(secondsRemaining);
+    if (!safePets[currentPetIndex]?.isSleeping) {
+      // Clear any stored sleep data if pet is not sleeping
+      localStorage.removeItem(`sleep_${safePets[currentPetIndex]?.id}`);
+      return;
     }
-  }, [sleepProgress]);
+
+    const petId = safePets[currentPetIndex]?.id;
+    if (!petId) return;
+
+    const sleepKey = `sleep_${petId}`;
+    
+    // Check if we have stored sleep start time
+    let sleepStartTime = localStorage.getItem(sleepKey);
+    
+    if (!sleepStartTime && sleepProgress?.nextEnergyIn) {
+      // First time seeing this sleeping pet - calculate and store the start time
+      const now = Date.now();
+      const minutesUntilNext = sleepProgress.nextEnergyIn;
+      const secondsUntilNext = minutesUntilNext * 60;
+      const lastEnergyTime = now - ((5 * 60) - secondsUntilNext) * 1000;
+      localStorage.setItem(sleepKey, lastEnergyTime.toString());
+      sleepStartTime = lastEnergyTime.toString();
+    }
+    
+    if (sleepStartTime) {
+      const updateCountdown = () => {
+        const now = Date.now();
+        const lastEnergy = parseInt(sleepStartTime);
+        const timeSinceLastEnergy = (now - lastEnergy) / 1000; // in seconds
+        const secondsUntilNextEnergy = (5 * 60) - (timeSinceLastEnergy % (5 * 60));
+        setSleepCountdown(Math.max(0, Math.floor(secondsUntilNextEnergy)));
+      };
+      
+      updateCountdown();
+      const timer = setInterval(updateCountdown, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [safePets[currentPetIndex]?.isSleeping, safePets[currentPetIndex]?.id, sleepProgress]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
