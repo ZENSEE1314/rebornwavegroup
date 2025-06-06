@@ -3120,6 +3120,81 @@ export default function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Token Transactions Tab */}
+          <TabsContent value="token-transactions">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Token Transaction History</CardTitle>
+                  <Button 
+                    onClick={() => downloadCSV(tokenTransactionsResponse?.data || [], 'token-transactions')}
+                    variant="outline" 
+                    size="sm"
+                    className="bg-white/10 text-white border-white/20"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-blue-200">User</TableHead>
+                      <TableHead className="text-blue-200">Type</TableHead>
+                      <TableHead className="text-blue-200">Tokens</TableHead>
+                      <TableHead className="text-blue-200">Description</TableHead>
+                      <TableHead className="text-blue-200">Status</TableHead>
+                      <TableHead className="text-blue-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(tokenTransactionsResponse?.data || []).map((transaction: any) => (
+                      <TableRow key={transaction.id} className="border-white/10">
+                        <TableCell className="text-white">
+                          {transaction.user?.firstName || 'Unknown'} ({transaction.user?.email || transaction.userId})
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${
+                            transaction.type === 'pet_name_change' ? 'bg-purple-500' :
+                            transaction.type === 'earned' ? 'bg-green-500' :
+                            transaction.type === 'spent' ? 'bg-red-500' :
+                            'bg-blue-500'
+                          }`}>
+                            {transaction.type.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={`${transaction.tokens > 0 ? 'text-green-300' : 'text-red-300'}`}>
+                          {transaction.tokens > 0 ? '+' : ''}{transaction.tokens} tokens
+                        </TableCell>
+                        <TableCell className="text-gray-300">{transaction.description}</TableCell>
+                        <TableCell>
+                          <Badge className={`${
+                            transaction.status === 'completed' ? 'bg-green-500' :
+                            transaction.status === 'pending' ? 'bg-yellow-500' :
+                            'bg-gray-500'
+                          }`}>
+                            {transaction.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {(!tokenTransactionsResponse?.data || tokenTransactionsResponse.data.length === 0) && (
+                  <div className="text-center py-8 text-gray-400">
+                    No token transactions found
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Add Tokens Dialog */}
