@@ -1881,32 +1881,24 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      alert("Edit button clicked!"); // More visible debug
-                      console.log("Edit button clicked!");
-                      console.log("Current pet:", safePets[currentPetIndex]);
-                      console.log("User tokens:", user?.loyaltyPoints);
-                      
-                      setNewPetName(safePets[currentPetIndex].name);
-                      setEditingPetName(safePets[currentPetIndex].id);
-                      console.log("Edit state set to:", safePets[currentPetIndex].id);
-                    }}
-                    className="text-xs"
-                    style={{ zIndex: 10 }}
-                  >
-                    ✏️ Edit (5 tokens)
-                  </Button>
-                </div>
+                <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
                 <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
                 </Badge>
+              </div>
+              <div className="mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    alert("Edit button clicked!"); // Test if this works
+                    setNewPetName(safePets[currentPetIndex].name);
+                    setEditingPetName(safePets[currentPetIndex].id);
+                  }}
+                  className="text-xs bg-blue-50 hover:bg-blue-100"
+                >
+                  ✏️ Edit Pet Name (5 tokens)
+                </Button>
               </div>
               <div className="space-y-1">
                 <p className="text-gray-600">
