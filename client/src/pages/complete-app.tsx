@@ -2455,6 +2455,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       setDescription("");
       setReceiptImage(null);
       setImagePreview(null);
+      setIsSubmitting(false);
       queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
     },
     onError: (error: any) => {
@@ -2463,6 +2464,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
         description: error.message || (language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification"),
         variant: "destructive",
       });
+      setIsSubmitting(false);
     },
   });
 
@@ -2521,6 +2523,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       try {
         imageUrl = await uploadImage(receiptImage);
       } catch (uploadError) {
+        console.log('Image upload failed, using base64 fallback:', uploadError);
         // Fallback to base64 data URL if upload fails
         const reader = new FileReader();
         imageUrl = await new Promise<string>((resolve) => {
@@ -2529,7 +2532,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
         });
       }
       
-      await submitMutation.mutateAsync({
+      console.log('Submitting verification with data:', {
+        amount: amount,
+        description: description || `Purchase verification - RP ${amount}`,
+        receiptImageUrl: imageUrl ? 'Image uploaded' : 'No image'
+      });
+      
+      // Use the mutation directly instead of mutateAsync
+      submitMutation.mutate({
         amount: amount,
         description: description || `Purchase verification - RP ${amount}`,
         receiptImageUrl: imageUrl,
@@ -2541,7 +2551,6 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
         description: language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification",
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
