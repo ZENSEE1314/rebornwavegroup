@@ -2369,8 +2369,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </p>
                 <p className="text-xs text-yellow-600 mt-1">
                   {language === "id" 
-                    ? `Token saat ini: ${user?.loyaltyPoints || 0}`
-                    : `Current tokens: ${user?.loyaltyPoints || 0}`
+                    ? `Token saat ini: ${user?.tokens || 0}`
+                    : `Current tokens: ${user?.tokens || 0}`
                   }
                 </p>
               </div>
