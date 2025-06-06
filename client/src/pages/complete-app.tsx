@@ -1837,10 +1837,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="relative">
                     <Progress 
                       value={safePets[currentPetIndex].happiness} 
-                      className={`h-2 ${safePets[currentPetIndex].happiness >= 100 ? '[&>div]:bg-green-500' : 
-                        safePets[currentPetIndex].happiness >= 75 ? '[&>div]:bg-blue-500' :
-                        safePets[currentPetIndex].happiness >= 50 ? '[&>div]:bg-yellow-500' :
-                        safePets[currentPetIndex].happiness >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      className={`h-2 ${safePets[currentPetIndex].happiness >= 75 ? '[&>div]:bg-green-500' :
+                        safePets[currentPetIndex].happiness >= 50 ? '[&>div]:bg-purple-500' :
+                        safePets[currentPetIndex].happiness >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
@@ -1854,10 +1853,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="relative">
                     <Progress 
                       value={safePets[currentPetIndex].hunger} 
-                      className={`h-2 ${safePets[currentPetIndex].hunger >= 100 ? '[&>div]:bg-green-500' : 
-                        safePets[currentPetIndex].hunger >= 75 ? '[&>div]:bg-blue-500' :
-                        safePets[currentPetIndex].hunger >= 50 ? '[&>div]:bg-yellow-500' :
-                        safePets[currentPetIndex].hunger >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      className={`h-2 ${safePets[currentPetIndex].hunger >= 75 ? '[&>div]:bg-green-500' :
+                        safePets[currentPetIndex].hunger >= 50 ? '[&>div]:bg-purple-500' :
+                        safePets[currentPetIndex].hunger >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
@@ -1871,10 +1869,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="relative">
                     <Progress 
                       value={safePets[currentPetIndex].cleanliness} 
-                      className={`h-2 ${safePets[currentPetIndex].cleanliness >= 100 ? '[&>div]:bg-green-500' : 
-                        safePets[currentPetIndex].cleanliness >= 75 ? '[&>div]:bg-blue-500' :
-                        safePets[currentPetIndex].cleanliness >= 50 ? '[&>div]:bg-yellow-500' :
-                        safePets[currentPetIndex].cleanliness >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                      className={`h-2 ${safePets[currentPetIndex].cleanliness >= 75 ? '[&>div]:bg-green-500' :
+                        safePets[currentPetIndex].cleanliness >= 50 ? '[&>div]:bg-purple-500' :
+                        safePets[currentPetIndex].cleanliness >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
@@ -1896,10 +1893,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <Progress 
                       value={safePets[currentPetIndex].energy} 
                       className={`h-4 transition-all duration-700 ${
-                        safePets[currentPetIndex].energy >= 100 ? '[&>div]:bg-green-500' : 
-                        safePets[currentPetIndex].energy >= 75 ? '[&>div]:bg-blue-500' :
-                        safePets[currentPetIndex].energy >= 50 ? '[&>div]:bg-yellow-500' :
-                        safePets[currentPetIndex].energy >= 25 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500'
+                        safePets[currentPetIndex].energy >= 75 ? '[&>div]:bg-green-500' :
+                        safePets[currentPetIndex].energy >= 50 ? '[&>div]:bg-purple-500' :
+                        safePets[currentPetIndex].energy >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                     {safePets[currentPetIndex].energy >= 100 && (
