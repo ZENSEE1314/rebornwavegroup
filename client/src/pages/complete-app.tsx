@@ -3111,10 +3111,15 @@ export default function CompleteApp() {
   });
 
   // Fetch user's token claim history
-  const { data: tokenClaimsData = [] } = useQuery({
+  const { data: tokenClaimsData = [], isLoading: tokenHistoryLoading, error: tokenHistoryError } = useQuery({
     queryKey: ['/api/tokens/history'],
     enabled: !!user?.id,
+    retry: 3,
   });
+  
+  console.log("Token history data:", tokenClaimsData);
+  console.log("Token history loading:", tokenHistoryLoading);
+  console.log("Token history error:", tokenHistoryError);
   
   const tokenClaimsHistory = tokenClaimsData || [];
 
