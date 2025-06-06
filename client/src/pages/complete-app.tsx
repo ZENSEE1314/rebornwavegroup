@@ -469,8 +469,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
-  const [editingPetName, setEditingPetName] = useState<number | null>(null);
-  const [newPetName, setNewPetName] = useState("");
+
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -670,30 +669,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Pet name editing mutation
-  const petNameMutation = useMutation({
-    mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
-      const result = await apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setEditingPetName(null);
-      setNewPetName("");
-      toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Nama pet berhasil diubah! (-5 token)" : "Pet name updated successfully! (-5 tokens)",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: language === "id" ? "Gagal!" : "Error!",
-        description: error.message || (language === "id" ? "Gagal mengubah nama pet" : "Failed to update pet name"),
-        variant: "destructive",
-      });
-    }
-  });
+
 
   // Pet care mutations
   const careActivityMutation = useMutation({
@@ -1616,8 +1592,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         ))}
       </div>
 
-      {/* Pet Name Editing Modal */}
-      {editingPetName !== null && (
+
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
