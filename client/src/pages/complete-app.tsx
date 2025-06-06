@@ -2772,45 +2772,84 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {verifications.map((verification: any) => (
-                  <div key={verification.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
-                        <p className="text-sm text-gray-600">{verification.description}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
-                          {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+              <>
+                <div className="space-y-4">
+                  {verifications.slice((verificationPage - 1) * 10, verificationPage * 10).map((verification: any) => (
+                    <div key={verification.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
+                          <p className="text-sm text-gray-600">{verification.description}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                            {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <Badge className={getStatusColor(verification.status)}>
+                          {getStatusText(verification.status)}
+                        </Badge>
                       </div>
-                      <Badge className={getStatusColor(verification.status)}>
-                        {getStatusText(verification.status)}
-                      </Badge>
+                      
+                      {verification.status === 'approved' && verification.pointsAwarded && (
+                        <div className="bg-green-50 rounded p-2 mt-2">
+                          <p className="text-sm text-green-800">
+                            <Star className="w-4 h-4 inline mr-1" />
+                            {language === "id" ? "Poin diperoleh: " : "Points earned: "}
+                            <span className="font-bold">{verification.pointsAwarded}</span>
+                          </p>
+                        </div>
+                      )}
+                      
+                      {verification.adminNotes && (
+                        <div className="bg-blue-50 rounded p-2 mt-2">
+                          <p className="text-sm text-blue-800">
+                            <AlertTriangle className="w-4 h-4 inline mr-1" />
+                            {language === "id" ? "Catatan admin: " : "Admin notes: "}
+                            {verification.adminNotes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 10x10 Pagination Controls */}
+                {verifications.length > 10 && (
+                  <div className="flex justify-center items-center mt-6 space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVerificationPage(Math.max(1, verificationPage - 1))}
+                      disabled={verificationPage === 1}
+                    >
+                      {language === "id" ? "Sebelumnya" : "Previous"}
+                    </Button>
+                    
+                    <div className="flex space-x-1">
+                      {Array.from({ length: Math.min(10, Math.ceil(verifications.length / 10)) }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={page === verificationPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setVerificationPage(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      ))}
                     </div>
                     
-                    {verification.status === 'approved' && verification.pointsAwarded && (
-                      <div className="bg-green-50 rounded p-2 mt-2">
-                        <p className="text-sm text-green-800">
-                          <Star className="w-4 h-4 inline mr-1" />
-                          {language === "id" ? "Poin diperoleh: " : "Points earned: "}
-                          <span className="font-bold">{verification.pointsAwarded}</span>
-                        </p>
-                      </div>
-                    )}
-                    
-                    {verification.adminNotes && (
-                      <div className="bg-blue-50 rounded p-2 mt-2">
-                        <p className="text-sm text-blue-800">
-                          <AlertTriangle className="w-4 h-4 inline mr-1" />
-                          {language === "id" ? "Catatan admin: " : "Admin notes: "}
-                          {verification.adminNotes}
-                        </p>
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVerificationPage(Math.min(Math.ceil(verifications.length / 10), verificationPage + 1))}
+                      disabled={verificationPage === Math.ceil(verifications.length / 10)}
+                    >
+                      {language === "id" ? "Selanjutnya" : "Next"}
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -2838,6 +2877,7 @@ export default function CompleteApp() {
   const [appointmentsPage, setAppointmentsPage] = useState(1);
   const [marketplacePage, setMarketplacePage] = useState(1);
   const [toyInventoryPage, setToyInventoryPage] = useState(1);
+  const [verificationPage, setVerificationPage] = useState(1);
   const [modalDateFilterStart, setModalDateFilterStart] = useState("");
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
