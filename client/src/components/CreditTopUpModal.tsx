@@ -261,7 +261,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
                       <div className="font-medium">IDR {parseFloat(item.amount).toLocaleString()}</div>
                       <div className="text-xs text-gray-500">{item.paymentMethod}</div>
                       <div className="text-xs text-gray-400">
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

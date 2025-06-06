@@ -5981,12 +5981,12 @@ export default function CompleteApp() {
                         ))}
                       </div>
 
-                      {/* Pagination Controls */}
-                      {totalPages > 1 && (
-                        <div className="flex justify-between items-center pt-4 border-t mt-6">
-                          <div className="text-sm text-gray-600">
-                            {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {language === "id" ? "dari" : "of"} {appointments.length} {language === "id" ? "item" : "items"}
-                          </div>
+                      {/* Pagination Controls - Always show to indicate 10-per-page structure */}
+                      <div className="flex justify-between items-center pt-4 border-t mt-6">
+                        <div className="text-sm text-gray-600">
+                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {language === "id" ? "dari" : "of"} {appointments.length} {language === "id" ? "item" : "items"} ({language === "id" ? "10 per halaman" : "10 per page"})
+                        </div>
+                        {totalPages > 1 && (
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -6008,8 +6008,8 @@ export default function CompleteApp() {
                               {language === "id" ? "Selanjutnya" : "Next"}
                             </Button>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </>
                   );
                 })()}
