@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import path from "path";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+// WebSocket removed to eliminate connection errors
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -124,13 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
 
-      // Broadcast new verification submission to all connected clients
-      broadcastPaymentVerificationUpdate('submitted', verification);
-      broadcastAdminUpdate('verification_submitted', { 
-        verificationId: verification.id,
-        userId: verification.userId,
-        amount: verification.amount
-      });
+      // Payment verification submitted successfully
 
       res.status(201).json(verification);
     } catch (error) {
@@ -331,26 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Broadcast payment verification update to all connected clients
-      broadcastPaymentVerificationUpdate(status === 'approved' ? 'approved' : 'rejected', updatedVerification);
-      
-      // Broadcast admin action
-      broadcastAdminUpdate('verification_processed', {
-        verificationId: parseInt(id),
-        status,
-        pointsAwarded,
-        userId: updatedVerification.userId,
-        adminId
-      });
-      
-      // If points were awarded, broadcast loyalty points update
-      if (status === 'approved' && pointsAwarded > 0) {
-        broadcastLoyaltyPointsUpdate('points_awarded', {
-          userId: updatedVerification.userId,
-          points: pointsAwarded,
-          source: 'payment_verification'
-        });
-      }
+      // Payment verification status updated successfully
 
       res.json(updatedVerification);
     } catch (error) {
@@ -3827,13 +3802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const creditHistory = await storage.createCreditHistory(validatedData);
       
-      // Broadcast credit transaction update
-      broadcastTransactionUpdate('credit_changed', { 
-        userId, 
-        amount: req.body.amount, 
-        type: req.body.type,
-        description: req.body.description
-      });
+      // Credit history created successfully
       
       res.json(creditHistory);
     } catch (error) {
@@ -3844,26 +3813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // WebSocket server for real-time marketplace updates
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  // Store all connected clients
-  const wsClients = new Set();
-  
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
-    wsClients.add(ws);
-    
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
-      wsClients.delete(ws);
-    });
-    
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-      wsClients.delete(ws);
-    });
-  });
+  // Real-time updates now handled via polling for stable performance
   
   // Public route for fetching promotion banners (no authentication required)
   app.get('/api/promotion-banners', async (req, res) => {
@@ -3876,90 +3826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Comprehensive WebSocket broadcast functions for all real-time updates
-  function broadcastMarketplaceUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'marketplace', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastPaymentVerificationUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'payment_verification', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastLoyaltyPointsUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'loyalty_points', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastBookingUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'booking', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastPetUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'pet', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastTransactionUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'transaction', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastUserUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'user', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastAdminUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'admin', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-
-  function broadcastRewardUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type: 'reward', subtype: type, data });
-    wsClients.forEach((client: any) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  }
-  
-  // Export broadcast function for use in routes
-  (app as any).broadcastMarketplaceUpdate = broadcastMarketplaceUpdate;
+  // Broadcast functions removed - using polling for stable updates
 
   // Game scores routes
   app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
