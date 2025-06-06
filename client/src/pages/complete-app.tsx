@@ -1025,7 +1025,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <Card key={pet.id} className="overflow-hidden">
                 <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
                   <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 w-full">
+                    <div className="flex items-center gap-1 w-full">
                       {editingPetName === pet.id ? (
                         <div className="flex items-center gap-2 w-full">
                           <Input
@@ -1036,6 +1036,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             maxLength={20}
                             autoFocus
                           />
+                          <span className="text-xs text-white/80 whitespace-nowrap">-5 tokens</span>
                           <Button
                             size="sm"
                             onClick={() => {
@@ -1083,10 +1084,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                               setNewPetName(pet.name || "");
                             }}
                             disabled={!user || user.loyaltyPoints < 5}
-                            className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
-                            title={`Edit Pet Name (5 tokens) - You have ${user?.loyaltyPoints || 0} tokens`}
+                            className="h-7 w-7 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30 ml-1"
+                            title={`Edit Pet Name - Costs 5 tokens (You have ${user?.loyaltyPoints || 0})`}
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <Edit3 className="w-3 h-3" />
                           </Button>
                         </>
                       )}

@@ -1478,11 +1478,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updatePetName(petId, name.trim());
       
       // Record transaction
-      await storage.createTransaction({
-        type: 'token_spent',
-        description: `Pet name changed to "${name.trim()}"`,
-        userId: userId,
-        amount: '-5'
+      await storage.createPointTransaction({
+        userId,
+        points: -5,
+        type: 'redeemed',
+        description: `Pet name changed to "${name.trim()}" (-5 tokens)`,
+        relatedId: petId
       });
       
       res.json({ 
