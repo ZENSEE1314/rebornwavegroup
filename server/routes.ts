@@ -56,9 +56,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log("Payment verification request body:", req.body);
+      console.log("User ID:", userId);
+      
       const validation = insertPaymentVerificationSchema.safeParse(req.body);
       
       if (!validation.success) {
+        console.log("Validation failed:", validation.error.errors);
         return res.status(400).json({ message: "Invalid data", errors: validation.error.errors });
       }
 
