@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatMoney, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { rewardSymbols } from "@/lib/rewardSymbols";
 import { 
   Users, 
@@ -53,8 +54,9 @@ import {
 function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-
-  // Admin dashboard uses polling for stable real-time updates
+  
+  // Enable WebSocket for real-time updates
+  useWebSocket();
   
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -245,15 +247,11 @@ function EnhancedAdminDashboard() {
   const { data: paymentVerificationsResponse }: any = useQuery({
     queryKey: [`/api/admin/payment-verifications?page=${paymentVerificationsPage}&limit=${paymentVerificationsPerPage}`],
     retry: false,
-    refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
-    refetchOnWindowFocus: true,
   });
 
   const { data: commissionStats }: any = useQuery({
     queryKey: ['/api/admin/commission-stats'],
     retry: false,
-    refetchInterval: 10000, // Auto-refresh commission stats every 10 seconds
-    refetchOnWindowFocus: true,
   });
 
   // Extract data arrays from paginated responses

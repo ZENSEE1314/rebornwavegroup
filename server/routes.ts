@@ -2557,6 +2557,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateTopUpRequestStatus(parseInt(id), status, adminNotes);
+      
+      // Broadcast top-up request update
+      broadcastAdminUpdate('topup-request-updated', {
+        id: parseInt(id),
+        status,
+        updatedAt: new Date().toISOString()
+      });
+      
       res.json({ message: "Top-up request status updated successfully" });
     } catch (error) {
       console.error("Error updating top-up request status:", error);
@@ -4148,6 +4156,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, adminNotes, trackingNumber } = req.body;
       
       await storage.updateTokenClaimStatus(parseInt(id), status, adminUserId, adminNotes, trackingNumber);
+      
+      // Broadcast token claim update
+      broadcastAdminUpdate('token-claim-updated', {
+        id: parseInt(id),
+        status,
+        updatedAt: new Date().toISOString()
+      });
+      
       res.json({ message: "Token claim updated successfully" });
     } catch (error) {
       console.error("Error updating token claim:", error);
