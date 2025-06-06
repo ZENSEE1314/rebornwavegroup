@@ -2503,8 +2503,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     return data.imageUrl;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     
     console.log('Form submit triggered:', {
       amount,
@@ -2707,7 +2707,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
 
               {/* Submit Button */}
               <Button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 className="w-full"
                 disabled={isSubmitting || !amount || !description || !receiptImage}
               >
