@@ -2529,13 +2529,14 @@ function EnhancedAdminDashboard() {
                               <TableHead className="text-gray-300">Color</TableHead>
                               <TableHead className="text-gray-300">Order</TableHead>
                               <TableHead className="text-gray-300">Active</TableHead>
+                              <TableHead className="text-gray-300">Created Date</TableHead>
                               <TableHead className="text-gray-300">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {(promotionBanners as any[]).length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                                <TableCell colSpan={7} className="text-center text-gray-400 py-8">
                                   No promotion banners found. Create your first banner to get started.
                                 </TableCell>
                               </TableRow>
@@ -2563,6 +2564,9 @@ function EnhancedAdminDashboard() {
                                     <Badge variant={banner.isActive ? "default" : "secondary"}>
                                       {banner.isActive ? "Active" : "Inactive"}
                                     </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-gray-300">
+                                    {formatDate(banner.createdAt)}
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex gap-2">
@@ -2785,6 +2789,7 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-gray-300">Series</TableHead>
                         <TableHead className="text-gray-300">Rarity</TableHead>
                         <TableHead className="text-gray-300">Current Age</TableHead>
+                        <TableHead className="text-gray-300">Birth Date</TableHead>
                         <TableHead className="text-gray-300">Claimable Tokens</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
                         <TableHead className="text-gray-300">Actions</TableHead>
@@ -2793,7 +2798,7 @@ function EnhancedAdminDashboard() {
                     <TableBody>
                       {(activatedPets as any[]).length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center text-gray-400 py-8">
+                          <TableCell colSpan={10} className="text-center text-gray-400 py-8">
                             No activated pets found.
                           </TableCell>
                         </TableRow>
