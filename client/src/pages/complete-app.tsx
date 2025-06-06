@@ -1031,7 +1031,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          alert("Edit button works!");
                           setEditingPetName(pet.id);
                           setNewPetName(pet.name || "");
                         }}
