@@ -1808,11 +1808,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       status = "Bad";
                       statusColor = "text-red-600 bg-red-50";
                     } else if (lowestStat >= 25 && lowestStat <= 49) {
-                      status = "Poor";
-                      statusColor = "text-orange-600 bg-orange-50";
-                    } else if (lowestStat >= 50 && lowestStat <= 74) {
                       status = "Good";
                       statusColor = "text-blue-600 bg-blue-50";
+                    } else if (lowestStat >= 50 && lowestStat <= 74) {
+                      status = "Great";
+                      statusColor = "text-purple-600 bg-purple-50";
                     } else if (lowestStat >= 75) {
                       status = "Healthy";
                       statusColor = "text-green-600 bg-green-50";
