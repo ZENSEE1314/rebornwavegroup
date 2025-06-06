@@ -2460,6 +2460,22 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
     },
     onError: (error: any) => {
+      console.log('Payment verification submission error:', error);
+      
+      // Check for authentication error
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        toast({
+          title: language === "id" ? "Sesi Berakhir" : "Session Expired",
+          description: language === "id" ? "Silakan login ulang" : "Please log in again",
+          variant: "destructive",
+        });
+        // Redirect to login after a delay
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 1500);
+        return;
+      }
+      
       toast({
         title: language === "id" ? "Gagal" : "Error",
         description: error.message || (language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification"),
