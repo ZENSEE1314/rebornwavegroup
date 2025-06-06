@@ -2249,13 +2249,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Simple Test Modal */}
-      {(() => {
-        console.log("Modal render check - editingPetName:", editingPetName);
-        console.log("Modal render check - typeof editingPetName:", typeof editingPetName);
-        console.log("Modal render check - editingPetName !== null:", editingPetName !== null);
-        return editingPetName !== null;
-      })() && (
+      {/* Always Show Test Modal */}
+      {true && (
         <div 
           className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center"
           style={{
