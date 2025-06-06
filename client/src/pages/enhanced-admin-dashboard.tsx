@@ -55,8 +55,8 @@ function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Enable WebSocket for real-time updates
-  useWebSocket();
+  // Enable WebSocket for real-time updates only for admin users
+  useWebSocket(user && (user as any).role === 'admin');
   
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
