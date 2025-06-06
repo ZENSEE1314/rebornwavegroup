@@ -2948,9 +2948,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       console.log('Response sent successfully');
     } catch (error: any) {
+      console.error("=== PET CARE ERROR ===");
       console.error("Error updating care status:", error);
-      console.error("Error details:", error.message, error.stack);
-      res.status(500).json({ message: "Failed to update care status" });
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      console.error("Request params:", req.params);
+      console.error("User ID:", req.user?.claims?.sub);
+      res.status(500).json({ message: "Failed to update care status", error: error.message });
     }
   });
 
