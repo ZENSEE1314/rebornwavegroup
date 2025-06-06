@@ -7244,6 +7244,16 @@ export default function CompleteApp() {
                 const paginatedClaims = claims.slice(startIndex, endIndex);
                 const totalPages = Math.ceil(claims.length / itemsPerPage);
 
+                console.log("Token History Modal Debug:", {
+                  totalClaims: claims.length,
+                  itemsPerPage,
+                  currentPage: modalHistoryPage,
+                  totalPages,
+                  startIndex,
+                  endIndex,
+                  paginatedClaims: paginatedClaims.length
+                });
+
                 if (claims.length === 0) {
                   return (
                     <div className="text-center py-8">
