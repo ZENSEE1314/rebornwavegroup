@@ -3155,11 +3155,7 @@ export default function EnhancedAdminDashboard() {
                   <TableBody>
                     {(() => {
                       const transactions = tokenTransactionsResponse?.data || [];
-                      console.log("Token transactions response:", tokenTransactionsResponse);
-                      console.log("Token transactions data:", transactions);
-                      console.log("Transactions length:", transactions.length);
                       
-                      // Server already returns paginated data, no need to slice again
                       return transactions.map((transaction: any) => (
                         <TableRow key={transaction.id} className="border-white/10">
                         <TableCell className="text-white">
