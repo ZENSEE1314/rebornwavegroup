@@ -972,7 +972,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Broadcast appointment creation to all connected clients
-      (app as any).broadcastMarketplaceUpdate('appointment_created', { userId });
+      broadcastBookingUpdate('appointment_created', { 
+        userId, 
+        appointmentId: appointment.id,
+        title: appointment.title,
+        date: appointment.appointmentDate,
+        category: appointment.category
+      });
       
       res.json(appointment);
     } catch (error) {
@@ -2946,6 +2952,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         console.log('Token not awarded:', tokenEligible.reason);
       }
+
+      // Broadcast pet care update
+      broadcastPetUpdate('care_performed', {
+        userId,
+        petId: parseInt(petId),
+        careType,
+        tokenAwarded,
+        tokenEligible: tokenEligible.eligible
+      });
       
       res.json({ 
         success: true, 
@@ -3660,6 +3675,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Broadcast reward redemption update
+      broadcastRewardUpdate('redeemed', { 
+        userId, 
+        rewardId, 
+        rewardName: reward.name, 
+        pointsCost,
+        creditAdded: reward.type === 'credit' ? reward.creditAmount : null
+      });
+
       res.json({ 
         message: 'Reward redeemed successfully',
         creditAdded: reward.type === 'credit' ? reward.creditAmount : null
@@ -3748,6 +3772,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user's loyalty points using the points difference
       await storage.updateUserPoints(userId, req.body.points);
       
+      // Broadcast loyalty points update
+      broadcastLoyaltyPointsUpdate('points_changed', { userId, points: req.body.points, type: req.body.type });
+      
       res.json(pointsHistory);
     } catch (error) {
       console.error("Error creating points history:", error);
@@ -3817,9 +3844,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Function to broadcast marketplace updates to all clients
+  // Comprehensive WebSocket broadcast functions for all real-time updates
   function broadcastMarketplaceUpdate(type: string, data: any) {
-    const message = JSON.stringify({ type, data });
+    const message = JSON.stringify({ type: 'marketplace', subtype: type, data });
     wsClients.forEach((client: any) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -3827,9 +3854,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Function to broadcast payment verification updates
   function broadcastPaymentVerificationUpdate(type: string, data: any) {
     const message = JSON.stringify({ type: 'payment_verification', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastLoyaltyPointsUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'loyalty_points', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastBookingUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'booking', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastPetUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'pet', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastTransactionUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'transaction', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastUserUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'user', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastAdminUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'admin', subtype: type, data });
+    wsClients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+
+  function broadcastRewardUpdate(type: string, data: any) {
+    const message = JSON.stringify({ type: 'reward', subtype: type, data });
     wsClients.forEach((client: any) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
