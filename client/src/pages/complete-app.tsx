@@ -1065,9 +1065,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             }
                             
                             if (user && user.loyaltyPoints >= 5) {
+                              console.log("Triggering pet name edit mutation:", {
+                                petId: pet.id,
+                                newName: newPetName.trim(),
+                                currentTokens: user.loyaltyPoints
+                              });
                               editPetNameMutation.mutate({
                                 petId: pet.id,
                                 newName: newPetName.trim()
+                              });
+                            } else {
+                              console.log("Cannot edit pet name - insufficient tokens:", {
+                                userTokens: user?.loyaltyPoints,
+                                required: 5
                               });
                             }
                           }}
@@ -2385,6 +2395,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       return;
                     }
                     
+                    console.log("Modal save button clicked - triggering pet name edit mutation:", {
+                      petId: editingPetName,
+                      newName: newPetName.trim(),
+                      currentTokens: user?.loyaltyPoints
+                    });
                     editPetNameMutation.mutate({
                       petId: editingPetName,
                       newName: newPetName.trim()
