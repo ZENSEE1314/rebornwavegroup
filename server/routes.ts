@@ -58,6 +58,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Create HTTP server
+  const httpServer = createServer(app);
+  
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   
@@ -3797,8 +3800,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create credit history" });
     }
   });
-
-  const httpServer = createServer(app);
 
   // Real-time updates now handled via polling for stable performance
   
