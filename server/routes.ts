@@ -1482,14 +1482,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const newTokenCount = currentTokens - 5;
           await tx.update(users).set({ tokens: newTokenCount }).where(eq(users.id, userId));
           
-          // Record the transaction
-          await tx.insert(transactions).values({
+          // Record the token transaction in the dedicated token_transactions table
+          await tx.insert(tokenTransactions).values({
             userId,
-            type: 'pet_name_change',
-            amount: "5.00",
+            tokens: -5,
+            type: 'spent',
             description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
-            referenceId: petId.toString(),
-            pointsEarned: -5,
+            relatedId: petId,
             status: 'completed'
           });
         });
@@ -1875,13 +1874,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUser(userId, { loyaltyPoints: newTokenCount });
       await storage.updatePetStats(petId, { lastTokenClaim: now });
 
-      // Record token history
-      await storage.createTokenHistory({
+      // Record token transaction in the dedicated token_transactions table
+      await db.insert(tokenTransactions).values({
         userId,
         tokens: 1,
         type: 'earned',
         description: `Daily token earned from pet ${pet.name}`,
-        relatedId: petId
+        relatedId: petId,
+        status: 'completed'
       });
 
       res.json({
@@ -3894,6 +3894,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error adding tokens:', error);
       res.status(500).json({ message: 'Failed to add tokens' });
+    }
+  });
+
+  // Admin endpoint to get all token transactions (separate from RP transactions)
+  app.get('/api/admin/token-transactions', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.claims?.sub;
+      const admin = await storage.getUser(adminUserId);
+      
+      if (admin?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      // Get all token transactions from the dedicated token_transactions table
+      const tokenTransactions = await db
+        .select({
+          id: tokenTransactions.id,
+          userId: tokenTransactions.userId,
+          tokens: tokenTransactions.tokens,
+          type: tokenTransactions.type,
+          description: tokenTransactions.description,
+          relatedId: tokenTransactions.relatedId,
+          status: tokenTransactions.status,
+          createdAt: tokenTransactions.createdAt
+        })
+        .from(tokenTransactions)
+        .orderBy(desc(tokenTransactions.createdAt));
+
+      // Get user information for each transaction
+      const userIds = [...new Set(tokenTransactions.map(t => t.userId))];
+      const users = await Promise.all(
+        userIds.map(async (userId) => {
+          const user = await storage.getUser(userId);
+          return { id: userId, email: user?.email, firstName: user?.firstName };
+        })
+      );
+
+      const usersMap = users.reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+      }, {} as any);
+
+      // Add user information to transactions
+      const enrichedTransactions = tokenTransactions.map(transaction => ({
+        ...transaction,
+        user: usersMap[transaction.userId]
+      }));
+
+      res.json({ data: enrichedTransactions });
+    } catch (error) {
+      console.error("Error fetching admin token transactions:", error);
+      res.status(500).json({ message: "Failed to fetch token transactions" });
     }
   });
 
