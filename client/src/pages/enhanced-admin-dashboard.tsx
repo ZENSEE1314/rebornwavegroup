@@ -174,6 +174,11 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  const { data: tokenTransactionsResponse }: any = useQuery({
+    queryKey: ['/api/admin/token-transactions'],
+    retry: false,
+  });
+
   const { data: toysResponse }: any = useQuery({
     queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
     retry: false,
@@ -1027,6 +1032,10 @@ export default function EnhancedAdminDashboard() {
               <TabsTrigger value="tokens" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Gift className="h-4 w-4 mr-2" />
                 Token Claims
+              </TabsTrigger>
+              <TabsTrigger value="token-transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Trophy className="h-4 w-4 mr-2" />
+                Token Transactions
               </TabsTrigger>
             </TabsList>
           </div>

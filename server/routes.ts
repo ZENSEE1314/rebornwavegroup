@@ -3766,7 +3766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Fetching token history for user:", userId);
 
       // Get all token transactions from the dedicated token_transactions table
-      const tokenTransactions = await db
+      const userTokenTransactions = await db
         .select({
           id: tokenTransactions.id,
           type: tokenTransactions.type,
@@ -3780,7 +3780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(tokenTransactions.userId, userId))
         .orderBy(desc(tokenTransactions.createdAt));
 
-      console.log("Found token transactions:", tokenTransactions.length);
+      console.log("Found token transactions:", userTokenTransactions.length);
 
       // Get token claims (earning tokens) 
       const tokenClaims = await storage.getTokenClaimsByUserId(userId);
@@ -3799,7 +3799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Combine and sort all token-related activities
-      const allTokenHistory = [...tokenTransactions, ...formattedClaims]
+      const allTokenHistory = [...userTokenTransactions, ...formattedClaims]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       console.log("Total token history items:", allTokenHistory.length);
@@ -3908,7 +3908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get all token transactions from the dedicated token_transactions table
-      const tokenTransactions = await db
+      const adminTokenTransactions = await db
         .select({
           id: tokenTransactions.id,
           userId: tokenTransactions.userId,
@@ -3923,7 +3923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(tokenTransactions.createdAt));
 
       // Get user information for each transaction
-      const userIds = [...new Set(tokenTransactions.map(t => t.userId))];
+      const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.userId)));
       const users = await Promise.all(
         userIds.map(async (userId) => {
           const user = await storage.getUser(userId);
@@ -3937,7 +3937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, {} as any);
 
       // Add user information to transactions
-      const enrichedTransactions = tokenTransactions.map(transaction => ({
+      const enrichedTransactions = adminTokenTransactions.map(transaction => ({
         ...transaction,
         user: usersMap[transaction.userId]
       }));
