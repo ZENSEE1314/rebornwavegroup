@@ -1396,27 +1396,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allStatsAboveThreshold = Object.values(currentStats).every(stat => stat > 1);
 
       if (allStatsAboveThreshold) {
-        // Award token
-        const user = await storage.getUser(userId);
-        const currentTokens = user?.loyaltyPoints || 0;
+        // TEMPORARILY DISABLED: Award token to prevent race conditions with pet name edits
+        console.log(`Daily token award disabled temporarily for Pet ${petId}, User ${userId}`);
         
-        await storage.updateUserPoints(userId, currentTokens + 1);
-        await storage.updatePetStats(petId, { lastTokenClaim: now });
-        
-        // Create token claim history entry
-        await storage.createPointTransaction({
-          userId,
-          points: 1,
-          type: 'earned',
-          description: `Daily pet care token - ${pet.name}`,
-          relatedId: petId
-        });
-
         res.json({ 
           eligible: true, 
-          tokenAwarded: true, 
-          message: "Token awarded for excellent pet care!",
-          newTokenBalance: currentTokens + 1
+          tokenAwarded: false, 
+          message: "Daily token system temporarily disabled to prevent conflicts",
+          statsOk: true
         });
       } else {
         // No token awarded - stats dropped too low
