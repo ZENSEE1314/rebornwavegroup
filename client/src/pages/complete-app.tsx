@@ -1031,13 +1031,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
+                          alert("Edit button works!");
                           setEditingPetName(pet.id);
                           setNewPetName(pet.name || "");
                         }}
-                        disabled={!user || user.tokens < 5}
-                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        disabled={!user || user.loyaltyPoints < 5}
+                        className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
+                        title="Edit Pet Name (5 tokens)"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-4 h-4" />
                       </Button>
                     </div>
                     <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
