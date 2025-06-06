@@ -2546,16 +2546,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.readAsDataURL(receiptImage);
         });
-        console.log('Base64 fallback completed');
+
       }
       
       const submissionData = {
-        amount: parseFloat(amount).toString(),
+        amount: parseFloat(amount).toFixed(2),
         description: description,
         receiptImageUrl: imageUrl,
       };
-      
-      console.log('Submitting verification with data:', submissionData);
       
       // Use the mutation directly instead of mutateAsync
       submitMutation.mutate(submissionData);
