@@ -3725,6 +3725,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Credit history route for transaction timestamps
+  app.get('/api/credit-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      // Get credit transactions from database
+      const transactions = await storage.getCreditTransactionsByUserId(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching credit history:", error);
+      res.status(500).json({ message: "Failed to fetch credit history" });
+    }
+  });
+
   // Points history routes
   app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
     try {

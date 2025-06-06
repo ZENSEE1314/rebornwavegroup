@@ -3453,15 +3453,11 @@ export default function CompleteApp() {
 
   // Remove localStorage usage - marketplace now uses database only
   
-  // Transaction history state
-  const [transactionHistory, setTransactionHistory] = useState([
-    { id: 1, type: "top-up", description: "Credit Top-up", amount: 500000, date: "2025-05-25", time: "14:30" },
-    { id: 2, type: "booking", description: "Facial Treatment", amount: -250000, date: "2025-05-24", time: "10:00" },
-    { id: 3, type: "purchase", description: "Lucky Cat Purchase", amount: -200000, date: "2025-05-23", time: "16:45" },
-    { id: 4, type: "top-up", description: "PayPal Top-up", amount: 1000000, date: "2025-05-22", time: "09:15" },
-    { id: 5, type: "booking", description: "KTV Room 1", amount: -500000, date: "2025-05-21", time: "20:30" },
-    { id: 6, type: "referral", description: "Referral Bonus (Level 1)", amount: 50000, date: "2025-05-20", time: "11:20" }
-  ]);
+  // Fetch credit transaction history from database
+  const { data: transactionHistory = [] } = useQuery({
+    queryKey: ['/api/credit-history'],
+    enabled: !!user,
+  });
 
   // Fetch user's toy inventory from database
   const { data: toyInventory = [], isLoading: toysLoading } = useQuery({

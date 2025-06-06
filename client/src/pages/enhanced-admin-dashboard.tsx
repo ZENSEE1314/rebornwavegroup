@@ -858,7 +858,7 @@ export default function EnhancedAdminDashboard() {
             <p className="text-gray-300">Comprehensive system management and reporting</p>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-300">Welcome, {user?.firstName || user?.email}</span>
+            <span className="text-gray-300">Welcome, {(user as any)?.firstName || (user as any)?.email || 'Admin'}</span>
             <Button
               onClick={() => window.location.href = '/api/logout'}
               variant="outline"

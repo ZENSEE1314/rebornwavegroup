@@ -470,6 +470,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(transactions.createdAt));
   }
 
+  async getCreditTransactionsByUserId(userId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
   // Toy operations
   async createToy(toy: InsertToy): Promise<Toy> {
     const [created] = await db
