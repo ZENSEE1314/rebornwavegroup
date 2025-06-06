@@ -3263,7 +3263,7 @@ export default function EnhancedAdminDashboard() {
                 {/* Pagination Info */}
                 {tokenTransactionsResponse?.pagination && (
                   <div className="mt-2 text-center text-sm text-gray-400">
-                    Showing {((tokenTransactionsPage - 1) * tokenTransactionsPerPage) + 1}-{Math.min(tokenTransactionsPage * tokenTransactionsPerPage, tokenTransactionsResponse.pagination.totalCount)} of {tokenTransactionsResponse.pagination.totalCount} transactions
+                    Showing {((tokenTransactionsPage - 1) * tokenTransactionsPerPage) + 1} to {Math.min(tokenTransactionsPage * tokenTransactionsPerPage, tokenTransactionsResponse.pagination.totalCount)} of {tokenTransactionsResponse.pagination.totalCount} transactions
                   </div>
                 )}
 
