@@ -2249,58 +2249,34 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Always Show Test Modal */}
-      {true && (
+      {/* Edit Pet Name Modal */}
+      {editingPetName !== null && (
         <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{
-            position: 'fixed',
-            zIndex: 99999,
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
           }}
+          onClick={() => setEditingPetName(null)}
         >
           <div 
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              padding: '24px',
-              maxWidth: '400px',
-              width: '90%',
-              margin: '0 16px'
-            }}
+            className="bg-white rounded-lg p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">
+              <h3 className="text-xl font-bold text-gray-900">
                 {language === "id" ? "Edit Nama Pet" : "Edit Pet Name"}
               </h3>
               <button 
-                onClick={() => {
-                  setEditingPetName(null);
-                  setNewPetName("");
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  padding: '4px 8px'
-                }}
+                onClick={() => setEditingPetName(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
               >
-                ✕
+                ×
               </button>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-medium mb-2 text-gray-700">
                   {language === "id" ? "Nama Baru" : "New Name"}
                 </label>
                 <Input
