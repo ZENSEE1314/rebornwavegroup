@@ -1143,6 +1143,7 @@ function EnhancedAdminDashboard() {
                           <TableHead className="text-blue-200 min-w-[80px]">Points</TableHead>
                           <TableHead className="text-blue-200 min-w-[80px]">Tokens</TableHead>
                           <TableHead className="text-blue-200 min-w-[80px]">Role</TableHead>
+                          <TableHead className="text-blue-200 min-w-[120px]">Join Date</TableHead>
                           <TableHead className="text-blue-200 min-w-[150px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1268,6 +1269,9 @@ function EnhancedAdminDashboard() {
                               {user.role || 'user'}
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {formatDate(user.createdAt)}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -2161,6 +2165,7 @@ function EnhancedAdminDashboard() {
                       <TableHead className="text-blue-200">Amount</TableHead>
                       <TableHead className="text-blue-200">Bank Details</TableHead>
                       <TableHead className="text-blue-200">Status</TableHead>
+                      <TableHead className="text-blue-200">Date</TableHead>
                       <TableHead className="text-blue-200">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -2169,6 +2174,7 @@ function EnhancedAdminDashboard() {
                       <TableRow key={cashOut.id} className="border-white/10">
                         <TableCell className="text-white">
                           {cashOut.user?.firstName} {cashOut.user?.lastName}
+                          <div className="text-sm text-gray-400">{cashOut.user?.email}</div>
                         </TableCell>
                         <TableCell className="text-green-300">RP {cashOut.amount}</TableCell>
                         <TableCell className="text-gray-300">
@@ -2181,6 +2187,9 @@ function EnhancedAdminDashboard() {
                           }>
                             {cashOut.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {formatDate(cashOut.createdAt)}
                         </TableCell>
                         <TableCell>
                           {cashOut.status === 'pending' ? (
