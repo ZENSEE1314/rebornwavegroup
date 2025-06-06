@@ -84,35 +84,77 @@ export default function Landing() {
           </div>
 
           {/* About Us Overview */}
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <span className="px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-sm font-medium text-white">
-                🌟 Singapore Innovation
-              </span>
-            </div>
-            <h3 className="text-3xl md:text-4xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                About Reborn Wave Group
-              </span>
-            </h3>
-            <p className="text-xl text-white/70 max-w-3xl mx-auto mb-8">
-              The world's first 5-in-1 business concept revolutionizing lifestyle experiences
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-2xl">🏢</span>
-                </div>
-                <h4 className="text-lg font-bold text-white mb-2">5-in-1 Concept</h4>
-                <p className="text-white/70 text-sm">Beauty • F&B • Gaming • KTV • IT Solutions</p>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="mb-6">
+                <span className="px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-sm font-medium text-white">
+                  🌟 Singapore Innovation
+                </span>
               </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-2xl">🌏</span>
+              <h3 className="text-3xl md:text-4xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  About Reborn Wave Group
+                </span>
+              </h3>
+              <p className="text-xl text-white/70 max-w-4xl mx-auto mb-8">
+                The world's first 5-in-1 business concept revolutionizing lifestyle experiences
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              {/* About Content */}
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
+                  <h4 className="text-2xl font-bold text-white mb-6">Our Vision</h4>
+                  <p className="text-white/70 leading-relaxed mb-4">
+                    Based in Singapore, Reborn Wave Group is pioneering the world's first 5-in-1 business concept that seamlessly 
+                    integrates beauty, food & beverage, gaming, KTV, and cutting-edge IT solutions into one extraordinary destination.
+                  </p>
+                  <p className="text-white/70 leading-relaxed mb-4">
+                    We are a comprehensive one-stop station designed for tours, couples, families, and corporate clients to enjoy 
+                    a full-day experience with us. From beauty treatments from top to tail, three complete meals (breakfast, lunch, dinner), 
+                    to entertainment for adults and kids - we offer it all.
+                  </p>
+                  <p className="text-white/70 leading-relaxed">
+                    Our venue features breathtaking scenery including a sky bar with stunning sea views, beautiful night lighting, 
+                    and Instagram-worthy photo spots throughout the facility.
+                  </p>
                 </div>
-                <h4 className="text-lg font-bold text-white mb-2">Global First</h4>
-                <p className="text-white/70 text-sm">World's first integrated lifestyle destination</p>
+              </div>
+              
+              {/* Features & Location */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
+                      <span className="text-2xl">🏢</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">5-in-1 Concept</h4>
+                    <p className="text-white/70 text-sm">Beauty • F&B • Gaming • KTV • IT Solutions</p>
+                  </div>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
+                      <span className="text-2xl">🌏</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Global First</h4>
+                    <p className="text-white/70 text-sm">World's first integrated lifestyle destination</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
+                  <h4 className="text-xl font-bold text-white mb-4">Visit Us</h4>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
+                      <span className="text-sm">📍</span>
+                    </div>
+                    <div>
+                      <h5 className="text-white font-semibold">Our Location</h5>
+                      <p className="text-white/70 text-sm">42RX+GWX, Jl. Gajah Mada, Sadai</p>
+                      <p className="text-white/70 text-sm">Kec. Bengkong, Kota Batam</p>
+                      <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
