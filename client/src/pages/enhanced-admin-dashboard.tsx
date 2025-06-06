@@ -177,8 +177,7 @@ export default function EnhancedAdminDashboard() {
   });
 
   const { data: tokenTransactionsResponse }: any = useQuery({
-    queryKey: ['/api/admin/token-transactions', tokenTransactionsPage, tokenTransactionsPerPage],
-    queryFn: () => apiRequest('GET', `/api/admin/token-transactions?page=${tokenTransactionsPage}&limit=${tokenTransactionsPerPage}`),
+    queryKey: [`/api/admin/token-transactions?page=${tokenTransactionsPage}&limit=${tokenTransactionsPerPage}`],
     retry: false,
   });
 
