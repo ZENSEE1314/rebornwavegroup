@@ -70,25 +70,39 @@ export default function EnhancedAdminDashboard() {
       try {
         const message = JSON.parse(event.data);
         
-        if (message.type === 'payment_verification') {
-          // Invalidate admin payment verification queries for instant updates
-          queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+        if (message.type === 'payment_verification' || message.type === 'marketplace_update') {
+          // Invalidate all payment verification related queries for instant updates
+          queryClient.invalidateQueries({ 
+            queryKey: ['/api/admin/payment-verifications'],
+            exact: false 
+          });
           queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
           
-          // Show notification based on update type
-          if (message.subtype === 'submitted') {
+          // Show notification based on update type with sound
+          if (message.subtype === 'submitted' || message.action === 'submit') {
+            // Play notification sound for new submissions
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUYrTp66hVFApGn+Txu3EhBC58xO7akD0JE1+z5OGpWBUIRZrm77ZiGgQ+ltryxnkpBSl+zPLaizsIGGS57+OZURE');
+              audio.volume = 0.3;
+              audio.play().catch(e => console.log('Audio play failed:', e));
+            } catch (e) {
+              console.log('Audio creation failed:', e);
+            }
+            
             toast({
-              title: "New Verification Submitted",
-              description: "A new payment verification requires review",
+              title: "🔔 New Verification Submitted",
+              description: `Payment verification of RP ${message.data?.amount || 'N/A'} requires review`,
+              className: "border-yellow-500 bg-yellow-50 text-yellow-900",
             });
-          } else if (message.subtype === 'approved') {
+          } else if (message.subtype === 'approved' || message.action === 'approve') {
             toast({
-              title: "Verification Approved",
+              title: "✅ Verification Approved",
               description: "Payment verification has been approved",
+              className: "border-green-500 bg-green-50 text-green-900",
             });
-          } else if (message.subtype === 'rejected') {
+          } else if (message.subtype === 'rejected' || message.action === 'reject') {
             toast({
-              title: "Verification Rejected", 
+              title: "❌ Verification Rejected", 
               description: "Payment verification has been rejected",
               variant: "destructive",
             });
@@ -301,11 +315,15 @@ export default function EnhancedAdminDashboard() {
   const { data: paymentVerificationsResponse }: any = useQuery({
     queryKey: [`/api/admin/payment-verifications?page=${paymentVerificationsPage}&limit=${paymentVerificationsPerPage}`],
     retry: false,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
+    refetchOnWindowFocus: true,
   });
 
   const { data: commissionStats }: any = useQuery({
     queryKey: ['/api/admin/commission-stats'],
     retry: false,
+    refetchInterval: 10000, // Auto-refresh commission stats every 10 seconds
+    refetchOnWindowFocus: true,
   });
 
   // Extract data arrays from paginated responses
@@ -3396,7 +3414,8 @@ export default function EnhancedAdminDashboard() {
                       <TableHead className="text-gray-300">Description</TableHead>
                       <TableHead className="text-gray-300">Receipt</TableHead>
                       <TableHead className="text-gray-300">Status</TableHead>
-                      <TableHead className="text-gray-300">Submitted</TableHead>
+                      <TableHead className="text-gray-300">Date</TableHead>
+                      <TableHead className="text-gray-300">Time</TableHead>
                       <TableHead className="text-gray-300">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -3459,6 +3478,9 @@ export default function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-gray-300">
                           {new Date(verification.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(verification.createdAt).toLocaleTimeString()}
                         </TableCell>
                         <TableCell>
                           {verification.status === 'pending' && (
