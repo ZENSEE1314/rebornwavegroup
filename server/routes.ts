@@ -1453,7 +1453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      const currentTokens = user.loyaltyPoints || 0;
+      const currentTokens = user.tokens || 0;
       console.log(`Current user tokens: ${currentTokens}`);
       
       if (currentTokens < 5) {
@@ -1479,7 +1479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Deduct exactly 5 tokens with explicit calculation
           const newTokenCount = currentTokens - 5;
-          await tx.update(users).set({ loyaltyPoints: newTokenCount }).where(eq(users.id, userId));
+          await tx.update(users).set({ tokens: newTokenCount }).where(eq(users.id, userId));
           
           // Record the transaction
           await tx.insert(transactions).values({

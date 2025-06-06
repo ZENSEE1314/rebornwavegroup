@@ -1064,11 +1064,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                               return;
                             }
                             
-                            if (user && user.loyaltyPoints >= 5) {
+                            if (user && user.tokens >= 5) {
                               console.log("Triggering pet name edit mutation:", {
                                 petId: pet.id,
                                 newName: newPetName.trim(),
-                                currentTokens: user.loyaltyPoints
+                                currentTokens: user.tokens
                               });
                               editPetNameMutation.mutate({
                                 petId: pet.id,
@@ -1076,12 +1076,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                               });
                             } else {
                               console.log("Cannot edit pet name - insufficient tokens:", {
-                                userTokens: user?.loyaltyPoints,
+                                userTokens: user?.tokens,
                                 required: 5
                               });
                             }
                           }}
-                          disabled={editPetNameMutation.isPending || !user || user.loyaltyPoints < 5}
+                          disabled={editPetNameMutation.isPending || !user || user.tokens < 5}
                           className="bg-green-600 hover:bg-green-700 text-white px-3"
                         >
                           {editPetNameMutation.isPending ? "..." : "✓"}
