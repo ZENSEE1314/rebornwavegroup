@@ -3485,6 +3485,38 @@ export default function EnhancedAdminDashboard() {
                     No payment verifications found
                   </div>
                 )}
+                
+                {/* Payment Verification Pagination */}
+                {paymentVerificationsResponse?.pagination && paymentVerificationsResponse.pagination.totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-4 text-gray-300">
+                    <div className="text-sm">
+                      Showing {((paymentVerificationsPage - 1) * paymentVerificationsPerPage) + 1} to {Math.min(paymentVerificationsPage * paymentVerificationsPerPage, paymentVerificationsResponse.pagination.total)} of {paymentVerificationsResponse.pagination.total} verifications
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setPaymentVerificationsPage(prev => Math.max(1, prev - 1))}
+                        disabled={paymentVerificationsPage === 1}
+                        variant="outline"
+                        size="sm"
+                        className="border-white/20 text-white hover:bg-white/10"
+                      >
+                        Previous
+                      </Button>
+                      <span className="px-3 py-1 text-sm">
+                        Page {paymentVerificationsPage} of {paymentVerificationsResponse.pagination.totalPages}
+                      </span>
+                      <Button
+                        onClick={() => setPaymentVerificationsPage(prev => Math.min(paymentVerificationsResponse.pagination.totalPages, prev + 1))}
+                        disabled={paymentVerificationsPage === paymentVerificationsResponse.pagination.totalPages}
+                        variant="outline"
+                        size="sm"
+                        className="border-white/20 text-white hover:bg-white/10"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
