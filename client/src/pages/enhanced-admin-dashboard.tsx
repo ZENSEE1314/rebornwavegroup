@@ -137,9 +137,10 @@ export default function EnhancedAdminDashboard() {
   });
 
   // Fetch transactions
-  const { data: transactions = [] } = useQuery<Transaction[]>({
+  const { data: transactionsResponse } = useQuery({
     queryKey: ["/api/admin/transactions"],
   });
+  const transactions = transactionsResponse?.data || [];
 
   // Fetch top-up requests
   const { data: topUpRequests = [] } = useQuery<TopUpRequest[]>({
@@ -147,14 +148,16 @@ export default function EnhancedAdminDashboard() {
   });
 
   // Fetch appointments
-  const { data: appointments = [] } = useQuery<Appointment[]>({
+  const { data: appointmentsResponse } = useQuery({
     queryKey: ["/api/admin/appointments"],
   });
+  const appointments = appointmentsResponse?.data || [];
 
   // Fetch pets
   const { data: pets = [] } = useQuery({
     queryKey: ["/api/admin/pets"],
   });
+  const petsArray = Array.isArray(pets) ? pets : [];
 
   // Fetch analytics
   const { data: analytics } = useQuery({
@@ -214,14 +217,14 @@ export default function EnhancedAdminDashboard() {
     transaction.userId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredAppointments = appointments.filter((appointment: Appointment) =>
-    appointment.service.toLowerCase().includes(appointmentSearch.toLowerCase()) ||
+  const filteredAppointments = Array.isArray(appointments) ? appointments.filter((appointment: Appointment) =>
+    appointment.service?.toLowerCase().includes(appointmentSearch.toLowerCase()) ||
     (appointment.user?.firstName && appointment.user.firstName.toLowerCase().includes(appointmentSearch.toLowerCase())) ||
     (appointment.user?.email && appointment.user.email.toLowerCase().includes(appointmentSearch.toLowerCase()))
-  );
+  ) : [];
 
-  const filteredPets = pets.filter((pet: any) =>
-    pet.name.toLowerCase().includes(petSearch.toLowerCase()) ||
+  const filteredPets = petsArray.filter((pet: any) =>
+    pet.name?.toLowerCase().includes(petSearch.toLowerCase()) ||
     (pet.user?.firstName && pet.user.firstName.toLowerCase().includes(petSearch.toLowerCase()))
   );
 
