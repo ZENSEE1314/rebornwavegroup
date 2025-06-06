@@ -39,7 +39,8 @@ import {
   Building,
   Banknote,
   Trophy,
-  Gamepad2
+  Gamepad2,
+  X
 } from "lucide-react";
 
 interface User {
@@ -781,6 +782,314 @@ export default function ComprehensiveAdminDashboard() {
                               </DialogContent>
                             </Dialog>
                           </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pet Management Tab */}
+          <TabsContent value="pets" className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search pets..."
+                  value={searchTerms.pets || ""}
+                  onChange={(e) => setSearchTerms(prev => ({ ...prev, pets: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pet Management</CardTitle>
+                <CardDescription>Manage virtual pets and their status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Pet Name</TableHead>
+                      <TableHead>Species</TableHead>
+                      <TableHead>Health</TableHead>
+                      <TableHead>Happiness</TableHead>
+                      <TableHead>Energy</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pets.map((pet: any) => (
+                      <TableRow key={pet.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{pet.ownerName}</div>
+                            <div className="text-sm text-gray-500">{pet.ownerEmail}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{pet.name}</TableCell>
+                        <TableCell>{pet.species}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div className="bg-red-500 h-2 rounded-full" style={{ width: `${pet.health}%` }}></div>
+                            </div>
+                            <span>{pet.health}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${pet.happiness}%` }}></div>
+                            </div>
+                            <span>{pet.happiness}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${pet.energy}%` }}></div>
+                            </div>
+                            <span>{pet.energy}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={pet.status === 'active' ? 'default' : 'secondary'}>
+                            {pet.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" onClick={() => setSelectedPet(pet)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Pet Status</DialogTitle>
+                                <DialogDescription>
+                                  Update pet status and characteristics
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <Label>Status</Label>
+                                  <Select
+                                    defaultValue={pet.status}
+                                    onValueChange={(value) => 
+                                      updatePetStatusMutation.mutate({ petId: pet.id, status: value })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="active">Active</SelectItem>
+                                      <SelectItem value="sleeping">Sleeping</SelectItem>
+                                      <SelectItem value="sick">Sick</SelectItem>
+                                      <SelectItem value="hungry">Hungry</SelectItem>
+                                      <SelectItem value="happy">Happy</SelectItem>
+                                      <SelectItem value="deceased">Deceased</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Appointment Bookings Tab */}
+          <TabsContent value="appointments" className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search appointments..."
+                  value={searchTerms.appointments || ""}
+                  onChange={(e) => setSearchTerms(prev => ({ ...prev, appointments: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Appointments</CardTitle>
+                <CardDescription>Review and approve booking requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appointments.map((appointment: any) => (
+                      <TableRow key={appointment.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{appointment.userName}</div>
+                            <div className="text-sm text-gray-500">{appointment.userEmail}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{appointment.serviceType}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div>{formatDate(appointment.appointmentDate)}</div>
+                            <div className="text-sm text-gray-500">{appointment.appointmentTime}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(appointment.status)}>
+                            {appointment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{appointment.notes}</TableCell>
+                        <TableCell>
+                          {appointment.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => 
+                                  processAppointmentMutation.mutate({ 
+                                    id: appointment.id, 
+                                    action: 'approved',
+                                    notes: 'Approved by admin'
+                                  })
+                                }
+                                className="gap-2"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => 
+                                  processAppointmentMutation.mutate({ 
+                                    id: appointment.id, 
+                                    action: 'rejected',
+                                    notes: 'Rejected by admin'
+                                  })
+                                }
+                                className="gap-2"
+                              >
+                                <X className="h-4 w-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Redemption Approvals Tab */}
+          <TabsContent value="redemptions" className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search redemptions..."
+                  value={searchTerms.redemptions || ""}
+                  onChange={(e) => setSearchTerms(prev => ({ ...prev, redemptions: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Point Redemptions</CardTitle>
+                <CardDescription>Review and approve point redemption requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Points Cost</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {redemptions.map((redemption: any) => (
+                      <TableRow key={redemption.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{redemption.userName}</div>
+                            <div className="text-sm text-gray-500">{redemption.userEmail}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{redemption.itemName}</TableCell>
+                        <TableCell>{redemption.pointsCost} points</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(redemption.status)}>
+                            {redemption.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(redemption.createdAt)}</TableCell>
+                        <TableCell>
+                          {redemption.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => 
+                                  processRedemptionMutation.mutate({ 
+                                    id: redemption.id, 
+                                    action: 'approved',
+                                    notes: 'Approved by admin'
+                                  })
+                                }
+                                className="gap-2"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => 
+                                  processRedemptionMutation.mutate({ 
+                                    id: redemption.id, 
+                                    action: 'rejected',
+                                    notes: 'Rejected by admin'
+                                  })
+                                }
+                                className="gap-2"
+                              >
+                                <X className="h-4 w-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
