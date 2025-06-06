@@ -1033,8 +1033,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         onClick={() => {
                           console.log("Edit button clicked for pet:", pet.id, pet.name);
                           console.log("Setting editingPetName to:", pet.id);
+                          console.log("Current editingPetName state:", editingPetName);
                           setEditingPetName(pet.id);
                           setNewPetName(pet.name || "");
+                          console.log("After setting - editingPetName should be:", pet.id);
                         }}
                         disabled={!user || user.loyaltyPoints < 5}
                         className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
@@ -2247,23 +2249,53 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Edit Pet Name Modal */}
+      {/* Simple Test Modal */}
       {editingPetName !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div 
+          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center"
+          style={{
+            position: 'fixed',
+            zIndex: 99999,
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+              margin: '0 16px'
+            }}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">
                 {language === "id" ? "Edit Nama Pet" : "Edit Pet Name"}
               </h3>
-              <Button 
-                variant="ghost" 
+              <button 
                 onClick={() => {
                   setEditingPetName(null);
                   setNewPetName("");
                 }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px'
+                }}
               >
                 ✕
-              </Button>
+              </button>
             </div>
             
             <div className="space-y-4">
