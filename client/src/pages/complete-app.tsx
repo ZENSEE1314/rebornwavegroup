@@ -1311,10 +1311,22 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
-                        <p className={`font-medium ${isDead ? 'text-red-600' : canEarnTokens ? 'text-green-600' : 'text-orange-600'}`}>
-                          {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
-                           canEarnTokens ? (language === "id" ? "Sehat" : "Healthy") : 
-                           (language === "id" ? "Perlu Perawatan" : "Needs Care")}
+                        <p className={`font-medium ${(() => {
+                          if (isDead) return 'text-red-600';
+                          const lowestStat = Math.min(hunger, cleanliness, energy, happiness);
+                          if (lowestStat >= 75) return 'text-green-600';
+                          if (lowestStat >= 50) return 'text-purple-600';
+                          if (lowestStat >= 25) return 'text-blue-600';
+                          return 'text-red-600';
+                        })()}`}>
+                          {(() => {
+                            if (isDead) return language === "id" ? "Meninggal" : "Deceased";
+                            const lowestStat = Math.min(hunger, cleanliness, energy, happiness);
+                            if (lowestStat >= 75) return language === "id" ? "Sehat" : "Healthy";
+                            if (lowestStat >= 50) return language === "id" ? "Bagus" : "Great";
+                            if (lowestStat >= 25) return language === "id" ? "Baik" : "Good";
+                            return language === "id" ? "Buruk" : "Bad";
+                          })()}
                         </p>
                       </div>
                       <div>
