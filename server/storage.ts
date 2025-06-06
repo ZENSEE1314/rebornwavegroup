@@ -163,6 +163,10 @@ export interface IStorage {
   createPointsHistory(points: InsertPointsHistory): Promise<PointsHistory>;
   getPointsHistoryByUserId(userId: string): Promise<PointsHistory[]>;
   
+  // Token history operations
+  createTokenHistory(tokenHistory: InsertTokenHistory): Promise<TokenHistory>;
+  getTokenHistoryByUserId(userId: string): Promise<TokenHistory[]>;
+  
   // Admin-specific operations
   getAllTransactions(): Promise<Transaction[]>;
   getAllToysWithOwners(): Promise<any[]>;
@@ -1872,6 +1876,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(topUpRequests.createdAt));
     
     return results;
+  }
+
+  async createTokenHistory(tokenHistory: InsertTokenHistory): Promise<TokenHistory> {
+    const [result] = await db
+      .insert(tokenHistory)
+      .values(tokenHistory)
+      .returning();
+    return result;
+  }
+
+  async getTokenHistoryByUserId(userId: string): Promise<TokenHistory[]> {
+    return await db
+      .select()
+      .from(tokenHistory)
+      .where(eq(tokenHistory.userId, userId))
+      .orderBy(desc(tokenHistory.createdAt));
   }
 }
 

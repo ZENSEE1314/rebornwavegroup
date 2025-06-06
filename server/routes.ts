@@ -1873,10 +1873,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUser(userId, { loyaltyPoints: newTokenCount });
       await storage.updatePetStats(petId, { lastTokenClaim: now });
 
-      // Record points history
-      await storage.createPointsHistory({
+      // Record token history
+      await storage.createTokenHistory({
         userId,
-        points: 1,
+        tokens: 1,
         type: 'earned',
         description: `Daily token earned from pet ${pet.name}`,
         relatedId: petId

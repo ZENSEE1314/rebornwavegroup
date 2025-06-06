@@ -717,3 +717,21 @@ export const insertPaymentTransactionSchema = createInsertSchema(paymentTransact
   updatedAt: true,
 });
 export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
+
+// Token history table - track all token transactions
+export const tokenHistory = pgTable("token_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  tokens: integer("tokens").notNull(),
+  type: varchar("type").notNull(), // 'earned' | 'spent'
+  description: text("description").notNull(),
+  relatedId: integer("related_id"), // Reference to pet, purchase, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type TokenHistory = typeof tokenHistory.$inferSelect;
+export const insertTokenHistorySchema = createInsertSchema(tokenHistory).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertTokenHistory = z.infer<typeof insertTokenHistorySchema>;
