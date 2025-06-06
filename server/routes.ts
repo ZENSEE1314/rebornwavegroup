@@ -1360,59 +1360,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Pet name editing route
-  app.patch('/api/pets/:id/name', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      
-      const petId = parseInt(req.params.id);
-      const { name } = req.body;
-
-      // Validate name
-      if (!name || typeof name !== 'string' || name.trim().length === 0) {
-        return res.status(400).json({ message: "Pet name is required" });
-      }
-
-      if (name.trim().length > 50) {
-        return res.status(400).json({ message: "Pet name must be 50 characters or less" });
-      }
-
-      // Verify pet belongs to user
-      const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
-        return res.status(404).json({ message: "Pet not found" });
-      }
-
-      // Check if user has enough tokens
-      const user = await storage.getUser(userId);
-      if (!user || (user.loyaltyPoints || 0) < 5) {
-        return res.status(400).json({ message: "Insufficient tokens. Need 5 tokens to change pet name." });
-      }
-
-      // Update pet name
-      await storage.updatePetName(petId, name.trim());
-
-      // Deduct 5 tokens from user
-      await storage.updateUserPoints(userId, (user.loyaltyPoints || 0) - 5);
-
-      // Create transaction record
-      await storage.createTransaction({
-        userId,
-        type: "token_spent",
-        amount: "-5",
-        description: `Pet name changed to "${name.trim()}"`,
-      });
-
-      res.json({ message: "Pet name updated successfully" });
-    } catch (error) {
-      console.error("Error updating pet name:", error);
-      res.status(500).json({ message: "Failed to update pet name" });
-    }
-  });
-
   // Daily token check - award token if all stats stayed above 1% for 24 hours
   app.post('/api/pets/:petId/check-daily-token', isAuthenticated, async (req: any, res) => {
     try {
