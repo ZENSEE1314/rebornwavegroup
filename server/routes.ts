@@ -1358,6 +1358,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily token check - award token if all stats stayed above 1% for 24 hours
+  app.post('/api/pets/:petId/check-daily-token', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Check if 24 hours have passed since last token claim or pet creation
+      const now = new Date();
+      const lastTokenClaim = pet.lastTokenClaim || pet.createdAt;
+      const timeSinceLastClaim = now.getTime() - new Date(lastTokenClaim).getTime();
+      const hoursElapsed = timeSinceLastClaim / (1000 * 60 * 60);
+
+      if (hoursElapsed < 24) {
+        return res.json({ 
+          eligible: false, 
+          message: `Need to wait ${Math.ceil(24 - hoursElapsed)} more hours`,
+          hoursRemaining: Math.ceil(24 - hoursElapsed)
+        });
+      }
+
+      // Check if all stats have stayed above 1% during the 24-hour period
+      const currentStats = {
+        happiness: pet.happiness || 0,
+        hunger: pet.hunger || 0,
+        cleanliness: pet.cleanliness || 0,
+        energy: pet.energy || 0
+      };
+
+      const allStatsAboveThreshold = Object.values(currentStats).every(stat => stat > 1);
+
+      if (allStatsAboveThreshold) {
+        // Award token
+        const user = await storage.getUser(userId);
+        const currentTokens = user?.loyaltyPoints || 0;
+        
+        await storage.updateUserPoints(userId, currentTokens + 1);
+        await storage.updatePetStats(petId, { lastTokenClaim: now });
+        
+        // Create token claim history entry
+        await storage.createPointTransaction({
+          userId,
+          points: 1,
+          type: 'earned',
+          description: `Daily pet care token - ${pet.name}`,
+          relatedId: petId
+        });
+
+        res.json({ 
+          eligible: true, 
+          tokenAwarded: true, 
+          message: "Token awarded for excellent pet care!",
+          newTokenBalance: currentTokens + 1
+        });
+      } else {
+        // No token awarded - stats dropped too low
+        await storage.updatePetStats(petId, { lastTokenClaim: now });
+        
+        res.json({ 
+          eligible: true, 
+          tokenAwarded: false, 
+          message: "No token awarded - pet stats dropped below 1%",
+          failedStats: Object.entries(currentStats)
+            .filter(([_, value]) => value <= 1)
+            .map(([key, _]) => key)
+        });
+      }
+    } catch (error) {
+      console.error("Error checking daily token:", error);
+      res.status(500).json({ message: "Failed to check daily token" });
+    }
+  });
+
   // Pet name change - spend 5 tokens to change pet name
   app.patch('/api/pets/:petId/name', isAuthenticated, async (req: any, res) => {
     try {
