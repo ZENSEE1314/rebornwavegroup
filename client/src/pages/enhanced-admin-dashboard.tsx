@@ -3156,6 +3156,9 @@ function EnhancedAdminDashboard() {
                               {new Date(claim.createdAt).toLocaleDateString()}
                             </TableCell>
                             <TableCell className="text-gray-300">
+                              {claim.updatedAt && claim.status !== 'pending' ? new Date(claim.updatedAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-gray-300">
                               {claim.adminNotes || 'No notes'}
                             </TableCell>
                             <TableCell>
