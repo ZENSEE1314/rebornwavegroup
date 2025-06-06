@@ -18,7 +18,7 @@ import {
   pets,
   transactions,
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, or, like, desc } from "drizzle-orm";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
