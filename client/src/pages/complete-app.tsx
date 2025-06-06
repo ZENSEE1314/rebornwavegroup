@@ -2431,8 +2431,15 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const [receiptImage, setReceiptImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationPage, setVerificationPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch user's payment verifications
+  const { data: userVerifications = [], isLoading: verificationsLoading } = useQuery({
+    queryKey: ['/api/payment-verifications'],
+    retry: false,
+  });
 
   // Calculate points based on amount (1 point per RP 1000)
   const calculatedPoints = Math.floor(parseFloat(amount || "0") / 1000);
@@ -2761,7 +2768,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                   <div key={i} className="animate-pulse bg-gray-200 h-20 rounded" />
                 ))}
               </div>
-            ) : verifications.length === 0 ? (
+            ) : userVerifications.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Camera className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>{language === "id" ? "Belum ada verifikasi" : "No verifications yet"}</p>
@@ -2774,7 +2781,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
             ) : (
               <>
                 <div className="space-y-4">
-                  {verifications.slice((verificationPage - 1) * 10, verificationPage * 10).map((verification: any) => (
+                  {userVerifications.slice((verificationPage - 1) * 10, verificationPage * 10).map((verification: any) => (
                     <div key={verification.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -2814,7 +2821,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </div>
 
                 {/* 10x10 Pagination Controls */}
-                {verifications.length > 10 && (
+                {userVerifications.length > 10 && (
                   <div className="flex justify-center items-center mt-6 space-x-2">
                     <Button
                       variant="outline"
@@ -2826,7 +2833,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                     </Button>
                     
                     <div className="flex space-x-1">
-                      {Array.from({ length: Math.min(10, Math.ceil(verifications.length / 10)) }, (_, i) => i + 1).map((page) => (
+                      {Array.from({ length: Math.min(10, Math.ceil(userVerifications.length / 10)) }, (_, i) => i + 1).map((page) => (
                         <Button
                           key={page}
                           variant={page === verificationPage ? "default" : "outline"}
@@ -2842,8 +2849,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setVerificationPage(Math.min(Math.ceil(verifications.length / 10), verificationPage + 1))}
-                      disabled={verificationPage === Math.ceil(verifications.length / 10)}
+                      onClick={() => setVerificationPage(Math.min(Math.ceil(userVerifications.length / 10), verificationPage + 1))}
+                      disabled={verificationPage === Math.ceil(userVerifications.length / 10)}
                     >
                       {language === "id" ? "Selanjutnya" : "Next"}
                     </Button>
