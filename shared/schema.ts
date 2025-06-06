@@ -196,6 +196,18 @@ export const pointsHistory = pgTable("points_history", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Token transactions table - separate from RP transactions
+export const tokenTransactions = pgTable("token_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  tokens: integer("tokens").notNull(), // positive for earning, negative for spending
+  type: varchar("type").notNull(), // 'earned' | 'spent' | 'refund'
+  description: text("description").notNull(),
+  relatedId: integer("related_id"), // Reference to pet, purchase, etc.
+  status: varchar("status").default("completed"), // 'pending' | 'completed' | 'failed'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Promotion banners table
 export const promotionBanners = pgTable("promotion_banners", {
   id: serial("id").primaryKey(),
@@ -512,6 +524,11 @@ export const insertPointRedemptionSchema = createInsertSchema(pointRedemptions).
   createdAt: true,
 });
 
+export const insertTokenTransactionSchema = createInsertSchema(tokenTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
@@ -519,6 +536,8 @@ export type InsertToy = z.infer<typeof insertToySchema>;
 export type InsertListing = z.infer<typeof insertListingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertPointRedemption = z.infer<typeof insertPointRedemptionSchema>;
+export type InsertTokenTransaction = z.infer<typeof insertTokenTransactionSchema>;
+export type TokenTransaction = typeof tokenTransactions.$inferSelect;
 
 // Cash-out transaction schemas
 export const insertCashOutTransactionSchema = createInsertSchema(cashOutTransactions).omit({

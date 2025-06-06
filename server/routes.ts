@@ -17,6 +17,7 @@ import {
   users,
   pets,
   transactions,
+  tokenTransactions,
 } from "@shared/schema";
 import { eq, and, or, like, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -3764,36 +3765,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Fetching token history for user:", userId);
 
-      // Get all transactions related to tokens (spending)
+      // Get all token transactions from the dedicated token_transactions table
       const tokenTransactions = await db
         .select({
-          id: transactions.id,
-          type: transactions.type,
-          description: transactions.description,
-          pointsEarned: transactions.pointsEarned,
-          amount: transactions.amount,
-          status: transactions.status,
-          createdAt: transactions.createdAt,
-          referenceId: transactions.referenceId
+          id: tokenTransactions.id,
+          type: tokenTransactions.type,
+          description: tokenTransactions.description,
+          tokens: tokenTransactions.tokens,
+          status: tokenTransactions.status,
+          createdAt: tokenTransactions.createdAt,
+          relatedId: tokenTransactions.relatedId
         })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            or(
-              eq(transactions.type, 'pet_name_change'),
-              eq(transactions.type, 'energy_potion'),
-              eq(transactions.type, 'token_purchase'),
-              eq(transactions.type, 'token_earned'),
-              like(transactions.description, '%token%')
-            )
-          )
-        )
-        .orderBy(desc(transactions.createdAt));
+        .from(tokenTransactions)
+        .where(eq(tokenTransactions.userId, userId))
+        .orderBy(desc(tokenTransactions.createdAt));
 
       console.log("Found token transactions:", tokenTransactions.length);
 
-      // Get token claims (earning tokens)
+      // Get token claims (earning tokens) 
       const tokenClaims = await storage.getTokenClaimsByUserId(userId);
       console.log("Found token claims:", tokenClaims.length);
       
@@ -3802,11 +3791,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: `claim_${claim.id}`,
         type: 'token_claim',
         description: `Token claim: ${claim.tokensAwarded} tokens`,
-        pointsEarned: claim.tokensAwarded,
-        amount: claim.tokensAwarded.toString(),
+        tokens: claim.tokensAwarded,
         status: claim.status,
         createdAt: claim.createdAt,
-        referenceId: claim.id.toString(),
+        relatedId: claim.id,
         notes: claim.notes
       }));
 
