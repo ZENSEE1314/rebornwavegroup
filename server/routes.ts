@@ -1479,20 +1479,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`About to deduct 5 tokens: ${currentTokens} -> ${currentTokens - 5}`);
       
-      // Deduct 5 tokens and update pet name
-      await storage.updateUserPoints(userId, currentTokens - 5);
+      // First, update pet name
       await storage.updatePetName(petId, name.trim());
       
-      // Record transaction
+      // Then deduct 5 tokens in a separate transaction
+      await storage.updateUserPoints(userId, currentTokens - 5);
+      
+      // Record transaction with explicit negative points
       await storage.createPointTransaction({
         userId,
         points: -5,
-        type: 'redeemed',
-        description: `Pet name changed to "${name.trim()}" (-5 tokens)`,
+        type: 'expense',
+        description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
         relatedId: petId
       });
       
-      console.log(`Pet name edit completed successfully`);
+      console.log(`Pet name edit completed successfully - tokens deducted: ${currentTokens} -> ${currentTokens - 5}`);
       
       res.json({ 
         message: "Pet name updated successfully",

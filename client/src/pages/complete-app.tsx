@@ -810,10 +810,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       setEditingPetName(null);
       setNewPetName("");
       
-      // Refresh all relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Refresh queries with a delay to prevent race conditions
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      }, 100);
       
       toast({
         title: "Success!",
