@@ -265,7 +265,6 @@ export const pets = pgTable("pets", {
   dailyTokensAvailable: integer("daily_tokens_available").default(1),
   lastTokenAwardTime: timestamp("last_token_award_time"),
   lastDecayTime: timestamp("last_decay_time"),
-  lastEnergyUpdate: timestamp("last_energy_update"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

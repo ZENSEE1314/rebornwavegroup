@@ -1380,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      const currentTokens = user.tokens || 0;
+      const currentTokens = user.loyaltyPoints || 0;
       if (currentTokens < 5) {
         return res.status(400).json({ 
           message: "Not enough tokens! You need 5 tokens to change pet name.",
@@ -1395,7 +1395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Deduct 5 tokens and update pet name
-      await storage.updateUserTokens(userId, currentTokens - 5);
+      await storage.updateUserPoints(userId, currentTokens - 5);
       await storage.updatePetName(petId, name.trim());
       
       // Record transaction
@@ -1404,15 +1404,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Pet name changed to "${name.trim()}"`,
         userId: userId,
         amount: '-5'
-      });
-      
-      // Record in claim token history
-      await storage.createTokenClaim({
-        userId,
-        petId,
-        tokensAwarded: -5,
-        activityType: 'pet_name_change',
-        description: `Pet name changed to "${name.trim()}" (-5 tokens)`
       });
       
       res.json({ 
@@ -1516,19 +1507,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sleepStart = new Date(pet.sleepStartTime);
       const totalSleepMinutes = Math.floor((now.getTime() - sleepStart.getTime()) / (1000 * 60));
       
-      // Energy recovery: 1 point every 5 minutes, but track what's already been awarded
-      const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
-      const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
-      
-      // Only award new energy if at least 5 minutes have passed since last update
-      const newEnergyPoints = Math.floor(minutesSinceLastEnergyUpdate / 5);
-      const minutesSinceLastEnergy = minutesSinceLastEnergyUpdate % 5;
+      // Every 5 minutes = 1 energy point
+      const energyGained = Math.floor(totalSleepMinutes / 5);
+      const minutesSinceLastEnergy = totalSleepMinutes % 5;
       const nextEnergyIn = 5 - minutesSinceLastEnergy;
       
       // Calculate new energy level (max 100)
       const currentEnergy = pet.energy || 0;
-      const newEnergy = Math.min(100, currentEnergy + newEnergyPoints);
-      const actualEnergyGained = newEnergy - currentEnergy;
+      const newEnergy = Math.min(100, currentEnergy + energyGained);
       
       // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
       const timeSinceLastCare = pet.lastCareDate ? 
@@ -1550,9 +1536,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update energy if any was gained, and apply decay
       const updates: any = {};
-      if (actualEnergyGained > 0) {
+      if (energyGained > 0) {
         updates.energy = newEnergy;
-        updates.lastEnergyUpdate = now; // Track when energy was last updated
       }
       if (decayAmount > 0 || happinessDecayAmount > 0) {
         updates.hunger = newHunger;
@@ -1576,7 +1561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Auto-wake pet when energy reaches 100%
-      const finalEnergy = actualEnergyGained > 0 ? newEnergy : pet.energy;
+      const finalEnergy = energyGained > 0 ? newEnergy : pet.energy;
       if (finalEnergy >= 100) {
         updates.isSleeping = false;
         updates.sleepStartTime = null;
@@ -1595,7 +1580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentHunger: newHunger,
           currentCleanliness: newCleanliness,
           currentHappiness: newHappiness,
-          energyGained: actualEnergyGained,
+          energyGained,
           nextEnergyIn: 0,
           totalSleepTime: totalSleepMinutes,
           maxEnergy: true,
@@ -1610,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentHunger: newHunger,
           currentCleanliness: newCleanliness,
           currentHappiness: newHappiness,
-          energyGained: actualEnergyGained,
+          energyGained,
           nextEnergyIn,
           totalSleepTime: totalSleepMinutes,
           maxEnergy: finalEnergy >= 100,
@@ -1762,36 +1747,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching care status:", error);
       res.status(500).json({ message: "Failed to fetch care status" });
-    }
-  });
-
-  // Update pet name (costs 5 tokens)
-  app.put('/api/pets/:petId/name', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const petId = parseInt(req.params.petId);
-      const { name } = req.body;
-
-      if (!name || name.trim().length === 0) {
-        return res.status(400).json({ message: "Pet name is required" });
-      }
-
-      // Check if user has enough tokens (5 tokens required)
-      const userStats = await storage.getUserStats(userId);
-      if (!userStats || userStats.tokens < 5) {
-        return res.status(400).json({ message: "Insufficient tokens. 5 tokens required." });
-      }
-
-      // Update pet name
-      await storage.updatePetName(petId, userId, name.trim());
-
-      // Deduct 5 tokens
-      await storage.updateUserTokens(userId, userStats.tokens - 5);
-
-      res.json({ message: "Pet name updated successfully", newName: name.trim() });
-    } catch (error) {
-      console.error("Error updating pet name:", error);
-      res.status(500).json({ message: "Failed to update pet name" });
     }
   });
 

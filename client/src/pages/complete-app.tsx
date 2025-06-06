@@ -423,7 +423,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    refetchInterval: 10000, // Update every 10 seconds to reduce API calls
+    refetchInterval: 1000, // Update every second for real-time timer
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
@@ -443,26 +443,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Calculate sleep timer from server data - convert minutes to seconds for display
-  const displayTimer = sleepProgress?.nextEnergyIn ? Math.max(0, Math.floor(sleepProgress.nextEnergyIn * 60)) : 0;
-
-  // Timer formatting functions
-  const formatSleepTimer = (minutes: number) => {
-    const totalSeconds = Math.max(0, Math.floor(minutes * 60));
-    const hours = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatLifetime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
+  // Update countdown when sleep progress data changes
+  useEffect(() => {
+    if (sleepProgress?.nextEnergyIn) {
+      const secondsRemaining = Math.floor(sleepProgress.nextEnergyIn * 60);
+      setSleepCountdown(secondsRemaining);
+    }
+  }, [sleepProgress]);
 
   // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
   useEffect(() => {
@@ -844,28 +831,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
-            
-            // Determine pet health status based on lowest stat
-            const lowestStat = Math.min(hunger, cleanliness, happiness);
-            let healthStatus;
-            let healthColor;
-            
-            if (isDead) {
-              healthStatus = language === "id" ? "Meninggal" : "Deceased";
-              healthColor = "text-red-600";
-            } else if (lowestStat >= 75) {
-              healthStatus = language === "id" ? "Sehat" : "Healthy";
-              healthColor = "text-green-600";
-            } else if (lowestStat >= 50) {
-              healthStatus = language === "id" ? "Baik" : "Good";
-              healthColor = "text-blue-600";
-            } else if (lowestStat >= 25) {
-              healthStatus = language === "id" ? "Normal" : "Normal";
-              healthColor = "text-yellow-600";
-            } else {
-              healthStatus = language === "id" ? "Buruk" : "Bad";
-              healthColor = "text-red-600";
-            }
 
             return (
               <Card key={pet.id} className="overflow-hidden">
@@ -880,7 +845,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           setEditingPetName(pet.id);
                           setNewPetName(pet.name || "");
                         }}
-                        disabled={!user || (user as any)?.tokens < 5}
+                        disabled={!user || user.tokens < 5}
                         className="h-6 w-6 p-0 text-white hover:bg-white/20"
                       >
                         <Edit3 className="w-3 h-3" />
@@ -893,9 +858,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between items-center">
                       <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
-                      <span className="font-mono text-lg">
-                        {formatLifetime(elapsedMs)}
-                      </span>
+                      <span className="font-mono text-lg">{timerDisplay}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>{language === "id" ? "Umur:" : "Age:"}</span>
@@ -1348,8 +1311,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
-                        <p className={`font-medium ${healthColor}`}>
-                          {healthStatus}
+                        <p className={`font-medium ${isDead ? 'text-red-600' : canEarnTokens ? 'text-green-600' : 'text-orange-600'}`}>
+                          {isDead ? (language === "id" ? "Meninggal" : "Deceased") : 
+                           canEarnTokens ? (language === "id" ? "Sehat" : "Healthy") : 
+                           (language === "id" ? "Perlu Perawatan" : "Needs Care")}
                         </p>
                       </div>
                       <div>
@@ -1515,8 +1480,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 </p>
                 <p className="text-xs text-yellow-600 mt-1">
                   {language === "id" 
-                    ? `Token saat ini: ${(user as any)?.tokens || 0}`
-                    : `Current tokens: ${(user as any)?.tokens || 0}`
+                    ? `Token saat ini: ${user?.tokens || 0}`
+                    : `Current tokens: ${user?.tokens || 0}`
                   }
                 </p>
               </div>
@@ -1563,9 +1528,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const navigatePet = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
-      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : safePets.length - 1));
+      setCurrentPetIndex((prev) => (prev > 0 ? prev - 1 : pets.length - 1));
     } else {
-      setCurrentPetIndex((prev) => (prev < safePets.length - 1 ? prev + 1 : 0));
+      setCurrentPetIndex((prev) => (prev < pets.length - 1 ? prev + 1 : 0));
     }
   };
 
@@ -1796,33 +1761,26 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
-                      const newName = prompt("Enter new pet name:", safePets[currentPetIndex].name);
-                      if (newName && newName.trim() && newName !== safePets[currentPetIndex].name) {
-                        if (((user as any)?.tokens || 0) < 5) {
-                          alert("You need 5 tokens to change pet name");
-                          return;
-                        }
-                        // Call API to update pet name
-                        fetch(`/api/pets/${safePets[currentPetIndex].id}/name`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ name: newName.trim() })
-                        }).then(response => {
-                          if (response.ok) {
-                            alert("Pet name updated successfully!");
-                            window.location.reload();
-                          } else {
-                            alert("Failed to update pet name");
-                          }
+                      if ((user?.tokens || 0) < 5) {
+                        toast({
+                          title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
+                          description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
+                          variant: "destructive"
                         });
+                        return;
                       }
+                      setNewPetName(safePets[currentPetIndex].name);
+                      setEditingPetName(currentPetIndex);
                     }}
-                    className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                    className="text-xs"
+                    disabled={!user?.tokens || user.tokens < 5}
                   >
                     ✏️ Edit (5 tokens)
-                  </button>
+                  </Button>
                 </div>
                 <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
@@ -2049,15 +2007,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
                     </div>
                     
-                    {/* Timer display - working version */}
+                    {/* Real-time countdown timer */}
                     <div className="text-3xl font-mono text-blue-600 mb-2">
                       {sleepProgress?.nextEnergyIn ? (
                         (() => {
-                          const mins = Math.floor(sleepProgress.nextEnergyIn);
-                          const secs = Math.floor((sleepProgress.nextEnergyIn - mins) * 60);
-                          return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                          const nextEnergyMinutes = sleepProgress.nextEnergyIn;
+                          const totalSecondsRemaining = Math.max(0, Math.floor(nextEnergyMinutes * 60));
+                          const minutes = Math.floor(totalSecondsRemaining / 60);
+                          const seconds = totalSecondsRemaining % 60;
+                          return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                         })()
-                      ) : "Loading..."}
+                      ) : "05:00"}
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-2">
@@ -2198,7 +2158,93 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-
+      {/* Pet Name Editing Modal */}
+      {editingPetName !== null && safePets[editingPetName] && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {language === "id" ? "Ubah Nama Pet" : "Edit Pet Name"}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {language === "id" 
+                ? "Biaya untuk mengubah nama pet adalah 5 token. Token saat ini: " 
+                : "Cost to change pet name is 5 tokens. Current tokens: "}
+              {user?.loyaltyPoints || 0}
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Lama:" : "Current Name:"}
+                </label>
+                <div className="p-2 bg-gray-100 rounded border">
+                  {safePets[editingPetName].name}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Baru:" : "New Name:"}
+                </label>
+                <input
+                  type="text"
+                  value={newPetName}
+                  onChange={(e) => setNewPetName(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
+                  maxLength={50}
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingPetName(null);
+                  setNewPetName("");
+                }}
+                className="flex-1"
+              >
+                {language === "id" ? "Batal" : "Cancel"}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!newPetName.trim()) {
+                    toast({
+                      title: language === "id" ? "Error" : "Error",
+                      description: language === "id" ? "Nama tidak boleh kosong" : "Name cannot be empty",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if ((user?.loyaltyPoints || 0) < 5) {
+                    toast({
+                      title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
+                      description: language === "id" ? "Anda memerlukan 5 token untuk mengubah nama pet" : "You need 5 tokens to change pet name",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  petNameMutation.mutate({
+                    petId: safePets[editingPetName].id,
+                    newName: newPetName.trim()
+                  });
+                }}
+                disabled={petNameMutation.isPending}
+                className="flex-1"
+              >
+                {petNameMutation.isPending 
+                  ? (language === "id" ? "Mengubah..." : "Updating...")
+                  : (language === "id" ? "Ubah (5 token)" : "Update (5 tokens)")
+                }
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -2227,10 +2273,6 @@ export default function CompleteApp() {
   const [modalDateFilterEnd, setModalDateFilterEnd] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("all");
   
-  // Pet name editing states
-  const [editingPetName, setEditingPetName] = useState<number | null>(null);
-  const [newPetName, setNewPetName] = useState("");
-  
   // Global error handler for unhandled promise rejections
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -2257,7 +2299,7 @@ export default function CompleteApp() {
   // Real-time updates disabled temporarily to resolve connection issues
   // TODO: Re-enable WebSocket functionality once connection issues are resolved
   
-  // User data - fetch from database with real-time updates (early definition for edit button)
+  // User data - fetch from database with real-time updates
   const { data: userStats, refetch: refetchUserStats } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
@@ -2852,21 +2894,18 @@ export default function CompleteApp() {
     mutationFn: (tokenData: { tokensRequested: number }) => apiRequest('POST', '/api/token-claims', tokenData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-    },
-  });
-
-  // Mutation to update pet name
-  const petNameMutation = useMutation({
-    mutationFn: ({ petId, newName }: { petId: number; newName: string }) => 
-      apiRequest('PUT', `/api/pets/${petId}/name`, { name: newName }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-      setEditingPetName(null);
-      setNewPetName("");
+      setShowTokenClaimModal(false);
+      setTokenClaimAmount("");
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+        description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
+      });
+    },
+    onError: () => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: language === "id" ? "Gagal mengajukan klaim token" : "Failed to submit token claim",
+        variant: "destructive",
       });
     },
   });
