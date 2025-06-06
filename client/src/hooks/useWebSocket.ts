@@ -1,14 +1,27 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { queryClient } from '@/lib/queryClient';
 
-export function useWebSocket(enabled = true) {
+export function useWebSocket(enabled: boolean = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 3;
 
   const connect = useCallback(() => {
+    // Skip if disabled or already connected
     if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    // Additional safety check for environment
+    const currentHost = window.location.host;
+    const isValidEnvironment = currentHost && 
+                              !currentHost.includes('undefined') && 
+                              currentHost !== 'localhost:undefined' &&
+                              currentHost.includes(':') &&
+                              !currentHost.endsWith(':undefined');
+
+    if (!isValidEnvironment) {
       return;
     }
 
@@ -16,14 +29,18 @@ export function useWebSocket(enabled = true) {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.host;
       
-      // Validate host before attempting connection
-      if (!host || host.includes('undefined') || host === 'localhost:undefined') {
-        console.warn('WebSocket connection skipped: Invalid host detected');
+      // Final validation before creating WebSocket
+      const hostParts = host.split(':');
+      if (hostParts.length !== 2 || !hostParts[1] || hostParts[1] === 'undefined') {
+        return;
+      }
+      
+      const port = Number(hostParts[1]);
+      if (isNaN(port) || port < 1000 || port > 65535) {
         return;
       }
       
       const wsUrl = `${protocol}//${host}/ws`;
-      
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -73,13 +90,13 @@ export function useWebSocket(enabled = true) {
         }
       };
 
-      ws.onerror = (error) => {
-        console.warn('WebSocket connection failed, continuing without real-time updates');
+      ws.onerror = () => {
+        // Silent failure - continue without real-time updates
         wsRef.current = null;
       };
       
-    } catch (error) {
-      console.warn('WebSocket unavailable, using standard polling fallback');
+    } catch {
+      // Silent failure - WebSocket unavailable
       wsRef.current = null;
     }
   }, [enabled]);
