@@ -2534,17 +2534,6 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
         description: description || `Purchase verification - RP ${amount}`,
         receiptImageUrl: imageUrl,
       });
-      
-      // Reset form on success
-      setAmount("");
-      setDescription("");
-      setReceiptImage(null);
-      setImagePreview(null);
-      
-      toast({
-        title: language === "id" ? "Berhasil" : "Success",
-        description: language === "id" ? "Verifikasi pembelian berhasil dikirim" : "Purchase verification submitted successfully",
-      });
     } catch (error) {
       console.error('Error submitting verification:', error);
       toast({

@@ -3284,6 +3284,208 @@ export default function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Payment Verification Tab */}
+          <TabsContent value="payment-verifications">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Payment Verification</CardTitle>
+                <p className="text-gray-300">Review and approve user purchase verifications</p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-gray-300">User</TableHead>
+                      <TableHead className="text-gray-300">Amount</TableHead>
+                      <TableHead className="text-gray-300">Description</TableHead>
+                      <TableHead className="text-gray-300">Receipt</TableHead>
+                      <TableHead className="text-gray-300">Status</TableHead>
+                      <TableHead className="text-gray-300">Submitted</TableHead>
+                      <TableHead className="text-gray-300">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentVerificationsResponse?.data?.map((verification: any) => (
+                      <TableRow key={verification.id} className="border-white/20">
+                        <TableCell className="text-gray-300">
+                          <div>
+                            <div className="font-medium">{verification.userFirstName} {verification.userLastName}</div>
+                            <div className="text-sm text-gray-400">{verification.userEmail}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          RP {formatMoney(verification.amount)}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {verification.description}
+                        </TableCell>
+                        <TableCell>
+                          {verification.receiptImageUrl && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" className="text-blue-400 border-blue-400 hover:bg-blue-400/10">
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white">Receipt Image</DialogTitle>
+                                </DialogHeader>
+                                <div className="flex justify-center">
+                                  <img 
+                                    src={verification.receiptImageUrl} 
+                                    alt="Receipt" 
+                                    className="max-w-full max-h-96 object-contain rounded"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f3f4f6"/><text x="100" y="100" text-anchor="middle" dy="0.3em" font-family="sans-serif" font-size="14" fill="%236b7280">Image not available</text></svg>';
+                                    }}
+                                  />
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${
+                            verification.status === 'approved' ? 'bg-green-500' :
+                            verification.status === 'rejected' ? 'bg-red-500' :
+                            'bg-yellow-500'
+                          }`}>
+                            {verification.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {new Date(verification.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {verification.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-gray-900 border-gray-700">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-white">Approve Payment Verification</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label className="text-gray-300">Points to Award (1 point per RP 1,000)</Label>
+                                      <Input
+                                        type="number"
+                                        defaultValue={Math.floor(parseFloat(verification.amount) / 1000)}
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                        id={`points-${verification.id}`}
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-gray-300">Admin Notes (Optional)</Label>
+                                      <Textarea
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                        placeholder="Add any notes..."
+                                        id={`notes-${verification.id}`}
+                                      />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        onClick={() => {
+                                          const pointsInput = document.getElementById(`points-${verification.id}`) as HTMLInputElement;
+                                          const notesInput = document.getElementById(`notes-${verification.id}`) as HTMLTextAreaElement;
+                                          
+                                          apiRequest('PATCH', `/api/admin/payment-verifications/${verification.id}`, {
+                                            status: 'approved',
+                                            pointsAwarded: parseInt(pointsInput.value) || 0,
+                                            adminNotes: notesInput.value || ''
+                                          }).then(() => {
+                                            toast({ title: "Payment verification approved" });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+                                          }).catch(() => {
+                                            toast({ title: "Failed to approve verification", variant: "destructive" });
+                                          });
+                                        }}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        Approve
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="destructive">
+                                    <X className="w-4 h-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-gray-900 border-gray-700">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-white">Reject Payment Verification</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label className="text-gray-300">Reason for Rejection</Label>
+                                      <Textarea
+                                        className="bg-gray-800 border-gray-600 text-white"
+                                        placeholder="Explain why this verification is being rejected..."
+                                        id={`reject-notes-${verification.id}`}
+                                      />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        onClick={() => {
+                                          const notesInput = document.getElementById(`reject-notes-${verification.id}`) as HTMLTextAreaElement;
+                                          
+                                          apiRequest('PATCH', `/api/admin/payment-verifications/${verification.id}`, {
+                                            status: 'rejected',
+                                            pointsAwarded: 0,
+                                            adminNotes: notesInput.value || 'Verification rejected'
+                                          }).then(() => {
+                                            toast({ title: "Payment verification rejected" });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+                                          }).catch(() => {
+                                            toast({ title: "Failed to reject verification", variant: "destructive" });
+                                          });
+                                        }}
+                                        variant="destructive"
+                                      >
+                                        Reject
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          )}
+                          {verification.status !== 'pending' && (
+                            <div className="text-sm text-gray-400">
+                              {verification.status === 'approved' && `+${verification.pointsAwarded} points awarded`}
+                              {verification.adminNotes && (
+                                <div className="mt-1 text-xs">Notes: {verification.adminNotes}</div>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {(!paymentVerificationsResponse?.data || paymentVerificationsResponse.data.length === 0) && (
+                  <div className="text-center py-8 text-gray-400">
+                    No payment verifications found
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Add Tokens Dialog */}
