@@ -799,22 +799,29 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Edit pet name mutation
   const editPetNameMutation = useMutation({
     mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
-      return apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
+      const response = await apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
+      return response;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+    onSuccess: (data, variables) => {
+      // Clear edit state immediately
       setEditingPetName(null);
       setNewPetName("");
+      
+      // Refresh all relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+        title: "Success!",
+        description: `Pet name updated to "${variables.newName}" (-5 tokens)`,
       });
     },
     onError: (error: any) => {
+      console.error("Edit pet name error:", error);
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal mengubah nama pet" : "Failed to update pet name"),
+        title: "Error",
+        description: error.message || "Failed to update pet name",
         variant: "destructive"
       });
     }
@@ -1025,73 +1032,71 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <Card key={pet.id} className="overflow-hidden">
                 <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
                   <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 w-full">
-                      {editingPetName === pet.id ? (
-                        <div className="flex items-center gap-2 w-full">
-                          <Input
-                            value={newPetName}
-                            onChange={(e) => setNewPetName(e.target.value)}
-                            placeholder="Enter new name"
-                            className="text-white bg-white/20 border-white/30 placeholder:text-white/70 flex-1"
-                            maxLength={20}
-                            autoFocus
-                          />
-                          <span className="text-xs text-white/80 whitespace-nowrap">-5 tokens</span>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (!newPetName.trim()) {
-                                toast({
-                                  title: "Error",
-                                  description: "Pet name cannot be empty",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-                              
-                              if (user && user.loyaltyPoints >= 5) {
-                                editPetNameMutation.mutate({
-                                  petId: pet.id,
-                                  newName: newPetName.trim()
-                                });
-                              }
-                            }}
-                            disabled={editPetNameMutation.isPending || !user || user.loyaltyPoints < 5}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3"
-                          >
-                            {editPetNameMutation.isPending ? "..." : "✓"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingPetName(null);
-                              setNewPetName("");
-                            }}
-                            className="text-white hover:bg-white/20 px-3"
-                          >
-                            ✕
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="flex-1">{pet.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingPetName(pet.id);
-                              setNewPetName(pet.name || "");
-                            }}
-                            disabled={!user || user.loyaltyPoints < 5}
-                            className="h-7 w-7 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30 ml-1"
-                            title={`Edit Pet Name - Costs 5 tokens (You have ${user?.loyaltyPoints || 0})`}
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    {editingPetName === pet.id ? (
+                      <div className="flex items-center gap-2 w-full">
+                        <Input
+                          value={newPetName}
+                          onChange={(e) => setNewPetName(e.target.value)}
+                          placeholder="Enter new name"
+                          className="text-white bg-white/20 border-white/30 placeholder:text-white/70 flex-1"
+                          maxLength={20}
+                          autoFocus
+                        />
+                        <span className="text-xs text-white/80 whitespace-nowrap">-5 tokens</span>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!newPetName.trim()) {
+                              toast({
+                                title: "Error",
+                                description: "Pet name cannot be empty",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            if (user && user.loyaltyPoints >= 5) {
+                              editPetNameMutation.mutate({
+                                petId: pet.id,
+                                newName: newPetName.trim()
+                              });
+                            }
+                          }}
+                          disabled={editPetNameMutation.isPending || !user || user.loyaltyPoints < 5}
+                          className="bg-green-600 hover:bg-green-700 text-white px-3"
+                        >
+                          {editPetNameMutation.isPending ? "..." : "✓"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingPetName(null);
+                            setNewPetName("");
+                          }}
+                          className="text-white hover:bg-white/20 px-3"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span>{pet.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingPetName(pet.id);
+                            setNewPetName(pet.name || "");
+                          }}
+                          disabled={!user || user.loyaltyPoints < 5}
+                          className="h-6 w-6 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
+                          title={`Edit Pet Name - Costs 5 tokens (You have ${user?.loyaltyPoints || 0})`}
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                     <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
                       {growthStage}
                     </Badge>
