@@ -1335,9 +1335,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start sleep - only if energy is below 100%
       const currentEnergy = pet.energy || 50;
       if (currentEnergy < 100) {
+        const now = new Date();
         await storage.updatePetStats(petId, { 
           isSleeping: true, 
-          sleepStartTime: new Date() 
+          sleepStartTime: now,
+          lastEnergyUpdate: now // Initialize energy update tracker to prevent immediate energy gain
         });
         
         await storage.createCareActivity({
