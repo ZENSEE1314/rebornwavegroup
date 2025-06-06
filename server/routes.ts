@@ -1791,6 +1791,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 24-Hour Token System - Check token status
+  app.get('/api/pets/:petId/token-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      const now = new Date();
+      const lastTokenClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : null;
+      
+      let canClaim = false;
+      let hoursElapsed = 0;
+
+      if (!lastTokenClaim) {
+        // First time - can claim if all stats are above 1%
+        canClaim = pet.happiness > 1 && pet.hunger > 1 && pet.cleanliness > 1 && pet.energy > 1;
+      } else {
+        hoursElapsed = (now.getTime() - lastTokenClaim.getTime()) / (1000 * 60 * 60);
+        canClaim = hoursElapsed >= 24;
+      }
+
+      res.json({
+        canClaim,
+        lastTokenClaim,
+        hoursElapsed,
+        currentStats: {
+          happiness: pet.happiness,
+          hunger: pet.hunger,
+          cleanliness: pet.cleanliness,
+          energy: pet.energy
+        }
+      });
+    } catch (error) {
+      console.error("Error checking token status:", error);
+      res.status(500).json({ message: "Failed to check token status" });
+    }
+  });
+
+  // 24-Hour Token System - Claim daily token
+  app.post('/api/pets/:petId/claim-daily-token', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      const now = new Date();
+      const lastTokenClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : null;
+
+      // Check if all stats are above 1%
+      if (pet.happiness <= 1 || pet.hunger <= 1 || pet.cleanliness <= 1 || pet.energy <= 1) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "All pet stats must be above 1% to claim token" 
+        });
+      }
+
+      // Check if 24 hours have passed since last claim
+      if (lastTokenClaim) {
+        const hoursElapsed = (now.getTime() - lastTokenClaim.getTime()) / (1000 * 60 * 60);
+        if (hoursElapsed < 24) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Must wait ${(24 - hoursElapsed).toFixed(1)} more hours before claiming next token`
+          });
+        }
+      }
+
+      // Award token
+      const user = await storage.getUser(userId);
+      const newTokenCount = (user.loyaltyPoints || 0) + 1;
+      
+      await storage.updateUser(userId, { loyaltyPoints: newTokenCount });
+      await storage.updatePetStats(petId, { lastTokenClaim: now });
+
+      // Record points history
+      await storage.createPointsHistory({
+        userId,
+        points: 1,
+        type: 'earned',
+        description: `Daily token earned from pet ${pet.name}`,
+        relatedId: petId
+      });
+
+      res.json({
+        success: true,
+        message: "Daily token claimed successfully!",
+        newTokenCount,
+        lastTokenClaim: now
+      });
+    } catch (error) {
+      console.error("Error claiming daily token:", error);
+      res.status(500).json({ message: "Failed to claim daily token" });
+    }
+  });
+
   // CONFLICTING ROUTE REMOVED - Pet care activities moved to /api/pets/:petId/care/:careType
   /*
   app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {

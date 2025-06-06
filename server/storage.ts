@@ -76,6 +76,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, updates: { loyaltyPoints?: number }): Promise<void>;
   updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
   
   // Referral operations
@@ -238,6 +239,16 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUser(id: string, updates: { loyaltyPoints?: number }): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; email?: string; role?: string; gender?: string; dateOfBirth?: Date }): Promise<void> {
@@ -1322,7 +1333,7 @@ export class DatabaseStorage implements IStorage {
     return pet;
   }
 
-  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; isSleeping?: boolean; sleepStartTime?: Date | null; lastCareDate?: Date }): Promise<void> {
+  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; isSleeping?: boolean; sleepStartTime?: Date | null; lastCareDate?: Date; lastTokenClaim?: Date }): Promise<void> {
     await db.update(pets).set({
       ...stats,
       updatedAt: new Date(),

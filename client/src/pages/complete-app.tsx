@@ -71,6 +71,137 @@ function playDoluruuSound() {
 }
 
 // Coin Catching Game Component
+// DailyTokenChecker component for 24-hour token system
+function DailyTokenChecker({ petId, petName, currentStats }: { 
+  petId: number; 
+  petName: string; 
+  currentStats: { happiness: number; hunger: number; cleanliness: number; energy: number }; 
+}) {
+  const [tokenStatus, setTokenStatus] = useState<any>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+
+  useEffect(() => {
+    if (!petId) return;
+
+    const checkTokenStatus = async () => {
+      try {
+        const response = await fetch(`/api/pets/${petId}/token-status`);
+        const data = await response.json();
+        setTokenStatus(data);
+      } catch (error) {
+        console.error("Error checking token status:", error);
+      }
+    };
+
+    checkTokenStatus();
+    const interval = setInterval(checkTokenStatus, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [petId]);
+
+  useEffect(() => {
+    if (!tokenStatus?.lastTokenClaim) return;
+
+    const updateTimer = () => {
+      const now = new Date();
+      const lastClaim = new Date(tokenStatus.lastTokenClaim);
+      const hoursElapsed = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+      const hoursRemaining = Math.max(0, 24 - hoursElapsed);
+
+      if (hoursRemaining > 0) {
+        const hours = Math.floor(hoursRemaining);
+        const minutes = Math.floor((hoursRemaining - hours) * 60);
+        setTimeRemaining(`${hours}h ${minutes}m`);
+      } else {
+        setTimeRemaining("Ready!");
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 60000);
+
+    return () => clearInterval(timer);
+  }, [tokenStatus]);
+
+  const allStatsAboveOne = currentStats.happiness > 1 && 
+                          currentStats.hunger > 1 && 
+                          currentStats.cleanliness > 1 && 
+                          currentStats.energy > 1;
+
+  const claimToken = async () => {
+    try {
+      const response = await fetch(`/api/pets/${petId}/claim-daily-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setTokenStatus(prev => ({ ...prev, canClaim: false, lastTokenClaim: new Date() }));
+          // Refresh user data to show new token count
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error("Error claiming token:", error);
+    }
+  };
+
+  if (!tokenStatus) {
+    return <div className="text-sm text-gray-500">Checking token status...</div>;
+  }
+
+  if (tokenStatus.canClaim && allStatsAboveOne) {
+    return (
+      <div className="text-green-600 bg-green-50 p-2 rounded border border-green-200">
+        <div className="font-semibold">✓ Token Ready!</div>
+        <div className="text-xs mb-2">
+          {petName} has kept all stats above 1% for 24 hours!
+        </div>
+        <button
+          onClick={claimToken}
+          className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+        >
+          Claim Daily Token
+        </button>
+      </div>
+    );
+  }
+
+  if (!allStatsAboveOne) {
+    const failedStats = [];
+    if (currentStats.happiness <= 1) failedStats.push(`Happiness: ${currentStats.happiness}%`);
+    if (currentStats.hunger <= 1) failedStats.push(`Hunger: ${currentStats.hunger}%`);
+    if (currentStats.cleanliness <= 1) failedStats.push(`Cleanliness: ${currentStats.cleanliness}%`);
+    if (currentStats.energy <= 1) failedStats.push(`Energy: ${currentStats.energy}%`);
+
+    return (
+      <div className="text-red-600 bg-red-50 p-2 rounded border border-red-200">
+        <div className="font-semibold">⚠ Stats Too Low</div>
+        <div className="text-xs">
+          These stats must stay above 1%: {failedStats.join(", ")}
+        </div>
+        <div className="text-xs mt-1">
+          Timer reset - keep all stats above 1% for 24 hours to earn a token.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+      <div className="font-semibold">⏱ Monitoring Progress</div>
+      <div className="text-xs">
+        All stats above 1% - Time remaining: {timeRemaining}
+      </div>
+      <div className="text-xs mt-1">
+        Keep all stats above 1% to earn your daily token!
+      </div>
+    </div>
+  );
+}
+
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
