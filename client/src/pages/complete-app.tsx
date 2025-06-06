@@ -1025,25 +1025,71 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               <Card key={pet.id} className="overflow-hidden">
                 <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
                   <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span>{pet.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          console.log("Edit button clicked for pet:", pet.id, pet.name);
-                          console.log("Setting editingPetName to:", pet.id);
-                          console.log("Current editingPetName state:", editingPetName);
-                          setEditingPetName(pet.id);
-                          setNewPetName(pet.name || "");
-                          console.log("After setting - editingPetName should be:", pet.id);
-                        }}
-                        disabled={!user || user.loyaltyPoints < 5}
-                        className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
-                        title="Edit Pet Name (5 tokens)"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-2 w-full">
+                      {editingPetName === pet.id ? (
+                        <div className="flex items-center gap-2 w-full">
+                          <Input
+                            value={newPetName}
+                            onChange={(e) => setNewPetName(e.target.value)}
+                            placeholder="Enter new name"
+                            className="text-white bg-white/20 border-white/30 placeholder:text-white/70 flex-1"
+                            maxLength={20}
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!newPetName.trim()) {
+                                toast({
+                                  title: "Error",
+                                  description: "Pet name cannot be empty",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              
+                              if (user && user.loyaltyPoints >= 5) {
+                                editPetNameMutation.mutate({
+                                  petId: pet.id,
+                                  newName: newPetName.trim()
+                                });
+                              }
+                            }}
+                            disabled={editPetNameMutation.isPending || !user || user.loyaltyPoints < 5}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3"
+                          >
+                            {editPetNameMutation.isPending ? "..." : "✓"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingPetName(null);
+                              setNewPetName("");
+                            }}
+                            className="text-white hover:bg-white/20 px-3"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="flex-1">{pet.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingPetName(pet.id);
+                              setNewPetName(pet.name || "");
+                            }}
+                            disabled={!user || user.loyaltyPoints < 5}
+                            className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-white/10 border border-white/30"
+                            title={`Edit Pet Name (5 tokens) - You have ${user?.loyaltyPoints || 0} tokens`}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                     <Badge className={`${isDead ? 'bg-red-600 text-white' : 'bg-white text-purple-600'}`}>
                       {growthStage}
