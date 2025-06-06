@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import path from "path";
 import { createServer, type Server } from "http";
-// WebSocket removed to eliminate connection errors
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -60,6 +60,38 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
+  
+  // Create WebSocket server on distinct path
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store connected admin clients
+  const adminClients = new Set<WebSocket>();
+  
+  // WebSocket connection handler
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    adminClients.add(ws);
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+      adminClients.delete(ws);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      adminClients.delete(ws);
+    });
+  });
+  
+  // Function to broadcast admin updates
+  const broadcastAdminUpdate = (type: string, data: any) => {
+    const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
+    adminClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  };
   
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
@@ -324,7 +356,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Payment verification status updated successfully
+      // Broadcast payment verification update
+      broadcastAdminUpdate('payment-verification-updated', {
+        id: updatedVerification.id,
+        status: updatedVerification.status,
+        updatedAt: updatedVerification.updatedAt
+      });
 
       res.json(updatedVerification);
     } catch (error) {
@@ -2583,6 +2620,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
+      
+      // Broadcast cash-out update
+      broadcastAdminUpdate('cash-out-updated', {
+        id: parseInt(id),
+        status,
+        updatedAt: new Date().toISOString()
+      });
+      
       res.json({ message: "Cash-out status updated successfully" });
     } catch (error) {
       console.error("Error updating cash-out status:", error);
