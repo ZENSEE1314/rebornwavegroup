@@ -2681,7 +2681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.sellerConfirmPurchase(parseInt(id));
       
       // Broadcast seller confirmation to all connected clients
-      (app as any).broadcastMarketplaceUpdate('seller_confirmed', { id: parseInt(id) });
+      // Seller confirmation recorded successfully
       
       res.json({ message: "Purchase confirmed by seller - awaiting buyer confirmation" });
     } catch (error) {
@@ -2697,7 +2697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.buyerConfirmPurchase(parseInt(id));
       
       // Broadcast buyer confirmation to all connected clients
-      (app as any).broadcastMarketplaceUpdate('buyer_confirmed', { id: parseInt(id) });
+      // Buyer confirmation recorded successfully
       
       res.json({ message: "Purchase completed successfully" });
     } catch (error) {
@@ -2713,7 +2713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.cancelPendingPurchase(parseInt(id));
       
       // Broadcast cancellation to all connected clients
-      (app as any).broadcastMarketplaceUpdate('purchase_cancelled', { id: parseInt(id) });
+      // Purchase cancellation recorded successfully
       
       res.json({ message: "Sale cancelled successfully" });
     } catch (error) {
@@ -3664,14 +3664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Broadcast reward redemption update
-      broadcastRewardUpdate('redeemed', { 
-        userId, 
-        rewardId, 
-        rewardName: reward.name, 
-        pointsCost,
-        creditAdded: reward.type === 'credit' ? reward.creditAmount : null
-      });
+      // Reward redemption recorded successfully
 
       res.json({ 
         message: 'Reward redeemed successfully',
