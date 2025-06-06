@@ -2856,9 +2856,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
     try {
       console.log('Pet care endpoint hit! Params:', req.params);
+      console.log('Auth check - isAuthenticated:', req.isAuthenticated?.());
+      console.log('Auth check - user object:', req.user);
+      console.log('Auth check - session:', req.session);
+      
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        console.log('User not authenticated');
+        console.log('User not authenticated - no userId found');
         return res.status(401).json({ message: "User not authenticated" });
       }
       
