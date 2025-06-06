@@ -1473,7 +1473,8 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-gray-300">Payment Method</TableHead>
                         <TableHead className="text-gray-300">Payment Proof</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
-                        <TableHead className="text-gray-300">Date</TableHead>
+                        <TableHead className="text-gray-300">Submitted</TableHead>
+                        <TableHead className="text-gray-300">Processed</TableHead>
                         <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1556,6 +1557,9 @@ function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell className="text-gray-300">
                           {formatDate(request.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {request.updatedAt && request.status !== 'pending' ? formatDate(request.updatedAt) : 'N/A'}
                         </TableCell>
                         <TableCell>
                           {request.status === 'pending' ? (
@@ -2536,7 +2540,7 @@ function EnhancedAdminDashboard() {
                           <TableBody>
                             {(promotionBanners as any[]).length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                                <TableCell colSpan={8} className="text-center text-gray-400 py-8">
                                   No promotion banners found. Create your first banner to get started.
                                 </TableCell>
                               </TableRow>
@@ -3118,6 +3122,7 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200">Token Amount</TableHead>
                         <TableHead className="text-blue-200">Status</TableHead>
                         <TableHead className="text-blue-200">Request Date</TableHead>
+                        <TableHead className="text-blue-200">Processed Date</TableHead>
                         <TableHead className="text-blue-200">Admin Notes</TableHead>
                         <TableHead className="text-blue-200">Actions</TableHead>
                       </TableRow>
@@ -3125,7 +3130,7 @@ function EnhancedAdminDashboard() {
                     <TableBody>
                       {(tokenClaims as any[]).length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                          <TableCell colSpan={7} className="text-center text-gray-400 py-8">
                             No token claims submitted yet.
                           </TableCell>
                         </TableRow>
