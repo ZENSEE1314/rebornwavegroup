@@ -243,6 +243,11 @@ export default function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  const { data: commissionStats }: any = useQuery({
+    queryKey: ['/api/admin/commission-stats'],
+    retry: false,
+  });
+
   // Extract data arrays from paginated responses
   const allUsers = (usersResponse as any)?.data || [];
   const cashOutRequests = (cashOutResponse as any)?.data || [];
@@ -855,6 +860,33 @@ export default function EnhancedAdminDashboard() {
               Logout
             </Button>
           </div>
+        </div>
+
+        {/* Commission Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <Card className="bg-red-500/20 backdrop-blur border-red-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-200 text-sm font-medium">Pending Verifications</p>
+                  <p className="text-white text-3xl font-bold">{commissionStats?.pendingVerifications || 0}</p>
+                </div>
+                <AlertTriangle className="h-12 w-12 text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-green-500/20 backdrop-blur border-green-300/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-200 text-sm font-medium">Total Commissions Paid</p>
+                  <p className="text-white text-3xl font-bold">RP {formatMoney(commissionStats?.totalCommissionsPaid || 0)}</p>
+                </div>
+                <DollarSign className="h-12 w-12 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Stats Overview */}

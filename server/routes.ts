@@ -98,6 +98,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin commission stats endpoint
+  app.get("/api/admin/commission-stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Get total pending verifications
+      const pendingCount = await db
+        .select({ count: sql`count(*)` })
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.status, 'pending'));
+
+      // Get total commissions paid
+      const totalCommissions = await db
+        .select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` })
+        .from(transactions)
+        .where(eq(transactions.type, 'referral_commission'));
+
+      res.json({
+        pendingVerifications: Number(pendingCount[0].count),
+        totalCommissionsPaid: Number(totalCommissions[0].total),
+      });
+    } catch (error) {
+      console.error("Error fetching commission stats:", error);
+      res.status(500).json({ message: "Failed to fetch commission stats" });
+    }
+  });
+
   // Admin payment verification routes
   app.get("/api/admin/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
@@ -175,8 +205,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(paymentVerifications.id, parseInt(id)))
         .returning();
 
-      // If approved, award points to user
+      // If approved, award points to user and handle referral commission
       if (status === 'approved' && pointsAwarded > 0) {
+        // Get user information to find introducer
+        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
+        
+        // Award points to user
         await db
           .update(users)
           .set({
@@ -193,6 +227,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'}`,
           relatedId: updatedVerification.id,
         });
+
+        // Handle 10% referral commission for introducer
+        if (userInfo[0]?.introducerId) {
+          const transactionAmount = parseFloat(updatedVerification.amount);
+          const commissionAmount = Math.floor(transactionAmount * 0.1); // 10% commission
+          
+          // Add commission to introducer's referral earnings
+          await db
+            .update(users)
+            .set({
+              referralEarnings: sql`${users.referralEarnings} + ${commissionAmount}`,
+            })
+            .where(eq(users.id, userInfo[0].introducerId));
+
+          // Record commission transaction
+          await db.insert(transactions).values({
+            userId: userInfo[0].introducerId,
+            type: 'referral_commission',
+            amount: commissionAmount.toString(),
+            description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase`,
+            status: 'completed',
+            relatedId: updatedVerification.id,
+          });
+        }
       }
 
       res.json(updatedVerification);
