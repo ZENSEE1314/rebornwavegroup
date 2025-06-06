@@ -79,6 +79,8 @@ export default function EnhancedAdminDashboard() {
   const topUpItemsPerPage = 10;
   const [tokenTransactionsPage, setTokenTransactionsPage] = useState(1);
   const tokenTransactionsPerPage = 10;
+  const [paymentVerificationsPage, setPaymentVerificationsPage] = useState(1);
+  const paymentVerificationsPerPage = 10;
   
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
@@ -237,7 +239,7 @@ export default function EnhancedAdminDashboard() {
   });
 
   const { data: paymentVerificationsResponse }: any = useQuery({
-    queryKey: ['/api/admin/payment-verifications'],
+    queryKey: [`/api/admin/payment-verifications?page=${paymentVerificationsPage}&limit=${paymentVerificationsPerPage}`],
     retry: false,
   });
 
