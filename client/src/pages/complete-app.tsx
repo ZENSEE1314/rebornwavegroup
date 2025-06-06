@@ -7310,7 +7310,7 @@ export default function CompleteApp() {
                             <div>
                               <p className="font-medium">{entry.description}</p>
                               <p className="text-sm text-gray-600">
-                                {new Date(entry.createdAt).toLocaleDateString()}
+                                {new Date(entry.createdAt).toLocaleDateString()} at {new Date(entry.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
                             <div className="text-right">
