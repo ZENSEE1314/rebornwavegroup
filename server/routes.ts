@@ -1584,14 +1584,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sleepStart = new Date(pet.sleepStartTime);
       const totalSleepMinutes = Math.floor((now.getTime() - sleepStart.getTime()) / (1000 * 60));
       
-      // Every 5 minutes = 1 energy point
-      const energyGained = Math.floor(totalSleepMinutes / 5);
-      const minutesSinceLastEnergy = totalSleepMinutes % 5;
-      const nextEnergyIn = 5 - minutesSinceLastEnergy;
+      // Track when energy was last added using lastEnergyUpdate field
+      const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
+      const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
       
-      // Calculate new energy level (max 100)
+      // Only add energy if 5 minutes have passed since last energy update
+      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 5);
       const currentEnergy = pet.energy || 0;
-      const newEnergy = Math.min(100, currentEnergy + energyGained);
+      const newEnergy = Math.min(100, currentEnergy + energyToAdd);
+      
+      // Calculate time until next energy boost
+      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 5;
+      const nextEnergyIn = energyToAdd > 0 ? 5 : (5 - minutesSinceLastInterval);
       
       // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
       const timeSinceLastCare = pet.lastCareDate ? 
@@ -1605,16 +1609,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const happinessDecayAmount = Math.floor(timeSinceLastCare / 30) * 2;
       const newHappiness = Math.max(0, (pet.happiness || 100) - happinessDecayAmount);
       
-      // Award tokens for sleep cycles completed (1 token every 30 minutes of sleep)
-      const sleepCyclesCompleted = Math.floor(totalSleepMinutes / 30);
-      const lastTokenAwardTime = pet.lastTokenAwardTime ? new Date(pet.lastTokenAwardTime) : sleepStart;
-      const minutesSinceLastToken = Math.floor((now.getTime() - lastTokenAwardTime.getTime()) / (1000 * 60));
-      const newTokensToAward = Math.floor(minutesSinceLastToken / 30);
+      // Sleep provides no token rewards - only the 24-hour system awards tokens
       
-      // Update energy if any was gained, and apply decay
+      // Update energy only if any was actually gained, and track when it was updated
       const updates: any = {};
-      if (energyGained > 0) {
+      if (energyToAdd > 0) {
         updates.energy = newEnergy;
+        updates.lastEnergyUpdate = now; // Track when energy was last updated
       }
       if (decayAmount > 0 || happinessDecayAmount > 0) {
         updates.hunger = newHunger;
@@ -1623,22 +1624,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.lastCareDate = now; // Update last care time when decay is applied
       }
       
-      // Award tokens for sleep cycles and update token award time
-      if (newTokensToAward > 0) {
-        await storage.addUserTokens(userId, newTokensToAward);
-        updates.lastTokenAwardTime = now;
-        
-        // Create points history for token award
-        await storage.createPointsHistory({
-          userId,
-          points: newTokensToAward,
-          type: 'earned',
-          description: `Pet sleep reward - ${newTokensToAward} tokens earned`
-        });
-      }
-      
       // Auto-wake pet when energy reaches 100%
-      const finalEnergy = energyGained > 0 ? newEnergy : pet.energy;
+      const finalEnergy = energyToAdd > 0 ? newEnergy : pet.energy;
       if (finalEnergy >= 100) {
         updates.isSleeping = false;
         updates.sleepStartTime = null;
@@ -1657,11 +1644,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentHunger: newHunger,
           currentCleanliness: newCleanliness,
           currentHappiness: newHappiness,
-          energyGained,
+          energyGained: energyToAdd,
           nextEnergyIn: 0,
           totalSleepTime: totalSleepMinutes,
           maxEnergy: true,
-          tokensAwarded: newTokensToAward || 0,
           autoWoken: true,
           message: "Pet automatically woke up - energy is full!"
         });
@@ -1672,11 +1658,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentHunger: newHunger,
           currentCleanliness: newCleanliness,
           currentHappiness: newHappiness,
-          energyGained,
+          energyGained: energyToAdd,
           nextEnergyIn,
           totalSleepTime: totalSleepMinutes,
-          maxEnergy: finalEnergy >= 100,
-          tokensAwarded: newTokensToAward || 0
+          maxEnergy: finalEnergy >= 100
         });
       }
     } catch (error) {
