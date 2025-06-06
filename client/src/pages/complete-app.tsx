@@ -4026,16 +4026,7 @@ export default function CompleteApp() {
     // This would integrate with PayPal/Stripe
     // Credits are managed through the database, not local state
     
-    // Add transaction to history
-    const newTransaction = {
-      id: Date.now(),
-      type: "top-up",
-      description: `${language === "id" ? "Top up kredit" : "Credit top-up"}`,
-      amount: parseInt(amount),
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString()
-    };
-    setTransactionHistory([newTransaction, ...transactionHistory]);
+    // Transaction history now handled by database queries
     
     setShowTopUpModal(false);
     setTopUpAmount("");
@@ -4121,15 +4112,7 @@ export default function CompleteApp() {
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       
       // Add transaction to history
-      const newTransaction = {
-        id: Date.now(),
-        type: "cash-out",
-        description: `${language === "id" ? "Penarikan ke" : "Cash out to"} ${bankName}`,
-        amount: -amount,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString()
-      };
-      setTransactionHistory([newTransaction, ...transactionHistory]);
+      // Transaction history now handled by database queries
     } catch (error) {
       toast({
         title: language === "id" ? "Error" : "Error",
