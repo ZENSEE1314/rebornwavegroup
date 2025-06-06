@@ -3449,7 +3449,7 @@ export default function EnhancedAdminDashboard() {
                                 </DialogHeader>
                                 <div className="flex justify-center">
                                   <img 
-                                    src={verification.receiptImageUrl.startsWith('http') ? verification.receiptImageUrl : `/uploaded-images/${verification.receiptImageUrl}`}
+                                    src={verification.receiptImageUrl}
                                     alt="Receipt" 
                                     className="max-w-full max-h-96 object-contain rounded"
                                     onLoad={() => console.log('Image loaded successfully')}
