@@ -5438,7 +5438,7 @@ export default function CompleteApp() {
                               <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
                                 <div>
                                   <p className="font-medium text-slate-900">{history.description}</p>
-                                  <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleDateString()}</p>
+                                  <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleString()}</p>
                                 </div>
                                 <div className="text-right">
                                   <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
@@ -5563,7 +5563,7 @@ export default function CompleteApp() {
                               <div key={redemption.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border">
                                 <div>
                                   <p className="font-medium text-sm">{redemption.reward}</p>
-                                  <p className="text-xs text-gray-600">{redemption.date}</p>
+                                  <p className="text-xs text-gray-600">{new Date(redemption.createdAt || redemption.date).toLocaleString()}</p>
                                 </div>
                                 <Badge variant={redemption.status === 'used' ? 'secondary' : 'default'}>
                                   {redemption.status}
@@ -6758,7 +6758,7 @@ export default function CompleteApp() {
                         </div>
                         <div className="mt-4 space-y-2">
                           <p className="text-sm text-slate-600">
-                            {language === "id" ? "Diperoleh" : "Acquired"}: {toy.acquiredDate}
+                            {language === "id" ? "Diperoleh" : "Acquired"}: {toy.createdAt ? new Date(toy.createdAt).toLocaleString() : toy.acquiredDate}
                           </p>
                           <div className="bg-gray-100 p-2 rounded">
                             <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
