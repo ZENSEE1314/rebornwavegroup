@@ -1640,86 +1640,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         ))}
       </div>
 
-      {/* Pet Name Editing Modal */}
-      {editingPetName !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">
-                {language === "id" ? "Edit Nama Pet" : "Edit Pet Name"}
-              </h3>
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                  setEditingPetName(null);
-                  setNewPetName("");
-                }}
-              >
-                ✕
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Baru" : "New Name"}
-                </label>
-                <Input
-                  value={newPetName}
-                  onChange={(e) => setNewPetName(e.target.value)}
-                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
-                  maxLength={20}
-                />
-              </div>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800">
-                  {language === "id" 
-                    ? "Mengubah nama pet akan memotong 5 token dari saldo Anda."
-                    : "Changing pet name will deduct 5 tokens from your balance."
-                  }
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  {language === "id" 
-                    ? `Token saat ini: ${user?.tokens || 0}`
-                    : `Current tokens: ${user?.tokens || 0}`
-                  }
-                </p>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingPetName(null);
-                    setNewPetName("");
-                  }}
-                  className="flex-1"
-                >
-                  {language === "id" ? "Batal" : "Cancel"}
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (newPetName.trim()) {
-                      petNameMutation.mutate({
-                        petId: editingPetName,
-                        newName: newPetName.trim()
-                      });
-                    }
-                  }}
-                  disabled={!newPetName.trim() || petNameMutation.isPending}
-                  className="flex-1"
-                >
-                  {petNameMutation.isPending 
-                    ? (language === "id" ? "Menyimpan..." : "Saving...")
-                    : (language === "id" ? "Simpan" : "Save")
-                  }
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 
@@ -1966,6 +1887,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      console.log("Edit button clicked!");
+                      console.log("Current pet:", safePets[currentPetIndex]);
+                      console.log("User tokens:", user?.loyaltyPoints);
+                      
                       if ((user?.loyaltyPoints || 0) < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
@@ -1974,8 +1899,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         });
                         return;
                       }
+                      
+                      console.log("Setting pet name and editing state...");
                       setNewPetName(safePets[currentPetIndex].name);
                       setEditingPetName(safePets[currentPetIndex].id);
+                      console.log("Edit state set to:", safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
                   >
