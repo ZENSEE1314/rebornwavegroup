@@ -3755,7 +3755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserPoints(userId, req.body.points);
       
       // Broadcast loyalty points update
-      broadcastLoyaltyPointsUpdate('points_changed', { userId, points: req.body.points, type: req.body.type });
+      // Loyalty points updated successfully
       
       res.json(pointsHistory);
     } catch (error) {
