@@ -998,12 +998,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(1, baseHunger - (hoursSinceBirth / 6) * (baseHunger - 1));
+                const decay = Math.max(0, baseHunger - (hoursSinceBirth / 6) * baseHunger);
                 return Math.floor(decay);
               }
               
               const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(1, baseHunger - (hoursSinceLastFeed / 6) * (baseHunger - 1));
+              const decay = Math.max(0, baseHunger - (hoursSinceLastFeed / 6) * baseHunger);
               return Math.floor(decay);
             };
 
@@ -1025,12 +1025,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               if (!lastCareTime) {
                 // No care recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(1, baseCleanliness - (hoursSinceBirth / 6) * (baseCleanliness - 1));
+                const decay = Math.max(0, baseCleanliness - (hoursSinceBirth / 6) * baseCleanliness);
                 return Math.floor(decay);
               }
               
               const hoursSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(1, baseCleanliness - (hoursSinceLastCare / 6) * (baseCleanliness - 1));
+              const decay = Math.max(0, baseCleanliness - (hoursSinceLastCare / 6) * baseCleanliness);
               return Math.floor(decay);
             };
 
