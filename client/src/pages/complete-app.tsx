@@ -2425,6 +2425,336 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   );
 }
 
+function PurchaseVerificationSection({ language, user }: { language: string; user: any }) {
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [receiptImage, setReceiptImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Calculate points based on amount (1 point per RP 1000)
+  const calculatedPoints = Math.floor(parseFloat(amount || "0") / 1000);
+
+  // Fetch user's payment verifications
+  const { data: verifications = [], isLoading } = useQuery({
+    queryKey: ['/api/payment-verifications'],
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: async (data: { amount: string; description: string; receiptImageUrl: string }) => {
+      return apiRequest('POST', '/api/payment-verifications', data);
+    },
+    onSuccess: () => {
+      toast({
+        title: language === "id" ? "Berhasil" : "Success",
+        description: language === "id" ? "Verifikasi pembelian berhasil dikirim" : "Purchase verification submitted successfully",
+      });
+      setAmount("");
+      setDescription("");
+      setReceiptImage(null);
+      setImagePreview(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Gagal" : "Error",
+        description: error.message || (language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({
+          title: language === "id" ? "File Terlalu Besar" : "File Too Large",
+          description: language === "id" ? "Ukuran maksimal 10MB" : "Maximum file size is 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setReceiptImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImageToCloudinary = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'reborn-wave'); // You'll need to set this up in Cloudinary
+    
+    const response = await fetch('https://api.cloudinary.com/v1_1/your-cloud-name/image/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!amount || !receiptImage) {
+      toast({
+        title: language === "id" ? "Data Tidak Lengkap" : "Incomplete Data",
+        description: language === "id" ? "Mohon isi semua field dan upload bukti pembayaran" : "Please fill all fields and upload receipt image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // For now, we'll use a placeholder URL since Cloudinary setup requires configuration
+      // In production, you would upload to Cloudinary or another image service
+      const imageUrl = `/attached_assets/receipt_${Date.now()}.jpg`;
+      
+      await submitMutation.mutateAsync({
+        amount,
+        description: description || `Purchase verification - RP ${amount}`,
+        receiptImageUrl: imageUrl,
+      });
+    } catch (error) {
+      console.error('Error submitting verification:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'approved': return language === "id" ? "Disetujui" : "Approved";
+      case 'rejected': return language === "id" ? "Ditolak" : "Rejected";
+      default: return language === "id" ? "Menunggu" : "Pending";
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          {language === "id" ? "Verifikasi Pembelian" : "Purchase Verification"}
+        </h2>
+        <p className="text-slate-600">
+          {language === "id" 
+            ? "Upload bukti pembelian untuk mendapatkan poin loyalitas" 
+            : "Upload purchase receipts to earn loyalty points"}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Purchase Calculator & Upload Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="w-5 h-5" />
+              {language === "id" ? "Kalkulator Poin" : "Points Calculator"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Amount Input */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Jumlah Pembelian (RP)" : "Purchase Amount (RP)"}
+                </label>
+                <Input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  className="text-lg"
+                />
+                {amount && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    {language === "id" ? "Poin yang akan diperoleh: " : "Points to earn: "}
+                    <span className="font-bold">{calculatedPoints} poin</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Deskripsi (Opsional)" : "Description (Optional)"}
+                </label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={language === "id" ? "Contoh: Makan malam, layanan spa, dll." : "e.g., Dinner, spa service, etc."}
+                />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Upload Bukti Pembayaran" : "Upload Receipt Image"}
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  {imagePreview ? (
+                    <div className="space-y-4">
+                      <img 
+                        src={imagePreview} 
+                        alt="Receipt preview" 
+                        className="max-w-full h-32 object-contain mx-auto rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setReceiptImage(null);
+                          setImagePreview(null);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {language === "id" ? "Hapus" : "Remove"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-600 mb-4">
+                        {language === "id" 
+                          ? "Klik untuk upload bukti pembayaran" 
+                          : "Click to upload receipt image"}
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="receipt-upload"
+                      />
+                      <label
+                        htmlFor="receipt-upload"
+                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                      >
+                        {language === "id" ? "Pilih File" : "Choose File"}
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {language === "id" 
+                    ? "Format: JPG, PNG, maksimal 10MB" 
+                    : "Supported: JPG, PNG, max 10MB"}
+                </p>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting || !amount || !receiptImage}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    {language === "id" ? "Mengirim..." : "Submitting..."}
+                  </div>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    {language === "id" ? "Kirim Verifikasi" : "Submit Verification"}
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Verification History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              {language === "id" ? "Riwayat Verifikasi" : "Verification History"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse bg-gray-200 h-20 rounded" />
+                ))}
+              </div>
+            ) : verifications.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Camera className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>{language === "id" ? "Belum ada verifikasi" : "No verifications yet"}</p>
+                <p className="text-sm mt-2">
+                  {language === "id" 
+                    ? "Upload bukti pembelian untuk memulai" 
+                    : "Upload purchase receipts to get started"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {verifications.map((verification: any) => (
+                  <div key={verification.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
+                        <p className="text-sm text-gray-600">{verification.description}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                        </p>
+                      </div>
+                      <Badge className={getStatusColor(verification.status)}>
+                        {getStatusText(verification.status)}
+                      </Badge>
+                    </div>
+                    
+                    {verification.status === 'approved' && verification.pointsAwarded && (
+                      <div className="bg-green-50 rounded p-2 mt-2">
+                        <p className="text-sm text-green-800">
+                          <Star className="w-4 h-4 inline mr-1" />
+                          {language === "id" ? "Poin diperoleh: " : "Points earned: "}
+                          <span className="font-bold">{verification.pointsAwarded}</span>
+                        </p>
+                      </div>
+                    )}
+                    
+                    {verification.adminNotes && (
+                      <div className="bg-blue-50 rounded p-2 mt-2">
+                        <p className="text-sm text-blue-800">
+                          <AlertTriangle className="w-4 h-4 inline mr-1" />
+                          {language === "id" ? "Catatan admin: " : "Admin notes: "}
+                          {verification.adminNotes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function CompleteApp() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -4229,6 +4559,7 @@ export default function CompleteApp() {
               { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
               { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
               { id: "inventory", label: language === "id" ? "Koleksi" : "Collections", icon: Package },
+              { id: "purchase", label: language === "id" ? "Verifikasi Pembelian" : "Purchase Verification", icon: Camera },
               { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
               { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
             ].map((tab) => (
@@ -6330,6 +6661,11 @@ export default function CompleteApp() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Purchase Verification Tab */}
+        {activeTab === "purchase" && (
+          <PurchaseVerificationSection language={language} user={user} />
         )}
 
         {/* Referrals Tab */}

@@ -52,6 +52,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await capturePaypalOrder(req, res);
   });
 
+  // Payment verification routes
+  app.post("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validation = insertPaymentVerificationSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ message: "Invalid data", errors: validation.error.errors });
+      }
+
+      const [verification] = await db
+        .insert(paymentVerifications)
+        .values({
+          ...validation.data,
+          userId,
+        })
+        .returning();
+
+      res.status(201).json(verification);
+    } catch (error) {
+      console.error("Error creating payment verification:", error);
+      res.status(500).json({ message: "Failed to create payment verification" });
+    }
+  });
+
+  app.get("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const verifications = await db
+        .select()
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.userId, userId))
+        .orderBy(desc(paymentVerifications.createdAt));
+
+      res.json(verifications);
+    } catch (error) {
+      console.error("Error fetching payment verifications:", error);
+      res.status(500).json({ message: "Failed to fetch payment verifications" });
+    }
+  });
+
+  // Admin payment verification routes
+  app.get("/api/admin/payment-verifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      const verifications = await db
+        .select({
+          id: paymentVerifications.id,
+          userId: paymentVerifications.userId,
+          amount: paymentVerifications.amount,
+          description: paymentVerifications.description,
+          receiptImageUrl: paymentVerifications.receiptImageUrl,
+          status: paymentVerifications.status,
+          adminId: paymentVerifications.adminId,
+          adminNotes: paymentVerifications.adminNotes,
+          pointsAwarded: paymentVerifications.pointsAwarded,
+          processedAt: paymentVerifications.processedAt,
+          createdAt: paymentVerifications.createdAt,
+          userEmail: users.email,
+          userFirstName: users.firstName,
+          userLastName: users.lastName,
+        })
+        .from(paymentVerifications)
+        .leftJoin(users, eq(paymentVerifications.userId, users.id))
+        .orderBy(desc(paymentVerifications.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const totalCount = await db.select({ count: sql`count(*)` }).from(paymentVerifications);
+      const total = Number(totalCount[0].count);
+
+      res.json({
+        data: verifications,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching admin payment verifications:", error);
+      res.status(500).json({ message: "Failed to fetch payment verifications" });
+    }
+  });
+
+  app.patch("/api/admin/payment-verifications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { status, adminNotes, pointsAwarded } = req.body;
+      const adminId = req.user.claims.sub;
+
+      const [updatedVerification] = await db
+        .update(paymentVerifications)
+        .set({
+          status,
+          adminId,
+          adminNotes,
+          pointsAwarded,
+          processedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(paymentVerifications.id, parseInt(id)))
+        .returning();
+
+      // If approved, award points to user
+      if (status === 'approved' && pointsAwarded > 0) {
+        await db
+          .update(users)
+          .set({
+            loyaltyPoints: sql`${users.loyaltyPoints} + ${pointsAwarded}`,
+            lifetimePoints: sql`${users.lifetimePoints} + ${pointsAwarded}`,
+          })
+          .where(eq(users.id, updatedVerification.userId));
+
+        // Record points history
+        await db.insert(pointsHistory).values({
+          userId: updatedVerification.userId,
+          points: pointsAwarded,
+          type: 'earned',
+          description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'}`,
+          relatedId: updatedVerification.id,
+        });
+      }
+
+      res.json(updatedVerification);
+    } catch (error) {
+      console.error("Error updating payment verification:", error);
+      res.status(500).json({ message: "Failed to update payment verification" });
+    }
+  });
+
   // Cash-out routes
   app.post('/api/cash-out', isAuthenticated, async (req: any, res) => {
     try {
