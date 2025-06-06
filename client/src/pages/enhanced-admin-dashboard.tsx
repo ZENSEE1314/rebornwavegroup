@@ -1042,10 +1042,7 @@ export default function EnhancedAdminDashboard() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide">
             <TabsList className="bg-white/20 backdrop-blur border-gray-300/30 flex min-w-max">
-              <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Users className="h-4 w-4 mr-2" />
-                User Management
-              </TabsTrigger>
+
               <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Calendar className="h-4 w-4 mr-2" />
                 Appointments
