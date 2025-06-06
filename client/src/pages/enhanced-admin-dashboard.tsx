@@ -81,6 +81,8 @@ export default function EnhancedAdminDashboard() {
   const tokenTransactionsPerPage = 10;
   const [paymentVerificationsPage, setPaymentVerificationsPage] = useState(1);
   const paymentVerificationsPerPage = 10;
+  const [openApproveDialog, setOpenApproveDialog] = useState<number | null>(null);
+  const [openRejectDialog, setOpenRejectDialog] = useState<number | null>(null);
   
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
@@ -3397,7 +3399,7 @@ export default function EnhancedAdminDashboard() {
                         <TableCell>
                           {verification.status === 'pending' && (
                             <div className="flex gap-2">
-                              <Dialog>
+                              <Dialog open={openApproveDialog === verification.id} onOpenChange={(open) => setOpenApproveDialog(open ? verification.id : null)}>
                                 <DialogTrigger asChild>
                                   <Button size="sm" className="bg-green-600 hover:bg-green-700">
                                     <Check className="w-4 h-4 mr-1" />
@@ -3428,6 +3430,13 @@ export default function EnhancedAdminDashboard() {
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       <Button
+                                        variant="outline"
+                                        onClick={() => setOpenApproveDialog(null)}
+                                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
                                         onClick={() => {
                                           const pointsInput = document.getElementById(`points-${verification.id}`) as HTMLInputElement;
                                           const notesInput = document.getElementById(`notes-${verification.id}`) as HTMLTextAreaElement;
@@ -3437,22 +3446,24 @@ export default function EnhancedAdminDashboard() {
                                             pointsAwarded: parseInt(pointsInput.value) || 0,
                                             adminNotes: notesInput.value || ''
                                           }).then(() => {
-                                            toast({ title: "Payment verification approved" });
+                                            toast({ title: "Payment verification approved with 10% referral commission" });
                                             queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+                                            setOpenApproveDialog(null);
                                           }).catch(() => {
                                             toast({ title: "Failed to approve verification", variant: "destructive" });
                                           });
                                         }}
                                         className="bg-green-600 hover:bg-green-700"
                                       >
-                                        Approve
+                                        Approve & Award Commission
                                       </Button>
                                     </div>
                                   </div>
                                 </DialogContent>
                               </Dialog>
                               
-                              <Dialog>
+                              <Dialog open={openRejectDialog === verification.id} onOpenChange={(open) => setOpenRejectDialog(open ? verification.id : null)}>
                                 <DialogTrigger asChild>
                                   <Button size="sm" variant="destructive">
                                     <X className="w-4 h-4 mr-1" />
@@ -3474,6 +3485,13 @@ export default function EnhancedAdminDashboard() {
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       <Button
+                                        variant="outline"
+                                        onClick={() => setOpenRejectDialog(null)}
+                                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
                                         onClick={() => {
                                           const notesInput = document.getElementById(`reject-notes-${verification.id}`) as HTMLTextAreaElement;
                                           
@@ -3484,6 +3502,8 @@ export default function EnhancedAdminDashboard() {
                                           }).then(() => {
                                             toast({ title: "Payment verification rejected" });
                                             queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+                                            setOpenRejectDialog(null);
                                           }).catch(() => {
                                             toast({ title: "Failed to reject verification", variant: "destructive" });
                                           });
