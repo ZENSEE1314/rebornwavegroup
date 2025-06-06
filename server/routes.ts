@@ -969,14 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Broadcast appointment creation to all connected clients
-      broadcastBookingUpdate('appointment_created', { 
-        userId, 
-        appointmentId: appointment.id,
-        title: appointment.title,
-        date: appointment.appointmentDate,
-        category: appointment.category
-      });
+      // Appointment created successfully
       
       res.json(appointment);
     } catch (error) {
@@ -1170,7 +1163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserPoints(userId, Math.floor(Number(validAmount) * 0.05));
       
       // Broadcast credit update to all connected clients
-      (app as any).broadcastMarketplaceUpdate('credits_updated', { userId });
+      // Credits updated successfully
       
       res.json({ message: "Credits added successfully" });
     } catch (error) {
@@ -2244,8 +2237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const listing = await storage.createListing(validatedData);
       
-      // Broadcast new listing to all connected clients
-      (app as any).broadcastMarketplaceUpdate('listing_created', listing);
+      // Marketplace listing created successfully
       
       res.json(listing);
     } catch (error) {
@@ -2644,8 +2636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relatedId: req.body.listingId,
       });
       
-      // Broadcast purchase creation to all connected clients
-      (app as any).broadcastMarketplaceUpdate('purchase_created', purchase);
+      // Purchase created successfully
       
       res.json(purchase);
     } catch (error) {
