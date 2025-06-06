@@ -3560,7 +3560,8 @@ export default function EnhancedAdminDashboard() {
                                   <DialogTitle className="text-white">Receipt Image</DialogTitle>
                                 </DialogHeader>
                                 <div className="flex flex-col items-center space-y-4">
-                                  {verification.receiptImageUrl ? (
+                                  {verification.receiptImageUrl && 
+                                   !verification.receiptImageUrl.includes('placeholder') ? (
                                     verification.receiptImageUrl.startsWith('data:image') ? (
                                       <img 
                                         src={verification.receiptImageUrl}
@@ -3575,7 +3576,7 @@ export default function EnhancedAdminDashboard() {
                                       />
                                     ) : (
                                       <img 
-                                        src={verification.receiptImageUrl.startsWith('http') ? verification.receiptImageUrl : `/uploaded-images/${verification.receiptImageUrl}`}
+                                        src={verification.receiptImageUrl.startsWith('http') ? verification.receiptImageUrl : verification.receiptImageUrl}
                                         alt="Receipt" 
                                         className="max-w-full max-h-96 object-contain rounded border border-gray-600"
                                         onLoad={() => console.log('URL image loaded successfully')}
@@ -3587,20 +3588,31 @@ export default function EnhancedAdminDashboard() {
                                       />
                                     )
                                   ) : (
-                                    <div className="w-64 h-48 bg-gray-700 rounded flex items-center justify-center">
-                                      <span className="text-gray-400">No receipt image</span>
+                                    <div className="w-64 h-48 bg-gray-700 rounded flex items-center justify-center border border-gray-600">
+                                      <div className="text-center">
+                                        <div className="text-4xl mb-2">📄</div>
+                                        <span className="text-gray-400">
+                                          {verification.receiptImageUrl?.includes('placeholder') 
+                                            ? 'Image upload incomplete' 
+                                            : 'No receipt image'}
+                                        </span>
+                                        {verification.receiptImageUrl?.includes('placeholder') && (
+                                          <p className="text-yellow-400 text-xs mt-1">
+                                            Legacy submission - image not properly stored
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                   
                                   <div className="text-center">
-                                    <p className="text-gray-400 text-sm break-all">
-                                      Image URL: {verification.receiptImageUrl}
+                                    <p className="text-gray-400 text-xs">
+                                      Status: {verification.receiptImageUrl?.includes('placeholder') 
+                                        ? 'Placeholder data detected' 
+                                        : verification.receiptImageUrl 
+                                          ? 'Image available' 
+                                          : 'No image provided'}
                                     </p>
-                                    {verification.receiptImageUrl?.startsWith('data:image') && (
-                                      <p className="text-yellow-400 text-xs mt-1">
-                                        Base64 encoded image ({Math.round(verification.receiptImageUrl.length / 1024)}KB)
-                                      </p>
-                                    )}
                                   </div>
                                 </div>
                                 <p className="text-center text-gray-400 text-sm mt-2">
