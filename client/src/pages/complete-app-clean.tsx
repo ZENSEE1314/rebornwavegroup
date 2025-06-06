@@ -162,22 +162,46 @@ export default function CompleteApp() {
   // Fetch user's pets
   const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
     queryKey: ["/api/pets"],
-    enabled: !!user?.id,
+    enabled: !!(user as any)?.id,
     retry: 1,
     refetchInterval: 3000,
   });
 
   // Fetch user stats
-  const { data: userStats } = useQuery({
+  const { data: userStats = {} } = useQuery({
     queryKey: ["/api/user-stats"],
-    enabled: !!user?.id,
+    enabled: !!(user as any)?.id,
+  });
+
+  // Pet name editing mutation
+  const editNameMutation = useMutation({
+    mutationFn: async ({ petId, name }: { petId: number; name: string }) => {
+      return await apiRequest("PATCH", `/api/pets/${petId}/name`, { name });
+    },
+    onSuccess: () => {
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+      });
+      refetchPets();
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      setShowNameEditModal(false);
+      setSelectedPetForEdit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal mengubah nama" : "Failed to update name"),
+        variant: "destructive",
+      });
+    }
   });
 
   const safePets = Array.isArray(pets) ? pets : [];
   const currentPet = safePets[currentPetIndex];
 
   const openNameEdit = (pet: any) => {
-    if ((userStats?.tokens || 0) < 5) {
+    if (((userStats as any)?.tokens || 0) < 5) {
       toast({
         title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
         description: language === "id" ? "Butuh 5 token untuk mengubah nama" : "Need 5 tokens to edit name",
@@ -221,7 +245,7 @@ export default function CompleteApp() {
                     {language === "id" ? "Pet Care Dashboard" : "Pet Care Dashboard"}
                   </CardTitle>
                   <p className="text-gray-600">
-                    {language === "id" ? `Selamat datang, ${user?.firstName || user?.email}` : `Welcome, ${user?.firstName || user?.email}`}
+                    {language === "id" ? `Selamat datang, ${(user as any)?.firstName || (user as any)?.email}` : `Welcome, ${(user as any)?.firstName || (user as any)?.email}`}
                   </p>
                 </div>
               </div>
@@ -234,7 +258,7 @@ export default function CompleteApp() {
                   {language === "en" ? "ID" : "EN"}
                 </Button>
                 <Badge variant="secondary">
-                  {userStats?.tokens || 0} {language === "id" ? "Token" : "Tokens"}
+                  {(userStats as any)?.tokens || 0} {language === "id" ? "Token" : "Tokens"}
                 </Badge>
               </div>
             </div>

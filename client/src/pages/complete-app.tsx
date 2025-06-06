@@ -1670,7 +1670,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 
