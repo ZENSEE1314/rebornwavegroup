@@ -3490,9 +3490,7 @@ export default function CompleteApp() {
     retry: 3,
   });
   
-  console.log("Token history data:", tokenClaimsData);
-  console.log("Token history loading:", tokenHistoryLoading);
-  console.log("Token history error:", tokenHistoryError);
+
   
   const tokenClaimsHistory = tokenClaimsData || [];
 
