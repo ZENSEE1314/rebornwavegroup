@@ -7260,20 +7260,29 @@ export default function CompleteApp() {
                     <div className="space-y-3">
                       {paginatedClaims.map((transaction: any, index: number) => (
                         <div key={transaction.id || index} className={`border rounded-lg p-4 ${
-                          transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'bg-green-50' : 
-                          transaction.type === 'pet_name_change' || transaction.type === 'energy_potion' ? 'bg-red-50' : 'bg-orange-50'
+                          transaction.tokens !== undefined ? 
+                            (transaction.tokens > 0 ? 'bg-green-50' : 'bg-red-50') :
+                            (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'bg-green-50' : 
+                             transaction.type === 'pet_name_change' || transaction.type === 'energy_potion' ? 'bg-red-50' : 'bg-orange-50')
                         }`}>
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className={
-                                  transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 
-                                  'text-green-600' : 'text-red-600'
+                                  transaction.tokens !== undefined ? 
+                                    (transaction.tokens > 0 ? 'text-green-600' : 'text-red-600') :
+                                    (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'text-green-600' : 'text-red-600')
                                 }>
-                                  {transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? '➕' : '➖'}
+                                  {transaction.tokens !== undefined ? 
+                                    (transaction.tokens > 0 ? '➕' : '➖') :
+                                    (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? '➕' : '➖')
+                                  }
                                 </span>
                                 <span className="font-semibold">
-                                  {Math.abs(transaction.pointsEarned || transaction.tokensRequested || transaction.tokensAwarded || 0)} {language === "id" ? "Token" : "Tokens"}
+                                  {transaction.tokens !== undefined ? 
+                                    `${transaction.tokens > 0 ? '+' : ''}${transaction.tokens}` : 
+                                    Math.abs(transaction.pointsEarned || transaction.tokensRequested || transaction.tokensAwarded || 0)
+                                  } {language === "id" ? "Token" : "Tokens"}
                                 </span>
                               </div>
                               <p className="text-sm text-gray-800 mb-1">
