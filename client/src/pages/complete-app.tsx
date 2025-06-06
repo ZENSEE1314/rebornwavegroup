@@ -980,51 +980,57 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               dragonEmoji = "🐢"; // Baby turtle form
             }
             
-            // Hunger decreases from 100% to 1% over 6 hours if not fed
+            // Hunger decreases from the last fed value over 6 hours
             const calculateHunger = (lastFeedTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
-              // If fed recently (within 2 minutes), use database value to show immediate effect
+              // If fed recently (within 5 minutes), use database value to show immediate effect
               if (lastFeedTime) {
                 const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
-                if (minutesSinceLastFeed < 2) {
+                if (minutesSinceLastFeed < 5) {
                   return pet.hunger || 50; // Use fresh database value
                 }
               }
               
+              // Use database value as starting point, then apply decay
+              const baseHunger = pet.hunger || 50;
+              
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
+                const decay = Math.max(1, baseHunger - (hoursSinceBirth / 6) * (baseHunger - 1));
                 return Math.floor(decay);
               }
               
               const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(1, 100 - (hoursSinceLastFeed / 6) * 99);
+              const decay = Math.max(1, baseHunger - (hoursSinceLastFeed / 6) * (baseHunger - 1));
               return Math.floor(decay);
             };
 
-            // Cleanliness decreases from 100% to 1% over 6 hours if not cleaned
+            // Cleanliness decreases from the last bathed value over 6 hours
             const calculateCleanliness = (lastCareTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
-              // If bathed recently (within 2 minutes), use database value to show immediate effect
+              // If bathed recently (within 5 minutes), use database value to show immediate effect
               if (lastCareTime) {
                 const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
-                if (minutesSinceLastCare < 2) {
+                if (minutesSinceLastCare < 5) {
                   return pet.cleanliness || 50; // Use fresh database value
                 }
               }
               
+              // Use database value as starting point, then apply decay
+              const baseCleanliness = pet.cleanliness || 50;
+              
               if (!lastCareTime) {
                 // No care recorded, decay from birth
                 const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(1, 100 - (hoursSinceBirth / 6) * 99);
+                const decay = Math.max(1, baseCleanliness - (hoursSinceBirth / 6) * (baseCleanliness - 1));
                 return Math.floor(decay);
               }
               
               const hoursSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(1, 100 - (hoursSinceLastCare / 6) * 99);
+              const decay = Math.max(1, baseCleanliness - (hoursSinceLastCare / 6) * (baseCleanliness - 1));
               return Math.floor(decay);
             };
 
