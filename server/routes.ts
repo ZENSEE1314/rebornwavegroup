@@ -3897,7 +3897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoint to get all token transactions (separate from RP transactions)
+  // Admin endpoint to get all token transactions with pagination
   app.get('/api/admin/token-transactions', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
@@ -3907,7 +3907,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      // Get all token transactions from the dedicated token_transactions table
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+      
+      // Get total count first
+      const totalCountResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(tokenTransactions);
+      const totalCount = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+      
+      // Get paginated token transactions from the dedicated token_transactions table
       const adminTokenTransactions = await db
         .select({
           id: tokenTransactions.id,
@@ -3920,7 +3931,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: tokenTransactions.createdAt
         })
         .from(tokenTransactions)
-        .orderBy(desc(tokenTransactions.createdAt));
+        .orderBy(desc(tokenTransactions.createdAt))
+        .limit(limit)
+        .offset(offset);
 
       // Get user information for each transaction
       const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.userId)));
@@ -3942,7 +3955,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: usersMap[transaction.userId]
       }));
 
-      res.json({ data: enrichedTransactions });
+      res.json({ 
+        data: enrichedTransactions,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
     } catch (error) {
       console.error("Error fetching admin token transactions:", error);
       res.status(500).json({ message: "Failed to fetch token transactions" });

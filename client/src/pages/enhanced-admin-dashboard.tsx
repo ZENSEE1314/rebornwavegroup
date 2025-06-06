@@ -177,7 +177,8 @@ export default function EnhancedAdminDashboard() {
   });
 
   const { data: tokenTransactionsResponse }: any = useQuery({
-    queryKey: ['/api/admin/token-transactions'],
+    queryKey: ['/api/admin/token-transactions', tokenTransactionsPage, tokenTransactionsPerPage],
+    queryFn: () => apiRequest('GET', `/api/admin/token-transactions?page=${tokenTransactionsPage}&limit=${tokenTransactionsPerPage}`),
     retry: false,
   });
 
@@ -3155,11 +3156,9 @@ export default function EnhancedAdminDashboard() {
                   <TableBody>
                     {(() => {
                       const transactions = tokenTransactionsResponse?.data || [];
-                      const startIndex = (tokenTransactionsPage - 1) * tokenTransactionsPerPage;
-                      const endIndex = startIndex + tokenTransactionsPerPage;
-                      const paginatedTransactions = transactions.slice(startIndex, endIndex);
                       
-                      return paginatedTransactions.map((transaction: any) => (
+                      // Server already returns paginated data, no need to slice again
+                      return transactions.map((transaction: any) => (
                         <TableRow key={transaction.id} className="border-white/10">
                         <TableCell className="text-white">
                           {transaction.user?.firstName || 'Unknown'} ({transaction.user?.email || transaction.userId})
@@ -3203,11 +3202,11 @@ export default function EnhancedAdminDashboard() {
                 </Table>
 
                 {/* Pagination for Token Transactions */}
-                {tokenTransactionsResponse?.data && tokenTransactionsResponse.data.length > tokenTransactionsPerPage && (
+                {tokenTransactionsResponse?.pagination && tokenTransactionsResponse.pagination.totalPages > 1 && (
                   <div className="mt-4 flex justify-center">
                     <Pagination>
                       <PaginationContent>
-                        {tokenTransactionsPage > 1 && (
+                        {tokenTransactionsResponse.pagination.hasPrev && (
                           <PaginationItem>
                             <PaginationPrevious 
                               href="#" 
@@ -3221,7 +3220,7 @@ export default function EnhancedAdminDashboard() {
                         )}
                         
                         {Array.from({ 
-                          length: Math.ceil((tokenTransactionsResponse?.data?.length || 0) / tokenTransactionsPerPage) 
+                          length: tokenTransactionsResponse.pagination.totalPages 
                         }, (_, i) => i + 1).map((page) => (
                           <PaginationItem key={page}>
                             <PaginationLink
@@ -3242,7 +3241,7 @@ export default function EnhancedAdminDashboard() {
                           </PaginationItem>
                         ))}
                         
-                        {tokenTransactionsPage < Math.ceil((tokenTransactionsResponse?.data?.length || 0) / tokenTransactionsPerPage) && (
+                        {tokenTransactionsResponse.pagination.hasNext && (
                           <PaginationItem>
                             <PaginationNext 
                               href="#" 
@@ -3256,6 +3255,13 @@ export default function EnhancedAdminDashboard() {
                         )}
                       </PaginationContent>
                     </Pagination>
+                  </div>
+                )}
+                
+                {/* Pagination Info */}
+                {tokenTransactionsResponse?.pagination && (
+                  <div className="mt-2 text-center text-sm text-gray-400">
+                    Showing {((tokenTransactionsPage - 1) * tokenTransactionsPerPage) + 1}-{Math.min(tokenTransactionsPage * tokenTransactionsPerPage, tokenTransactionsResponse.pagination.totalCount)} of {tokenTransactionsResponse.pagination.totalCount} transactions
                   </div>
                 )}
 
