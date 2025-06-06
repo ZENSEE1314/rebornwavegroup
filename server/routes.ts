@@ -1360,6 +1360,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet name editing route
+  app.patch('/api/pets/:id/name', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.id);
+      const { name } = req.body;
+
+      // Validate name
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ message: "Pet name is required" });
+      }
+
+      if (name.trim().length > 50) {
+        return res.status(400).json({ message: "Pet name must be 50 characters or less" });
+      }
+
+      // Check if user has enough tokens
+      const userStats = await storage.getUserStats(userId);
+      if (!userStats || userStats.tokens < 5) {
+        return res.status(400).json({ message: "Insufficient tokens. Need 5 tokens to change pet name." });
+      }
+
+      // Verify pet belongs to user
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+
+      // Update pet name
+      await storage.updatePetName(petId, name.trim());
+
+      // Deduct 5 tokens from user
+      await storage.updateUserTokens(userId, -5);
+
+      // Create token transaction record
+      await storage.createTokenTransaction({
+        userId,
+        type: "pet_name_change",
+        tokens: -5,
+        description: `Changed pet name to "${name.trim()}"`,
+        relatedId: petId
+      });
+
+      res.json({ message: "Pet name updated successfully" });
+    } catch (error) {
+      console.error("Error updating pet name:", error);
+      res.status(500).json({ message: "Failed to update pet name" });
+    }
+  });
+
   // Daily token check - award token if all stats stayed above 1% for 24 hours
   app.post('/api/pets/:petId/check-daily-token', isAuthenticated, async (req: any, res) => {
     try {

@@ -387,7 +387,7 @@ export default function CompleteApp() {
           onClose={closeNameEdit}
           petName={selectedPetForEdit.name}
           petId={selectedPetForEdit.id}
-          userTokens={userStats?.tokens || 0}
+          userTokens={(userStats as any)?.tokens || 0}
           language={language}
           onSuccess={handleNameEditSuccess}
         />
