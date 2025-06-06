@@ -796,6 +796,30 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
+  // Edit pet name mutation
+  const editPetNameMutation = useMutation({
+    mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
+      return apiRequest("PATCH", `/api/pets/${petId}/name`, { name: newName });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      setEditingPetName(null);
+      setNewPetName("");
+      toast({
+        title: language === "id" ? "Berhasil!" : "Success!",
+        description: language === "id" ? "Nama pet berhasil diubah!" : "Pet name updated successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Error" : "Error",
+        description: error.message || (language === "id" ? "Gagal mengubah nama pet" : "Failed to update pet name"),
+        variant: "destructive"
+      });
+    }
+  });
+
   // Simple toy activation mutation (no pet creation)
   const activateToyMutation = useMutation({
     mutationFn: async (qrCode: string) => {
