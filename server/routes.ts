@@ -4,6 +4,7 @@ import path from "path";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
@@ -13,7 +14,11 @@ import {
   insertToySchema,
   insertListingSchema,
   insertMessageSchema,
+  users,
+  pets,
+  transactions,
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1466,22 +1471,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`About to deduct 5 tokens: ${currentTokens} -> ${currentTokens - 5}`);
       
-      // First, update pet name
-      await storage.updatePetName(petId, name.trim());
-      
-      // Then deduct 5 tokens in a separate transaction
-      await storage.updateUserPoints(userId, currentTokens - 5);
-      
-      // Record transaction with explicit negative points
-      await storage.createPointTransaction({
-        userId,
-        points: -5,
-        type: 'expense',
-        description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
-        relatedId: petId
-      });
-      
-      console.log(`Pet name edit completed successfully - tokens deducted: ${currentTokens} -> ${currentTokens - 5}`);
+      // Use database transaction to prevent race conditions
+      try {
+        await db.transaction(async (tx) => {
+          // Update pet name first
+          await tx.update(pets).set({ name: name.trim() }).where(eq(pets.id, petId));
+          
+          // Deduct exactly 5 tokens with explicit calculation
+          const newTokenCount = currentTokens - 5;
+          await tx.update(users).set({ loyaltyPoints: newTokenCount }).where(eq(users.id, userId));
+          
+          // Record the transaction
+          await tx.insert(transactions).values({
+            userId,
+            type: 'pet_name_change',
+            amount: "5.00",
+            description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
+            referenceId: petId.toString(),
+            pointsEarned: -5,
+            status: 'completed'
+          });
+        });
+        
+        console.log(`Pet name edit transaction completed - tokens: ${currentTokens} -> ${currentTokens - 5}`);
+      } catch (transactionError) {
+        console.error("Transaction failed:", transactionError);
+        throw new Error("Failed to process pet name change transaction");
+      }
       
       res.json({ 
         message: "Pet name updated successfully",
