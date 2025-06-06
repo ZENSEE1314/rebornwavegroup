@@ -2248,13 +2248,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       )}
 
       {/* Edit Pet Name Modal */}
-      {(() => {
-        console.log("Checking edit dialog visibility:");
-        console.log("editingPetName:", editingPetName);
-        console.log("safePets:", safePets);
-        console.log("safePets.find result:", safePets.find(pet => pet.id === editingPetName));
-        return editingPetName !== null && safePets.find(pet => pet.id === editingPetName);
-      })() && (
+      {editingPetName !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
