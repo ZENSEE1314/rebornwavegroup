@@ -53,6 +53,64 @@ import {
 export default function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // WebSocket connection for real-time payment verification updates
+  useEffect(() => {
+    if (!user) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log('Admin WebSocket connected for real-time updates');
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        if (message.type === 'payment_verification') {
+          // Invalidate admin payment verification queries for instant updates
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+          
+          // Show notification based on update type
+          if (message.subtype === 'submitted') {
+            toast({
+              title: "New Verification Submitted",
+              description: "A new payment verification requires review",
+            });
+          } else if (message.subtype === 'approved') {
+            toast({
+              title: "Verification Approved",
+              description: "Payment verification has been approved",
+            });
+          } else if (message.subtype === 'rejected') {
+            toast({
+              title: "Verification Rejected", 
+              description: "Payment verification has been rejected",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    socket.onclose = () => {
+      console.log('Admin WebSocket connection closed');
+    };
+
+    socket.onerror = (error) => {
+      console.error('Admin WebSocket error:', error);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [user, toast]);
   
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
