@@ -6430,7 +6430,7 @@ export default function CompleteApp() {
                                 </div>
                                 
                                 <p className="text-sm text-gray-600 mb-1">
-                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US")} at {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                                 
                                 {item.adminNotes && (

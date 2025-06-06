@@ -4317,7 +4317,7 @@ export default function EnhancedAdminDashboard() {
                   id="reward-stock"
                   type="number"
                   value={rewardForm.stockQuantity || ""}
-                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : undefined})}
                   className="bg-gray-800 border-gray-600 text-white"
                 />
               </div>
