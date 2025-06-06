@@ -550,8 +550,11 @@ export const insertPaymentVerificationSchema = createInsertSchema(paymentVerific
   createdAt: true,
   updatedAt: true,
   processedAt: true,
-}).extend({
-  amount: z.string().transform((val) => val.toString()),
+  userId: true,
+  status: true,
+  adminId: true,
+  adminNotes: true,
+  pointsAwarded: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
