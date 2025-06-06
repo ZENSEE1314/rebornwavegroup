@@ -12,7 +12,7 @@ import Referrals from "@/pages/referrals-working";
 import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
-import AdminDashboard from "@/pages/enhanced-admin-dashboard";
+import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
 import PetCareWithEnergy from "@/pages/pet-care-with-energy";
@@ -41,13 +41,13 @@ function Router() {
       ) : (
         <>
           {/* Admin users automatically go to admin dashboard */}
-          {user?.role === 'admin' ? (
-            <Route path="/" component={AdminDashboard} />
+          {(user as any)?.role === 'admin' ? (
+            <Route path="/" component={EnhancedAdminDashboard} />
           ) : (
             <Route path="/" component={CompleteApp} />
           )}
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin-dashboard" component={AdminDashboard} />
+          <Route path="/admin" component={EnhancedAdminDashboard} />
+          <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />

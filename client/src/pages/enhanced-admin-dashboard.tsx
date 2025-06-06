@@ -50,7 +50,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 
-export default function EnhancedAdminDashboard() {
+function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -4426,3 +4426,5 @@ export default function EnhancedAdminDashboard() {
     </div>
   );
 }
+
+export default EnhancedAdminDashboard;
