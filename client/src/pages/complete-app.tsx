@@ -2959,11 +2959,10 @@ export default function CompleteApp() {
       try {
         const message = JSON.parse(event.data);
         
+        // Payment verification updates
         if (message.type === 'payment_verification') {
-          // Invalidate payment verification queries for instant updates
           queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
           
-          // Show notification based on update type
           if (message.subtype === 'submitted') {
             toast({
               title: "New Verification Submitted",
@@ -2982,6 +2981,116 @@ export default function CompleteApp() {
             });
           }
         }
+        
+        // Marketplace updates
+        else if (message.type === 'marketplace') {
+          queryClient.invalidateQueries({ queryKey: ['/api/marketplace'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/toy-inventory'] });
+          
+          if (message.subtype === 'listing_created') {
+            toast({
+              title: "New Marketplace Listing",
+              description: "A new toy has been listed on the marketplace",
+            });
+          } else if (message.subtype === 'purchase_completed') {
+            toast({
+              title: "Purchase Completed",
+              description: "A marketplace purchase has been completed",
+            });
+          }
+        }
+        
+        // Loyalty points updates
+        else if (message.type === 'loyalty_points') {
+          queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+          
+          if (message.subtype === 'points_awarded') {
+            toast({
+              title: "Points Awarded",
+              description: `You've earned ${message.data.points} loyalty points!`,
+            });
+          } else if (message.subtype === 'points_redeemed') {
+            toast({
+              title: "Points Redeemed",
+              description: "Your loyalty points have been redeemed successfully",
+            });
+          }
+        }
+        
+        // Booking updates
+        else if (message.type === 'booking') {
+          queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+          
+          if (message.subtype === 'appointment_booked') {
+            toast({
+              title: "Appointment Booked",
+              description: "Your appointment has been confirmed",
+            });
+          } else if (message.subtype === 'appointment_cancelled') {
+            toast({
+              title: "Appointment Cancelled",
+              description: "An appointment has been cancelled",
+              variant: "destructive",
+            });
+          }
+        }
+        
+        // Pet care updates
+        else if (message.type === 'pet') {
+          queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+          
+          if (message.subtype === 'care_performed') {
+            if (message.data.tokenAwarded) {
+              toast({
+                title: "Token Earned!",
+                description: "You've earned a daily token for pet care",
+              });
+            }
+          }
+        }
+        
+        // Transaction updates
+        else if (message.type === 'transaction') {
+          queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+          
+          if (message.subtype === 'credit_changed') {
+            toast({
+              title: "Credit Updated",
+              description: `Your credit balance has been updated`,
+            });
+          }
+        }
+        
+        // User updates
+        else if (message.type === 'user') {
+          queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        }
+        
+        // Admin updates (for admin users)
+        else if (message.type === 'admin') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+          
+          if (message.subtype === 'verification_submitted') {
+            toast({
+              title: "New Verification",
+              description: "A new payment verification requires review",
+            });
+          }
+        }
+        
+        // Reward updates
+        else if (message.type === 'reward') {
+          queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+          
+          if (message.subtype === 'reward_redeemed') {
+            toast({
+              title: "Reward Redeemed",
+              description: "Your reward has been processed successfully",
+            });
+          }
+        }
+        
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }

@@ -70,17 +70,15 @@ export default function EnhancedAdminDashboard() {
       try {
         const message = JSON.parse(event.data);
         
-        if (message.type === 'payment_verification' || message.type === 'marketplace_update') {
-          // Invalidate all payment verification related queries for instant updates
+        // Payment verification updates
+        if (message.type === 'payment_verification') {
           queryClient.invalidateQueries({ 
             queryKey: ['/api/admin/payment-verifications'],
             exact: false 
           });
           queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
           
-          // Show notification based on update type with sound
-          if (message.subtype === 'submitted' || message.action === 'submit') {
-            // Play notification sound for new submissions
+          if (message.subtype === 'submitted') {
             try {
               const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUYrTp66hVFApGn+Txu3EhBC58xO7akD0JE1+z5OGpWBUIRZrm77ZiGgQ+ltryxnkpBSl+zPLaizsIGGS57+OZURE');
               audio.volume = 0.3;
@@ -90,24 +88,120 @@ export default function EnhancedAdminDashboard() {
             }
             
             toast({
-              title: "🔔 New Verification Submitted",
-              description: `Payment verification of RP ${message.data?.amount || 'N/A'} requires review`,
+              title: "New Verification Submitted",
+              description: `Payment verification requires review`,
               className: "border-yellow-500 bg-yellow-50 text-yellow-900",
             });
-          } else if (message.subtype === 'approved' || message.action === 'approve') {
+          } else if (message.subtype === 'approved') {
             toast({
-              title: "✅ Verification Approved",
+              title: "Verification Approved",
               description: "Payment verification has been approved",
               className: "border-green-500 bg-green-50 text-green-900",
             });
-          } else if (message.subtype === 'rejected' || message.action === 'reject') {
+          } else if (message.subtype === 'rejected') {
             toast({
-              title: "❌ Verification Rejected", 
+              title: "Verification Rejected", 
               description: "Payment verification has been rejected",
               variant: "destructive",
             });
           }
         }
+        
+        // Marketplace updates
+        else if (message.type === 'marketplace') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/marketplace'] });
+          
+          if (message.subtype === 'listing_created') {
+            toast({
+              title: "New Marketplace Listing",
+              description: "A new toy has been listed on the marketplace",
+            });
+          } else if (message.subtype === 'purchase_completed') {
+            toast({
+              title: "Marketplace Purchase",
+              description: "A marketplace purchase has been completed",
+            });
+          }
+        }
+        
+        // Loyalty points updates
+        else if (message.type === 'loyalty_points') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+          
+          if (message.subtype === 'points_awarded') {
+            toast({
+              title: "Points Awarded",
+              description: `${message.data.points} loyalty points awarded`,
+            });
+          }
+        }
+        
+        // Booking updates
+        else if (message.type === 'booking') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/appointments'] });
+          
+          if (message.subtype === 'appointment_booked') {
+            toast({
+              title: "New Appointment",
+              description: "A new appointment has been booked",
+            });
+          } else if (message.subtype === 'appointment_cancelled') {
+            toast({
+              title: "Appointment Cancelled",
+              description: "An appointment has been cancelled",
+            });
+          }
+        }
+        
+        // Pet care updates
+        else if (message.type === 'pet') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/activated-pets'] });
+          
+          if (message.subtype === 'care_performed') {
+            if (message.data.tokenAwarded) {
+              toast({
+                title: "Token Earned",
+                description: "User earned a daily token for pet care",
+              });
+            }
+          }
+        }
+        
+        // Transaction updates
+        else if (message.type === 'transaction') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+        }
+        
+        // Admin updates
+        else if (message.type === 'admin') {
+          if (message.subtype === 'verification_submitted') {
+            toast({
+              title: "New Verification",
+              description: "A payment verification requires review",
+            });
+          } else if (message.subtype === 'verification_processed') {
+            toast({
+              title: "Verification Processed",
+              description: `Verification ${message.data.status}`,
+            });
+          }
+        }
+        
+        // Reward updates
+        else if (message.type === 'reward') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/reward-items'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
+          
+          if (message.subtype === 'reward_redeemed') {
+            toast({
+              title: "Reward Redeemed",
+              description: "A reward has been redeemed",
+            });
+          }
+        }
+        
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }

@@ -126,6 +126,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Broadcast new verification submission to all connected clients
       broadcastPaymentVerificationUpdate('submitted', verification);
+      broadcastAdminUpdate('verification_submitted', { 
+        verificationId: verification.id,
+        userId: verification.userId,
+        amount: verification.amount
+      });
 
       res.status(201).json(verification);
     } catch (error) {
@@ -328,6 +333,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Broadcast payment verification update to all connected clients
       broadcastPaymentVerificationUpdate(status === 'approved' ? 'approved' : 'rejected', updatedVerification);
+      
+      // Broadcast admin action
+      broadcastAdminUpdate('verification_processed', {
+        verificationId: parseInt(id),
+        status,
+        pointsAwarded,
+        userId: updatedVerification.userId,
+        adminId
+      });
+      
+      // If points were awarded, broadcast loyalty points update
+      if (status === 'approved' && pointsAwarded > 0) {
+        broadcastLoyaltyPointsUpdate('points_awarded', {
+          userId: updatedVerification.userId,
+          points: pointsAwarded,
+          source: 'payment_verification'
+        });
+      }
 
       res.json(updatedVerification);
     } catch (error) {
@@ -3803,6 +3826,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const creditHistory = await storage.createCreditHistory(validatedData);
+      
+      // Broadcast credit transaction update
+      broadcastTransactionUpdate('credit_changed', { 
+        userId, 
+        amount: req.body.amount, 
+        type: req.body.type,
+        description: req.body.description
+      });
+      
       res.json(creditHistory);
     } catch (error) {
       console.error("Error creating credit history:", error);
