@@ -3754,6 +3754,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive token transaction history for a user
+  app.get('/api/tokens/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get all transactions related to tokens (spending)
+      const tokenTransactions = await db
+        .select({
+          id: transactions.id,
+          type: transactions.type,
+          description: transactions.description,
+          pointsEarned: transactions.pointsEarned,
+          amount: transactions.amount,
+          status: transactions.status,
+          createdAt: transactions.createdAt,
+          referenceId: transactions.referenceId
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            or(
+              eq(transactions.type, 'pet_name_change'),
+              eq(transactions.type, 'energy_potion'),
+              eq(transactions.type, 'token_purchase'),
+              eq(transactions.type, 'token_earned'),
+              like(transactions.description, '%token%')
+            )
+          )
+        )
+        .orderBy(desc(transactions.createdAt));
+
+      // Get token claims (earning tokens)
+      const tokenClaims = await storage.getTokenClaimsByUserId(userId);
+      
+      // Format token claims to match transaction format
+      const formattedClaims = tokenClaims.map((claim: any) => ({
+        id: `claim_${claim.id}`,
+        type: 'token_claim',
+        description: `Token claim: ${claim.tokensAwarded} tokens`,
+        pointsEarned: claim.tokensAwarded,
+        amount: claim.tokensAwarded.toString(),
+        status: claim.status,
+        createdAt: claim.createdAt,
+        referenceId: claim.id.toString(),
+        notes: claim.notes
+      }));
+
+      // Combine and sort all token-related activities
+      const allTokenHistory = [...tokenTransactions, ...formattedClaims]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      res.json(allTokenHistory);
+    } catch (error) {
+      console.error("Error fetching token history:", error);
+      res.status(500).json({ message: "Failed to fetch token history" });
+    }
+  });
+
   app.patch('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;

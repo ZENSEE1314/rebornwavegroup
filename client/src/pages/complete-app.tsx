@@ -3110,7 +3110,7 @@ export default function CompleteApp() {
 
   // Fetch user's token claim history
   const { data: tokenClaimsData = [] } = useQuery({
-    queryKey: ['/api/token-claims/history'],
+    queryKey: ['/api/tokens/history'],
     enabled: !!user?.id,
   });
   
@@ -7223,7 +7223,7 @@ export default function CompleteApp() {
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">
-                {language === "id" ? "Riwayat Klaim Token" : "Token Claim History"}
+                {language === "id" ? "Riwayat Token" : "Token History"}
               </h3>
               <Button variant="ghost" onClick={() => setShowHistoryModal(false)}>✕</Button>
             </div>
