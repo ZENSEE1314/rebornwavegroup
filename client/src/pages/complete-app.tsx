@@ -803,7 +803,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
       setEditingPetName(null);
       setNewPetName("");
       toast({
@@ -1966,7 +1966,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if ((user?.tokens || 0) < 5) {
+                      if ((user?.loyaltyPoints || 0) < 5) {
                         toast({
                           title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
                           description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
@@ -1975,10 +1975,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         return;
                       }
                       setNewPetName(safePets[currentPetIndex].name);
-                      setEditingPetName(currentPetIndex);
+                      setEditingPetName(safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
-                    disabled={!user?.tokens || user.tokens < 5}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
@@ -2311,89 +2310,89 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         </>
       )}
 
-      {/* Pet Name Editing Modal */}
-      {editingPetName !== null && safePets[editingPetName] && (
+      {/* Edit Pet Name Modal */}
+      {editingPetName !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Ubah Nama Pet" : "Edit Pet Name"}
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {language === "id" 
-                ? "Biaya untuk mengubah nama pet adalah 5 token. Token saat ini: " 
-                : "Cost to change pet name is 5 tokens. Current tokens: "}
-              {user?.loyaltyPoints || 0}
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Lama:" : "Current Name:"}
-                </label>
-                <div className="p-2 bg-gray-100 rounded border">
-                  {safePets[editingPetName].name}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Baru:" : "New Name:"}
-                </label>
-                <input
-                  type="text"
-                  value={newPetName}
-                  onChange={(e) => setNewPetName(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
-                  maxLength={50}
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2 mt-6">
-              <Button
-                variant="outline"
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                {language === "id" ? "Edit Nama Pet" : "Edit Pet Name"}
+              </h3>
+              <Button 
+                variant="ghost" 
                 onClick={() => {
                   setEditingPetName(null);
                   setNewPetName("");
                 }}
-                className="flex-1"
               >
-                {language === "id" ? "Batal" : "Cancel"}
+                ✕
               </Button>
-              <Button
-                onClick={() => {
-                  if (!newPetName.trim()) {
-                    toast({
-                      title: language === "id" ? "Error" : "Error",
-                      description: language === "id" ? "Nama tidak boleh kosong" : "Name cannot be empty",
-                      variant: "destructive",
-                    });
-                    return;
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {language === "id" ? "Nama Baru" : "New Name"}
+                </label>
+                <Input
+                  value={newPetName}
+                  onChange={(e) => setNewPetName(e.target.value)}
+                  placeholder={language === "id" ? "Masukkan nama baru..." : "Enter new name..."}
+                  maxLength={20}
+                />
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-700">
+                  {language === "id" 
+                    ? "Mengubah nama pet akan memotong 5 token dari saldo Anda."
+                    : "Changing pet name will deduct 5 tokens from your balance."
                   }
-                  
-                  if ((user?.loyaltyPoints || 0) < 5) {
-                    toast({
-                      title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
-                      description: language === "id" ? "Anda memerlukan 5 token untuk mengubah nama pet" : "You need 5 tokens to change pet name",
-                      variant: "destructive",
-                    });
-                    return;
+                </p>
+                <p className="text-xs text-yellow-600 mt-1">
+                  {language === "id" 
+                    ? `Token saat ini: ${user?.loyaltyPoints || 0}`
+                    : `Current tokens: ${user?.loyaltyPoints || 0}`
                   }
-                  
-                  petNameMutation.mutate({
-                    petId: safePets[editingPetName].id,
-                    newName: newPetName.trim()
-                  });
-                }}
-                disabled={petNameMutation.isPending}
-                className="flex-1"
-              >
-                {petNameMutation.isPending 
-                  ? (language === "id" ? "Mengubah..." : "Updating...")
-                  : (language === "id" ? "Ubah (5 token)" : "Update (5 tokens)")
-                }
-              </Button>
+                </p>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingPetName(null);
+                    setNewPetName("");
+                  }}
+                  className="flex-1"
+                >
+                  {language === "id" ? "Batal" : "Cancel"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!newPetName.trim()) {
+                      toast({
+                        title: language === "id" ? "Error" : "Error",
+                        description: language === "id" ? "Nama tidak boleh kosong" : "Name cannot be empty",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    editPetNameMutation.mutate({
+                      petId: editingPetName,
+                      newName: newPetName.trim()
+                    });
+                  }}
+                  disabled={!newPetName.trim() || editPetNameMutation.isPending}
+                  className="flex-1"
+                >
+                  {editPetNameMutation.isPending 
+                    ? (language === "id" ? "Menyimpan..." : "Saving...")
+                    : (language === "id" ? "Simpan" : "Save")
+                  }
+                </Button>
+              </div>
             </div>
           </div>
         </div>
