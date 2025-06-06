@@ -8,6 +8,8 @@ import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
+import multer from "multer";
+import { promises as fs } from "fs";
 import { 
   insertAppointmentSchema,
   insertTransactionSchema,
@@ -25,9 +27,57 @@ import {
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// Configure multer for image uploads
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploaded-images/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `receipt-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({ 
+  storage: multerStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded images statically
+  app.use('/uploaded-images', express.static('uploaded-images'));
+  
   // Auth middleware
   await setupAuth(app);
+
+  // Image upload endpoint
+  app.post('/api/upload-image', isAuthenticated, upload.single('image'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+      
+      const imageUrl = `/uploaded-images/${req.file.filename}`;
+      res.json({ imageUrl });
+    } catch (error) {
+      console.error('Image upload error:', error);
+      res.status(500).json({ error: 'Failed to upload image' });
+    }
+  });
   
   // Log all POST requests to debug routing
   app.use('/api/pets/:petId/care/:careType', (req, res, next) => {
