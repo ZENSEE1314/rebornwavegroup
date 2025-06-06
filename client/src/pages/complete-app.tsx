@@ -2506,22 +2506,38 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !receiptImage) {
+    console.log('Form submit triggered:', {
+      amount,
+      description,
+      receiptImage: !!receiptImage,
+      isSubmitting
+    });
+    
+    if (!amount || !description || !receiptImage) {
+      console.log('Validation failed:', { amount: !!amount, description: !!description, receiptImage: !!receiptImage });
       toast({
         title: language === "id" ? "Data Tidak Lengkap" : "Incomplete Data",
-        description: language === "id" ? "Mohon isi semua field dan upload bukti pembayaran" : "Please fill all fields and upload receipt image",
+        description: language === "id" ? "Mohon isi semua field dan upload bukti pembayaran" : "Please fill all fields, select service category, and upload receipt image",
         variant: "destructive",
       });
       return;
     }
 
+    if (isSubmitting) {
+      console.log('Already submitting, preventing duplicate submission');
+      return;
+    }
+
+    console.log('Starting form submission...');
     setIsSubmitting(true);
     
     try {
       // Upload image first
       let imageUrl;
       try {
+        console.log('Attempting image upload...');
         imageUrl = await uploadImage(receiptImage);
+        console.log('Image upload successful:', imageUrl);
       } catch (uploadError) {
         console.log('Image upload failed, using base64 fallback:', uploadError);
         // Fallback to base64 data URL if upload fails
@@ -2530,22 +2546,21 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.readAsDataURL(receiptImage);
         });
+        console.log('Base64 fallback completed');
       }
       
-      console.log('Submitting verification with data:', {
+      const submissionData = {
         amount: amount,
-        description: description || `Purchase verification - RP ${amount}`,
-        receiptImageUrl: imageUrl ? 'Image uploaded' : 'No image'
-      });
+        description: description,
+        receiptImageUrl: imageUrl,
+      };
+      
+      console.log('Submitting verification with data:', submissionData);
       
       // Use the mutation directly instead of mutateAsync
-      submitMutation.mutate({
-        amount: amount,
-        description: description || `Purchase verification - RP ${amount}`,
-        receiptImageUrl: imageUrl,
-      });
+      submitMutation.mutate(submissionData);
     } catch (error) {
-      console.error('Error submitting verification:', error);
+      console.error('Error in form submission process:', error);
       toast({
         title: language === "id" ? "Error" : "Error",
         description: language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification",
@@ -2694,7 +2709,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting || !amount || !receiptImage}
+                disabled={isSubmitting || !amount || !description || !receiptImage}
               >
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">
