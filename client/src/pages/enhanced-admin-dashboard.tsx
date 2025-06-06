@@ -74,6 +74,8 @@ export default function EnhancedAdminDashboard() {
   // Pagination states
   const [topUpCurrentPage, setTopUpCurrentPage] = useState(1);
   const topUpItemsPerPage = 10;
+  const [tokenTransactionsPage, setTokenTransactionsPage] = useState(1);
+  const tokenTransactionsPerPage = 10;
   
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
@@ -3147,12 +3149,18 @@ export default function EnhancedAdminDashboard() {
                       <TableHead className="text-blue-200">Tokens</TableHead>
                       <TableHead className="text-blue-200">Description</TableHead>
                       <TableHead className="text-blue-200">Status</TableHead>
-                      <TableHead className="text-blue-200">Date</TableHead>
+                      <TableHead className="text-blue-200">Date & Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(tokenTransactionsResponse?.data || []).map((transaction: any) => (
-                      <TableRow key={transaction.id} className="border-white/10">
+                    {(() => {
+                      const transactions = tokenTransactionsResponse?.data || [];
+                      const startIndex = (tokenTransactionsPage - 1) * tokenTransactionsPerPage;
+                      const endIndex = startIndex + tokenTransactionsPerPage;
+                      const paginatedTransactions = transactions.slice(startIndex, endIndex);
+                      
+                      return paginatedTransactions.map((transaction: any) => (
+                        <TableRow key={transaction.id} className="border-white/10">
                         <TableCell className="text-white">
                           {transaction.user?.firstName || 'Unknown'} ({transaction.user?.email || transaction.userId})
                         </TableCell>
@@ -3180,12 +3188,76 @@ export default function EnhancedAdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-300">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                          {new Date(transaction.createdAt).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ));
+                    })()}
                   </TableBody>
                 </Table>
+
+                {/* Pagination for Token Transactions */}
+                {tokenTransactionsResponse?.data && tokenTransactionsResponse.data.length > tokenTransactionsPerPage && (
+                  <div className="mt-4 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        {tokenTransactionsPage > 1 && (
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setTokenTransactionsPage(tokenTransactionsPage - 1);
+                              }}
+                              className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            />
+                          </PaginationItem>
+                        )}
+                        
+                        {Array.from({ 
+                          length: Math.ceil((tokenTransactionsResponse?.data?.length || 0) / tokenTransactionsPerPage) 
+                        }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setTokenTransactionsPage(page);
+                              }}
+                              isActive={page === tokenTransactionsPage}
+                              className={`${
+                                page === tokenTransactionsPage 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                              }`}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        {tokenTransactionsPage < Math.ceil((tokenTransactionsResponse?.data?.length || 0) / tokenTransactionsPerPage) && (
+                          <PaginationItem>
+                            <PaginationNext 
+                              href="#" 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setTokenTransactionsPage(tokenTransactionsPage + 1);
+                              }}
+                              className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            />
+                          </PaginationItem>
+                        )}
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
 
                 {(!tokenTransactionsResponse?.data || tokenTransactionsResponse.data.length === 0) && (
                   <div className="text-center py-8 text-gray-400">

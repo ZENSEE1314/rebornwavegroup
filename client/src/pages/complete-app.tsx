@@ -7281,7 +7281,7 @@ export default function CompleteApp() {
                                 <span className="font-semibold">
                                   {transaction.tokens !== undefined ? 
                                     `${transaction.tokens > 0 ? '+' : ''}${transaction.tokens}` : 
-                                    Math.abs(transaction.pointsEarned || transaction.tokensRequested || transaction.tokensAwarded || 0)
+                                    `${transaction.tokensRequested || transaction.tokensAwarded || 0 > 0 ? '+' : ''}${transaction.tokensRequested || transaction.tokensAwarded || 0}`
                                   } {language === "id" ? "Token" : "Tokens"}
                                 </span>
                               </div>
@@ -7290,7 +7290,13 @@ export default function CompleteApp() {
                                  (transaction.type === 'token_claim' ? `Token claim: ${transaction.tokensAwarded} tokens` : 'Token transaction')}
                               </p>
                               <p className="text-sm text-gray-600 mb-1">
-                                {new Date(transaction.createdAt || transaction.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                                {new Date(transaction.createdAt || transaction.requestedAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
                               </p>
                               {(transaction.adminNotes || transaction.notes) && (
                                 <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
