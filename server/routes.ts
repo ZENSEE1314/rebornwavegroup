@@ -1363,7 +1363,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet name editing route
   app.patch('/api/pets/:id/name', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.id);
       const { name } = req.body;
 
@@ -1376,31 +1380,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Pet name must be 50 characters or less" });
       }
 
-      // Check if user has enough tokens
-      const userStats = await storage.getUserStats(userId);
-      if (!userStats || userStats.tokens < 5) {
-        return res.status(400).json({ message: "Insufficient tokens. Need 5 tokens to change pet name." });
-      }
-
       // Verify pet belongs to user
       const pet = await storage.getPetById(petId);
       if (!pet || pet.userId !== userId) {
         return res.status(404).json({ message: "Pet not found" });
       }
 
+      // Check if user has enough tokens
+      const user = await storage.getUser(userId);
+      if (!user || (user.loyaltyPoints || 0) < 5) {
+        return res.status(400).json({ message: "Insufficient tokens. Need 5 tokens to change pet name." });
+      }
+
       // Update pet name
       await storage.updatePetName(petId, name.trim());
 
       // Deduct 5 tokens from user
-      await storage.updateUserTokens(userId, -5);
+      await storage.updateUserPoints(userId, (user.loyaltyPoints || 0) - 5);
 
-      // Create token transaction record
-      await storage.createTokenTransaction({
+      // Create transaction record
+      await storage.createTransaction({
         userId,
-        type: "pet_name_change",
-        tokens: -5,
-        description: `Changed pet name to "${name.trim()}"`,
-        relatedId: petId
+        type: "token_spent",
+        amount: "-5",
+        description: `Pet name changed to "${name.trim()}"`,
       });
 
       res.json({ message: "Pet name updated successfully" });
