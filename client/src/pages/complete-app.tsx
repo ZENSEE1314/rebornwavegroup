@@ -1886,26 +1886,20 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      alert("Edit button clicked!"); // More visible debug
                       console.log("Edit button clicked!");
                       console.log("Current pet:", safePets[currentPetIndex]);
                       console.log("User tokens:", user?.loyaltyPoints);
                       
-                      if ((user?.loyaltyPoints || 0) < 5) {
-                        toast({
-                          title: language === "id" ? "Token Tidak Cukup" : "Insufficient Tokens",
-                          description: language === "id" ? "Butuh 5 token untuk mengubah nama pet" : "Need 5 tokens to edit pet name",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      
-                      console.log("Setting pet name and editing state...");
                       setNewPetName(safePets[currentPetIndex].name);
                       setEditingPetName(safePets[currentPetIndex].id);
                       console.log("Edit state set to:", safePets[currentPetIndex].id);
                     }}
                     className="text-xs"
+                    style={{ zIndex: 10 }}
                   >
                     ✏️ Edit (5 tokens)
                   </Button>
