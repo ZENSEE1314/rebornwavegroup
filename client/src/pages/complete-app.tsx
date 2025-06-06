@@ -1028,13 +1028,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
-            // Use actual database values for stats, with time decay as fallback
-            const hunger = isDead ? 0 : (pet.hunger || calculateHunger(pet.lastFedAt));
-            const cleanliness = isDead ? 0 : (pet.cleanliness || calculateCleanliness(pet.lastCareDate));
-            const energy = isDead ? 0 : pet.energy; // Use stored energy value
+            // Always use calculated decay values for proper pet lifecycle
+            const hunger = isDead ? 0 : calculateHunger(pet.lastFedAt);
+            const cleanliness = isDead ? 0 : calculateCleanliness(pet.lastCareDate);
+            const energy = isDead ? 0 : (pet.energy || 50); // Use stored energy value
             
-            // Use actual database value for happiness instead of calculated deficit
-            const happiness = isDead ? 0 : (pet.happiness || 50);
+            // Calculate happiness decay over time
+            const calculateHappiness = () => {
+              if (isDead) return 0;
+              
+              // Happiness decreases if hunger or cleanliness are low
+              const happinessDecay = Math.max(10, Math.min(hunger, cleanliness));
+              return Math.floor(happinessDecay);
+            };
+            
+            const happiness = isDead ? 0 : calculateHappiness();
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
