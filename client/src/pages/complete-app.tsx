@@ -2435,11 +2435,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch user's payment verifications
-  const { data: userVerifications = [], isLoading: verificationsLoading } = useQuery({
-    queryKey: ['/api/payment-verifications'],
+  // Fetch user's payment verifications with pagination
+  const { data: userVerificationsResponse, isLoading: verificationsLoading } = useQuery({
+    queryKey: [`/api/payment-verifications?page=${verificationPage}&limit=10`],
     retry: false,
   });
+
+  const userVerifications = userVerificationsResponse?.data || [];
+  const verificationPagination = userVerificationsResponse?.pagination;
 
   // Calculate points based on amount (1 point per RP 1000)
   const calculatedPoints = Math.floor(parseFloat(amount || "0") / 1000);
@@ -2762,7 +2765,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {verificationsLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="animate-pulse bg-gray-200 h-20 rounded" />
@@ -2781,7 +2784,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
             ) : (
               <>
                 <div className="space-y-4">
-                  {userVerifications.slice((verificationPage - 1) * 10, verificationPage * 10).map((verification: any) => (
+                  {userVerifications.map((verification: any) => (
                     <div key={verification.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -2821,7 +2824,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </div>
 
                 {/* 10x10 Pagination Controls */}
-                {userVerifications.length > 10 && (
+                {verificationPagination && verificationPagination.totalPages > 1 && (
                   <div className="flex justify-center items-center mt-6 space-x-2">
                     <Button
                       variant="outline"
@@ -2833,27 +2836,55 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                     </Button>
                     
                     <div className="flex space-x-1">
-                      {Array.from({ length: Math.min(10, Math.ceil(userVerifications.length / 10)) }, (_, i) => i + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={page === verificationPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setVerificationPage(page)}
-                          className="w-8 h-8 p-0"
-                        >
-                          {page}
-                        </Button>
-                      ))}
+                      {Array.from({ 
+                        length: Math.min(10, verificationPagination.totalPages)
+                      }, (_, i) => {
+                        const totalPages = verificationPagination.totalPages;
+                        const currentPage = verificationPage;
+                        const maxPagesToShow = 10;
+                        
+                        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                        
+                        if (endPage - startPage + 1 < maxPagesToShow) {
+                          startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                        }
+                        
+                        const pageNumber = startPage + i;
+                        if (pageNumber > endPage) return null;
+                        
+                        return (
+                          <Button
+                            key={pageNumber}
+                            variant={pageNumber === verificationPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setVerificationPage(pageNumber)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNumber}
+                          </Button>
+                        );
+                      }).filter(Boolean)}
                     </div>
                     
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setVerificationPage(Math.min(Math.ceil(userVerifications.length / 10), verificationPage + 1))}
-                      disabled={verificationPage === Math.ceil(userVerifications.length / 10)}
+                      onClick={() => setVerificationPage(Math.min(verificationPagination.totalPages, verificationPage + 1))}
+                      disabled={verificationPage === verificationPagination.totalPages}
                     >
                       {language === "id" ? "Selanjutnya" : "Next"}
                     </Button>
+                  </div>
+                )}
+                
+                {/* Pagination Info */}
+                {verificationPagination && (
+                  <div className="mt-2 text-center text-sm text-gray-500">
+                    {language === "id" ? "Menampilkan" : "Showing"} {((verificationPage - 1) * 10) + 1} 
+                    {language === "id" ? " sampai " : " to "} {Math.min(verificationPage * 10, verificationPagination.total || 0)} 
+                    {language === "id" ? " dari " : " of "} {verificationPagination.total || 0} 
+                    {language === "id" ? " verifikasi" : " verifications"}
                   </div>
                 )}
               </>

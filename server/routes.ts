@@ -137,14 +137,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
       
       const verifications = await db
         .select()
         .from(paymentVerifications)
         .where(eq(paymentVerifications.userId, userId))
-        .orderBy(desc(paymentVerifications.createdAt));
+        .orderBy(desc(paymentVerifications.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-      res.json(verifications);
+      const totalCount = await db
+        .select({ count: sql`count(*)` })
+        .from(paymentVerifications)
+        .where(eq(paymentVerifications.userId, userId));
+      
+      const total = Number(totalCount[0].count);
+
+      res.json({
+        data: verifications,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
     } catch (error) {
       console.error("Error fetching payment verifications:", error);
       res.status(500).json({ message: "Failed to fetch payment verifications" });
