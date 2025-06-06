@@ -2705,10 +2705,20 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </p>
               </div>
 
+              {/* Debug info */}
+              <div className="text-xs text-gray-500 mb-2">
+                Debug: amount={amount}, description={description}, receiptImage={!!receiptImage}, isSubmitting={isSubmitting}
+              </div>
+
               {/* Submit Button */}
               <Button
                 type="button"
-                onClick={handleSubmit}
+                onClick={(e) => {
+                  console.log('Submit button clicked!');
+                  console.log('Form state:', { amount, description, receiptImage: !!receiptImage, isSubmitting });
+                  console.log('Button disabled?', isSubmitting || !amount || !description || !receiptImage);
+                  handleSubmit(e);
+                }}
                 className="w-full"
                 disabled={isSubmitting || !amount || !description || !receiptImage}
               >
