@@ -14,10 +14,13 @@ import {
   insertToySchema,
   insertListingSchema,
   insertMessageSchema,
+  insertPaymentVerificationSchema,
   users,
   pets,
   transactions,
   tokenTransactions,
+  paymentVerifications,
+  pointsHistory,
 } from "@shared/schema";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";

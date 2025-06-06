@@ -238,6 +238,22 @@ export const appointmentEvents = pgTable("appointment_events", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Payment verification table
+export const paymentVerifications = pgTable("payment_verifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  receiptImageUrl: varchar("receipt_image_url").notNull(),
+  status: varchar("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected'
+  adminId: varchar("admin_id"), // ID of admin who processed the verification
+  adminNotes: text("admin_notes"), // Admin comments on approval/rejection
+  pointsAwarded: integer("points_awarded"), // Points given for verified purchase
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Reward items table
 export const rewardItems = pgTable("reward_items", {
   id: serial("id").primaryKey(),
@@ -529,6 +545,13 @@ export const insertTokenTransactionSchema = createInsertSchema(tokenTransactions
   createdAt: true,
 });
 
+export const insertPaymentVerificationSchema = createInsertSchema(paymentVerifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  processedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
@@ -537,7 +560,9 @@ export type InsertListing = z.infer<typeof insertListingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertPointRedemption = z.infer<typeof insertPointRedemptionSchema>;
 export type InsertTokenTransaction = z.infer<typeof insertTokenTransactionSchema>;
+export type InsertPaymentVerification = z.infer<typeof insertPaymentVerificationSchema>;
 export type TokenTransaction = typeof tokenTransactions.$inferSelect;
+export type PaymentVerification = typeof paymentVerifications.$inferSelect;
 
 // Cash-out transaction schemas
 export const insertCashOutTransactionSchema = createInsertSchema(cashOutTransactions).omit({
