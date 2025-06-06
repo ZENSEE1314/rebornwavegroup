@@ -160,6 +160,10 @@ export default function ComprehensiveAdminDashboard() {
   const [verificationAction, setVerificationAction] = useState<{ id: number; action: string; notes: string } | null>(null);
   const [cashOutAction, setCashOutAction] = useState<{ id: number; action: string; notes: string } | null>(null);
   const [topUpAction, setTopUpAction] = useState<{ id: number; action: string; notes: string } | null>(null);
+  const [editUserData, setEditUserData] = useState<{credits?: string; tokens?: number; loyaltyPoints?: number}>({});
+  const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedRedemption, setSelectedRedemption] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -213,6 +217,24 @@ export default function ComprehensiveAdminDashboard() {
   const { data: banners = [] } = useQuery({
     queryKey: ["/api/admin/banners"],
   });
+
+  // Fetch pets
+  const { data: petsResponse } = useQuery({
+    queryKey: ["/api/admin/pets"],
+  });
+  const pets = petsResponse?.data || [];
+
+  // Fetch appointments
+  const { data: appointmentsResponse } = useQuery({
+    queryKey: ["/api/admin/appointments"],
+  });
+  const appointments = appointmentsResponse?.data || [];
+
+  // Fetch redemptions
+  const { data: redemptionsResponse } = useQuery({
+    queryKey: ["/api/admin/redemptions"],
+  });
+  const redemptions = redemptionsResponse?.data || [];
 
   // Process verification mutation
   const processVerificationMutation = useMutation({
@@ -293,6 +315,62 @@ export default function ComprehensiveAdminDashboard() {
     },
     onError: (error: any) => {
       toast({ title: "Failed to reset game scores", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Update user stats mutation (credits, tokens, points)
+  const updateUserStatsMutation = useMutation({
+    mutationFn: async ({ userId, credits, tokens, loyaltyPoints }: { userId: string; credits?: string; tokens?: number; loyaltyPoints?: number }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}/stats`, { credits, tokens, loyaltyPoints });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "User stats updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update user stats", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Update pet status mutation
+  const updatePetStatusMutation = useMutation({
+    mutationFn: async ({ petId, status }: { petId: number; status: string }) => {
+      return apiRequest("PATCH", `/api/admin/pets/${petId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pets"] });
+      toast({ title: "Pet status updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update pet status", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Process appointment mutation
+  const processAppointmentMutation = useMutation({
+    mutationFn: async ({ id, action, notes }: { id: number; action: string; notes?: string }) => {
+      return apiRequest("PATCH", `/api/admin/appointments/${id}`, { status: action, adminNotes: notes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/appointments"] });
+      toast({ title: "Appointment processed successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to process appointment", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Process redemption mutation
+  const processRedemptionMutation = useMutation({
+    mutationFn: async ({ id, action, notes }: { id: number; action: string; notes?: string }) => {
+      return apiRequest("PATCH", `/api/admin/redemptions/${id}`, { status: action, adminNotes: notes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/redemptions"] });
+      toast({ title: "Redemption processed successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to process redemption", description: error.message, variant: "destructive" });
     }
   });
 
@@ -399,7 +477,7 @@ export default function ComprehensiveAdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="overview" className="gap-2">
               <TrendingUp className="h-4 w-4" />
               Overview
@@ -408,9 +486,21 @@ export default function ComprehensiveAdminDashboard() {
               <Users className="h-4 w-4" />
               Users
             </TabsTrigger>
+            <TabsTrigger value="pets" className="gap-2">
+              <Heart className="h-4 w-4" />
+              Pets
+            </TabsTrigger>
+            <TabsTrigger value="appointments" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Bookings
+            </TabsTrigger>
             <TabsTrigger value="verifications" className="gap-2">
               <CheckCircle className="h-4 w-4" />
               Payments
+            </TabsTrigger>
+            <TabsTrigger value="redemptions" className="gap-2">
+              <Star className="h-4 w-4" />
+              Redemptions
             </TabsTrigger>
             <TabsTrigger value="cashouts" className="gap-2">
               <Banknote className="h-4 w-4" />
@@ -423,10 +513,6 @@ export default function ComprehensiveAdminDashboard() {
             <TabsTrigger value="tokens" className="gap-2">
               <Trophy className="h-4 w-4" />
               Tokens
-            </TabsTrigger>
-            <TabsTrigger value="toys" className="gap-2">
-              <Gift className="h-4 w-4" />
-              Toys
             </TabsTrigger>
             <TabsTrigger value="banners" className="gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -450,34 +536,80 @@ export default function ComprehensiveAdminDashboard() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Verifications</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.pendingVerifications || 0}</div>
-                  <p className="text-xs text-muted-foreground">Need admin review</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Pets</CardTitle>
-                  <Heart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.activePets || 0}</div>
-                  <p className="text-xs text-muted-foreground">Virtual pets in system</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
-                  <p className="text-xs text-muted-foreground">Platform earnings</p>
+                  <div className="text-2xl font-bold">{formatCurrency(stats?.totalCommission || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Platform commission earnings</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Toys</CardTitle>
+                  <Gift className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.totalToys || 0}</div>
+                  <p className="text-xs text-muted-foreground">Virtual collectibles</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{(stats?.pendingCashOuts || 0) + (stats?.pendingTopUps || 0) + (stats?.pendingClaims || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Need admin review</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Cash-outs</CardTitle>
+                  <Banknote className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats?.totalCashOuts || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Processed withdrawals</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Top-ups</CardTitle>
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats?.totalTopUps || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Credit deposits</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Cash-outs</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.pendingCashOuts || 0}</div>
+                  <p className="text-xs text-muted-foreground">Awaiting approval</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Claims</CardTitle>
+                  <Trophy className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.pendingClaims || 0}</div>
+                  <p className="text-xs text-muted-foreground">Token claims pending</p>
                 </CardContent>
               </Card>
             </div>
@@ -577,18 +709,78 @@ export default function ComprehensiveAdminDashboard() {
                         <TableCell>{user.loyaltyPoints}</TableCell>
                         <TableCell>{formatDate(user.createdAt)}</TableCell>
                         <TableCell>
-                          <Select
-                            value={user.role}
-                            onValueChange={(role) => updateUserRoleMutation.mutate({ userId: user.id, role })}
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex gap-2">
+                            <Select
+                              value={user.role}
+                              onValueChange={(role) => updateUserRoleMutation.mutate({ userId: user.id, role })}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Edit User Stats</DialogTitle>
+                                  <DialogDescription>
+                                    Update user credits, tokens, and loyalty points
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label>Credits (IDR)</Label>
+                                    <Input 
+                                      type="number" 
+                                      placeholder="Credits"
+                                      defaultValue={user.credits}
+                                      onChange={(e) => setEditUserData({...editUserData, credits: e.target.value})}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Tokens</Label>
+                                    <Input 
+                                      type="number" 
+                                      placeholder="Tokens"
+                                      defaultValue={user.tokens || 0}
+                                      onChange={(e) => setEditUserData({...editUserData, tokens: parseInt(e.target.value)})}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Loyalty Points</Label>
+                                    <Input 
+                                      type="number" 
+                                      placeholder="Points"
+                                      defaultValue={user.loyaltyPoints}
+                                      onChange={(e) => setEditUserData({...editUserData, loyaltyPoints: parseInt(e.target.value)})}
+                                    />
+                                  </div>
+                                  <Button 
+                                    onClick={() => {
+                                      updateUserStatsMutation.mutate({
+                                        userId: user.id,
+                                        credits: editUserData.credits,
+                                        tokens: editUserData.tokens,
+                                        loyaltyPoints: editUserData.loyaltyPoints
+                                      });
+                                    }}
+                                    disabled={updateUserStatsMutation.isPending}
+                                    className="w-full"
+                                  >
+                                    Update Stats
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
