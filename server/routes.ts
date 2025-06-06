@@ -2200,17 +2200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   */
 
-  // Get daily care status
-  app.get('/api/pets/:petId/care-status', isAuthenticated, async (req: any, res) => {
-    try {
-      const petId = parseInt(req.params.petId);
-      const careStatus = await storage.getTodaysCareStatus(petId);
-      res.json(careStatus || {});
-    } catch (error) {
-      console.error("Error fetching care status:", error);
-      res.status(500).json({ message: "Failed to fetch care status" });
-    }
-  });
+  // DUPLICATE ROUTE REMOVED - kept the one at line 2833
 
   // Marketplace routes
   app.get('/api/marketplace/listings', async (req, res) => {
