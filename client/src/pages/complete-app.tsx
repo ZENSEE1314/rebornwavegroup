@@ -2593,16 +2593,23 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 )}
               </div>
 
-              {/* Description */}
+              {/* Service Category */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Deskripsi (Opsional)" : "Description (Optional)"}
+                  {language === "id" ? "Kategori Layanan" : "Service Category"}
                 </label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={language === "id" ? "Contoh: Makan malam, layanan spa, dll." : "e.g., Dinner, spa service, etc."}
-                />
+                <Select value={description} onValueChange={setDescription}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={language === "id" ? "Pilih kategori layanan" : "Select service category"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="KTV Level 1">KTV Level 1</SelectItem>
+                    <SelectItem value="KTV Level 2">KTV Level 2</SelectItem>
+                    <SelectItem value="KTV VIP">KTV VIP</SelectItem>
+                    <SelectItem value="Sky Bar">Sky Bar</SelectItem>
+                    <SelectItem value="Beauty Spa">Beauty Spa</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Image Upload */}
