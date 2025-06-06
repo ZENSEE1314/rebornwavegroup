@@ -2398,7 +2398,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     console.log("Modal save button clicked - triggering pet name edit mutation:", {
                       petId: editingPetName,
                       newName: newPetName.trim(),
-                      currentTokens: user?.loyaltyPoints
+                      currentTokens: user?.tokens
                     });
                     editPetNameMutation.mutate({
                       petId: editingPetName,
