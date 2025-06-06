@@ -679,6 +679,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
       setEditingPetName(null);
       setNewPetName("");
       toast({
@@ -5874,7 +5876,7 @@ export default function CompleteApp() {
                   <span>
                     {historyFilter === 'points' && (language === "id" ? "Riwayat Poin" : "Points History")}
                     {historyFilter === 'credits' && (language === "id" ? "Riwayat Kredit" : "Credits History")}
-                    {historyFilter === 'tokens' && (language === "id" ? "Riwayat Token" : "Token Claims History")}
+                    {historyFilter === 'tokens' && (language === "id" ? "Riwayat Token" : "Token History")}
                     {historyFilter === 'appointments' && (language === "id" ? "Riwayat Booking" : "Booking History")}
                     {historyFilter === 'redemptions' && (language === "id" ? "Riwayat Penukaran" : "Redemption History")}
                   </span>
@@ -7242,7 +7244,7 @@ export default function CompleteApp() {
                     <div className="text-center py-8">
                       <div className="text-gray-500 mb-4 text-4xl">🪙</div>
                       <p className="text-gray-500">
-                        {language === "id" ? "Tidak ada riwayat klaim token" : "No token claim history"}
+                        {language === "id" ? "Tidak ada riwayat token" : "No token history"}
                       </p>
                     </div>
                   );
@@ -7251,33 +7253,45 @@ export default function CompleteApp() {
                 return (
                   <>
                     <div className="space-y-3">
-                      {paginatedClaims.map((claim: any, index: number) => (
-                        <div key={claim.id || index} className="border rounded-lg p-4 bg-orange-50">
+                      {paginatedClaims.map((transaction: any, index: number) => (
+                        <div key={transaction.id || index} className={`border rounded-lg p-4 ${
+                          transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'bg-green-50' : 
+                          transaction.type === 'pet_name_change' || transaction.type === 'energy_potion' ? 'bg-red-50' : 'bg-orange-50'
+                        }`}>
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-orange-600">🪙</span>
+                                <span className={
+                                  transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 
+                                  'text-green-600' : 'text-red-600'
+                                }>
+                                  {transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? '➕' : '➖'}
+                                </span>
                                 <span className="font-semibold">
-                                  {claim.tokensRequested || claim.tokenAmount} {language === "id" ? "Token" : "Tokens"}
+                                  {Math.abs(transaction.pointsEarned || transaction.tokensRequested || transaction.tokensAwarded || 0)} {language === "id" ? "Token" : "Tokens"}
                                 </span>
                               </div>
-                              <p className="text-sm text-gray-600 mb-1">
-                                {new Date(claim.createdAt || claim.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                              <p className="text-sm text-gray-800 mb-1">
+                                {transaction.description || 
+                                 (transaction.type === 'token_claim' ? `Token claim: ${transaction.tokensAwarded} tokens` : 'Token transaction')}
                               </p>
-                              {claim.adminNotes && (
+                              <p className="text-sm text-gray-600 mb-1">
+                                {new Date(transaction.createdAt || transaction.requestedAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                              </p>
+                              {(transaction.adminNotes || transaction.notes) && (
                                 <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
-                                  {language === "id" ? "Catatan: " : "Notes: "}{claim.adminNotes}
+                                  {language === "id" ? "Catatan: " : "Notes: "}{transaction.adminNotes || transaction.notes}
                                 </p>
                               )}
                             </div>
                             <div className="text-right">
                               <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                claim.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                claim.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                transaction.status === 'approved' || transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                transaction.status === 'rejected' ? 'bg-red-100 text-red-800' :
                                 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {claim.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
-                                 claim.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
+                                {transaction.status === 'approved' || transaction.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
+                                 transaction.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
                                  (language === "id" ? "Menunggu" : "Pending")}
                               </div>
                             </div>
