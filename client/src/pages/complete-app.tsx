@@ -2237,17 +2237,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   </div>
                   <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-full rounded-full"
+                      className="h-full rounded-full absolute top-0 left-0"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: '100%',
-                        transform: `scaleX(${(safePets[currentPetIndex].happiness || 0) / 100})`,
-                        transformOrigin: 'left',
-                        transition: 'none'
+                        width: `${safePets[currentPetIndex].happiness || 0}%`,
+                        maxWidth: '100%'
                       }}
-                      key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness || 0}-${Date.now()}`}
+                      key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness || 0}`}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2275,17 +2273,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   </div>
                   <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-full rounded-full"
+                      className="h-full rounded-full absolute top-0 left-0"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: '100%',
-                        transform: `scaleX(${(safePets[currentPetIndex].hunger || 0) / 100})`,
-                        transformOrigin: 'left',
-                        transition: 'none'
+                        width: `${safePets[currentPetIndex].hunger || 0}%`,
+                        maxWidth: '100%'
                       }}
-                      key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger || 0}-${Date.now()}`}
+                      key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger || 0}`}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2313,17 +2309,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   </div>
                   <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-full rounded-full"
+                      className="h-full rounded-full absolute top-0 left-0"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: '100%',
-                        transform: `scaleX(${(safePets[currentPetIndex].cleanliness || 0) / 100})`,
-                        transformOrigin: 'left',
-                        transition: 'none'
+                        width: `${safePets[currentPetIndex].cleanliness || 0}%`,
+                        maxWidth: '100%'
                       }}
-                      key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness || 0}-${Date.now()}`}
+                      key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness || 0}`}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2358,17 +2352,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   </div>
                   <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-full rounded-full"
+                      className="h-full rounded-full absolute top-0 left-0"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: '100%',
-                        transform: `scaleX(${(safePets[currentPetIndex].energy || 0) / 100})`,
-                        transformOrigin: 'left',
-                        transition: 'none'
+                        width: `${safePets[currentPetIndex].energy || 0}%`,
+                        maxWidth: '100%'
                       }}
-                      key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy || 0}-${Date.now()}`}
+                      key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy || 0}`}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
