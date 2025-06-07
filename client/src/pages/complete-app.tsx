@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useLayoutEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -512,11 +512,8 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Safe pets array with proper fallback - define this first to avoid crashes
   const safePets = Array.isArray(pets) ? pets : [];
   
-  // Force refresh when pet data changes with direct DOM updates
-  useEffect(() => {
-    setForceRefresh(prev => prev + 1);
-    
-    // Direct DOM manipulation to bypass React reconciliation
+  // Synchronous DOM update using useLayoutEffect for immediate visual changes
+  useLayoutEffect(() => {
     if (safePets.length > 0 && safePets[currentPetIndex]) {
       const currentPet = safePets[currentPetIndex];
       
@@ -529,21 +526,67 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       if (hungerBar) {
         hungerBar.style.width = `${currentPet.hunger || 0}%`;
         hungerBar.style.transform = `scaleX(${(currentPet.hunger || 0) / 100})`;
+        hungerBar.style.transformOrigin = 'left';
       }
       if (happinessBar) {
         happinessBar.style.width = `${currentPet.happiness || 0}%`;
         happinessBar.style.transform = `scaleX(${(currentPet.happiness || 0) / 100})`;
+        happinessBar.style.transformOrigin = 'left';
       }
       if (cleanlinessBar) {
         cleanlinessBar.style.width = `${currentPet.cleanliness || 0}%`;
         cleanlinessBar.style.transform = `scaleX(${(currentPet.cleanliness || 0) / 100})`;
+        cleanlinessBar.style.transformOrigin = 'left';
       }
       if (energyBar) {
         energyBar.style.width = `${currentPet.energy || 0}%`;
         energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
+        energyBar.style.transformOrigin = 'left';
       }
     }
+  });
+
+  // Force refresh when pet data changes
+  useEffect(() => {
+    setForceRefresh(prev => prev + 1);
   }, [pets, safePets, currentPetIndex]);
+
+  // Aggressive timer-based refresh for visual updates
+  useEffect(() => {
+    const aggressiveUpdate = setInterval(() => {
+      if (safePets.length > 0 && safePets[currentPetIndex]) {
+        const currentPet = safePets[currentPetIndex];
+        
+        // Force DOM updates every 500ms
+        const hungerBar = document.querySelector(`[data-stat="hunger-${currentPet.id}"]`) as HTMLElement;
+        const happinessBar = document.querySelector(`[data-stat="happiness-${currentPet.id}"]`) as HTMLElement;
+        const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${currentPet.id}"]`) as HTMLElement;
+        const energyBar = document.querySelector(`[data-stat="energy-${currentPet.id}"]`) as HTMLElement;
+        
+        if (hungerBar) {
+          hungerBar.style.width = `${currentPet.hunger || 0}%`;
+          hungerBar.style.transform = `scaleX(${(currentPet.hunger || 0) / 100})`;
+        }
+        if (happinessBar) {
+          happinessBar.style.width = `${currentPet.happiness || 0}%`;
+          happinessBar.style.transform = `scaleX(${(currentPet.happiness || 0) / 100})`;
+        }
+        if (cleanlinessBar) {
+          cleanlinessBar.style.width = `${currentPet.cleanliness || 0}%`;
+          cleanlinessBar.style.transform = `scaleX(${(currentPet.cleanliness || 0) / 100})`;
+        }
+        if (energyBar) {
+          energyBar.style.width = `${currentPet.energy || 0}%`;
+          energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
+        }
+        
+        // Force state refresh
+        setForceRefresh(prev => prev + 1);
+      }
+    }, 500);
+
+    return () => clearInterval(aggressiveUpdate);
+  }, [safePets, currentPetIndex]);
   
   // Debug logging to track what data we're getting
   useEffect(() => {
