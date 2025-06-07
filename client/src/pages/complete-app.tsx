@@ -1203,6 +1203,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const cleanliness = isDead ? 0 : calculateCleanliness(pet.lastCareDate);
             const energy = isDead ? 0 : (pet.energy || 50); // Use stored energy value
             
+            // Debug logging to see calculated values
+            console.log(`Pet ${pet.name} stats - Hunger: ${hunger}, Cleanliness: ${cleanliness}, Energy: ${energy}, Raw pet data:`, {
+              petHunger: pet.hunger,
+              petCleanliness: pet.cleanliness,
+              petEnergy: pet.energy,
+              lastFedAt: pet.lastFedAt,
+              lastCareDate: pet.lastCareDate,
+              isDead: isDead
+            });
+            
             // Calculate happiness decay over time
             const calculateHappiness = () => {
               if (isDead) return 0;
