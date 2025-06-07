@@ -809,79 +809,31 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       }
     },
     onSuccess: async (data) => {
-      // Force complete cache invalidation and refetch
-      await queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      console.log('=== CARE ACTIVITY SUCCESS HANDLER ===');
+      console.log('Response data:', data);
       
-      // Also invalidate user stats in case tokens were awarded
-      await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      // Immediate cache invalidation
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
       
-      // Aggressive DOM manipulation with forced reflows
-      if (data && data.pet) {
-        const petId = data.pet.id;
-        const updatedPet = data.pet;
-        
-        // Find all progress bars for this pet
-        const allProgressBars = document.querySelectorAll(`[data-stat*="${petId}"]`) as NodeListOf<HTMLElement>;
-        const allValueDisplays = document.querySelectorAll(`span[style*="color"]`) as NodeListOf<HTMLElement>;
-        
-        // Update each stat individually with forced reflow
-        ['hunger', 'happiness', 'cleanliness', 'energy'].forEach(stat => {
-          const value = updatedPet[stat];
-          if (value !== undefined) {
-            // Update progress bar
-            const progressBar = document.querySelector(`[data-stat="${stat}-${petId}"]`) as HTMLElement;
-            if (progressBar) {
-              // Force immediate style changes
-              progressBar.style.width = '0%';
-              progressBar.offsetHeight; // Force reflow
-              progressBar.style.width = `${value}%`;
-              progressBar.style.backgroundColor = value >= 75 ? '#10b981' : value >= 50 ? '#8b5cf6' : value >= 25 ? '#3b82f6' : '#ef4444';
-              progressBar.offsetHeight; // Force another reflow
-              
-              // Add visual feedback
-              progressBar.style.transition = 'width 0.5s ease-out';
-              progressBar.classList.add('animate-pulse');
-              setTimeout(() => progressBar.classList.remove('animate-pulse'), 600);
-            }
-            
-            // Update text displays
-            const textElements = document.querySelectorAll(`*:contains("${value}%")`);
-            textElements.forEach(el => {
-              if (el.textContent?.includes('%')) {
-                el.textContent = el.textContent.replace(/\d+%/, `${value}%`);
-              }
-            });
-          }
-        });
-        
-        // Use vanilla JavaScript DOM manipulation to force visual updates
-        forceProgressBarUpdate(petId, updatedPet);
-        
-        // Force complete component re-render
-        setForceRefresh(Date.now());
-      }
+      // Force immediate refetch with fresh data
+      const freshPetData = await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      console.log('Fresh pet data after mutation:', freshPetData);
       
-      // Multiple refetch attempts with delays
-      setTimeout(async () => {
-        await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-        setForceRefresh(Date.now());
-        
-        // Force DOM update again after refetch
-        if (data && data.pet) {
-          forceProgressBarUpdate(data.pet.id, data.pet);
+      // Force component re-render with timestamp
+      setForceRefresh(Date.now());
+      
+      // Add visual feedback with success animation
+      setTimeout(() => {
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement) {
+          activeElement.style.transform = 'scale(1.1)';
+          activeElement.style.transition = 'transform 0.2s ease';
+          setTimeout(() => {
+            activeElement.style.transform = 'scale(1)';
+          }, 200);
         }
-      }, 100);
-      
-      setTimeout(async () => {
-        await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-        setForceRefresh(Date.now());
-        
-        // Final DOM update
-        if (data && data.pet) {
-          forceProgressBarUpdate(data.pet.id, data.pet);
-        }
-      }, 500);
+      }, 50);
       
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
