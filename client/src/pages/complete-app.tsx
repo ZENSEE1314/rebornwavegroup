@@ -2086,14 +2086,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <span className="text-sm font-medium">Happiness</span>
                   </div>
                   <div className="relative">
-                    <Progress 
-                      key={`happiness-progress-${safePets[currentPetIndex].happiness}`}
-                      value={safePets[currentPetIndex].happiness || 0} 
-                      className={`h-2 ${(safePets[currentPetIndex].happiness || 0) >= 75 ? '[&>div]:bg-green-500' :
-                        (safePets[currentPetIndex].happiness || 0) >= 50 ? '[&>div]:bg-purple-500' :
-                        (safePets[currentPetIndex].happiness || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
-                      }`}
-                    />
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          (safePets[currentPetIndex].happiness || 0) >= 75 ? 'bg-green-500' :
+                          (safePets[currentPetIndex].happiness || 0) >= 50 ? 'bg-purple-500' :
+                          (safePets[currentPetIndex].happiness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${safePets[currentPetIndex].happiness || 0}%` }}
+                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${Date.now()}`}
+                      />
+                    </div>
                   </div>
                   <span className="text-xs text-gray-600" key={`happiness-text-${safePets[currentPetIndex].happiness}`}>
                     {safePets[currentPetIndex].happiness || 0}%
@@ -2105,14 +2108,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
                   <div className="relative">
-                    <Progress 
-                      key={`hunger-progress-${safePets[currentPetIndex].hunger}`}
-                      value={safePets[currentPetIndex].hunger || 0} 
-                      className={`h-2 ${(safePets[currentPetIndex].hunger || 0) >= 75 ? '[&>div]:bg-green-500' :
-                        (safePets[currentPetIndex].hunger || 0) >= 50 ? '[&>div]:bg-purple-500' :
-                        (safePets[currentPetIndex].hunger || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
-                      }`}
-                    />
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          (safePets[currentPetIndex].hunger || 0) >= 75 ? 'bg-green-500' :
+                          (safePets[currentPetIndex].hunger || 0) >= 50 ? 'bg-purple-500' :
+                          (safePets[currentPetIndex].hunger || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${safePets[currentPetIndex].hunger || 0}%` }}
+                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${Date.now()}`}
+                      />
+                    </div>
                   </div>
                   <span className="text-xs text-gray-600" key={`hunger-text-${safePets[currentPetIndex].hunger}`}>
                     {safePets[currentPetIndex].hunger || 0}%
@@ -2124,14 +2130,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     <span className="text-sm font-medium">Cleanliness</span>
                   </div>
                   <div className="relative">
-                    <Progress 
-                      key={`cleanliness-progress-${safePets[currentPetIndex].cleanliness}`}
-                      value={safePets[currentPetIndex].cleanliness || 0} 
-                      className={`h-2 ${(safePets[currentPetIndex].cleanliness || 0) >= 75 ? '[&>div]:bg-green-500' :
-                        (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '[&>div]:bg-purple-500' :
-                        (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
-                      }`}
-                    />
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          (safePets[currentPetIndex].cleanliness || 0) >= 75 ? 'bg-green-500' :
+                          (safePets[currentPetIndex].cleanliness || 0) >= 50 ? 'bg-purple-500' :
+                          (safePets[currentPetIndex].cleanliness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${safePets[currentPetIndex].cleanliness || 0}%` }}
+                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${Date.now()}`}
+                      />
+                    </div>
                   </div>
                   <span className="text-xs text-gray-600" key={`cleanliness-text-${safePets[currentPetIndex].cleanliness}`}>
                     {safePets[currentPetIndex].cleanliness || 0}%
