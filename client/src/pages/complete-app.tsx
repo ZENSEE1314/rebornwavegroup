@@ -2235,16 +2235,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].happiness || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
+                  <div className="relative w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
+                      className="absolute top-0 left-0 h-6 flex items-center justify-start text-xs font-bold text-white pl-2 transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].happiness || 0))}%`,
-                        flexShrink: 0,
-                        borderRadius: (safePets[currentPetIndex].happiness || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
+                        width: `${(safePets[currentPetIndex].happiness || 0)}%`,
+                        borderRadius: '0.375rem'
                       }}
                     >
                       💖 {safePets[currentPetIndex].happiness || 0}%
@@ -2268,16 +2267,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].hunger || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
+                  <div className="relative w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
+                      className="absolute top-0 left-0 h-6 flex items-center justify-start text-xs font-bold text-white pl-2 transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].hunger || 0))}%`,
-                        flexShrink: 0,
-                        borderRadius: (safePets[currentPetIndex].hunger || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
+                        width: `${(safePets[currentPetIndex].hunger || 0)}%`,
+                        borderRadius: '0.375rem'
                       }}
                     >
                       🍎 {safePets[currentPetIndex].hunger || 0}%
@@ -2301,16 +2299,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].cleanliness || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
+                  <div className="relative w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
+                      className="absolute top-0 left-0 h-6 flex items-center justify-start text-xs font-bold text-white pl-2 transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].cleanliness || 0))}%`,
-                        flexShrink: 0,
-                        borderRadius: (safePets[currentPetIndex].cleanliness || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
+                        width: `${(safePets[currentPetIndex].cleanliness || 0)}%`,
+                        borderRadius: '0.375rem'
                       }}
                     >
                       💧 {safePets[currentPetIndex].cleanliness || 0}%
@@ -2341,16 +2338,15 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].energy || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
+                  <div className="relative w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
+                      className="absolute top-0 left-0 h-6 flex items-center justify-start text-xs font-bold text-white pl-2 transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].energy || 0))}%`,
-                        flexShrink: 0,
-                        borderRadius: (safePets[currentPetIndex].energy || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
+                        width: `${(safePets[currentPetIndex].energy || 0)}%`,
+                        borderRadius: '0.375rem'
                       }}
                     >
                       ⚡ {safePets[currentPetIndex].energy || 0}%
