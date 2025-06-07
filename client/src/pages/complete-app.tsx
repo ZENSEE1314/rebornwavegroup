@@ -2242,9 +2242,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].happiness || 0}%`
+                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].happiness || 0))}%`,
+                        minWidth: '0%'
                       }}
                       data-stat={`happiness-${safePets[currentPetIndex].id}`}
+                      ref={(el) => {
+                        if (el) {
+                          console.log('Happiness bar width:', safePets[currentPetIndex].happiness, `${safePets[currentPetIndex].happiness || 0}%`);
+                          el.style.width = `${Math.max(0, Math.min(100, safePets[currentPetIndex].happiness || 0))}%`;
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2277,9 +2284,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].hunger || 0}%`
+                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].hunger || 0))}%`,
+                        minWidth: '0%'
                       }}
                       data-stat={`hunger-${safePets[currentPetIndex].id}`}
+                      ref={(el) => {
+                        if (el) {
+                          console.log('Hunger bar width:', safePets[currentPetIndex].hunger, `${safePets[currentPetIndex].hunger || 0}%`);
+                          el.style.width = `${Math.max(0, Math.min(100, safePets[currentPetIndex].hunger || 0))}%`;
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2312,9 +2326,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].cleanliness || 0}%`
+                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].cleanliness || 0))}%`,
+                        minWidth: '0%'
                       }}
                       data-stat={`cleanliness-${safePets[currentPetIndex].id}`}
+                      ref={(el) => {
+                        if (el) {
+                          console.log('Cleanliness bar width:', safePets[currentPetIndex].cleanliness, `${safePets[currentPetIndex].cleanliness || 0}%`);
+                          el.style.width = `${Math.max(0, Math.min(100, safePets[currentPetIndex].cleanliness || 0))}%`;
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <span className="text-xs font-bold text-white drop-shadow-lg">
@@ -2354,9 +2375,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].energy || 0}%`
-                        }}
-                        data-stat={`energy-${safePets[currentPetIndex].id}`}
+                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].energy || 0))}%`,
+                        minWidth: '0%'
+                      }}
+                      data-stat={`energy-${safePets[currentPetIndex].id}`}
+                      ref={(el) => {
+                        if (el) {
+                          console.log('Energy bar width:', safePets[currentPetIndex].energy, `${safePets[currentPetIndex].energy || 0}%`);
+                          el.style.width = `${Math.max(0, Math.min(100, safePets[currentPetIndex].energy || 0))}%`;
+                        }
+                      }}
                         key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
