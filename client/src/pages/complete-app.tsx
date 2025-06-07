@@ -499,11 +499,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Fetch user's pets with real-time updates
   const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
-    queryKey: ["/api/pets"],
+    queryKey: ["/api/pets", currentTime], // Include currentTime to force refresh
     enabled: !!user?.id,
     retry: 1,
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache pet data
+    gcTime: 0, // Don't cache pet data (v5 syntax)
     refetchInterval: 1000, // Update every second for immediate feedback
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -511,6 +511,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Safe pets array with proper fallback - define this first to avoid crashes
   const safePets = Array.isArray(pets) ? pets : [];
+  
+  // Debug logging to track what data we're getting
+  useEffect(() => {
+    if (safePets.length > 0 && safePets[currentPetIndex]) {
+      console.log('Current pet data in UI:', {
+        id: safePets[currentPetIndex].id,
+        name: safePets[currentPetIndex].name,
+        hunger: safePets[currentPetIndex].hunger,
+        happiness: safePets[currentPetIndex].happiness,
+        cleanliness: safePets[currentPetIndex].cleanliness,
+        energy: safePets[currentPetIndex].energy,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [safePets, currentPetIndex]);
 
   // Auto decay system - runs every 3 minutes for all pets
   useEffect(() => {
@@ -1981,7 +1996,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       {safePets.length > 0 && safePets[currentPetIndex] && (
         <>
           {/* Pet Info */}
-          <Card>
+          <Card key={`pet-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].energy}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
