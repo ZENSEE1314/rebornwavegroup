@@ -761,13 +761,45 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         throw error;
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       // Force complete cache invalidation and refetch
       await queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       
       // Also invalidate user stats in case tokens were awarded
       await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      
+      // Direct DOM manipulation to force immediate visual updates
+      if (data && data.pet) {
+        const petId = data.pet.id;
+        const updatedPet = data.pet;
+        
+        // Update progress bars directly using the data attributes
+        const hungerBar = document.querySelector(`[data-stat="hunger-${petId}"]`) as HTMLElement;
+        const happinessBar = document.querySelector(`[data-stat="happiness-${petId}"]`) as HTMLElement;
+        const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${petId}"]`) as HTMLElement;
+        const energyBar = document.querySelector(`[data-stat="energy-${petId}"]`) as HTMLElement;
+        
+        if (hungerBar && updatedPet.hunger !== undefined) {
+          hungerBar.style.width = `${updatedPet.hunger}%`;
+          hungerBar.style.transform = `scaleX(${updatedPet.hunger / 100})`;
+        }
+        if (happinessBar && updatedPet.happiness !== undefined) {
+          happinessBar.style.width = `${updatedPet.happiness}%`;
+          happinessBar.style.transform = `scaleX(${updatedPet.happiness / 100})`;
+        }
+        if (cleanlinessBar && updatedPet.cleanliness !== undefined) {
+          cleanlinessBar.style.width = `${updatedPet.cleanliness}%`;
+          cleanlinessBar.style.transform = `scaleX(${updatedPet.cleanliness / 100})`;
+        }
+        if (energyBar && updatedPet.energy !== undefined) {
+          energyBar.style.width = `${updatedPet.energy}%`;
+          energyBar.style.transform = `scaleX(${updatedPet.energy / 100})`;
+        }
+        
+        // Force a state update to trigger re-render
+        setForceRefresh(prev => prev + 1);
+      }
       
       // Add a small delay to ensure database updates are reflected
       setTimeout(async () => {
