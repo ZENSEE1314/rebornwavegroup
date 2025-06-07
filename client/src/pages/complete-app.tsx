@@ -813,42 +813,59 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       // Also invalidate user stats in case tokens were awarded
       await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
       
-      // Direct DOM manipulation to force immediate visual updates
+      // Aggressive DOM manipulation with forced reflows
       if (data && data.pet) {
         const petId = data.pet.id;
         const updatedPet = data.pet;
         
-        // Update progress bars directly using the data attributes
-        const hungerBar = document.querySelector(`[data-stat="hunger-${petId}"]`) as HTMLElement;
-        const happinessBar = document.querySelector(`[data-stat="happiness-${petId}"]`) as HTMLElement;
-        const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${petId}"]`) as HTMLElement;
-        const energyBar = document.querySelector(`[data-stat="energy-${petId}"]`) as HTMLElement;
+        // Find all progress bars for this pet
+        const allProgressBars = document.querySelectorAll(`[data-stat*="${petId}"]`) as NodeListOf<HTMLElement>;
+        const allValueDisplays = document.querySelectorAll(`span[style*="color"]`) as NodeListOf<HTMLElement>;
         
-        if (hungerBar && updatedPet.hunger !== undefined) {
-          hungerBar.style.width = `${updatedPet.hunger}%`;
-          hungerBar.style.transform = `scaleX(${updatedPet.hunger / 100})`;
-        }
-        if (happinessBar && updatedPet.happiness !== undefined) {
-          happinessBar.style.width = `${updatedPet.happiness}%`;
-          happinessBar.style.transform = `scaleX(${updatedPet.happiness / 100})`;
-        }
-        if (cleanlinessBar && updatedPet.cleanliness !== undefined) {
-          cleanlinessBar.style.width = `${updatedPet.cleanliness}%`;
-          cleanlinessBar.style.transform = `scaleX(${updatedPet.cleanliness / 100})`;
-        }
-        if (energyBar && updatedPet.energy !== undefined) {
-          energyBar.style.width = `${updatedPet.energy}%`;
-          energyBar.style.transform = `scaleX(${updatedPet.energy / 100})`;
-        }
+        // Update each stat individually with forced reflow
+        ['hunger', 'happiness', 'cleanliness', 'energy'].forEach(stat => {
+          const value = updatedPet[stat];
+          if (value !== undefined) {
+            // Update progress bar
+            const progressBar = document.querySelector(`[data-stat="${stat}-${petId}"]`) as HTMLElement;
+            if (progressBar) {
+              // Force immediate style changes
+              progressBar.style.width = '0%';
+              progressBar.offsetHeight; // Force reflow
+              progressBar.style.width = `${value}%`;
+              progressBar.style.backgroundColor = value >= 75 ? '#10b981' : value >= 50 ? '#8b5cf6' : value >= 25 ? '#3b82f6' : '#ef4444';
+              progressBar.offsetHeight; // Force another reflow
+              
+              // Add visual feedback
+              progressBar.style.transition = 'width 0.5s ease-out';
+              progressBar.classList.add('animate-pulse');
+              setTimeout(() => progressBar.classList.remove('animate-pulse'), 600);
+            }
+            
+            // Update text displays
+            const textElements = document.querySelectorAll(`*:contains("${value}%")`);
+            textElements.forEach(el => {
+              if (el.textContent?.includes('%')) {
+                el.textContent = el.textContent.replace(/\d+%/, `${value}%`);
+              }
+            });
+          }
+        });
         
-        // Force a state update to trigger re-render
-        setForceRefresh(prev => prev + 1);
+        // Force complete component re-render
+        setForceRefresh(Date.now());
       }
       
-      // Add a small delay to ensure database updates are reflected
+      // Multiple refetch attempts with delays
       setTimeout(async () => {
         await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+        setForceRefresh(Date.now());
       }, 100);
+      
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+        setForceRefresh(Date.now());
+      }, 500);
       
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",

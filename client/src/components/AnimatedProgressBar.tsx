@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface AnimatedProgressBarProps {
   value: number;
@@ -17,34 +17,61 @@ export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
   petId, 
   statType 
 }) => {
-  const uniqueKey = `${statType}-${petId}-${value}-${Date.now()}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const valueRef = useRef<HTMLSpanElement>(null);
+  
+  // Force immediate DOM update with direct manipulation
+  useEffect(() => {
+    if (progressRef.current && valueRef.current) {
+      // Immediately update width and text
+      progressRef.current.style.width = `${value}%`;
+      progressRef.current.style.backgroundColor = color;
+      valueRef.current.textContent = `${value}%`;
+      
+      // Force repaint
+      progressRef.current.offsetHeight;
+      
+      // Add animation class to trigger visual change
+      progressRef.current.classList.remove('animate-pulse');
+      progressRef.current.offsetHeight; // Force reflow
+      progressRef.current.classList.add('animate-pulse');
+      
+      // Remove animation after completion
+      setTimeout(() => {
+        if (progressRef.current) {
+          progressRef.current.classList.remove('animate-pulse');
+        }
+      }, 500);
+    }
+  }, [value, color]);
   
   return (
-    <div className="space-y-2" key={uniqueKey}>
+    <div className="space-y-2" ref={containerRef}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">{icon}</span>
           <span className="text-sm font-medium">{label}</span>
         </div>
-        <span className="text-lg font-bold" style={{ color }}>
+        <span 
+          className="text-lg font-bold" 
+          style={{ color }}
+          ref={valueRef}
+        >
           {value}%
         </span>
       </div>
       <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
         <div 
-          className={`h-full rounded-full progress-bar-animated`}
+          ref={progressRef}
+          className="h-full rounded-full transition-all duration-300"
           style={{ 
             backgroundColor: color,
-            width: `${value}%`,
-            animationName: `fill-${value}`,
-            animationDuration: '0.8s',
-            animationTimingFunction: 'ease-out',
-            animationFillMode: 'forwards'
+            width: `${value}%`
           }}
           data-stat={`${statType}-${petId}`}
-          key={`bar-${uniqueKey}`}
         />
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <span className="text-xs font-bold text-white drop-shadow-lg">
             {icon} {value}/100
           </span>
