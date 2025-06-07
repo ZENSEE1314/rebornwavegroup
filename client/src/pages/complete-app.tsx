@@ -793,12 +793,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Pet care mutations
   const careActivityMutation = useMutation({
     mutationFn: async ({ petId, careType }: { petId: number; careType: string }) => {
+      console.log('=== CARE ACTIVITY MUTATION START ===');
+      console.log('Pet ID:', petId);
+      console.log('Care Type:', careType);
       console.log('Making API call to:', `/api/pets/${petId}/care/${careType}`);
       try {
         const result = await apiRequest("POST", `/api/pets/${petId}/care/${careType}`, {});
         console.log('API call successful:', result);
+        console.log('=== CARE ACTIVITY MUTATION SUCCESS ===');
         return result;
       } catch (error) {
+        console.error('=== CARE ACTIVITY MUTATION ERROR ===');
         console.error('API call failed:', error);
         throw error;
       }
@@ -1480,6 +1485,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
+                          console.log('=== PLAY BUTTON CLICKED ===');
+                          console.log('Pet ID:', pet.id);
+                          console.log('Care Type: play');
+                          console.log('Mutation pending:', careActivityMutation.isPending);
                           careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
