@@ -13,34 +13,43 @@ export function useWebSocket(enabled: boolean = true) {
       return;
     }
 
-    // Additional safety check for environment
-    const currentHost = window.location.host;
-    const isValidEnvironment = currentHost && 
-                              !currentHost.includes('undefined') && 
-                              currentHost !== 'localhost:undefined' &&
-                              currentHost.includes(':') &&
-                              !currentHost.endsWith(':undefined');
+    // Only connect for admin users in valid environments
+    if (typeof window === 'undefined') {
+      return;
+    }
 
-    if (!isValidEnvironment) {
+    const currentHost = window.location.host;
+    const currentProtocol = window.location.protocol;
+    
+    // Strict environment validation
+    if (!currentHost || 
+        currentHost.includes('undefined') || 
+        currentHost === 'localhost:undefined' ||
+        !currentHost.includes(':')) {
+      return;
+    }
+
+    const hostParts = currentHost.split(':');
+    if (hostParts.length !== 2) {
+      return;
+    }
+
+    const hostname = hostParts[0];
+    const port = hostParts[1];
+    
+    if (!hostname || !port || port === 'undefined' || isNaN(Number(port))) {
+      return;
+    }
+
+    const numericPort = Number(port);
+    if (numericPort < 1000 || numericPort > 65535) {
       return;
     }
 
     try {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = window.location.host;
+      const protocol = currentProtocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${currentHost}/ws`;
       
-      // Final validation before creating WebSocket
-      const hostParts = host.split(':');
-      if (hostParts.length !== 2 || !hostParts[1] || hostParts[1] === 'undefined') {
-        return;
-      }
-      
-      const port = Number(hostParts[1]);
-      if (isNaN(port) || port < 1000 || port > 65535) {
-        return;
-      }
-      
-      const wsUrl = `${protocol}//${host}/ws`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
