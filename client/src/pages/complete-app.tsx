@@ -1391,182 +1391,56 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
                     {/* Pet Stats with Real-time Values */}
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
+                      <div className="text-center p-4 bg-gray-50 rounded-lg">
+                        <div className="text-2xl mb-2">😊</div>
+                        <div className="text-sm font-medium text-gray-700">
                           {language === "id" ? "Kebahagiaan" : "Happiness"}
-                          {happiness < 25 && (
-                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
-                              😢 {language === "id" ? "Sedih" : "Sad"}
-                            </span>
-                          )}
-                        </p>
-                        <div className="text-center p-2 bg-gray-50 rounded-lg">
-                          <div className={`text-lg font-bold ${
-                            happiness >= 75 ? 'text-green-600' :
-                            happiness >= 50 ? 'text-yellow-600' :
-                            happiness >= 25 ? 'text-orange-600' : 'text-red-600'
-                          }`}>
-                            {happiness}%
-                          </div>
-                            <span className={`text-xs font-bold ${happiness >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
-                              happiness >= 100 ? 'animate-bounce' : ''
-                            }`}>
-                              😊 {happiness}/100
-                            </span>
-                          </div>
                         </div>
-                        <div className="mt-1 text-center">
-                          {happiness >= 100 && (
-                            <span className="text-xs text-green-600 font-bold animate-bounce">
-                              ✨ {language === "id" ? "Sangat Bahagia!" : "Very Happy!"}
-                            </span>
-                          )}
-                          {happiness < 25 && (
-                            <span className="text-xs text-red-600 font-bold animate-pulse">
-                              💔 {language === "id" ? "Tidak Bahagia" : "Unhappy"}
-                            </span>
-                          )}
+                        <div className={`text-2xl font-bold ${
+                          happiness >= 75 ? 'text-green-600' :
+                          happiness >= 50 ? 'text-purple-600' :
+                          happiness >= 25 ? 'text-blue-600' : 'text-red-600'
+                        }`}>
+                          {happiness}%
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
-                          {language === "id" ? "Rasa Lapar" : "Hunger"}
-                          {hunger < 25 && (
-                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
-                              🍽️ {language === "id" ? "Kelaparan" : "Starving"}
-                            </span>
-                          )}
-                        </p>
-                        <div className="text-center p-2 bg-gray-50 rounded-lg">
-                          <div className={`text-lg font-bold ${
-                            hunger >= 75 ? 'text-green-600' :
-                            hunger >= 50 ? 'text-yellow-600' :
-                            hunger >= 25 ? 'text-orange-600' : 'text-red-600'
-                          }`}>
-                            {hunger}%
+                      <div className="text-center p-4 bg-gray-50 rounded-lg">
+                        <div className="text-2xl mb-2">🍎</div>
+                        <div className="text-sm font-medium text-gray-700">
+                          {language === "id" ? "Lapar" : "Hunger"}
                         </div>
-                        <div className="mt-1 text-center">
-                          {hunger >= 100 && (
-                            <span className="text-xs text-green-600 font-bold animate-bounce">
-                              ✨ {language === "id" ? "Kenyang!" : "Full!"}
-                            </span>
-                          )}
-                          {hunger < 25 && (
-                            <span className="text-xs text-red-600 font-bold animate-pulse">
-                              ⚠️ {language === "id" ? "Sangat Lapar" : "Very Hungry"}
-                            </span>
-                          )}
+                        <div className={`text-2xl font-bold ${
+                          hunger >= 75 ? 'text-green-600' :
+                          hunger >= 50 ? 'text-purple-600' :
+                          hunger >= 25 ? 'text-blue-600' : 'text-red-600'
+                        }`}>
+                          {hunger}%
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
+                      <div className="text-center p-4 bg-gray-50 rounded-lg">
+                        <div className="text-2xl mb-2">🛁</div>
+                        <div className="text-sm font-medium text-gray-700">
                           {language === "id" ? "Kebersihan" : "Cleanliness"}
-                          {cleanliness < 25 && (
-                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full animate-pulse">
-                              🧼 {language === "id" ? "Kotor" : "Dirty"}
-                            </span>
-                          )}
-                        </p>
-                        <div className="relative energy-shimmer">
-                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
-                            <div 
-                              className={`h-full transition-all duration-700 ${
-                                cleanliness >= 100 ? 'energy-full' : 
-                                cleanliness < 25 ? 'energy-low' : ''
-                              }`}
-                              style={{
-                                width: `${cleanliness}%`,
-                                background: cleanliness >= 75 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
-                                  : cleanliness >= 50
-                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                  : cleanliness >= 25
-                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                              }}
-                            />
-                          </div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold ${cleanliness >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
-                              cleanliness >= 100 ? 'animate-bounce' : ''
-                            }`}>
-                              🛁 {cleanliness}/100
-                            </span>
-                          </div>
                         </div>
-                        <div className="mt-1 text-center">
-                          {cleanliness >= 100 && (
-                            <span className="text-xs text-blue-600 font-bold animate-bounce">
-                              ✨ {language === "id" ? "Bersih Sekali!" : "Very Clean!"}
-                            </span>
-                          )}
-                          {cleanliness < 25 && (
-                            <span className="text-xs text-red-600 font-bold animate-pulse">
-                              ⚠️ {language === "id" ? "Sangat Kotor" : "Very Dirty"}
-                            </span>
-                          )}
+                        <div className={`text-2xl font-bold ${
+                          cleanliness >= 75 ? 'text-green-600' :
+                          cleanliness >= 50 ? 'text-purple-600' :
+                          cleanliness >= 25 ? 'text-blue-600' : 'text-red-600'
+                        }`}>
+                          {cleanliness}%
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
+                      <div className="text-center p-4 bg-gray-50 rounded-lg">
+                        <div className="text-2xl mb-2">⚡</div>
+                        <div className="text-sm font-medium text-gray-700">
                           {language === "id" ? "Energi" : "Energy"}
-                          {pet.isSleeping && (
-                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
-                              💤 {language === "id" ? "Mengisi" : "Charging"}
-                            </span>
-                          )}
-                        </p>
-                        <div className="relative energy-shimmer">
-                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
-                            <div 
-                              className={`h-full transition-all duration-700 ${
-                                energy >= 100 ? 'energy-full' : 
-                                pet.isSleeping ? 'energy-charging' :
-                                energy < 25 ? 'energy-low' : ''
-                              }`}
-                              style={{
-                                width: `${energy}%`,
-                                background: energy >= 100 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                                  : energy >= 75 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
-                                  : energy >= 50
-                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                  : energy >= 25
-                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)',
-                                backgroundSize: pet.isSleeping ? '200% 100%' : '100% 100%'
-                              }}
-                            />
-                          </div>
-                          {energy >= 100 && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-40 animate-ping">
-                            </div>
-                          )}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold text-white drop-shadow-lg ${
-                              energy >= 100 ? 'animate-bounce' : ''
-                            }`}>
-                              ⚡ {energy}/100
-                            </span>
-                          </div>
                         </div>
-                        <div className="mt-1 text-center">
-                          {energy >= 100 && (
-                            <span className="text-xs text-green-600 font-bold animate-bounce">
-                              ✨ {language === "id" ? "Penuh!" : "Full!"}
-                            </span>
-                          )}
-                          {energy < 25 && (
-                            <span className="text-xs text-red-600 font-bold animate-pulse">
-                              ⚠️ {language === "id" ? "Rendah" : "Low"}
-                            </span>
-                          )}
-                          {pet.isSleeping && energy < 100 && (
-                            <span className="text-xs text-blue-600">
-                              ⏳ {language === "id" ? "+1 setiap 5 menit" : "+1 every 5 minutes"}
-                            </span>
-                          )}
+                        <div className={`text-2xl font-bold ${
+                          energy >= 75 ? 'text-green-600' :
+                          energy >= 50 ? 'text-purple-600' :
+                          energy >= 25 ? 'text-blue-600' : 'text-red-600'
+                        }`}>
+                          {energy}%
                         </div>
                       </div>
                     </div>
