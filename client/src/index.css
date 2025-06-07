@@ -7,6 +7,16 @@
   from { width: 0%; }
 }
 
+/* Force progress bar visual updates */
+@keyframes forceUpdate {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.9; }
+}
+
+.progress-bar-force-update {
+  animation: forceUpdate 0.4s ease-in-out;
+}
+
 /* Generate dynamic keyframes for each percentage */
 @keyframes fill-0 { to { width: 0%; } }
 @keyframes fill-1 { to { width: 1%; } }

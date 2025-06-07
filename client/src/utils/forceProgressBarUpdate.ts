@@ -1,67 +1,81 @@
 // Force progress bar updates using vanilla JavaScript DOM manipulation
-// This bypasses React's reconciliation system entirely
+// This completely bypasses React's reconciliation system
 
 export function forceProgressBarUpdate(petId: number, stats: any) {
-  // Wait for DOM to be ready
-  setTimeout(() => {
-    const statsToUpdate = ['hunger', 'happiness', 'cleanliness', 'energy'];
-    
-    statsToUpdate.forEach(statType => {
-      const value = stats[statType];
-      if (value !== undefined) {
-        updateProgressBar(petId, statType, value);
-        updateValueDisplay(petId, statType, value);
-      }
-    });
-  }, 50);
-}
-
-function updateProgressBar(petId: number, statType: string, value: number) {
-  // Find progress bar by data attribute
-  const progressBar = document.querySelector(`[data-stat="${statType}-${petId}"]`) as HTMLElement;
+  console.log('FORCE UPDATE CALLED:', petId, stats);
   
-  if (progressBar) {
-    // Force immediate visual update
-    progressBar.style.width = '0%';
-    progressBar.style.transition = 'none';
-    
-    // Force browser reflow
-    progressBar.offsetHeight;
-    
-    // Apply new value with animation
-    progressBar.style.transition = 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
-    progressBar.style.width = `${value}%`;
-    
-    // Update color based on value
-    const color = getColorForValue(value);
-    progressBar.style.backgroundColor = color;
-    
-    // Add pulse animation for visual feedback
-    progressBar.style.animation = 'pulse 0.5s ease-in-out';
-    
-    // Force another reflow
-    progressBar.offsetHeight;
-    
-    // Remove animation after completion
-    setTimeout(() => {
-      progressBar.style.animation = '';
-    }, 500);
-  }
-}
-
-function updateValueDisplay(petId: number, statType: string, value: number) {
-  // Update percentage text displays
-  document.querySelectorAll('span, div').forEach(element => {
-    if (element.textContent?.includes('%')) {
-      // Check if this element is related to our pet and stat
-      const parentContainer = element.closest(`[data-stat*="${petId}"]`);
-      if (parentContainer || element.textContent.includes(statType)) {
-        // Update the percentage value
-        element.textContent = element.textContent.replace(/\d+%/, `${value}%`);
-        element.textContent = element.textContent.replace(/\d+\/100/, `${value}/100`);
+  const statsToUpdate = ['hunger', 'happiness', 'cleanliness', 'energy'];
+  
+  statsToUpdate.forEach(statType => {
+    const value = stats[statType];
+    if (value !== undefined) {
+      console.log(`Updating ${statType} to ${value}% for pet ${petId}`);
+      
+      // Find and completely replace progress bar
+      const container = document.querySelector(`[data-stat="${statType}-${petId}"]`)?.closest('.space-y-2');
+      if (container) {
+        createNewProgressBar(container as HTMLElement, statType, value, petId);
       }
     }
   });
+}
+
+function createNewProgressBar(container: HTMLElement, statType: string, value: number, petId: number) {
+  const color = getColorForValue(value);
+  const icon = getIconForStat(statType);
+  
+  // Create completely new HTML structure
+  const newHTML = `
+    <div class="space-y-2 progress-bar-force-update" data-timestamp="${Date.now()}">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">${icon}</span>
+          <span class="text-sm font-medium">${capitalize(statType)}</span>
+        </div>
+        <span class="text-lg font-bold" style="color: ${color};">
+          ${value}%
+        </span>
+      </div>
+      <div class="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+        <div 
+          class="h-full rounded-full transition-all duration-500"
+          style="
+            background-color: ${color};
+            width: ${value}%;
+            animation: forceUpdate 0.4s ease-in-out;
+          "
+          data-stat="${statType}-${petId}"
+        ></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span class="text-xs font-bold text-white drop-shadow-lg">
+            ${icon} ${value}/100
+          </span>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Replace entire container content
+  container.innerHTML = newHTML;
+  
+  // Force reflow
+  container.offsetHeight;
+  
+  console.log(`Successfully updated ${statType} progress bar to ${value}%`);
+}
+
+function getIconForStat(statType: string): string {
+  const icons = {
+    hunger: '🍖',
+    happiness: '😊',
+    cleanliness: '🛁',
+    energy: '⚡'
+  };
+  return icons[statType as keyof typeof icons] || '📊';
+}
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function getColorForValue(value: number): string {
@@ -73,12 +87,14 @@ function getColorForValue(value: number): string {
 
 // Force complete page refresh of progress bars
 export function refreshAllProgressBars() {
+  console.log('Refreshing all progress bars');
   const allProgressBars = document.querySelectorAll('[data-stat]') as NodeListOf<HTMLElement>;
   
   allProgressBars.forEach(bar => {
-    // Force repaint by changing a style property
     bar.style.transform = 'translateZ(0)';
-    bar.offsetHeight; // Force reflow
+    bar.offsetHeight;
     bar.style.transform = '';
+    bar.classList.add('progress-bar-force-update');
+    setTimeout(() => bar.classList.remove('progress-bar-force-update'), 400);
   });
 }
