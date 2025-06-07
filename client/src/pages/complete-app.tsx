@@ -1198,10 +1198,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
-            // Always use calculated decay values for proper pet lifecycle
-            const hunger = isDead ? 0 : calculateHunger(pet.lastFedAt);
-            const cleanliness = isDead ? 0 : calculateCleanliness(pet.lastCareDate);
-            const energy = isDead ? 0 : (pet.energy || 50); // Use stored energy value
+            // Use current database values directly for accurate display
+            const hunger = isDead ? 0 : (pet.hunger || 0);
+            const cleanliness = isDead ? 0 : (pet.cleanliness || 0);
+            const energy = isDead ? 0 : (pet.energy || 50);
             
             // Debug logging to see calculated values
             console.log(`Pet ${pet.name} stats - Hunger: ${hunger}, Cleanliness: ${cleanliness}, Energy: ${energy}, Raw pet data:`, {
