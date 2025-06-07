@@ -2142,7 +2142,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'cleaned' })}
+                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' })}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
