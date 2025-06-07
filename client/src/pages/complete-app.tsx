@@ -499,12 +499,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Fetch user's pets with real-time updates
   const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
-    queryKey: ["/api/pets", currentTime], // Include currentTime to force refresh
+    queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache pet data (v5 syntax)
-    refetchInterval: 1000, // Update every second for immediate feedback
+    staleTime: 5000, // Consider data fresh for 5 seconds
+    refetchInterval: 5000, // Update every 5 seconds to prevent flashing
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
