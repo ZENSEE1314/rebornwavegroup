@@ -2972,7 +2972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Updating pet stats with:', updateData);
         await storage.updatePetStats(parseInt(petId), updateData);
         console.log('Pet stats updated successfully for bathing');
-      } else if (careType === 'cleaned') {
+      } else if (careType === 'play') {
         // Increase happiness by 25% (play activity) - playing uses energy
         const currentHappiness = pet.happiness || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
