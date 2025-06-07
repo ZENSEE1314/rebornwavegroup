@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useLayoutEffect } from "react";
 import { AnimatedProgressBar } from "@/components/AnimatedProgressBar";
+import { forceProgressBarUpdate } from "@/utils/forceProgressBarUpdate";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -852,6 +853,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           }
         });
         
+        // Use vanilla JavaScript DOM manipulation to force visual updates
+        forceProgressBarUpdate(petId, updatedPet);
+        
         // Force complete component re-render
         setForceRefresh(Date.now());
       }
@@ -860,11 +864,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       setTimeout(async () => {
         await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
         setForceRefresh(Date.now());
+        
+        // Force DOM update again after refetch
+        if (data && data.pet) {
+          forceProgressBarUpdate(data.pet.id, data.pet);
+        }
       }, 100);
       
       setTimeout(async () => {
         await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
         setForceRefresh(Date.now());
+        
+        // Final DOM update
+        if (data && data.pet) {
+          forceProgressBarUpdate(data.pet.id, data.pet);
+        }
       }, 500);
       
       toast({
