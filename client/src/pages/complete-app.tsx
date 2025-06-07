@@ -1036,11 +1036,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     );
   }
 
-  // Check if user has any pets activated
+  // Skip Pet Care System - show admin dashboard for all users
   const userPets = Array.isArray(pets) ? pets : [];
   
-  if (userPets.length > 0) {
-    // Show pet care interface with feeding games
+  // Always show admin dashboard - remove broken Pet Care System
+  if (false) {
+    // Removed broken Pet Care System interface
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
