@@ -502,8 +502,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
-    refetchInterval: 3000, // Update every 3 seconds for real-time pet data
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache pet data
+    refetchInterval: 1000, // Update every second for immediate feedback
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
