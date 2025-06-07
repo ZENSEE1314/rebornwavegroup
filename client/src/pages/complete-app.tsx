@@ -1202,16 +1202,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const hunger = isDead ? 0 : (pet.hunger || 0);
             const cleanliness = isDead ? 0 : (pet.cleanliness || 0);
             const energy = isDead ? 0 : (pet.energy || 50);
-            
-            // Debug logging to see calculated values
-            console.log(`Pet ${pet.name} stats - Hunger: ${hunger}, Cleanliness: ${cleanliness}, Energy: ${energy}, Raw pet data:`, {
-              petHunger: pet.hunger,
-              petCleanliness: pet.cleanliness,
-              petEnergy: pet.energy,
-              lastFedAt: pet.lastFedAt,
-              lastCareDate: pet.lastCareDate,
-              isDead: isDead
-            });
+
             
             // Calculate happiness decay over time
             const calculateHappiness = () => {
@@ -1489,7 +1480,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
-                          careActivityMutation.mutate({ petId: pet.id, careType: 'cleaned' });
+                          careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
