@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useLayoutEffect } from "react";
 import { AnimatedProgressBar } from "@/components/AnimatedProgressBar";
 import { forceProgressBarUpdate } from "@/utils/forceProgressBarUpdate";
 import { useAuth } from "@/hooks/useAuth";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2744,6 +2745,10 @@ export default function CompleteApp() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Enable WebSocket connection for real-time updates
+  useWebSocket(true);
+  
   const [activeTab, setActiveTab] = useState("dashboard");
   
   // State for pending purchases and confirmations
