@@ -2911,7 +2911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Request URL:', req.url);
       console.log('Request method:', req.method);
       
-      if (!['fed', 'bathed', 'slept', 'cleaned'].includes(careType)) {
+      if (!['fed', 'bathed', 'slept', 'cleaned', 'play'].includes(careType)) {
         console.log('ERROR: Invalid care type:', careType);
         return res.status(400).json({ message: "Invalid care type" });
       }
