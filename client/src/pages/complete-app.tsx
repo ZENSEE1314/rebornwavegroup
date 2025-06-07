@@ -512,10 +512,38 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Safe pets array with proper fallback - define this first to avoid crashes
   const safePets = Array.isArray(pets) ? pets : [];
   
-  // Force refresh when pet data changes
+  // Force refresh when pet data changes with direct DOM updates
   useEffect(() => {
     setForceRefresh(prev => prev + 1);
-  }, [pets, safePets]);
+    
+    // Direct DOM manipulation to bypass React reconciliation
+    if (safePets.length > 0 && safePets[currentPetIndex]) {
+      const currentPet = safePets[currentPetIndex];
+      
+      // Update progress bars directly with proper TypeScript casting
+      const hungerBar = document.querySelector(`[data-stat="hunger-${currentPet.id}"]`) as HTMLElement;
+      const happinessBar = document.querySelector(`[data-stat="happiness-${currentPet.id}"]`) as HTMLElement;
+      const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${currentPet.id}"]`) as HTMLElement;
+      const energyBar = document.querySelector(`[data-stat="energy-${currentPet.id}"]`) as HTMLElement;
+      
+      if (hungerBar) {
+        hungerBar.style.width = `${currentPet.hunger || 0}%`;
+        hungerBar.style.transform = `scaleX(${(currentPet.hunger || 0) / 100})`;
+      }
+      if (happinessBar) {
+        happinessBar.style.width = `${currentPet.happiness || 0}%`;
+        happinessBar.style.transform = `scaleX(${(currentPet.happiness || 0) / 100})`;
+      }
+      if (cleanlinessBar) {
+        cleanlinessBar.style.width = `${currentPet.cleanliness || 0}%`;
+        cleanlinessBar.style.transform = `scaleX(${(currentPet.cleanliness || 0) / 100})`;
+      }
+      if (energyBar) {
+        energyBar.style.width = `${currentPet.energy || 0}%`;
+        energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
+      }
+    }
+  }, [pets, safePets, currentPetIndex]);
   
   // Debug logging to track what data we're getting
   useEffect(() => {
@@ -2099,8 +2127,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].happiness || 0) >= 50 ? 'bg-purple-500' :
                           (safePets[currentPetIndex].happiness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${safePets[currentPetIndex].happiness || 0}%` }}
-                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}-${forceRefresh}`}
+                        style={{ 
+                          width: `${safePets[currentPetIndex].happiness || 0}%`,
+                          transform: `scaleX(${(safePets[currentPetIndex].happiness || 0) / 100})`,
+                          transformOrigin: 'left'
+                        }}
+                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
                     </div>
                   </div>
@@ -2121,8 +2153,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].hunger || 0) >= 50 ? 'bg-purple-500' :
                           (safePets[currentPetIndex].hunger || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${safePets[currentPetIndex].hunger || 0}%` }}
-                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}-${forceRefresh}`}
+                        style={{ 
+                          width: `${safePets[currentPetIndex].hunger || 0}%`,
+                          transform: `scaleX(${(safePets[currentPetIndex].hunger || 0) / 100})`,
+                          transformOrigin: 'left'
+                        }}
+                        data-stat={`hunger-${safePets[currentPetIndex].id}`}
+                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
                     </div>
                   </div>
@@ -2143,8 +2180,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].cleanliness || 0) >= 50 ? 'bg-purple-500' :
                           (safePets[currentPetIndex].cleanliness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${safePets[currentPetIndex].cleanliness || 0}%` }}
-                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}-${forceRefresh}`}
+                        style={{ 
+                          width: `${safePets[currentPetIndex].cleanliness || 0}%`,
+                          transform: `scaleX(${(safePets[currentPetIndex].cleanliness || 0) / 100})`,
+                          transformOrigin: 'left'
+                        }}
+                        data-stat={`cleanliness-${safePets[currentPetIndex].id}`}
+                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
                     </div>
                   </div>
@@ -2172,8 +2214,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           safePets[currentPetIndex].energy >= 50 ? 'bg-purple-500' :
                           safePets[currentPetIndex].energy >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${safePets[currentPetIndex].energy || 0}%` }}
-                        key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}-${forceRefresh}`}
+                        style={{ 
+                          width: `${safePets[currentPetIndex].energy || 0}%`,
+                          transform: `scaleX(${(safePets[currentPetIndex].energy || 0) / 100})`,
+                          transformOrigin: 'left'
+                        }}
+                        data-stat={`energy-${safePets[currentPetIndex].id}`}
+                        key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
                     </div>
                     {safePets[currentPetIndex].energy >= 100 && (
