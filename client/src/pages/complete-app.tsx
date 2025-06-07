@@ -2094,7 +2094,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].happiness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].happiness || 0}%` }}
-                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${Date.now()}`}
+                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}`}
                       />
                     </div>
                   </div>
@@ -2116,7 +2116,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].hunger || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].hunger || 0}%` }}
-                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${Date.now()}`}
+                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}`}
                       />
                     </div>
                   </div>
@@ -2138,7 +2138,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].cleanliness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].cleanliness || 0}%` }}
-                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${Date.now()}`}
+                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}`}
                       />
                     </div>
                   </div>
@@ -2159,14 +2159,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     )}
                   </div>
                   <div className="relative energy-shimmer">
-                    <Progress 
-                      value={safePets[currentPetIndex].energy} 
-                      className={`h-4 transition-all duration-700 ${
-                        safePets[currentPetIndex].energy >= 75 ? '[&>div]:bg-green-500' :
-                        safePets[currentPetIndex].energy >= 50 ? '[&>div]:bg-purple-500' :
-                        safePets[currentPetIndex].energy >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
-                      }`}
-                    />
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div 
+                        className={`h-4 rounded-full transition-all duration-700 ${
+                          safePets[currentPetIndex].energy >= 75 ? 'bg-green-500' :
+                          safePets[currentPetIndex].energy >= 50 ? 'bg-purple-500' :
+                          safePets[currentPetIndex].energy >= 25 ? 'bg-blue-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${safePets[currentPetIndex].energy || 0}%` }}
+                        key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}`}
+                      />
+                    </div>
                     {safePets[currentPetIndex].energy >= 100 && (
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-50 animate-ping">
                       </div>
