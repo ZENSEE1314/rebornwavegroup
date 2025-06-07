@@ -102,11 +102,13 @@ export function useWebSocket(enabled: boolean = true) {
       ws.onerror = () => {
         // Silent failure - continue without real-time updates
         wsRef.current = null;
+        reconnectAttempts.current = maxReconnectAttempts; // Stop reconnection attempts
       };
       
     } catch {
       // Silent failure - WebSocket unavailable
       wsRef.current = null;
+      reconnectAttempts.current = maxReconnectAttempts; // Stop reconnection attempts
     }
   }, [enabled]);
 

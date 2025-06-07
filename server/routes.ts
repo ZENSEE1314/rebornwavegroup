@@ -2940,34 +2940,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update pet stats based on care type
       if (careType === 'fed') {
-        // Increase hunger by 30%
+        // Increase hunger by 30% - feeding should not reduce energy
         const currentHunger = pet.hunger || 50;
         const newHunger = Math.min(100, currentHunger + 30);
-        console.log(`Feeding pet: current hunger ${currentHunger} -> new hunger ${newHunger}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
+        console.log(`Feeding pet: current hunger ${currentHunger} -> new hunger ${newHunger}`);
         
         await storage.updatePetStats(parseInt(petId), { 
-          hunger: newHunger,
-          energy: Math.max(0, (pet.energy || 50) - 5)
+          hunger: newHunger
         });
       } else if (careType === 'bathed') {
-        // Increase cleanliness by 50%
+        // Increase cleanliness by 50% - bathing uses energy
         const currentCleanliness = pet.cleanliness || 50;
         const newCleanliness = Math.min(100, currentCleanliness + 50);
-        console.log(`Bathing pet: current cleanliness ${currentCleanliness} -> new cleanliness ${newCleanliness}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
+        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
+        console.log(`Bathing pet: current cleanliness ${currentCleanliness} -> new cleanliness ${newCleanliness}, energy ${pet.energy || 50} -> ${newEnergy}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           cleanliness: newCleanliness,
-          energy: Math.max(0, (pet.energy || 50) - 5)
+          energy: newEnergy
         });
       } else if (careType === 'cleaned') {
-        // Increase happiness by 25% (play activity)
+        // Increase happiness by 25% (play activity) - playing uses energy
         const currentHappiness = pet.happiness || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
-        console.log(`Playing with pet: current happiness ${currentHappiness} -> new happiness ${newHappiness}, current energy ${pet.energy || 50} -> new energy ${Math.max(0, (pet.energy || 50) - 5)}`);
+        const newEnergy = Math.max(0, (pet.energy || 50) - 5);
+        console.log(`Playing with pet: current happiness ${currentHappiness} -> new happiness ${newHappiness}, energy ${pet.energy || 50} -> ${newEnergy}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           happiness: newHappiness,
-          energy: Math.max(0, (pet.energy || 50) - 5)
+          energy: newEnergy
+        });
+      } else if (careType === 'slept') {
+        // Sleep restores energy fully
+        const newEnergy = 100;
+        console.log(`Pet sleeping: energy restored to ${newEnergy}`);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          energy: newEnergy,
+          isSleeping: false,
+          sleepStartTime: null
         });
       }
       
