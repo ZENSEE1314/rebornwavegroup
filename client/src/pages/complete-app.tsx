@@ -469,6 +469,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Force refresh when pet data changes
+  useEffect(() => {
+    setForceRefresh(prev => prev + 1);
+  }, [pets, safePets]);
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
