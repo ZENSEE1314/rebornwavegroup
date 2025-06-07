@@ -2,6 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dynamic progress bar animations */
+@keyframes fillProgress {
+  from { width: 0%; }
+}
+
+/* Generate dynamic keyframes for each percentage */
+@keyframes fill-0 { to { width: 0%; } }
+@keyframes fill-1 { to { width: 1%; } }
+@keyframes fill-2 { to { width: 2%; } }
+@keyframes fill-3 { to { width: 3%; } }
+@keyframes fill-4 { to { width: 4%; } }
+@keyframes fill-5 { to { width: 5%; } }
+@keyframes fill-6 { to { width: 6%; } }
+@keyframes fill-7 { to { width: 7%; } }
+@keyframes fill-8 { to { width: 8%; } }
+@keyframes fill-9 { to { width: 9%; } }
+@keyframes fill-10 { to { width: 10%; } }
+@keyframes fill-11 { to { width: 11%; } }
+@keyframes fill-12 { to { width: 12%; } }
+@keyframes fill-13 { to { width: 13%; } }
+@keyframes fill-14 { to { width: 14%; } }
+@keyframes fill-15 { to { width: 15%; } }
+@keyframes fill-16 { to { width: 16%; } }
+@keyframes fill-17 { to { width: 17%; } }
+@keyframes fill-18 { to { width: 18%; } }
+@keyframes fill-19 { to { width: 19%; } }
+@keyframes fill-20 { to { width: 20%; } }
+@keyframes fill-21 { to { width: 21%; } }
+@keyframes fill-22 { to { width: 22%; } }
+@keyframes fill-23 { to { width: 23%; } }
+@keyframes fill-24 { to { width: 24%; } }
+@keyframes fill-25 { to { width: 25%; } }
+@keyframes fill-26 { to { width: 26%; } }
+@keyframes fill-27 { to { width: 27%; } }
+@keyframes fill-28 { to { width: 28%; } }
+@keyframes fill-29 { to { width: 29%; } }
+@keyframes fill-30 { to { width: 30%; } }
+@keyframes fill-31 { to { width: 31%; } }
+@keyframes fill-32 { to { width: 32%; } }
+@keyframes fill-33 { to { width: 33%; } }
+@keyframes fill-34 { to { width: 34%; } }
+@keyframes fill-35 { to { width: 35%; } }
+@keyframes fill-36 { to { width: 36%; } }
+@keyframes fill-37 { to { width: 37%; } }
+@keyframes fill-38 { to { width: 38%; } }
+@keyframes fill-39 { to { width: 39%; } }
+@keyframes fill-40 { to { width: 40%; } }
+@keyframes fill-41 { to { width: 41%; } }
+@keyframes fill-42 { to { width: 42%; } }
+@keyframes fill-43 { to { width: 43%; } }
+@keyframes fill-44 { to { width: 44%; } }
+@keyframes fill-45 { to { width: 45%; } }
+@keyframes fill-46 { to { width: 46%; } }
+@keyframes fill-47 { to { width: 47%; } }
+@keyframes fill-48 { to { width: 48%; } }
+@keyframes fill-49 { to { width: 49%; } }
+@keyframes fill-50 { to { width: 50%; } }
+@keyframes fill-51 { to { width: 51%; } }
+@keyframes fill-52 { to { width: 52%; } }
+@keyframes fill-53 { to { width: 53%; } }
+@keyframes fill-54 { to { width: 54%; } }
+@keyframes fill-55 { to { width: 55%; } }
+@keyframes fill-56 { to { width: 56%; } }
+@keyframes fill-57 { to { width: 57%; } }
+@keyframes fill-58 { to { width: 58%; } }
+@keyframes fill-59 { to { width: 59%; } }
+@keyframes fill-60 { to { width: 60%; } }
+@keyframes fill-61 { to { width: 61%; } }
+@keyframes fill-62 { to { width: 62%; } }
+@keyframes fill-63 { to { width: 63%; } }
+@keyframes fill-64 { to { width: 64%; } }
+@keyframes fill-65 { to { width: 65%; } }
+@keyframes fill-66 { to { width: 66%; } }
+@keyframes fill-67 { to { width: 67%; } }
+@keyframes fill-68 { to { width: 68%; } }
+@keyframes fill-69 { to { width: 69%; } }
+@keyframes fill-70 { to { width: 70%; } }
+@keyframes fill-71 { to { width: 71%; } }
+@keyframes fill-72 { to { width: 72%; } }
+@keyframes fill-73 { to { width: 73%; } }
+@keyframes fill-74 { to { width: 74%; } }
+@keyframes fill-75 { to { width: 75%; } }
+@keyframes fill-76 { to { width: 76%; } }
+@keyframes fill-77 { to { width: 77%; } }
+@keyframes fill-78 { to { width: 78%; } }
+@keyframes fill-79 { to { width: 79%; } }
+@keyframes fill-80 { to { width: 80%; } }
+@keyframes fill-81 { to { width: 81%; } }
+@keyframes fill-82 { to { width: 82%; } }
+@keyframes fill-83 { to { width: 83%; } }
+@keyframes fill-84 { to { width: 84%; } }
+@keyframes fill-85 { to { width: 85%; } }
+@keyframes fill-86 { to { width: 86%; } }
+@keyframes fill-87 { to { width: 87%; } }
+@keyframes fill-88 { to { width: 88%; } }
+@keyframes fill-89 { to { width: 89%; } }
+@keyframes fill-90 { to { width: 90%; } }
+@keyframes fill-91 { to { width: 91%; } }
+@keyframes fill-92 { to { width: 92%; } }
+@keyframes fill-93 { to { width: 93%; } }
+@keyframes fill-94 { to { width: 94%; } }
+@keyframes fill-95 { to { width: 95%; } }
+@keyframes fill-96 { to { width: 96%; } }
+@keyframes fill-97 { to { width: 97%; } }
+@keyframes fill-98 { to { width: 98%; } }
+@keyframes fill-99 { to { width: 99%; } }
+@keyframes fill-100 { to { width: 100%; } }
+
+.progress-bar-animated {
+  animation-duration: 0.8s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
 /* Dragon Turtle Walking Animation */
 @keyframes walkLeftRight {
   0% { transform: translateX(-20px) scaleX(1); }

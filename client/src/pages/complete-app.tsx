@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useLayoutEffect } from "react";
+import { AnimatedProgressBar } from "@/components/AnimatedProgressBar";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -2189,86 +2190,42 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2" key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 text-pink-500">💖</span>
-                    <span className="text-sm font-medium">Happiness</span>
-                  </div>
-                  <div className="relative">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          (safePets[currentPetIndex].happiness || 0) >= 75 ? 'bg-green-500' :
-                          (safePets[currentPetIndex].happiness || 0) >= 50 ? 'bg-purple-500' :
-                          (safePets[currentPetIndex].happiness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ 
-                          width: `${safePets[currentPetIndex].happiness || 0}%`,
-                          transform: `scaleX(${(safePets[currentPetIndex].happiness || 0) / 100})`,
-                          transformOrigin: 'left'
-                        }}
-                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-600" key={`happiness-text-${safePets[currentPetIndex].happiness}`}>
-                    {safePets[currentPetIndex].happiness || 0}%
-                  </span>
-                </div>
-                <div className="space-y-2" key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 text-orange-500">🍎</span>
-                    <span className="text-sm font-medium">Hunger</span>
-                  </div>
-                  <div className="relative">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          (safePets[currentPetIndex].hunger || 0) >= 75 ? 'bg-green-500' :
-                          (safePets[currentPetIndex].hunger || 0) >= 50 ? 'bg-purple-500' :
-                          (safePets[currentPetIndex].hunger || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ 
-                          width: `${safePets[currentPetIndex].hunger || 0}%`,
-                          transform: `scaleX(${(safePets[currentPetIndex].hunger || 0) / 100})`,
-                          transformOrigin: 'left'
-                        }}
-                        data-stat={`hunger-${safePets[currentPetIndex].id}`}
-                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-600" key={`hunger-text-${safePets[currentPetIndex].hunger}`}>
-                    {safePets[currentPetIndex].hunger || 0}%
-                  </span>
-                </div>
-                <div className="space-y-2" key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness}`}>
-                  <div className="flex items-center gap-2">
-                    <Droplets className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium">Cleanliness</span>
-                  </div>
-                  <div className="relative">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          (safePets[currentPetIndex].cleanliness || 0) >= 75 ? 'bg-green-500' :
-                          (safePets[currentPetIndex].cleanliness || 0) >= 50 ? 'bg-purple-500' :
-                          (safePets[currentPetIndex].cleanliness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ 
-                          width: `${safePets[currentPetIndex].cleanliness || 0}%`,
-                          transform: `scaleX(${(safePets[currentPetIndex].cleanliness || 0) / 100})`,
-                          transformOrigin: 'left'
-                        }}
-                        data-stat={`cleanliness-${safePets[currentPetIndex].id}`}
-                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-600" key={`cleanliness-text-${safePets[currentPetIndex].cleanliness}`}>
-                    {safePets[currentPetIndex].cleanliness || 0}%
-                  </span>
-                </div>
+                <AnimatedProgressBar
+                  value={safePets[currentPetIndex].happiness || 0}
+                  label="Happiness"
+                  icon="💖"
+                  color={
+                    (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
+                    (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
+                    (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                  }
+                  petId={safePets[currentPetIndex].id}
+                  statType="happiness"
+                />
+                <AnimatedProgressBar
+                  value={safePets[currentPetIndex].hunger || 0}
+                  label="Hunger"
+                  icon="🍎"
+                  color={
+                    (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
+                    (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
+                    (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                  }
+                  petId={safePets[currentPetIndex].id}
+                  statType="hunger"
+                />
+                <AnimatedProgressBar
+                  value={safePets[currentPetIndex].cleanliness || 0}
+                  label="Cleanliness"
+                  icon="💧"
+                  color={
+                    (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
+                    (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
+                    (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                  }
+                  petId={safePets[currentPetIndex].id}
+                  statType="cleanliness"
+                />
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className={`w-4 h-4 ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
