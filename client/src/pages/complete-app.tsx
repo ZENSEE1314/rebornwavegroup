@@ -1483,18 +1483,31 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        className={`flex items-center gap-2 p-4 h-auto flex-col ${
+                          happiness >= 100 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         onClick={() => {
+                          if (happiness >= 100) {
+                            toast({
+                              title: language === "id" ? "Happiness Penuh!" : "Happiness Full!",
+                              description: language === "id" ? "Pet sudah sangat bahagia!" : "Pet is already very happy!",
+                              variant: "default"
+                            });
+                            return;
+                          }
                           console.log('=== PLAY BUTTON CLICKED ===');
                           console.log('Pet ID:', pet.id);
                           console.log('Care Type: play');
-                          console.log('Mutation pending:', careActivityMutation.isPending);
+                          console.log('Current happiness:', happiness);
                           careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
                       >
                         <span className="text-2xl">🎾</span>
-                        <span className="text-sm">{language === "id" ? "Bermain" : "Play"}</span>
+                        <span className="text-sm">
+                          {language === "id" ? "Bermain" : "Play"}
+                          {happiness >= 100 && <span className="text-xs block text-green-600">MAX</span>}
+                        </span>
                       </Button>
 
                       {pet.isSleeping ? (
