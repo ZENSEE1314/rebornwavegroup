@@ -1,0 +1,26 @@
+Making API call to: /api/pets/1/care/bathed
+complete-app.tsx:706 API call successful: Response {type: 'basic', url: 'https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17…imrn6nr.janeway.replit.dev/api/pets/1/care/bathed', redirected: false, status: 200, ok: true, …}
+main.tsx:18 Warning: Updating a style property during rerender (background) when a conflicting property is set (backgroundSize) can lead to styling bugs. To avoid this, don't mix shorthand and non-shorthand properties for the same value; instead, replace the shorthand with separate values.
+    at div
+    at div
+    at div
+    at div
+    at div
+    at div
+    at div
+    at _c9 (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/components/ui/card.tsx:20:11)
+    at div
+    at div
+    at PetCareSection (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:704:27)
+    at div
+    at div
+    at CompleteApp (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:4673:20)
+    at Route (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:323:16)
+    at Switch (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:379:17)
+    at Router (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/App.tsx?v=M74-hSE_LebZZBt41yViW:32:48)
+    at Provider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=18526d82:38:15)
+    at TooltipProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=18526d82:60:5)
+    at QueryClientProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=18526d82:2805:3)
+    at App
