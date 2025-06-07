@@ -2242,7 +2242,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].happiness || 0}%`,
+                        width: '100%',
                         transform: `scaleX(${(safePets[currentPetIndex].happiness || 0) / 100})`,
                         transformOrigin: 'left',
                         transition: 'none'
@@ -2280,7 +2280,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].hunger || 0}%`,
+                        width: '100%',
                         transform: `scaleX(${(safePets[currentPetIndex].hunger || 0) / 100})`,
                         transformOrigin: 'left',
                         transition: 'none'
@@ -2318,7 +2318,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].cleanliness || 0}%`,
+                        width: '100%',
                         transform: `scaleX(${(safePets[currentPetIndex].cleanliness || 0) / 100})`,
                         transformOrigin: 'left',
                         transition: 'none'
@@ -2363,7 +2363,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].energy || 0}%`,
+                        width: '100%',
                         transform: `scaleX(${(safePets[currentPetIndex].energy || 0) / 100})`,
                         transformOrigin: 'left',
                         transition: 'none'
