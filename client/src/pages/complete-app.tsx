@@ -469,11 +469,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
-
-  // Force refresh when pet data changes
-  useEffect(() => {
-    setForceRefresh(prev => prev + 1);
-  }, [pets, safePets]);
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
@@ -516,6 +511,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   // Safe pets array with proper fallback - define this first to avoid crashes
   const safePets = Array.isArray(pets) ? pets : [];
+  
+  // Force refresh when pet data changes
+  useEffect(() => {
+    setForceRefresh(prev => prev + 1);
+  }, [pets, safePets]);
   
   // Debug logging to track what data we're getting
   useEffect(() => {
