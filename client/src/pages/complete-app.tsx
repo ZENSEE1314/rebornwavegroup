@@ -710,11 +710,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         throw error;
       }
     },
-    onSuccess: () => {
-      // Invalidate pets query to trigger real-time updates
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      // Force a refetch to update status bars immediately
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+    onSuccess: async () => {
+      // Force complete cache invalidation and refetch
+      await queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      
+      // Also invalidate user stats in case tokens were awarded
+      await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      
+      // Add a small delay to ensure database updates are reflected
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      }, 100);
+      
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",

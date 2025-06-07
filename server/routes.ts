@@ -2862,12 +2862,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Fetching pets for user: ${userId}`);
       const pets = await storage.getPetsByUserId(userId);
-      console.log(`Found ${pets.length} pets:`, pets.map(p => ({ id: p.id, name: p.name })));
+      console.log(`Found ${pets.length} pets:`, pets.map(p => ({ id: p.id, name: p.name, hunger: p.hunger, cleanliness: p.cleanliness, happiness: p.happiness, energy: p.energy })));
       
-      // Disable caching for this endpoint
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      // Disable all forms of caching for real-time updates
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate, proxy-revalidate');
       res.set('Pragma', 'no-cache');
       res.set('Expires', '0');
+      res.set('Surrogate-Control', 'no-store');
+      res.set('ETag', Date.now().toString()); // Force unique response
       
       res.json(pets);
     } catch (error) {
