@@ -468,6 +468,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [showCoinGame, setShowCoinGame] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [currentPetIndex, setCurrentPetIndex] = useState(0);
+  const [forceRefresh, setForceRefresh] = useState(0);
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
@@ -2094,7 +2095,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].happiness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].happiness || 0}%` }}
-                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}`}
+                        key={`happiness-bar-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].id}-${forceRefresh}`}
                       />
                     </div>
                   </div>
@@ -2116,7 +2117,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].hunger || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].hunger || 0}%` }}
-                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}`}
+                        key={`hunger-bar-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].id}-${forceRefresh}`}
                       />
                     </div>
                   </div>
@@ -2138,7 +2139,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           (safePets[currentPetIndex].cleanliness || 0) >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].cleanliness || 0}%` }}
-                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}`}
+                        key={`cleanliness-bar-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].id}-${forceRefresh}`}
                       />
                     </div>
                   </div>
@@ -2167,7 +2168,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                           safePets[currentPetIndex].energy >= 25 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${safePets[currentPetIndex].energy || 0}%` }}
-                        key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}`}
+                        key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}-${forceRefresh}`}
                       />
                     </div>
                     {safePets[currentPetIndex].energy >= 100 && (
