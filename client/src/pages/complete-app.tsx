@@ -2080,53 +2080,62 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2" key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 text-pink-500">💖</span>
                     <span className="text-sm font-medium">Happiness</span>
                   </div>
                   <div className="relative">
                     <Progress 
-                      value={safePets[currentPetIndex].happiness} 
-                      className={`h-2 ${safePets[currentPetIndex].happiness >= 75 ? '[&>div]:bg-green-500' :
-                        safePets[currentPetIndex].happiness >= 50 ? '[&>div]:bg-purple-500' :
-                        safePets[currentPetIndex].happiness >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
+                      key={`happiness-progress-${safePets[currentPetIndex].happiness}`}
+                      value={safePets[currentPetIndex].happiness || 0} 
+                      className={`h-2 ${(safePets[currentPetIndex].happiness || 0) >= 75 ? '[&>div]:bg-green-500' :
+                        (safePets[currentPetIndex].happiness || 0) >= 50 ? '[&>div]:bg-purple-500' :
+                        (safePets[currentPetIndex].happiness || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
-                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].happiness}%</span>
+                  <span className="text-xs text-gray-600" key={`happiness-text-${safePets[currentPetIndex].happiness}`}>
+                    {safePets[currentPetIndex].happiness || 0}%
+                  </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2" key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 text-orange-500">🍎</span>
                     <span className="text-sm font-medium">Hunger</span>
                   </div>
                   <div className="relative">
                     <Progress 
-                      value={safePets[currentPetIndex].hunger} 
-                      className={`h-2 ${safePets[currentPetIndex].hunger >= 75 ? '[&>div]:bg-green-500' :
-                        safePets[currentPetIndex].hunger >= 50 ? '[&>div]:bg-purple-500' :
-                        safePets[currentPetIndex].hunger >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
+                      key={`hunger-progress-${safePets[currentPetIndex].hunger}`}
+                      value={safePets[currentPetIndex].hunger || 0} 
+                      className={`h-2 ${(safePets[currentPetIndex].hunger || 0) >= 75 ? '[&>div]:bg-green-500' :
+                        (safePets[currentPetIndex].hunger || 0) >= 50 ? '[&>div]:bg-purple-500' :
+                        (safePets[currentPetIndex].hunger || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
-                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].hunger}%</span>
+                  <span className="text-xs text-gray-600" key={`hunger-text-${safePets[currentPetIndex].hunger}`}>
+                    {safePets[currentPetIndex].hunger || 0}%
+                  </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2" key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness}`}>
                   <div className="flex items-center gap-2">
                     <Droplets className="w-4 h-4 text-blue-500" />
                     <span className="text-sm font-medium">Cleanliness</span>
                   </div>
                   <div className="relative">
                     <Progress 
-                      value={safePets[currentPetIndex].cleanliness} 
-                      className={`h-2 ${safePets[currentPetIndex].cleanliness >= 75 ? '[&>div]:bg-green-500' :
-                        safePets[currentPetIndex].cleanliness >= 50 ? '[&>div]:bg-purple-500' :
-                        safePets[currentPetIndex].cleanliness >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
+                      key={`cleanliness-progress-${safePets[currentPetIndex].cleanliness}`}
+                      value={safePets[currentPetIndex].cleanliness || 0} 
+                      className={`h-2 ${(safePets[currentPetIndex].cleanliness || 0) >= 75 ? '[&>div]:bg-green-500' :
+                        (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '[&>div]:bg-purple-500' :
+                        (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '[&>div]:bg-blue-500' : '[&>div]:bg-red-500'
                       }`}
                     />
                   </div>
-                  <span className="text-xs text-gray-600">{safePets[currentPetIndex].cleanliness}%</span>
+                  <span className="text-xs text-gray-600" key={`cleanliness-text-${safePets[currentPetIndex].cleanliness}`}>
+                    {safePets[currentPetIndex].cleanliness || 0}%
+                  </span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
