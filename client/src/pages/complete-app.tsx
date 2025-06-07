@@ -548,10 +548,10 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     }
   });
 
-  // Force refresh when pet data changes
+  // Force refresh when pet data changes (only on currentPetIndex change)
   useEffect(() => {
     setForceRefresh(prev => prev + 1);
-  }, [pets, safePets, currentPetIndex]);
+  }, [currentPetIndex]);
 
   // Aggressive timer-based refresh for visual updates
   useEffect(() => {
@@ -581,9 +581,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           energyBar.style.width = `${currentPet.energy || 0}%`;
           energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
         }
-        
-        // Force state refresh
-        setForceRefresh(prev => prev + 1);
       }
     }, 500);
 

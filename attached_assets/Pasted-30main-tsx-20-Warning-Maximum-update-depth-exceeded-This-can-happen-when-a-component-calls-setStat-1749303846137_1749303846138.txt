@@ -1,0 +1,31 @@
+30main.tsx:20 Warning: Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+    at PetCareSection (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:705:27)
+    at div
+    at div
+    at CompleteApp (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/pages/complete-app.tsx:4716:20)
+    at Route (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:323:16)
+    at Switch (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=18526d82:379:17)
+    at Router (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/src/App.tsx?v=ql4akFiCYeWmwDqTCelzo:32:48)
+    at Provider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=18526d82:38:15)
+    at TooltipProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=18526d82:60:5)
+    at QueryClientProvider (https://23771c8c-bd64-4b5c-b1da-6481f8fe685d-00-17zfauimrn6nr.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=18526d82:2805:3)
+    at App
+console.error @ main.tsx:20
+printWarning @ chunk-WERSD76P.js?v=18526d82:521
+error @ chunk-WERSD76P.js?v=18526d82:505
+checkForNestedUpdates @ chunk-WERSD76P.js?v=18526d82:19665
+scheduleUpdateOnFiber @ chunk-WERSD76P.js?v=18526d82:18533
+dispatchSetState @ chunk-WERSD76P.js?v=18526d82:12403
+(anonymous) @ complete-app.tsx:553
+commitHookEffectListMount @ chunk-WERSD76P.js?v=18526d82:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=18526d82:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=18526d82:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=18526d82:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=18526d82:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=18526d82:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=18526d82:19447
+(anonymous) @ chunk-WERSD76P.js?v=18526d82:19328
+workLoop @ chunk-WERSD76P.js?v=18526d82:197
+flushWork @ chunk-WERSD76P.js?v=18526d82:176
+performWorkUntilDeadline @ chunk-WERSD76P.js?v=18526d82:384Understand this error
+complete-app.tsx:596 Current pet data in UI: {id: 1, name: 'king', hunger: 38, happiness: 40, cleanliness: 75, …}
