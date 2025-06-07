@@ -13,7 +13,7 @@ export function useWebSocket(enabled: boolean = true) {
       return;
     }
 
-    // Only connect for admin users in valid environments
+    // Connect for all users in valid environments
     if (typeof window === 'undefined') {
       return;
     }
@@ -79,6 +79,18 @@ export function useWebSocket(enabled: boolean = true) {
                 queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
                 break;
             }
+          }
+          
+          // Handle real-time pet stats updates
+          if (data.type === 'PET_STATS_UPDATE') {
+            console.log('Received real-time pet stats update:', data);
+            
+            // Immediately invalidate and refetch pet data
+            queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+            queryClient.refetchQueries({ queryKey: ['/api/pets'] });
+            
+            // Also invalidate user stats in case tokens were awarded
+            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);

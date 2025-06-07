@@ -3026,10 +3026,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Token not awarded:', tokenEligible.reason);
       }
 
-      // Pet care update completed (broadcast functionality can be added later if needed)
+      // Broadcast real-time pet stats update via WebSocket
+      if (wss && updatedPet) {
+        const updateMessage = {
+          type: 'PET_STATS_UPDATE',
+          petId: parseInt(petId),
+          userId,
+          careType,
+          updatedStats: {
+            happiness: updatedPet.happiness,
+            hunger: updatedPet.hunger,
+            cleanliness: updatedPet.cleanliness,
+            energy: updatedPet.energy,
+            isSleeping: updatedPet.isSleeping
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        console.log('Broadcasting pet stats update via WebSocket:', updateMessage);
+        
+        // Send to all connected clients
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            try {
+              client.send(JSON.stringify(updateMessage));
+              console.log('Sent pet stats update to WebSocket client');
+            } catch (error) {
+              console.error('Error sending WebSocket message:', error);
+            }
+          }
+        });
+      }
       
       res.json({ 
         success: true, 
+        pet: updatedPet,
         tokenEligible: tokenEligible.eligible,
         tokenReason: tokenEligible.reason,
         tokenAwarded 
