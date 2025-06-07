@@ -2235,19 +2235,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].happiness || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
+                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: (safePets[currentPetIndex].happiness || 0) <= 0 ? '0px' : 
-                               (safePets[currentPetIndex].happiness || 0) >= 100 ? '100%' : 
-                               `${(safePets[currentPetIndex].happiness || 0)}%`
+                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].happiness || 0))}%`,
+                        flexShrink: 0,
+                        borderRadius: (safePets[currentPetIndex].happiness || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
                       }}
                     >
-                      💖 {safePets[currentPetIndex].happiness || 0}
+                      💖 {safePets[currentPetIndex].happiness || 0}%
                     </div>
                   </div>
                 </div>
@@ -2268,19 +2268,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].hunger || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
+                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: (safePets[currentPetIndex].hunger || 0) <= 0 ? '0px' : 
-                               (safePets[currentPetIndex].hunger || 0) >= 100 ? '100%' : 
-                               `${(safePets[currentPetIndex].hunger || 0)}%`
+                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].hunger || 0))}%`,
+                        flexShrink: 0,
+                        borderRadius: (safePets[currentPetIndex].hunger || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
                       }}
                     >
-                      🍎 {safePets[currentPetIndex].hunger || 0}
+                      🍎 {safePets[currentPetIndex].hunger || 0}%
                     </div>
                   </div>
                 </div>
@@ -2301,19 +2301,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].cleanliness || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
+                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: (safePets[currentPetIndex].cleanliness || 0) <= 0 ? '0px' : 
-                               (safePets[currentPetIndex].cleanliness || 0) >= 100 ? '100%' : 
-                               `${(safePets[currentPetIndex].cleanliness || 0)}%`
+                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].cleanliness || 0))}%`,
+                        flexShrink: 0,
+                        borderRadius: (safePets[currentPetIndex].cleanliness || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
                       }}
                     >
-                      💧 {safePets[currentPetIndex].cleanliness || 0}
+                      💧 {safePets[currentPetIndex].cleanliness || 0}%
                     </div>
                   </div>
                 </div>
@@ -2341,19 +2341,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].energy || 0}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 flex items-center overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
+                      className="h-6 flex items-center justify-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: (safePets[currentPetIndex].energy || 0) <= 0 ? '0px' : 
-                               (safePets[currentPetIndex].energy || 0) >= 100 ? '100%' : 
-                               `${(safePets[currentPetIndex].energy || 0)}%`
+                        flexBasis: `${Math.max(0, Math.min(100, safePets[currentPetIndex].energy || 0))}%`,
+                        flexShrink: 0,
+                        borderRadius: (safePets[currentPetIndex].energy || 0) >= 100 ? '0.375rem' : '0.375rem 0 0 0.375rem'
                       }}
                     >
-                      ⚡ {safePets[currentPetIndex].energy || 0}
+                      ⚡ {safePets[currentPetIndex].energy || 0}%
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
