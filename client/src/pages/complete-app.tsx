@@ -2235,18 +2235,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].happiness || 0}%
                     </span>
                   </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full relative">
+                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center text-xs font-bold text-white"
+                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].happiness || 0))}%`,
-                        minWidth: '20px'
+                        width: `${safePets[currentPetIndex].happiness || 0}%`
                       }}
                     >
-                      <span className="ml-2">💖 {safePets[currentPetIndex].happiness || 0}%</span>
+                      💖 {safePets[currentPetIndex].happiness || 0}%
                     </div>
                   </div>
                 </div>
@@ -2267,18 +2266,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].hunger || 0}%
                     </span>
                   </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full relative">
+                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center text-xs font-bold text-white"
+                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].hunger || 0))}%`,
-                        minWidth: '20px'
+                        width: `${safePets[currentPetIndex].hunger || 0}%`
                       }}
                     >
-                      <span className="ml-2">🍎 {safePets[currentPetIndex].hunger || 0}%</span>
+                      🍎 {safePets[currentPetIndex].hunger || 0}%
                     </div>
                   </div>
                 </div>
@@ -2299,18 +2297,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].cleanliness || 0}%
                     </span>
                   </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full relative">
+                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center text-xs font-bold text-white"
+                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].cleanliness || 0))}%`,
-                        minWidth: '20px'
+                        width: `${safePets[currentPetIndex].cleanliness || 0}%`
                       }}
                     >
-                      <span className="ml-2">💧 {safePets[currentPetIndex].cleanliness || 0}%</span>
+                      💧 {safePets[currentPetIndex].cleanliness || 0}%
                     </div>
                   </div>
                 </div>
@@ -2338,18 +2335,17 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].energy || 0}%
                     </span>
                   </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full relative">
+                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
                     <div 
-                      className="h-6 rounded-full flex items-center text-xs font-bold text-white"
+                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${Math.max(0, Math.min(100, safePets[currentPetIndex].energy || 0))}%`,
-                        minWidth: '20px'
+                        width: `${safePets[currentPetIndex].energy || 0}%`
                       }}
                     >
-                      <span className="ml-2">⚡ {safePets[currentPetIndex].energy || 0}%</span>
+                      ⚡ {safePets[currentPetIndex].energy || 0}%
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -3033,7 +3029,7 @@ export default function CompleteApp() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("pet-care");
+  const [activeTab, setActiveTab] = useState("dashboard");
   
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
