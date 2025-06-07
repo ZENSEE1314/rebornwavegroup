@@ -2218,14 +2218,38 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="space-y-2" key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness}-${Date.now()}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">💖</span>
-                      <span className="text-sm font-medium">Happiness</span>
+                <div className="flex flex-col items-center space-y-3" key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness}-${Date.now()}`}>
+                  <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke={(safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444'}
+                        strokeWidth="2"
+                        strokeDasharray={`${safePets[currentPetIndex].happiness || 0}, 100`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl">💖</span>
                     </div>
-                    <span 
-                      className="text-lg font-bold" 
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Happiness</div>
+                    <div 
+                      className="text-lg font-bold"
                       style={{ 
                         color: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
@@ -2233,30 +2257,41 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       }}
                     >
                       {safePets[currentPetIndex].happiness || 0}%
-                    </span>
-                  </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
-                      style={{ 
-                        backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
-                                        (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
-                                        (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].happiness || 0}%`
-                      }}
-                    >
-                      💖 {safePets[currentPetIndex].happiness || 0}%
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2" key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}-${Date.now()}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🍎</span>
-                      <span className="text-sm font-medium">Hunger</span>
+                <div className="flex flex-col items-center space-y-3" key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}-${Date.now()}`}>
+                  <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke={(safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444'}
+                        strokeWidth="2"
+                        strokeDasharray={`${safePets[currentPetIndex].hunger || 0}, 100`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl">🍎</span>
                     </div>
-                    <span 
-                      className="text-lg font-bold" 
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Hunger</div>
+                    <div 
+                      className="text-lg font-bold"
                       style={{ 
                         color: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
@@ -2264,30 +2299,41 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       }}
                     >
                       {safePets[currentPetIndex].hunger || 0}%
-                    </span>
-                  </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
-                      style={{ 
-                        backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
-                                        (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
-                                        (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].hunger || 0}%`
-                      }}
-                    >
-                      🍎 {safePets[currentPetIndex].hunger || 0}%
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2" key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness}-${Date.now()}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">💧</span>
-                      <span className="text-sm font-medium">Cleanliness</span>
+                <div className="flex flex-col items-center space-y-3" key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness}-${Date.now()}`}>
+                  <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke={(safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444'}
+                        strokeWidth="2"
+                        strokeDasharray={`${safePets[currentPetIndex].cleanliness || 0}, 100`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl">💧</span>
                     </div>
-                    <span 
-                      className="text-lg font-bold" 
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Cleanliness</div>
+                    <div 
+                      className="text-lg font-bold"
                       style={{ 
                         color: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
@@ -2295,37 +2341,50 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       }}
                     >
                       {safePets[currentPetIndex].cleanliness || 0}%
-                    </span>
-                  </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
-                      style={{ 
-                        backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
-                                        (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
-                                        (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].cleanliness || 0}%`
-                      }}
-                    >
-                      💧 {safePets[currentPetIndex].cleanliness || 0}%
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2" key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy}-${Date.now()}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-lg ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
+                <div className="flex flex-col items-center space-y-3" key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy}-${Date.now()}`}>
+                  <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke={(safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444'}
+                        strokeWidth="2"
+                        strokeDasharray={`${safePets[currentPetIndex].energy || 0}, 100`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-2xl ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
                         ⚡
                       </span>
-                      <span className="text-sm font-medium">Energy</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                      Energy
                       {safePets[currentPetIndex].isSleeping && (
                         <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
-                          💤 Charging
+                          💤
                         </span>
                       )}
                     </div>
-                    <span 
-                      className="text-lg font-bold" 
+                    <div 
+                      className="text-lg font-bold"
                       style={{ 
                         color: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
@@ -2333,34 +2392,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       }}
                     >
                       {safePets[currentPetIndex].energy || 0}%
-                    </span>
-                  </div>
-                  <div className="w-full h-6 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full flex items-center text-xs font-bold text-white px-2"
-                      style={{ 
-                        backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
-                                        (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
-                                        (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].energy || 0}%`
-                      }}
-                    >
-                      ⚡ {safePets[currentPetIndex].energy || 0}%
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">
-                      {safePets[currentPetIndex].energy}%
-                    </span>
                     {safePets[currentPetIndex].energy >= 100 && (
-                      <span className="text-xs text-green-600 font-bold animate-bounce">
+                      <div className="text-xs text-green-600 font-bold animate-bounce">
                         ✨ Full!
-                      </span>
+                      </div>
                     )}
                     {safePets[currentPetIndex].energy < 25 && (
-                      <span className="text-xs text-red-600 font-bold animate-pulse">
+                      <div className="text-xs text-red-600 font-bold animate-pulse">
                         ⚠️ Low
-                      </span>
+                      </div>
                     )}
                   </div>
                 </div>
