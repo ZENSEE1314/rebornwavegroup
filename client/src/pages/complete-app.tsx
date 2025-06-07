@@ -2218,80 +2218,150 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <AnimatedProgressBar
-                  value={safePets[currentPetIndex].happiness || 0}
-                  label="Happiness"
-                  icon="💖"
-                  color={
-                    (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
-                    (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
-                    (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444'
-                  }
-                  petId={safePets[currentPetIndex].id}
-                  statType="happiness"
-                />
-                <AnimatedProgressBar
-                  value={safePets[currentPetIndex].hunger || 0}
-                  label="Hunger"
-                  icon="🍎"
-                  color={
-                    (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
-                    (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
-                    (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444'
-                  }
-                  petId={safePets[currentPetIndex].id}
-                  statType="hunger"
-                />
-                <AnimatedProgressBar
-                  value={safePets[currentPetIndex].cleanliness || 0}
-                  label="Cleanliness"
-                  icon="💧"
-                  color={
-                    (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
-                    (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
-                    (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444'
-                  }
-                  petId={safePets[currentPetIndex].id}
-                  statType="cleanliness"
-                />
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-4 h-4 ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
-                      ⚡
+                <div className="space-y-2" key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness}-${Date.now()}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">💖</span>
+                      <span className="text-sm font-medium">Happiness</span>
+                    </div>
+                    <span 
+                      className="text-lg font-bold" 
+                      style={{ 
+                        color: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                      }}
+                    >
+                      {safePets[currentPetIndex].happiness || 0}%
                     </span>
-                    <span className="text-sm font-medium">Energy</span>
-                    {safePets[currentPetIndex].isSleeping && (
-                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
-                        💤 Charging
-                      </span>
-                    )}
                   </div>
-                  <div className="relative energy-shimmer">
-                    <div className="w-full bg-gray-200 rounded-full h-4">
-                      <div 
-                        className={`h-4 rounded-full transition-all duration-700 ${
-                          safePets[currentPetIndex].energy >= 75 ? 'bg-green-500' :
-                          safePets[currentPetIndex].energy >= 50 ? 'bg-purple-500' :
-                          safePets[currentPetIndex].energy >= 25 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ 
-                          width: `${safePets[currentPetIndex].energy || 0}%`,
-                          transform: `scaleX(${(safePets[currentPetIndex].energy || 0) / 100})`,
-                          transformOrigin: 'left'
+                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
+                                        (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
+                                        (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
+                        width: `${safePets[currentPetIndex].happiness || 0}%`
+                      }}
+                      data-stat={`happiness-${safePets[currentPetIndex].id}`}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs font-bold text-white drop-shadow-lg">
+                        💖 {safePets[currentPetIndex].happiness || 0}/100
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2" key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}-${Date.now()}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🍎</span>
+                      <span className="text-sm font-medium">Hunger</span>
+                    </div>
+                    <span 
+                      className="text-lg font-bold" 
+                      style={{ 
+                        color: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                      }}
+                    >
+                      {safePets[currentPetIndex].hunger || 0}%
+                    </span>
+                  </div>
+                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
+                                        (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
+                                        (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
+                        width: `${safePets[currentPetIndex].hunger || 0}%`
+                      }}
+                      data-stat={`hunger-${safePets[currentPetIndex].id}`}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs font-bold text-white drop-shadow-lg">
+                        🍎 {safePets[currentPetIndex].hunger || 0}/100
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2" key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness}-${Date.now()}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">💧</span>
+                      <span className="text-sm font-medium">Cleanliness</span>
+                    </div>
+                    <span 
+                      className="text-lg font-bold" 
+                      style={{ 
+                        color: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                      }}
+                    >
+                      {safePets[currentPetIndex].cleanliness || 0}%
+                    </span>
+                  </div>
+                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
+                                        (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
+                                        (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
+                        width: `${safePets[currentPetIndex].cleanliness || 0}%`
+                      }}
+                      data-stat={`cleanliness-${safePets[currentPetIndex].id}`}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs font-bold text-white drop-shadow-lg">
+                        💧 {safePets[currentPetIndex].cleanliness || 0}/100
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2" key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy}-${Date.now()}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg ${safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''}`}>
+                        ⚡
+                      </span>
+                      <span className="text-sm font-medium">Energy</span>
+                      {safePets[currentPetIndex].isSleeping && (
+                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full animate-pulse">
+                          💤 Charging
+                        </span>
+                      )}
+                    </div>
+                    <span 
+                      className="text-lg font-bold" 
+                      style={{ 
+                        color: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
+                               (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
+                               (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444'
+                      }}
+                    >
+                      {safePets[currentPetIndex].energy || 0}%
+                    </span>
+                  </div>
+                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
+                                        (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
+                                        (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
+                        width: `${safePets[currentPetIndex].energy || 0}%`
                         }}
                         data-stat={`energy-${safePets[currentPetIndex].id}`}
                         key={`energy-bar-${safePets[currentPetIndex].energy}-${safePets[currentPetIndex].id}-${forceRefresh}-${Date.now()}`}
                       />
-                    </div>
-                    {safePets[currentPetIndex].energy >= 100 && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-50 animate-ping">
-                      </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className={`text-xs font-bold text-white drop-shadow-lg ${
-                        safePets[currentPetIndex].energy >= 100 ? 'animate-bounce' : ''
-                      }`}>
-                        ⚡ {safePets[currentPetIndex].energy}/100
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs font-bold text-white drop-shadow-lg">
+                        ⚡ {safePets[currentPetIndex].energy || 0}/100
                       </span>
                     </div>
                   </div>
