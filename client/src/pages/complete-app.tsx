@@ -1400,26 +1400,14 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             </span>
                           )}
                         </p>
-                        <div className="relative energy-shimmer">
-                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
-                            <div 
-                              className={`h-full transition-all duration-700 ${
-                                happiness >= 100 ? 'energy-full' : 
-                                happiness < 25 ? 'energy-low' : ''
-                              }`}
-                              style={{
-                                width: `${happiness}%`,
-                                background: happiness >= 75 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                                  : happiness >= 50
-                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                  : happiness >= 25
-                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                              }}
-                            />
+                        <div className="text-center p-2 bg-gray-50 rounded-lg">
+                          <div className={`text-lg font-bold ${
+                            happiness >= 75 ? 'text-green-600' :
+                            happiness >= 50 ? 'text-yellow-600' :
+                            happiness >= 25 ? 'text-orange-600' : 'text-red-600'
+                          }`}>
+                            {happiness}%
                           </div>
-                          <div className="absolute inset-0 flex items-center justify-center">
                             <span className={`text-xs font-bold ${happiness >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
                               happiness >= 100 ? 'animate-bounce' : ''
                             }`}>
@@ -1449,34 +1437,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             </span>
                           )}
                         </p>
-                        <div className="relative energy-shimmer">
-                          <div className="w-full bg-blue-100 rounded-full h-4 overflow-hidden border border-gray-200">
-                            <div 
-                              className={`h-full transition-all duration-700 ${
-                                hunger >= 100 ? 'energy-full' : 
-                                hunger < 25 ? 'energy-low' : ''
-                              }`}
-                              style={{
-                                width: `${hunger}%`,
-                                background: hunger >= 100 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)' 
-                                  : hunger >= 75 
-                                  ? 'linear-gradient(90deg, #10b981, #34d399, #10b981)'
-                                  : hunger >= 50
-                                  ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                                  : hunger >= 25
-                                  ? 'linear-gradient(90deg, #f97316, #fb923c, #f97316)'
-                                  : 'linear-gradient(90deg, #dc2626, #ef4444, #dc2626)'
-                              }}
-                            />
-                          </div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className={`text-xs font-bold ${hunger >= 75 ? 'text-white' : 'text-gray-800'} drop-shadow-lg ${
-                              hunger >= 100 ? 'animate-bounce' : ''
-                            }`}>
-                              🍎 {hunger}/100
-                            </span>
-                          </div>
+                        <div className="text-center p-2 bg-gray-50 rounded-lg">
+                          <div className={`text-lg font-bold ${
+                            hunger >= 75 ? 'text-green-600' :
+                            hunger >= 50 ? 'text-yellow-600' :
+                            hunger >= 25 ? 'text-orange-600' : 'text-red-600'
+                          }`}>
+                            {hunger}%
                         </div>
                         <div className="mt-1 text-center">
                           {hunger >= 100 && (
