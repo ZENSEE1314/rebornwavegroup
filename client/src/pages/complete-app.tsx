@@ -2235,22 +2235,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].happiness || 0}%
                     </span>
                   </div>
-                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                     <div 
-                      className="h-full rounded-full absolute top-0 left-0"
+                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].happiness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].happiness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].happiness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].happiness || 0}%`,
-                        maxWidth: '100%'
+                        width: (safePets[currentPetIndex].happiness || 0) <= 0 ? '0px' : 
+                               (safePets[currentPetIndex].happiness || 0) >= 100 ? '100%' : 
+                               `${(safePets[currentPetIndex].happiness || 0)}%`
                       }}
-                      key={`happiness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].happiness || 0}`}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs font-bold text-white drop-shadow-lg">
-                        💖 {safePets[currentPetIndex].happiness || 0}/100
-                      </span>
+                    >
+                      💖 {safePets[currentPetIndex].happiness || 0}
                     </div>
                   </div>
                 </div>
@@ -2271,22 +2268,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].hunger || 0}%
                     </span>
                   </div>
-                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                     <div 
-                      className="h-full rounded-full absolute top-0 left-0"
+                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].hunger || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].hunger || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].hunger || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].hunger || 0}%`,
-                        maxWidth: '100%'
+                        width: (safePets[currentPetIndex].hunger || 0) <= 0 ? '0px' : 
+                               (safePets[currentPetIndex].hunger || 0) >= 100 ? '100%' : 
+                               `${(safePets[currentPetIndex].hunger || 0)}%`
                       }}
-                      key={`hunger-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger || 0}`}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs font-bold text-white drop-shadow-lg">
-                        🍎 {safePets[currentPetIndex].hunger || 0}/100
-                      </span>
+                    >
+                      🍎 {safePets[currentPetIndex].hunger || 0}
                     </div>
                   </div>
                 </div>
@@ -2307,22 +2301,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].cleanliness || 0}%
                     </span>
                   </div>
-                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                     <div 
-                      className="h-full rounded-full absolute top-0 left-0"
+                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].cleanliness || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].cleanliness || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].cleanliness || 0}%`,
-                        maxWidth: '100%'
+                        width: (safePets[currentPetIndex].cleanliness || 0) <= 0 ? '0px' : 
+                               (safePets[currentPetIndex].cleanliness || 0) >= 100 ? '100%' : 
+                               `${(safePets[currentPetIndex].cleanliness || 0)}%`
                       }}
-                      key={`cleanliness-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].cleanliness || 0}`}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs font-bold text-white drop-shadow-lg">
-                        💧 {safePets[currentPetIndex].cleanliness || 0}/100
-                      </span>
+                    >
+                      💧 {safePets[currentPetIndex].cleanliness || 0}
                     </div>
                   </div>
                 </div>
@@ -2350,22 +2341,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                       {safePets[currentPetIndex].energy || 0}%
                     </span>
                   </div>
-                  <div className="relative h-6 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                     <div 
-                      className="h-full rounded-full absolute top-0 left-0"
+                      className="h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-none"
                       style={{ 
                         backgroundColor: (safePets[currentPetIndex].energy || 0) >= 75 ? '#10b981' :
                                         (safePets[currentPetIndex].energy || 0) >= 50 ? '#8b5cf6' :
                                         (safePets[currentPetIndex].energy || 0) >= 25 ? '#3b82f6' : '#ef4444',
-                        width: `${safePets[currentPetIndex].energy || 0}%`,
-                        maxWidth: '100%'
+                        width: (safePets[currentPetIndex].energy || 0) <= 0 ? '0px' : 
+                               (safePets[currentPetIndex].energy || 0) >= 100 ? '100%' : 
+                               `${(safePets[currentPetIndex].energy || 0)}%`
                       }}
-                      key={`energy-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].energy || 0}`}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs font-bold text-white drop-shadow-lg">
-                        ⚡ {safePets[currentPetIndex].energy || 0}/100
-                      </span>
+                    >
+                      ⚡ {safePets[currentPetIndex].energy || 0}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
