@@ -1559,85 +1559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update care status based on type
-      if (careType === 'feed') {
-        // Increase hunger by 30% (not reset to 100%)
-        const currentHunger = pet.hunger || 50;
-        const newHunger = Math.min(100, currentHunger + 30);
-        
-        // Update last fed time and hunger level
-        await storage.updatePetLastFed(petId);
-        await storage.updatePetStats(petId, { 
-          hunger: newHunger,
-          energy: Math.max(0, (pet.energy || 50) - 5)
-        });
-        
-        // Award tokens for feeding
-        await storage.updateUserTokens(userId, 5);
-        
-        // Create activity record
-        await storage.createCareActivity({
-          petId,
-          userId,
-          activityType: 'feed',
-          completedAt: new Date(),
-          pointsEarned: 0
-        });
-      } else if (careType === 'bathe') {
-        // Increase cleanliness by 50% (not reset to 100%)
-        const currentCleanliness = pet.cleanliness || 50;
-        const newCleanliness = Math.min(100, currentCleanliness + 50);
-        
-        // Update last care date and cleanliness level
-        await storage.updatePetStats(petId, { 
-          cleanliness: newCleanliness,
-          lastCareDate: new Date(),
-          energy: Math.max(0, (pet.energy || 50) - 5)
-        });
-        
-        await storage.createCareActivity({
-          petId,
-          userId,
-          activityType: 'bathe',
-          completedAt: new Date(),
-          pointsEarned: 0
-        });
-      } else if (careType === 'play') {
-        // Increase happiness by 25%
-        const currentHappiness = pet.happiness || 50;
-        const newHappiness = Math.min(100, currentHappiness + 25);
-        
-        await storage.updatePetStats(petId, { 
-          happiness: newHappiness,
-          energy: Math.max(0, (pet.energy || 50) - 5)
-        });
-        
-        await storage.createCareActivity({
-          petId,
-          userId,
-          activityType: 'play',
-          completedAt: new Date(),
-          pointsEarned: 0
-        });
-      } else if (careType === 'sleep') {
-        // Increase energy by 40%
-        const currentEnergy = pet.energy || 50;
-        const newEnergy = Math.min(100, currentEnergy + 40);
-        
-        await storage.updatePetStats(petId, { 
-          energy: newEnergy,
-          isSleeping: true,
-          sleepStartTime: new Date()
-        });
-        
-        await storage.createCareActivity({
-          petId,
-          userId,
-          activityType: 'sleep',
-          completedAt: new Date(),
-          pointsEarned: 0
-        });
-      }
+      // This is the old commented endpoint - not active
 
       res.json({ success: true });
     } catch (error) {
@@ -2949,9 +2871,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update pet stats based on care type
       if (careType === 'fed') {
-        // Increase hunger by 30% - feeding should not reduce energy
+        // Feed: Increase hunger by 25% only
         const currentHunger = pet.hunger || 50;
-        const newHunger = Math.min(100, currentHunger + 30);
+        const newHunger = Math.min(100, currentHunger + 25);
         console.log(`Feeding pet: current hunger ${currentHunger} -> new hunger ${newHunger}`);
         
         const updateData = { hunger: newHunger };
@@ -2959,9 +2881,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updatePetStats(parseInt(petId), updateData);
         console.log('Pet stats updated successfully for feeding');
       } else if (careType === 'bathed') {
-        // Increase cleanliness by 50% - bathing uses energy
+        // Bath: Increase cleanliness by 25% and decrease energy by 5%
         const currentCleanliness = pet.cleanliness || 50;
-        const newCleanliness = Math.min(100, currentCleanliness + 50);
+        const newCleanliness = Math.min(100, currentCleanliness + 25);
         const newEnergy = Math.max(0, (pet.energy || 50) - 5);
         console.log(`Bathing pet: current cleanliness ${currentCleanliness} -> new cleanliness ${newCleanliness}, energy ${pet.energy || 50} -> ${newEnergy}`);
         
@@ -2973,7 +2895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updatePetStats(parseInt(petId), updateData);
         console.log('Pet stats updated successfully for bathing');
       } else if (careType === 'play') {
-        // Increase happiness by 25% (play activity) - playing uses energy
+        // Play: Increase happiness by 25% and decrease energy by 5%
         const currentHappiness = pet.happiness || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, (pet.energy || 50) - 5);

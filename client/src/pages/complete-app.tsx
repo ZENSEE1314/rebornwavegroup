@@ -740,11 +740,11 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
 
   const queryClient = useQueryClient();
 
-  // Simple bath mutation that uses the working feed endpoint
+  // Bath mutation - correct endpoint
   const bathMutation = useMutation({
     mutationFn: async ({ petId }: { petId: number }) => {
-      console.log('Bath button clicked - calling fed endpoint');
-      const result = await apiRequest("POST", `/api/pets/${petId}/care/fed`, {});
+      console.log('Bath button clicked - calling bathed endpoint');
+      const result = await apiRequest("POST", `/api/pets/${petId}/care/bathed`, {});
       return result;
     },
     onSuccess: () => {
