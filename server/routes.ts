@@ -67,6 +67,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('URL:', req.url);
       console.log('Original URL:', req.originalUrl);
     }
+    
+    // Log ALL POST requests to find the mysterious endpoint
+    if (req.method === 'POST' && req.path.includes('/api/pets')) {
+      console.log('🚨 ALL PET POST REQUEST:', req.method, req.path);
+    }
     next();
   });
 
