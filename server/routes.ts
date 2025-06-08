@@ -58,6 +58,18 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Global request logger for debugging pet care endpoints
+  app.use((req, res, next) => {
+    if (req.path.includes('/api/pets') && req.path.includes('/care/')) {
+      console.log('🔍 PET CARE REQUEST INTERCEPTED:');
+      console.log('Method:', req.method);
+      console.log('Path:', req.path);
+      console.log('URL:', req.url);
+      console.log('Original URL:', req.originalUrl);
+    }
+    next();
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
   
