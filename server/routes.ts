@@ -2795,10 +2795,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { petId, careType } = req.params;
-      console.log('=== PET CARE REQUEST ===');
+      console.log('=== PET CARE REQUEST RECEIVED ===');
       console.log('Processing care:', { petId, careType, userId });
       console.log('Request URL:', req.url);
       console.log('Request method:', req.method);
+      console.log('Request headers:', req.headers);
+      console.log('Request body:', req.body);
       
       if (!['fed', 'bathed', 'slept', 'cleaned', 'play'].includes(careType)) {
         console.log('ERROR: Invalid care type:', careType);
@@ -2896,6 +2898,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
+      
+      // Broadcast real-time update via WebSocket
+      broadcastPetUpdate(parseInt(petId), {
+        hunger: updatedPet?.hunger || 50,
+        cleanliness: updatedPet?.cleanliness || 50,
+        happiness: updatedPet?.happiness || 50,
+        energy: updatedPet?.energy || 50
+      });
       
       // Check token eligibility based on pet status and daily limit
       const tokenEligible = await storage.checkTokenEligibility(parseInt(petId));
