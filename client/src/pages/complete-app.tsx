@@ -1238,21 +1238,44 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             };
 
             // Use current database values directly for accurate display
-            const hunger = isDead ? 0 : (pet.hunger || 0);
-            const cleanliness = isDead ? 0 : (pet.cleanliness || 0);
+            const hunger = isDead ? 0 : calculateHunger(pet.lastFeedDate);
+            const cleanliness = isDead ? 0 : calculateCleanliness(pet.lastCareDate);
             const energy = isDead ? 0 : (pet.energy || 50);
 
             
-            // Calculate happiness decay over time
-            const calculateHappiness = () => {
-              if (isDead) return 0;
+            // Calculate happiness with same logic as hunger/cleanliness
+            const calculateHappiness = (lastPlayTime?: Date) => {
+              if (isDead) return 0; // Dead pets have 0 status
               
-              // Happiness decreases if hunger or cleanliness are low
-              const happinessDecay = Math.max(10, Math.min(hunger, cleanliness));
-              return Math.floor(happinessDecay);
+              // Check if any care activity was performed recently (within 10 seconds)
+              const lastCareTime = Math.max(
+                pet.lastCareDate ? new Date(pet.lastCareDate).getTime() : 0,
+                lastPlayTime ? new Date(lastPlayTime).getTime() : 0
+              );
+              if (lastCareTime > 0) {
+                const secondsSinceLastCare = (now - lastCareTime) / 1000;
+                if (secondsSinceLastCare < 10) {
+                  return pet.happiness || 50; // Use fresh database value
+                }
+              }
+              
+              // Use database value as starting point, then apply decay
+              const baseHappiness = pet.happiness || 50;
+              
+              // If last play time exists, calculate decay from that point
+              if (lastPlayTime) {
+                const timeSinceLastPlay = now - new Date(lastPlayTime).getTime();
+                const hoursSinceLastPlay = timeSinceLastPlay / (1000 * 60 * 60);
+                
+                // Happiness decays 1% every 3 minutes over 6 hours
+                const decayPercentage = Math.min(100, (hoursSinceLastPlay / 6) * 100);
+                return Math.max(0, Math.floor(baseHappiness - (baseHappiness * decayPercentage / 100)));
+              }
+              
+              return baseHappiness;
             };
             
-            const happiness = isDead ? 0 : calculateHappiness();
+            const happiness = isDead ? 0 : calculateHappiness(pet.lastPlayDate);
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
