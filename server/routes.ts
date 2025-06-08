@@ -2894,8 +2894,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Updating pet stats with:', updateData);
         await storage.updatePetStats(parseInt(petId), updateData);
         console.log('Pet stats updated successfully for bathing');
-      } else if (careType === 'play') {
-        // Play: Increase happiness by 25% and decrease energy by 5%
+      } else if (careType === 'play' || careType === 'cleaned') {
+        // Play/Clean: Increase happiness by 25% and decrease energy by 5%
         const currentHappiness = pet.happiness || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, (pet.energy || 50) - 5);
