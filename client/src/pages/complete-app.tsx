@@ -1237,9 +1237,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               return Math.floor(decay);
             };
 
-            // Use current database values directly for accurate display
-            const hunger = isDead ? 0 : calculateHunger(pet.lastFeedDate);
-            const cleanliness = isDead ? 0 : calculateCleanliness(pet.lastCareDate);
+            // Use synchronized database values directly for accurate display
+            const hunger = isDead ? 0 : (pet.hunger || 0);
+            const cleanliness = isDead ? 0 : (pet.cleanliness || 0);
             const energy = isDead ? 0 : (pet.energy || 50);
 
             
