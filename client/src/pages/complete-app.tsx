@@ -809,44 +809,74 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         throw error;
       }
     },
-    onSuccess: async (data) => {
+    onMutate: async ({ petId, careType }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/pets"] });
+      
+      // Snapshot the previous value
+      const previousPets = queryClient.getQueryData(["/api/pets"]);
+      
+      // Optimistically update the pet stats
+      queryClient.setQueryData(["/api/pets"], (old: any) => {
+        if (!old) return old;
+        
+        return old.map((pet: any) => {
+          if (pet.id !== petId) return pet;
+          
+          const updatedPet = { ...pet };
+          const currentEnergy = pet.energy || 50;
+          
+          // Apply the stat changes based on care type
+          if (careType === 'fed') {
+            updatedPet.hunger = Math.min(100, (pet.hunger || 0) + 25);
+            updatedPet.energy = Math.max(0, currentEnergy - 5);
+          } else if (careType === 'bathed') {
+            updatedPet.cleanliness = Math.min(100, (pet.cleanliness || 0) + 25);
+            updatedPet.happiness = Math.min(100, (pet.happiness || 0) + 15);
+            updatedPet.energy = Math.max(0, currentEnergy - 5);
+          } else if (careType === 'play') {
+            updatedPet.happiness = Math.min(100, (pet.happiness || 0) + 25);
+            updatedPet.energy = Math.max(0, currentEnergy - 5);
+          }
+          
+          // Add timestamp for UI update trigger
+          updatedPet.timestamp = new Date().toISOString();
+          
+          return updatedPet;
+        });
+      });
+      
+      // Return context object with the snapshotted value
+      return { previousPets };
+    },
+    onSuccess: async (data, variables, context) => {
       console.log('=== CARE ACTIVITY SUCCESS HANDLER ===');
       console.log('Response data:', data);
       
-      // Immediate cache invalidation
-      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
-      
-      // Force immediate refetch with fresh data
-      const freshPetData = await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-      console.log('Fresh pet data after mutation:', freshPetData);
-      
-      // Force component re-render with timestamp
-      setForceRefresh(Date.now());
-      
-      // Add visual feedback with success animation
-      setTimeout(() => {
-        const activeElement = document.activeElement as HTMLElement;
-        if (activeElement) {
-          activeElement.style.transform = 'scale(1.1)';
-          activeElement.style.transition = 'transform 0.2s ease';
-          setTimeout(() => {
-            activeElement.style.transform = 'scale(1)';
-          }, 200);
-        }
-      }, 50);
+      // Invalidate and refetch to get the real server data
+      await queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
       
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
         description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
       });
     },
-    onError: (error: any) => {
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousPets) {
+        queryClient.setQueryData(["/api/pets"], context.previousPets);
+      }
+      
       toast({
         title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
+        description: err.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
         variant: "destructive"
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the correct data
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
     }
   });
 
