@@ -2776,34 +2776,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/pets/:petId/care/:careType', async (req: any, res) => {
-    console.log('=== PET CARE ENDPOINT HIT ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Params:', req.params);
-    console.log('User authenticated:', req.isAuthenticated ? req.isAuthenticated() : 'no isAuthenticated method');
-    console.log('User object:', req.user);
+  // Pet care endpoint - MOVED TO TOP TO AVOID CONFLICTS
+  app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
+    console.log('🎯 PET CARE ENDPOINT REACHED!');
+    console.log('Care Type:', req.params.careType);
+    console.log('Pet ID:', req.params.petId);
 
     try {
-      // Skip strict authentication for development
-      let userId = req.user?.claims?.sub || req.user?.id;
-      
-      // For development, allow a fallback user ID if authentication is problematic
-      if (!userId && process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Using fallback authentication');
-        userId = '42447407'; // Use the current user's ID for development
-      }
-      
+      const userId = req.user?.claims?.sub;
       if (!userId) {
-        console.log('ERROR: User not authenticated and no fallback available');
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const { petId, careType } = req.params;
-      console.log('=== PET CARE REQUEST RECEIVED ===');
-      console.log('Processing care:', { petId, careType, userId });
-      console.log('Request URL:', req.url);
-      console.log('Request method:', req.method);
+      console.log('Processing care action:', { petId, careType, userId });
       
       if (!['fed', 'bathed', 'slept', 'cleaned', 'play'].includes(careType)) {
         console.log('ERROR: Invalid care type:', careType);
