@@ -2368,13 +2368,41 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                     console.log('Pet ID:', safePets[currentPetIndex]?.id);
                     console.log('Care Type: play');
                     console.log('Energy level:', safePets[currentPetIndex]?.energy);
-                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' });
+                    console.log('Current pet index:', currentPetIndex);
+                    console.log('Safe pets length:', safePets.length);
+                    console.log('Current pet:', safePets[currentPetIndex]);
+                    
+                    if (!safePets[currentPetIndex]?.id) {
+                      console.error('ERROR: Pet ID is undefined!');
+                      alert('Error: Pet ID is undefined! Cannot perform care activity.');
+                      return;
+                    }
+                    
+                    try {
+                      careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' });
+                    } catch (error) {
+                      console.error('Error calling mutation:', error);
+                      alert('Error calling mutation: ' + error.message);
+                    }
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
                   <span className="text-sm">Play</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+                
+                {/* Test button to verify onClick works */}
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2 bg-red-100"
+                  onClick={() => {
+                    console.log('=== TEST BUTTON CLICKED ===');
+                    alert('TEST BUTTON WORKS!');
+                  }}
+                >
+                  <span className="text-2xl">🧪</span>
+                  <span className="text-sm">Test</span>
                 </Button>
                 <Button
                   variant="outline"
