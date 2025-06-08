@@ -2201,7 +2201,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' })}
+                  onClick={() => {
+                    console.log('=== FEED BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: fed');
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' });
+                  }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🍎</span>
@@ -2211,7 +2216,12 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' })}
+                  onClick={() => {
+                    console.log('=== BATHE BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: bathed');
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' });
+                  }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🛁</span>
