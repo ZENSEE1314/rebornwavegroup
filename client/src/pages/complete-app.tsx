@@ -2317,6 +2317,82 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Daily Care Activities */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === "id" ? "Aktivitas Perawatan Harian" : "Daily Care Activities"}</CardTitle>
+              <p className="text-sm text-gray-600">
+                {language === "id" ? "Selesaikan semua aktivitas untuk mendapatkan 1 token hari ini!" : "Complete all activities to earn 1 token today!"}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2"
+                  onClick={() => {
+                    console.log('=== FEED BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: fed');
+                    console.log('Energy level:', safePets[currentPetIndex]?.energy);
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' });
+                  }}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
+                >
+                  <span className="text-2xl">🍎</span>
+                  <span className="text-sm">Feed</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2"
+                  onClick={() => {
+                    console.log('=== BATHE BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: bathed');
+                    console.log('Energy level:', safePets[currentPetIndex]?.energy);
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' });
+                  }}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
+                >
+                  <span className="text-2xl">🛁</span>
+                  <span className="text-sm">Bath</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2"
+                  onClick={() => {
+                    console.log('=== PLAY BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: play');
+                    console.log('Energy level:', safePets[currentPetIndex]?.energy);
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' });
+                  }}
+                  disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
+                >
+                  <Sparkles className="w-6 h-6" />
+                  <span className="text-sm">Play</span>
+                  {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col gap-2"
+                  onClick={() => {
+                    console.log('=== SLEEP BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: slept');
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' });
+                  }}
+                  disabled={careActivityMutation.isPending}
+                >
+                  <Bed className="w-6 h-6" />
+                  <span className="text-sm">Sleep</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
