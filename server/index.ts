@@ -48,6 +48,61 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Background pet decay system - runs every 3 minutes
+  const startBackgroundDecay = () => {
+    setInterval(async () => {
+      try {
+        const { db } = await import('./db.js');
+        const { pets } = await import('../shared/schema.js');
+        const { eq } = await import('drizzle-orm');
+        
+        // Get all active pets
+        const allPets = await db.select().from(pets).where(eq(pets.isActive, true));
+        
+        for (const pet of allPets) {
+          const now = new Date();
+          const lastDecayTime = pet.lastDecayTime ? new Date(pet.lastDecayTime) : new Date(pet.createdAt || now);
+          const minutesSinceLastDecay = Math.floor((now.getTime() - lastDecayTime.getTime()) / (1000 * 60));
+          
+          // Calculate decay intervals (every 3 minutes)
+          const decayIntervals = Math.floor(minutesSinceLastDecay / 3);
+          
+          if (decayIntervals > 0) {
+            // Apply decay to hunger and cleanliness (1% per 3-minute interval)
+            const currentHunger = pet.hunger || 100;
+            const currentCleanliness = pet.cleanliness || 100;
+            const currentHappiness = pet.happiness || 100;
+            
+            const newHunger = Math.max(0, currentHunger - decayIntervals);
+            const newCleanliness = Math.max(0, currentCleanliness - decayIntervals);
+            
+            // Happiness drops when hunger or cleanliness drops
+            const hungerDrop = currentHunger - newHunger;
+            const cleanlinessDrop = currentCleanliness - newCleanliness;
+            const totalStatDrop = hungerDrop + cleanlinessDrop;
+            const newHappiness = Math.max(0, currentHappiness - totalStatDrop);
+
+            await db.update(pets).set({
+              hunger: newHunger,
+              cleanliness: newCleanliness,
+              happiness: newHappiness,
+              lastDecayTime: now,
+              updatedAt: now
+            }).where(eq(pets.id, pet.id));
+            
+            console.log(`Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals`);
+          }
+        }
+      } catch (error) {
+        console.error('Background decay error:', error);
+      }
+    }, 180000); // Run every 3 minutes (180,000ms)
+  };
+
+  // Start background decay system
+  startBackgroundDecay();
+  console.log('Background pet decay system started - runs every 3 minutes');
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
