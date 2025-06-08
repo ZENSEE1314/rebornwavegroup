@@ -111,6 +111,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // PET CARE ENDPOINT - HIGH PRIORITY PLACEMENT
+  app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
+    console.log('🎯 TOP PRIORITY PET CARE ENDPOINT REACHED!');
+    console.log('Care Type:', req.params.careType);
+    console.log('Pet ID:', req.params.petId);
+
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const { petId, careType } = req.params;
+      console.log('Processing care action:', { petId, careType, userId });
+      
+      if (!['fed', 'bathed', 'slept', 'cleaned', 'play'].includes(careType)) {
+        console.log('ERROR: Invalid care type:', careType);
+        return res.status(400).json({ message: "Invalid care type" });
+      }
+
+      // Get the pet to verify ownership and get current stats
+      const pet = await storage.getPetById(parseInt(petId));
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      console.log('Before stats update - Pet current stats:', {
+        hunger: pet.hunger,
+        cleanliness: pet.cleanliness,
+        happiness: pet.happiness,
+        energy: pet.energy
+      });
+
+      // Update pet stats based on care type with CORRECT calculations
+      if (careType === 'fed') {
+        // Feed: Increase hunger by 25% ONLY (no energy change)
+        const currentHunger = pet.hunger || 0;
+        const newHunger = Math.min(100, currentHunger + 25);
+        console.log(`CORRECT FEEDING: hunger ${currentHunger} -> ${newHunger}, energy unchanged`);
+        
+        await storage.updatePetStats(parseInt(petId), { hunger: newHunger });
+        
+      } else if (careType === 'bathed') {
+        // Bath: Increase cleanliness by 25% and decrease energy by 5%
+        const currentCleanliness = pet.cleanliness || 0;
+        const currentEnergy = pet.energy || 50;
+        const newCleanliness = Math.min(100, currentCleanliness + 25);
+        const newEnergy = Math.max(0, currentEnergy - 5);
+        console.log(`CORRECT BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          cleanliness: newCleanliness,
+          energy: newEnergy
+        });
+        
+      } else if (careType === 'play' || careType === 'cleaned') {
+        // Play: Increase happiness by 25% and decrease energy by 5%
+        const currentHappiness = pet.happiness || 0;
+        const currentEnergy = pet.energy || 50;
+        const newHappiness = Math.min(100, currentHappiness + 25);
+        const newEnergy = Math.max(0, currentEnergy - 5);
+        console.log(`PLAY ACTION EXECUTING: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          happiness: newHappiness,
+          energy: newEnergy
+        });
+        console.log('PLAY ACTION: Pet stats updated successfully');
+        
+      } else if (careType === 'slept') {
+        // Sleep restores energy fully
+        const newEnergy = 100;
+        console.log(`Pet sleeping: energy restored to ${newEnergy}`);
+        
+        await storage.updatePetStats(parseInt(petId), { 
+          energy: newEnergy,
+          isSleeping: false,
+          sleepStartTime: null
+        });
+        console.log('Pet stats updated successfully for sleeping');
+      }
+
+      // Verify the update was successful by fetching the pet again
+      const updatedPet = await storage.getPetById(parseInt(petId));
+      console.log('After stats update - Pet new stats:', {
+        hunger: updatedPet?.hunger,
+        cleanliness: updatedPet?.cleanliness,
+        happiness: updatedPet?.happiness,
+        energy: updatedPet?.energy
+      });
+      
+      await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
+      console.log('Care status updated successfully');
+      
+      res.json({ success: true, message: `Pet ${careType} successfully!` });
+    } catch (error) {
+      console.error('PET CARE ERROR:', error);
+      res.status(500).json({ message: "Failed to perform pet care action" });
+    }
+  });
+
   // Image upload endpoint
   app.post('/api/upload-image', isAuthenticated, upload.single('image'), (req, res) => {
     try {
