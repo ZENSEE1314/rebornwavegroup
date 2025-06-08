@@ -816,13 +816,25 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     },
 
     onMutate: async ({ petId, careType }) => {
+      console.log('=== OPTIMISTIC UPDATE TRIGGERED ===');
+      console.log('Pet ID:', petId, 'Care Type:', careType);
+      
       // Immediately update local state for instant UI feedback
       const currentPets = Array.isArray(pets) ? pets : [];
       const currentPet = currentPets.find(pet => pet.id === petId);
       
+      console.log('Current pet found:', currentPet);
+      
       if (currentPet) {
         let updatedStats = { ...currentPet };
         const currentEnergy = currentPet.energy || 50;
+        
+        console.log('Current stats before update:', {
+          hunger: currentPet.hunger,
+          happiness: currentPet.happiness,
+          cleanliness: currentPet.cleanliness,
+          energy: currentPet.energy
+        });
         
         // Apply the stat changes based on care type
         if (careType === 'fed') {
@@ -837,11 +849,22 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           updatedStats.energy = Math.max(0, currentEnergy - 5);
         }
         
+        console.log('Updated stats after calculation:', {
+          hunger: updatedStats.hunger,
+          happiness: updatedStats.happiness,
+          cleanliness: updatedStats.cleanliness,
+          energy: updatedStats.energy
+        });
+        
         // Update local state immediately for instant UI change
-        setLocalPetStats(prev => ({
-          ...prev,
-          [petId]: updatedStats
-        }));
+        setLocalPetStats(prev => {
+          const newState = {
+            ...prev,
+            [petId]: updatedStats
+          };
+          console.log('Setting local pet stats:', newState);
+          return newState;
+        });
       }
     },
 
@@ -854,6 +877,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         setLocalPetStats(prev => {
           const newStats = { ...prev };
           delete newStats[variables.petId];
+          console.log('Clearing local override for pet:', variables.petId);
           return newStats;
         });
       }, 1000);
@@ -867,6 +891,13 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       });
     },
     onError: (err, variables, context) => {
+      // Clear local state on error
+      setLocalPetStats(prev => {
+        const newStats = { ...prev };
+        delete newStats[variables.petId];
+        return newStats;
+      });
+      
       toast({
         title: language === "id" ? "Error" : "Error",
         description: err.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
