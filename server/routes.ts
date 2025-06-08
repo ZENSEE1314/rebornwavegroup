@@ -2105,29 +2105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CONFLICTING ROUTE REMOVED - Pet care activities moved to /api/pets/:petId/care/:careType
-  /*
-  app.post('/api/pets/:petId/care', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const petId = parseInt(req.params.petId);
-      const { careType } = req.body;
-      
-      await storage.updateCareStatus(petId, userId, careType, true);
-      
-      // Check if all care is completed to award token
-      const allCareCompleted = await storage.checkAllCareCompleted(petId);
-      if (allCareCompleted) {
-        await storage.awardDailyToken(userId, petId);
-      }
-      
-      res.json({ message: "Care activity completed" });
-    } catch (error) {
-      console.error("Error updating care:", error);
-      res.status(500).json({ message: "Failed to update care" });
-    }
-  });
-  */
+  // CONFLICTING ROUTE COMPLETELY REMOVED
 
   // DUPLICATE ROUTE REMOVED - kept the one at line 2833
 
