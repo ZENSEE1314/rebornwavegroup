@@ -58,6 +58,7 @@ app.use((req, res, next) => {
         
         // Get all active pets
         const allPets = await db.select().from(pets).where(eq(pets.isActive, true));
+        console.log(`🔄 Background decay check: Found ${allPets.length} active pets`);
         
         for (const pet of allPets) {
           const now = new Date();
@@ -66,6 +67,8 @@ app.use((req, res, next) => {
           
           // Calculate decay intervals (every 3 minutes)
           const decayIntervals = Math.floor(minutesSinceLastDecay / 3);
+          
+          console.log(`Pet ${pet.name} (ID: ${pet.id}): ${minutesSinceLastDecay} mins since decay, ${decayIntervals} intervals`);
           
           if (decayIntervals > 0) {
             // Apply decay to hunger and cleanliness (1% per 3-minute interval)
