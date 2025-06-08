@@ -214,6 +214,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         happiness: updatedPet?.happiness,
         energy: updatedPet?.energy
       });
+
+      // Copy happiness value to hunger and cleanliness for synchronization
+      if (updatedPet) {
+        const happinessValue = updatedPet.happiness || 0;
+        await storage.updatePetStats(parseInt(petId), { 
+          hunger: happinessValue,
+          cleanliness: happinessValue
+        });
+        console.log(`Synchronized stats: copied happiness value ${happinessValue} to hunger and cleanliness`);
+      }
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');

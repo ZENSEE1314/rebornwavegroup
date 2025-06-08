@@ -1552,10 +1552,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                             });
                             return;
                           }
-                          console.log('=== PLAY BUTTON CLICKED ===');
-                          console.log('Pet ID:', pet.id);
-                          console.log('Care Type: play');
-                          console.log('Current happiness:', happiness);
                           careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
