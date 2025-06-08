@@ -475,6 +475,7 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
+  const [localPetStats, setLocalPetStats] = useState<Record<number, any>>({});
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -506,14 +507,18 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
-    staleTime: 5000, // Consider data fresh for 5 seconds
-    refetchInterval: 5000, // Update every 5 seconds to prevent flashing
+    staleTime: 0, // Always consider data stale for immediate updates
+    gcTime: 0, // Don't cache data (TanStack Query v5 property)
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
-  const safePets = Array.isArray(pets) ? pets : [];
+  const safePets = Array.isArray(pets) ? pets.map(pet => ({
+    ...pet,
+    // Override with local stats if available for immediate UI updates
+    ...(localPetStats[pet.id] || {})
+  })) : [];
   
   // Synchronous DOM update using useLayoutEffect for immediate visual changes
   useLayoutEffect(() => {
@@ -810,17 +815,51 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       }
     },
 
+    onMutate: async ({ petId, careType }) => {
+      // Immediately update local state for instant UI feedback
+      const currentPets = Array.isArray(pets) ? pets : [];
+      const currentPet = currentPets.find(pet => pet.id === petId);
+      
+      if (currentPet) {
+        let updatedStats = { ...currentPet };
+        const currentEnergy = currentPet.energy || 50;
+        
+        // Apply the stat changes based on care type
+        if (careType === 'fed') {
+          updatedStats.hunger = Math.min(100, (currentPet.hunger || 0) + 25);
+          updatedStats.energy = Math.max(0, currentEnergy - 5);
+        } else if (careType === 'bathed') {
+          updatedStats.cleanliness = Math.min(100, (currentPet.cleanliness || 0) + 25);
+          updatedStats.happiness = Math.min(100, (currentPet.happiness || 0) + 15);
+          updatedStats.energy = Math.max(0, currentEnergy - 5);
+        } else if (careType === 'play') {
+          updatedStats.happiness = Math.min(100, (currentPet.happiness || 0) + 25);
+          updatedStats.energy = Math.max(0, currentEnergy - 5);
+        }
+        
+        // Update local state immediately for instant UI change
+        setLocalPetStats(prev => ({
+          ...prev,
+          [petId]: updatedStats
+        }));
+      }
+    },
+
     onSuccess: async (data, variables, context) => {
       console.log('=== CARE ACTIVITY SUCCESS HANDLER ===');
       console.log('Response data:', data);
       
-      // Immediately invalidate and refetch pets data
-      queryClient.removeQueries({ queryKey: ["/api/pets"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      // Clear local state override since real data is now available
+      setTimeout(() => {
+        setLocalPetStats(prev => {
+          const newStats = { ...prev };
+          delete newStats[variables.petId];
+          return newStats;
+        });
+      }, 1000);
       
-      // Force component re-render
-      setForceRefresh(Date.now());
+      // Refresh from server to get accurate data
+      await refetchPets();
       
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
