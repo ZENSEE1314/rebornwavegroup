@@ -215,29 +215,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         energy: updatedPet?.energy
       });
 
-      // Copy happiness value to other stats for synchronization (excluding the stat that was just modified)
-      if (updatedPet) {
-        const happinessValue = updatedPet.happiness || 0;
-        const syncUpdates: any = {};
-        
-        // Only sync stats that weren't directly affected by this care action
-        if (careType === 'fed') {
-          // Feed affects hunger, so sync happiness to cleanliness only
-          syncUpdates.cleanliness = happinessValue;
-        } else if (careType === 'bathed') {
-          // Bathe affects cleanliness and happiness, so sync happiness to hunger only
-          syncUpdates.hunger = happinessValue;
-        } else if (careType === 'play' || careType === 'cleaned') {
-          // Play affects happiness, so sync to both hunger and cleanliness
-          syncUpdates.hunger = happinessValue;
-          syncUpdates.cleanliness = happinessValue;
-        }
-        
-        if (Object.keys(syncUpdates).length > 0) {
-          await storage.updatePetStats(parseInt(petId), syncUpdates);
-          console.log(`Synchronized stats: copied happiness value ${happinessValue} to`, Object.keys(syncUpdates));
-        }
-      }
+      // SYNCHRONIZATION TEMPORARILY DISABLED - Allow natural decay to work
+      // The synchronization was preventing decay from working properly
+      console.log('Synchronization disabled - allowing natural stat decay to function');
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
