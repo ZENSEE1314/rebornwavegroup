@@ -2866,12 +2866,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentEnergy = pet.energy || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
-        console.log(`CORRECT PLAYING: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
+        console.log(`PLAY ACTION EXECUTING: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { 
-          happiness: newHappiness,
-          energy: newEnergy
-        });
+        try {
+          await storage.updatePetStats(parseInt(petId), { 
+            happiness: newHappiness,
+            energy: newEnergy
+          });
+          console.log('PLAY ACTION: Pet stats updated successfully');
+        } catch (updateError) {
+          console.error('PLAY ACTION ERROR: Failed to update pet stats:', updateError);
+          throw updateError;
+        }
       } else if (careType === 'slept') {
         // Sleep restores energy fully
         const newEnergy = 100;
@@ -2899,13 +2905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
       
-      // Broadcast real-time update via WebSocket
-      broadcastPetUpdate(parseInt(petId), {
-        hunger: updatedPet?.hunger || 50,
-        cleanliness: updatedPet?.cleanliness || 50,
-        happiness: updatedPet?.happiness || 50,
-        energy: updatedPet?.energy || 50
-      });
+      // Real-time update handled by WebSocket system below
       
       // Check token eligibility based on pet status and daily limit
       const tokenEligible = await storage.checkTokenEligibility(parseInt(petId));
