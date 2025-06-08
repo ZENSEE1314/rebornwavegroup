@@ -2380,6 +2380,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
+                    console.log('=== FEED BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: fed');
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
@@ -2392,6 +2395,9 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
+                    console.log('=== BATHE BUTTON CLICKED ===');
+                    console.log('Pet ID:', safePets[currentPetIndex]?.id);
+                    console.log('Care Type: bathed');
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
