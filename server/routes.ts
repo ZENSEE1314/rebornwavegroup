@@ -151,12 +151,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update pet stats based on care type with CORRECT calculations
       if (careType === 'fed') {
-        // Feed: Increase hunger by 25% ONLY (no energy change)
+        // Feed: Increase hunger by 25% and decrease energy by 5%
         const currentHunger = pet.hunger || 0;
+        const currentEnergy = pet.energy || 50;
         const newHunger = Math.min(100, currentHunger + 25);
-        console.log(`CORRECT FEEDING: hunger ${currentHunger} -> ${newHunger}, energy unchanged`);
+        const newEnergy = Math.max(0, currentEnergy - 5);
+        console.log(`FIXED FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { hunger: newHunger });
+        await storage.updatePetStats(parseInt(petId), { 
+          hunger: newHunger,
+          energy: newEnergy
+        });
         
       } else if (careType === 'bathed') {
         // Bath: Increase cleanliness by 25% and decrease energy by 5%
