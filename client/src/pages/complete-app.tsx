@@ -872,18 +872,19 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
       console.log('=== CARE ACTIVITY SUCCESS HANDLER ===');
       console.log('Response data:', data);
       
-      // Clear local state override since real data is now available
-      setTimeout(() => {
-        setLocalPetStats(prev => {
-          const newStats = { ...prev };
-          delete newStats[variables.petId];
-          console.log('Clearing local override for pet:', variables.petId);
-          return newStats;
-        });
-      }, 1000);
+      // Immediately clear local state override
+      setLocalPetStats(prev => {
+        const newStats = { ...prev };
+        delete newStats[variables.petId];
+        console.log('Clearing local override for pet:', variables.petId);
+        return newStats;
+      });
       
-      // Refresh from server to get accurate data
-      await refetchPets();
+      // Force refresh pets data from server
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/user-stats"] });
       
       toast({
         title: language === "id" ? "Berhasil!" : "Success!",
@@ -1162,10 +1163,22 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
             const calculateHunger = (lastFeedTime?: Date) => {
               if (isDead) return 0; // Dead pets have 0 status
               
-              // If fed recently (within 5 minutes), use database value to show immediate effect
+              // If care activity performed recently (within 10 seconds) or fed recently (within 5 minutes), use database value
               if (lastFeedTime) {
                 const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
                 if (minutesSinceLastFeed < 5) {
+                  return pet.hunger || 50; // Use fresh database value
+                }
+              }
+              
+              // Check if any care activity was performed recently (within 10 seconds)
+              const lastCareTime = Math.max(
+                pet.lastCareDate ? new Date(pet.lastCareDate).getTime() : 0,
+                lastFeedTime ? new Date(lastFeedTime).getTime() : 0
+              );
+              if (lastCareTime > 0) {
+                const secondsSinceLastCare = (now - lastCareTime) / 1000;
+                if (secondsSinceLastCare < 10) {
                   return pet.hunger || 50; // Use fresh database value
                 }
               }
@@ -1193,6 +1206,18 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
               if (lastCareTime) {
                 const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
                 if (minutesSinceLastCare < 5) {
+                  return pet.cleanliness || 50; // Use fresh database value
+                }
+              }
+              
+              // Check if any care activity was performed recently (within 10 seconds)
+              const recentCareTime = Math.max(
+                pet.lastCareDate ? new Date(pet.lastCareDate).getTime() : 0,
+                lastCareTime ? new Date(lastCareTime).getTime() : 0
+              );
+              if (recentCareTime > 0) {
+                const secondsSinceLastCare = (now - recentCareTime) / 1000;
+                if (secondsSinceLastCare < 10) {
                   return pet.cleanliness || 50; // Use fresh database value
                 }
               }
