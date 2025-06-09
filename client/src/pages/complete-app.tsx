@@ -15,7 +15,7 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator, Coins
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -916,6 +916,33 @@ function PetCareSection({ language, user, queryClient }: { language: string; use
         variant: "destructive"
       });
     }
+  });
+
+  // Daily token reward queries
+  const { data: dailyRewardStatus, refetch: refetchDailyReward } = useQuery({
+    queryKey: ['/api/daily-token-reward/status'],
+    enabled: !!user?.id,
+    refetchInterval: 60000, // Check every minute
+  });
+
+  // Daily token reward claim mutation
+  const claimDailyRewardMutation = useMutation({
+    mutationFn: () => apiRequest("POST", '/api/daily-token-reward/claim', {}),
+    onSuccess: () => {
+      refetchDailyReward();
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      toast({
+        title: language === "id" ? "Token Harian Diklaim!" : "Daily Token Claimed!",
+        description: language === "id" ? "Anda telah menerima 1 token!" : "You've received 1 token!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === "id" ? "Gagal Mengklaim Token" : "Failed to Claim Token",
+        description: error.message || (language === "id" ? "Terjadi kesalahan saat mengklaim token harian" : "An error occurred while claiming daily token"),
+        variant: "destructive",
+      });
+    },
   });
 
   // Energy potion mutation
@@ -1935,6 +1962,27 @@ function PetCareSection({ language, user, queryClient }: { language: string; use
           </CardContent>
         </Card>
       )}
+
+      {/* Daily Token Reward Section */}
+      <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Coins className="w-5 h-5 text-yellow-600" />
+            {language === "id" ? "Hadiah Token Harian" : "Daily Token Reward"}
+          </CardTitle>
+          <p className="text-sm text-gray-600">
+            {language === "id" ? "Dapatkan 1 token setiap 24 jam jika semua hewan sehat!" : "Earn 1 token every 24 hours if all pets are healthy!"}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DailyTokenReward 
+            language={language}
+            userTokens={userTokens}
+            dailyRewardStatus={dailyRewardStatus}
+            claimDailyRewardMutation={claimDailyRewardMutation}
+          />
+        </CardContent>
+      </Card>
 
       {/* Activated Toys (can create pets from these) */}
       {ownedToys.filter((toy: any) => toy.isActivated && !pets?.some((pet: any) => pet.toyId === toy.id)).length > 0 && (
