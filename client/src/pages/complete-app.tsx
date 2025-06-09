@@ -839,13 +839,16 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
         // Apply the stat changes based on care type
         if (careType === 'fed') {
           updatedStats.hunger = Math.min(100, (currentPet.hunger || 0) + 25);
-          updatedStats.energy = Math.max(0, currentEnergy - 5);
+          // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+          updatedStats.energy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
         } else if (careType === 'bathed') {
           updatedStats.cleanliness = Math.min(100, (currentPet.cleanliness || 0) + 25);
-          updatedStats.energy = Math.max(0, currentEnergy - 5);
+          // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+          updatedStats.energy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
         } else if (careType === 'play') {
           updatedStats.happiness = Math.min(100, (currentPet.happiness || 0) + 25);
-          updatedStats.energy = Math.max(0, currentEnergy - 5);
+          // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+          updatedStats.energy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
         }
         
         console.log('Updated stats after calculation:', {

@@ -151,12 +151,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update pet stats based on care type with CORRECT calculations
       if (careType === 'fed') {
-        // Feed: Increase hunger by 25% and decrease energy by 5%
+        // Feed: Increase hunger by 25% and handle energy appropriately
         const currentHunger = pet.hunger || 0;
         const currentEnergy = pet.energy || 50;
         const newHunger = Math.min(100, currentHunger + 25);
-        const newEnergy = Math.max(0, currentEnergy - 5);
-        console.log(`FIXED FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy}`);
+        
+        // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+        const newEnergy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
+        console.log(`FIXED FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy} ${currentEnergy <= 5 ? '(RESTORED)' : '(DECREASED)'}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           hunger: newHunger,
@@ -164,12 +166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
       } else if (careType === 'bathed') {
-        // Bath: Increase cleanliness by 25% and decrease energy by 5% (like feed button pattern)
+        // Bath: Increase cleanliness by 25% and handle energy appropriately
         const currentCleanliness = pet.cleanliness || 0;
         const currentEnergy = pet.energy || 50;
         const newCleanliness = Math.min(100, currentCleanliness + 25);
-        const newEnergy = Math.max(0, currentEnergy - 5);
-        console.log(`FIXED BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
+        
+        // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+        const newEnergy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
+        console.log(`FIXED BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy} ${currentEnergy <= 5 ? '(RESTORED)' : '(DECREASED)'}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           cleanliness: newCleanliness,
@@ -177,12 +181,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
       } else if (careType === 'play' || careType === 'cleaned') {
-        // Play: Increase happiness by 25% and decrease energy by 5%
+        // Play: Increase happiness by 25% and handle energy appropriately
         const currentHappiness = pet.happiness || 0;
         const currentEnergy = pet.energy || 50;
         const newHappiness = Math.min(100, currentHappiness + 25);
-        const newEnergy = Math.max(0, currentEnergy - 5);
-        console.log(`PLAY ACTION EXECUTING: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
+        
+        // Energy restoration logic: restore to 50% if at or below 5%, otherwise decrease by 5%
+        const newEnergy = currentEnergy <= 5 ? 50 : Math.max(0, currentEnergy - 5);
+        console.log(`PLAY ACTION EXECUTING: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy} ${currentEnergy <= 5 ? '(RESTORED)' : '(DECREASED)'}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           happiness: newHappiness,
