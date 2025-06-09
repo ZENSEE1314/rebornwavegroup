@@ -201,10 +201,21 @@ export const tokenTransactions = pgTable("token_transactions", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   tokens: integer("tokens").notNull(), // positive for earning, negative for spending
-  type: varchar("type").notNull(), // 'earned' | 'spent' | 'refund'
+  type: varchar("type").notNull(), // 'earned' | 'spent' | 'refund' | 'daily_reward'
   description: text("description").notNull(),
   relatedId: integer("related_id"), // Reference to pet, purchase, etc.
   status: varchar("status").default("completed"), // 'pending' | 'completed' | 'failed'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Daily token rewards table - track 24-hour token distribution
+export const dailyTokenRewards = pgTable("daily_token_rewards", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  rewardDate: varchar("reward_date").notNull(), // YYYY-MM-DD format
+  tokensAwarded: integer("tokens_awarded").default(1),
+  allPetsHealthy: boolean("all_pets_healthy").default(true), // All pets have stats > 0%
+  petCount: integer("pet_count").default(0), // Number of pets checked
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -494,6 +505,20 @@ export const dailyCareStatusRelations = relations(dailyCareStatus, ({ one }) => 
   }),
 }));
 
+export const dailyTokenRewardsRelations = relations(dailyTokenRewards, ({ one }) => ({
+  user: one(users, {
+    fields: [dailyTokenRewards.userId],
+    references: [users.id],
+  }),
+}));
+
+export const tokenTransactionsRelations = relations(tokenTransactions, ({ one }) => ({
+  user: one(users, {
+    fields: [tokenTransactions.userId],
+    references: [users.id],
+  }),
+}));
+
 // Schema types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -545,6 +570,11 @@ export const insertTokenTransactionSchema = createInsertSchema(tokenTransactions
   createdAt: true,
 });
 
+export const insertDailyTokenRewardSchema = createInsertSchema(dailyTokenRewards).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPaymentVerificationSchema = createInsertSchema(paymentVerifications).omit({
   id: true,
   createdAt: true,
@@ -565,8 +595,10 @@ export type InsertListing = z.infer<typeof insertListingSchema>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type InsertPointRedemption = z.infer<typeof insertPointRedemptionSchema>;
 export type InsertTokenTransaction = z.infer<typeof insertTokenTransactionSchema>;
+export type InsertDailyTokenReward = z.infer<typeof insertDailyTokenRewardSchema>;
 export type InsertPaymentVerification = z.infer<typeof insertPaymentVerificationSchema>;
 export type TokenTransaction = typeof tokenTransactions.$inferSelect;
+export type DailyTokenReward = typeof dailyTokenRewards.$inferSelect;
 export type PaymentVerification = typeof paymentVerifications.$inferSelect;
 
 // Cash-out transaction schemas

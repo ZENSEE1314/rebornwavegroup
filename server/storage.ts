@@ -23,6 +23,8 @@ import {
   topUpRequests,
   paymentTransactions,
   tokenHistory,
+  tokenTransactions,
+  dailyTokenRewards,
   type User,
   type UpsertUser,
   type InsertAppointment,
