@@ -3677,6 +3677,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log('*** USER STATS from DB:', stats);
+      
+      // Force no-cache to ensure frontend gets fresh data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json(stats);
     } catch (error) {
       console.error('Error fetching user stats:', error);
