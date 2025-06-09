@@ -571,7 +571,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 }
 
 // Pet Care Component
-function PetCareSection({ language, user, queryClient }: { language: string; user: any; queryClient: any }) {
+function PetCareSection({ language, user, queryClient, userTokens }: { language: string; user: any; queryClient: any; userTokens: number }) {
   const { toast } = useToast();
   
   // State for real-time timer updates
@@ -7000,7 +7000,7 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <PetCareSection language={language} user={user} queryClient={queryClient} />
+          <PetCareSection language={language} user={user} queryClient={queryClient} userTokens={userTokens} />
         )}
 
         {/* Profile Tab */}
