@@ -842,7 +842,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
           updatedStats.energy = Math.max(0, currentEnergy - 5);
         } else if (careType === 'bathed') {
           updatedStats.cleanliness = Math.min(100, (currentPet.cleanliness || 0) + 25);
-          updatedStats.happiness = Math.min(100, (currentPet.happiness || 0) + 15);
           updatedStats.energy = Math.max(0, currentEnergy - 5);
         } else if (careType === 'play') {
           updatedStats.happiness = Math.min(100, (currentPet.happiness || 0) + 25);
