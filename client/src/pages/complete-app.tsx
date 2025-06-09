@@ -205,6 +205,115 @@ function DailyTokenChecker({ petId, petName, currentStats }: {
   );
 }
 
+// Daily Token Reward Component
+function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyRewardMutation }: any) {
+  if (!dailyRewardStatus) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <Clock className="w-6 h-6 mx-auto mb-2 text-gray-400" />
+          <p className="text-sm text-gray-500">
+            {language === "id" ? "Memuat status hadiah..." : "Loading reward status..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { canClaim, timeUntilNext, allPetsHealthy, petCount } = dailyRewardStatus;
+
+  return (
+    <div className="space-y-4">
+      {/* Current Token Count */}
+      <div className="flex items-center justify-between bg-white rounded-lg p-4 border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+            <Coins className="w-5 h-5 text-yellow-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">
+              {language === "id" ? "Token Saat Ini" : "Current Tokens"}
+            </p>
+            <p className="text-2xl font-bold text-yellow-600">{userTokens || 0}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Reward Status */}
+      <div className="bg-white rounded-lg p-4 border">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-gray-900">
+            {language === "id" ? "Hadiah Harian" : "Daily Reward"}
+          </h4>
+          <Badge variant={canClaim ? "default" : "secondary"}>
+            {canClaim 
+              ? (language === "id" ? "Siap Diklaim!" : "Ready to Claim!") 
+              : (language === "id" ? "Belum Tersedia" : "Not Available")
+            }
+          </Badge>
+        </div>
+
+        {/* Pet Health Status */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Heart className={`w-4 h-4 ${allPetsHealthy ? 'text-green-500' : 'text-red-500'}`} />
+            <span className="text-sm font-medium">
+              {language === "id" ? "Status Kesehatan Hewan" : "Pet Health Status"}
+            </span>
+          </div>
+          <p className="text-sm text-gray-600">
+            {allPetsHealthy 
+              ? (language === "id" ? `Semua ${petCount} hewan sehat! ✓` : `All ${petCount} pets are healthy! ✓`)
+              : (language === "id" ? "Beberapa hewan memerlukan perawatan" : "Some pets need care")
+            }
+          </p>
+        </div>
+
+        {/* Action Button */}
+        {canClaim ? (
+          <Button 
+            onClick={() => claimDailyRewardMutation.mutate()}
+            disabled={claimDailyRewardMutation.isPending}
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            {claimDailyRewardMutation.isPending ? (
+              <>
+                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                {language === "id" ? "Mengklaim..." : "Claiming..."}
+              </>
+            ) : (
+              <>
+                <Coins className="w-4 h-4 mr-2" />
+                {language === "id" ? "Klaim 1 Token" : "Claim 1 Token"}
+              </>
+            )}
+          </Button>
+        ) : (
+          <div className="text-center py-3">
+            <p className="text-sm text-gray-500 mb-1">
+              {language === "id" ? "Hadiah berikutnya tersedia dalam:" : "Next reward available in:"}
+            </p>
+            <p className="font-mono text-lg font-semibold text-gray-700">
+              {timeUntilNext}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Requirements */}
+      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+        <h5 className="font-medium text-blue-900 mb-2">
+          {language === "id" ? "Persyaratan:" : "Requirements:"}
+        </h5>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• {language === "id" ? "Tunggu 24 jam sejak klaim terakhir" : "Wait 24 hours since last claim"}</li>
+          <li>• {language === "id" ? "Semua hewan harus sehat (tidak ada stat 0%)" : "All pets must be healthy (no 0% stats)"}</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
@@ -1977,7 +2086,7 @@ function PetCareSection({ language, user, queryClient }: { language: string; use
         <CardContent>
           <DailyTokenReward 
             language={language}
-            userTokens={userTokens}
+            userTokens={userStats?.tokens || 0}
             dailyRewardStatus={dailyRewardStatus}
             claimDailyRewardMutation={claimDailyRewardMutation}
           />
