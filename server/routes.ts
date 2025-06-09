@@ -4230,5 +4230,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily token reward endpoints
+  app.get('/api/daily-token-reward/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const status = await storage.canClaimDailyTokenReward(userId);
+      res.json(status);
+    } catch (error) {
+      console.error("Error checking daily token reward status:", error);
+      res.status(500).json({ message: "Failed to check reward status" });
+    }
+  });
+
+  app.post('/api/daily-token-reward/claim', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const result = await storage.claimDailyTokenReward(userId);
+      
+      if (result.success) {
+        res.json({ 
+          message: 'Daily token reward claimed successfully!',
+          tokensAwarded: result.tokensAwarded
+        });
+      } else {
+        res.status(400).json({ 
+          message: 'Cannot claim daily token reward at this time' 
+        });
+      }
+    } catch (error) {
+      console.error("Error claiming daily token reward:", error);
+      res.status(500).json({ message: "Failed to claim daily token reward" });
+    }
+  });
+
   return httpServer;
 }

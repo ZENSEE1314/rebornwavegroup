@@ -54,6 +54,10 @@ import {
   type InsertPaymentTransaction,
   type TokenHistory,
   type InsertTokenHistory,
+  type TokenTransaction,
+  type InsertTokenTransaction,
+  type DailyTokenReward,
+  type InsertDailyTokenReward,
   type Appointment,
   type Transaction,
   type Toy,
@@ -220,6 +224,12 @@ export interface IStorage {
   checkAllCareCompleted(petId: number): Promise<boolean>;
   checkTokenEligibility(petId: number): Promise<{ eligible: boolean; reason?: string }>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
+  
+  // Daily token reward operations
+  createDailyTokenReward(reward: InsertDailyTokenReward): Promise<DailyTokenReward>;
+  getLastDailyTokenReward(userId: string): Promise<DailyTokenReward | undefined>;
+  canClaimDailyTokenReward(userId: string): Promise<{ canClaim: boolean; nextClaimTime?: Date }>;
+  claimDailyTokenReward(userId: string): Promise<{ success: boolean; tokensAwarded: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1905,6 +1915,96 @@ export class DatabaseStorage implements IStorage {
       .from(tokenHistory)
       .where(eq(tokenHistory.userId, userId))
       .orderBy(desc(tokenHistory.createdAt));
+  }
+
+  // Daily token reward operations
+  async createDailyTokenReward(reward: InsertDailyTokenReward): Promise<DailyTokenReward> {
+    const [result] = await db
+      .insert(dailyTokenRewards)
+      .values(reward)
+      .returning();
+    return result;
+  }
+
+  async getLastDailyTokenReward(userId: string): Promise<DailyTokenReward | undefined> {
+    const [reward] = await db
+      .select()
+      .from(dailyTokenRewards)
+      .where(eq(dailyTokenRewards.userId, userId))
+      .orderBy(desc(dailyTokenRewards.createdAt))
+      .limit(1);
+    return reward;
+  }
+
+  async canClaimDailyTokenReward(userId: string): Promise<{ canClaim: boolean; nextClaimTime?: Date }> {
+    // Get user's pets to check if any have all stats > 0%
+    const userPets = await this.getPetsByUserId(userId);
+    
+    if (userPets.length === 0) {
+      return { canClaim: false };
+    }
+
+    // Check if any pet has all stats above 0%
+    const hasHealthyPet = userPets.some(pet => 
+      (pet.happiness || 0) > 0 && 
+      (pet.hunger || 0) > 0 && 
+      (pet.cleanliness || 0) > 0 && 
+      (pet.energy || 0) > 0
+    );
+
+    if (!hasHealthyPet) {
+      return { canClaim: false };
+    }
+
+    // Check last claim time (24-hour cooldown)
+    const lastReward = await this.getLastDailyTokenReward(userId);
+    
+    if (!lastReward) {
+      return { canClaim: true };
+    }
+
+    const now = new Date();
+    const lastClaimTime = new Date(lastReward.createdAt);
+    const timeSinceLastClaim = now.getTime() - lastClaimTime.getTime();
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+
+    if (timeSinceLastClaim >= twentyFourHoursInMs) {
+      return { canClaim: true };
+    }
+
+    const nextClaimTime = new Date(lastClaimTime.getTime() + twentyFourHoursInMs);
+    return { canClaim: false, nextClaimTime };
+  }
+
+  async claimDailyTokenReward(userId: string): Promise<{ success: boolean; tokensAwarded: number }> {
+    const { canClaim } = await this.canClaimDailyTokenReward(userId);
+    
+    if (!canClaim) {
+      return { success: false, tokensAwarded: 0 };
+    }
+
+    const tokensAwarded = 1;
+
+    // Create the daily token reward record
+    await this.createDailyTokenReward({
+      userId,
+      tokensAwarded,
+      reason: 'Daily reward for healthy pet care'
+    });
+
+    // Add tokens to user account
+    await this.updatePetTokens(userId, tokensAwarded);
+
+    // Create token transaction record
+    await db.insert(tokenTransactions).values({
+      userId,
+      tokens: tokensAwarded,
+      type: 'earned',
+      description: 'Daily token reward for pet care',
+      relatedId: null
+    });
+
+    return { success: true, tokensAwarded };
   }
 }
 
