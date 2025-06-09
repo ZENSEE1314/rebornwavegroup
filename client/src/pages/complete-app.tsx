@@ -758,8 +758,6 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
   // Get unactivated toys (toys without QR codes activated)
   const unactivatedToys = ownedToys?.filter((toy: any) => !toy.isActivated) || [];
 
-  const queryClient = useQueryClient();
-
   // Bath mutation - correct endpoint
   const bathMutation = useMutation({
     mutationFn: async ({ petId }: { petId: number }) => {
