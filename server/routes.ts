@@ -224,9 +224,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         energy: updatedPet?.energy
       });
 
-      // SYNCHRONIZATION TEMPORARILY DISABLED - Allow natural decay to work
-      // The synchronization was preventing decay from working properly
-      console.log('Synchronization disabled - allowing natural stat decay to function');
+      // Send real-time update via WebSocket to synchronize frontend
+      if (global.wss) {
+        const updateMessage = {
+          type: 'petStatsUpdate',
+          petId: parseInt(petId),
+          stats: {
+            hunger: updatedPet?.hunger,
+            happiness: updatedPet?.happiness,
+            cleanliness: updatedPet?.cleanliness,
+            energy: updatedPet?.energy,
+            isSleeping: updatedPet?.isSleeping,
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        console.log('Broadcasting pet stats update via WebSocket:', updateMessage);
+        global.wss.clients.forEach((client: any) => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(JSON.stringify(updateMessage));
+          }
+        });
+      }
       
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');

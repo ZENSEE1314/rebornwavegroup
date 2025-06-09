@@ -593,6 +593,21 @@ function PetCareSection({ language, user }: { language: string; user: any }) {
     return () => clearInterval(aggressiveUpdate);
   }, [safePets, currentPetIndex]);
   
+  // Force immediate and continuous sync with database to ensure real-time accuracy
+  useEffect(() => {
+    // Immediate sync on component mount
+    queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+    refetchPets();
+    
+    // Continue syncing every 5 seconds
+    const syncInterval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+      refetchPets();
+    }, 5000); // Every 5 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [queryClient, refetchPets]);
+
   // Debug logging to track what data we're getting
   useEffect(() => {
     if (safePets.length > 0 && safePets[currentPetIndex]) {

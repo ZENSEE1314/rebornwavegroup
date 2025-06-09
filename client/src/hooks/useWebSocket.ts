@@ -82,10 +82,10 @@ export function useWebSocket(enabled: boolean = true) {
           }
           
           // Handle real-time pet stats updates
-          if (data.type === 'PET_STATS_UPDATE') {
-            console.log('Received real-time pet stats update:', data);
+          if (data.type === 'petStatsUpdate') {
+            console.log('✅ Received real-time pet stats update:', data);
             
-            // Immediately invalidate and refetch pet data
+            // Immediately invalidate and refetch pet data to sync with database
             queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
             queryClient.refetchQueries({ queryKey: ['/api/pets'] });
             
