@@ -6843,7 +6843,7 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <PetCareSection language={language} user={user} />
+          <PetCareSection language={language} user={user} queryClient={queryClient} />
         )}
 
         {/* Profile Tab */}
