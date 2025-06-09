@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Check if pet has enough energy for care actions (need at least 1% energy)
-      const currentEnergy = pet.energy || 50;
+      const currentEnergy = pet.energy ?? 50;
       
       // Update pet stats based on care type with CORRECT calculations
       if (careType === 'fed') {
@@ -1687,7 +1687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Start sleep - only if energy is below 100%
-      const currentEnergy = pet.energy || 50;
+      const currentEnergy = pet.energy ?? 50;
       if (currentEnergy < 100) {
         const now = new Date();
         await storage.updatePetStats(petId, { 
@@ -1885,7 +1885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if pet already has full energy
-      const currentEnergy = pet.energy || 50;
+      const currentEnergy = pet.energy ?? 50;
       if (currentEnergy >= 100) {
         return res.status(400).json({ 
           message: "Pet already has full energy!",
