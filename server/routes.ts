@@ -4238,8 +4238,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      const status = await storage.canClaimDailyTokenReward(userId);
-      res.json(status);
+      console.log("Checking daily token reward status for user:", userId);
+      
+      // Get user's pets to check health status
+      const userPets = await storage.getPetsByUserId(userId);
+      const petCount = userPets.length;
+      
+      // Check if all pets have stats > 25% (healthy threshold)
+      const allPetsHealthy = userPets.length > 0 && userPets.every(pet => 
+        (pet.happiness || 0) > 25 && 
+        (pet.hunger || 0) > 25 && 
+        (pet.cleanliness || 0) > 25 && 
+        (pet.energy || 0) > 25
+      );
+      
+      // Get last reward claim time
+      const lastReward = await storage.getLastDailyTokenReward(userId);
+      let canClaim = false;
+      let timeUntilNext = 0;
+      
+      if (!lastReward) {
+        // First time - can claim if all pets are healthy
+        canClaim = allPetsHealthy;
+      } else {
+        const now = new Date();
+        const lastClaimTime = new Date(lastReward.createdAt);
+        const timeSinceLastClaim = now.getTime() - lastClaimTime.getTime();
+        const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+        
+        if (timeSinceLastClaim >= twentyFourHoursInMs) {
+          canClaim = allPetsHealthy;
+          timeUntilNext = 0;
+        } else {
+          canClaim = false;
+          timeUntilNext = twentyFourHoursInMs - timeSinceLastClaim;
+        }
+      }
+      
+      const response = {
+        canClaim,
+        allPetsHealthy,
+        petCount,
+        timeUntilNext: Math.max(0, timeUntilNext),
+        lastClaimTime: lastReward?.createdAt || null
+      };
+      
+      console.log("Daily token reward status response:", response);
+      res.json(response);
     } catch (error) {
       console.error("Error checking daily token reward status:", error);
       res.status(500).json({ message: "Failed to check reward status" });
