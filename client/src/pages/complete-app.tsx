@@ -1809,7 +1809,7 @@ function PetCareSection({ language, user, queryClient }: { language: string; use
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Token:" : "Tokens:"}</span>
-                        <p className="font-medium">{canEarnTokens ? (pet.dailyTokensAvailable || 1) : 0}</p>
+                        <p className="font-medium">{userTokens}</p>
                       </div>
                     </div>
                     {!isDead && (
