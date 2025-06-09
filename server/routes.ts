@@ -164,18 +164,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
       } else if (careType === 'bathed') {
-        // Bath: Increase cleanliness by 25%, increase happiness by 15%, and decrease energy by 5%
+        // Bath: Increase cleanliness by 25% and decrease energy by 5% (like feed button pattern)
         const currentCleanliness = pet.cleanliness || 0;
-        const currentHappiness = pet.happiness || 0;
         const currentEnergy = pet.energy || 50;
         const newCleanliness = Math.min(100, currentCleanliness + 25);
-        const newHappiness = Math.min(100, currentHappiness + 15);
         const newEnergy = Math.max(0, currentEnergy - 5);
-        console.log(`FIXED BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
+        console.log(`FIXED BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
         
         await storage.updatePetStats(parseInt(petId), { 
           cleanliness: newCleanliness,
-          happiness: newHappiness,
           energy: newEnergy
         });
         
