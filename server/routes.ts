@@ -78,38 +78,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
   
-  // Create WebSocket server on distinct path
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  // Store connected admin clients
-  const adminClients = new Set<WebSocket>();
-  
-  // WebSocket connection handler
-  wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
-    adminClients.add(ws);
-    
-    ws.on('close', () => {
-      console.log('WebSocket client disconnected');
-      adminClients.delete(ws);
-    });
-    
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-      adminClients.delete(ws);
-    });
-  });
-  
-  // Function to broadcast admin updates
-  const broadcastAdminUpdate = (type: string, data: any) => {
-    const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
-    adminClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  };
-  
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   
