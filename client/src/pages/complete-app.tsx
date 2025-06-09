@@ -213,7 +213,6 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   const [gameOver, setGameOver] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Fetch leaderboard data
   const { data: leaderboard = [] } = useQuery({
@@ -463,7 +462,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 }
 
 // Pet Care Component
-function PetCareSection({ language, user }: { language: string; user: any }) {
+function PetCareSection({ language, user, queryClient }: { language: string; user: any; queryClient: any }) {
   const { toast } = useToast();
   
   // State for real-time timer updates
@@ -2361,7 +2360,6 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationPage, setVerificationPage] = useState(1);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Fetch user's payment verifications with pagination
   const { data: userVerificationsResponse, isLoading: verificationsLoading } = useQuery({
