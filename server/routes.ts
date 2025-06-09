@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentHunger = pet.hunger || 0;
+        const currentHunger = pet.hunger ?? 0;
         const newHunger = Math.min(100, currentHunger + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy}`);
@@ -175,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentCleanliness = pet.cleanliness || 0;
+        const currentCleanliness = pet.cleanliness ?? 0;
         const newCleanliness = Math.min(100, currentCleanliness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
@@ -191,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentHappiness = pet.happiness || 0;
+        const currentHappiness = pet.happiness ?? 0;
         const newHappiness = Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`PLAY ACTION: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
