@@ -47,7 +47,7 @@ export default function MyReferral() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">My Referral Code</h1>
-        <p className="text-slate-600">Share your code and earn up to 15% commission on all referrals!</p>
+        <p className="text-slate-600">Share your code and earn 10% commission on all verified purchases!</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -100,7 +100,7 @@ export default function MyReferral() {
         {/* Commission Structure */}
         <Card>
           <CardHeader>
-            <CardTitle>3-Level Commission Structure</CardTitle>
+            <CardTitle>Commission Structure</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
@@ -111,20 +111,10 @@ export default function MyReferral() {
               <Badge className="bg-emerald-500 text-white">10%</Badge>
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
-                <span className="font-medium">2nd Level</span>
-              </div>
-              <Badge className="bg-blue-500 text-white">3%</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
-                <span className="font-medium">3rd Level</span>
-              </div>
-              <Badge className="bg-purple-500 text-white">2%</Badge>
+            <div className="text-center py-4">
+              <p className="text-sm text-slate-600">
+                Earn 10% commission on all verified purchases made by people you refer
+              </p>
             </div>
           </CardContent>
         </Card>
