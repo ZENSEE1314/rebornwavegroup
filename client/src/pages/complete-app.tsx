@@ -7939,6 +7939,43 @@ export default function CompleteApp() {
         </div>
       )}
 
+        {/* Admin Tab */}
+        {activeTab === "admin" && user?.role === 'admin' && (
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900">
+                  {language === "id" ? "Dashboard Admin" : "Admin Dashboard"}
+                </h2>
+                <p className="text-slate-600">
+                  {language === "id" ? "Kelola sistem dan pengguna" : "Manage system and users"}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                  <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    {language === "id" ? "Dashboard Admin" : "Admin Dashboard"}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {language === "id" ? "Akses ke fitur administrasi sistem" : "Access to system administration features"}
+                  </p>
+                  <Button 
+                    onClick={() => window.open('/admin', '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    {language === "id" ? "Buka Dashboard Admin" : "Open Admin Dashboard"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
 
 
       {/* Credit Top-Up Modal */}
