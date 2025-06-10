@@ -1120,6 +1120,9 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   // Skip Pet Care System - show admin dashboard for all users
   const userPets = Array.isArray(pets) ? pets : [];
   
+  // Safe data handling - filter owned toys early for debug display
+  const userOwnedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
+  
   // Show clean Pet Care System with text-based stats
   if (userPets.length > 0) {
     // Clean pet care interface without progress bars
@@ -1772,9 +1775,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     );
   }
 
-  // Safe data handling - filter owned toys and exclude marketplace listings
-  const userOwnedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => toy?.ownerId === user?.id) : [];
-  
   // Filter out toys that are currently listed in marketplace
   const petCareToys = userOwnedToys.filter((toy: any) => {
     const isListed = Array.isArray(marketplaceListings) && marketplaceListings.some((listing: any) => 
