@@ -589,6 +589,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
+  const [showQRCamera, setShowQRCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   // Removed local pet stats to prevent conflicts with API data
 
   // Update timer every second for real-time display
@@ -3003,6 +3005,8 @@ export default function CompleteApp() {
   const [newListingTitle, setNewListingTitle] = useState("");
   const [showTokenClaimModal, setShowTokenClaimModal] = useState(false);
   const [tokenClaimAmount, setTokenClaimAmount] = useState("");
+  const [showQRCamera, setShowQRCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
   // 5-Level Loyalty Program System
   const loyaltyLevels = [
@@ -3213,6 +3217,50 @@ export default function CompleteApp() {
       borderColor: "border-emerald-200"
     }
   ];
+
+  // Camera functions for QR code scanning
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } // Use back camera for better QR scanning
+      });
+      setCameraStream(stream);
+      setShowQRCamera(true);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      toast({
+        title: language === "id" ? "Kamera Tidak Tersedia" : "Camera Not Available",
+        description: language === "id" ? "Tidak dapat mengakses kamera. Gunakan input manual." : "Cannot access camera. Please use manual input.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowQRCamera(false);
+  };
+
+  const simulateQRDetection = () => {
+    // For demonstration purposes - in a real app, you'd use a QR code detection library
+    toast({
+      title: language === "id" ? "Fitur Dalam Pengembangan" : "Feature Under Development",
+      description: language === "id" ? "Deteksi QR code otomatis akan segera tersedia. Silakan gunakan input manual." : "Automatic QR code detection coming soon. Please use manual input.",
+    });
+    stopCamera();
+  };
+
+  // Clean up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   // Achievement tracking functions
   const checkReferralAchievements = (referralCount) => {
@@ -6583,6 +6631,14 @@ export default function CompleteApp() {
                       onChange={(e) => setNewToyCode(e.target.value)}
                       className="flex-1"
                     />
+                    <Button 
+                      onClick={startCamera} 
+                      variant="outline" 
+                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      {language === "id" ? "Kamera" : "Camera"}
+                    </Button>
                     <Button onClick={addToyByCode} className="bg-purple-600 hover:bg-purple-700">
                       <QrCode className="w-4 h-4 mr-2" />
                       {language === "id" ? "Aktifkan" : "Activate"}
