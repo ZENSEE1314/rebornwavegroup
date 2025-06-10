@@ -1,23 +1,9 @@
-// Force progress bar updates using vanilla JavaScript DOM manipulation
-// This completely bypasses React's reconciliation system
+// DISABLED: DOM manipulation utility removed to prevent cached display conflicts
+// React components now handle all display updates properly
 
 export function forceProgressBarUpdate(petId: number, stats: any) {
-  console.log('FORCE UPDATE CALLED:', petId, stats);
-  
-  const statsToUpdate = ['hunger', 'happiness', 'cleanliness', 'energy'];
-  
-  statsToUpdate.forEach(statType => {
-    const value = stats[statType];
-    if (value !== undefined) {
-      console.log(`Updating ${statType} to ${value}% for pet ${petId}`);
-      
-      // Find and completely replace progress bar
-      const container = document.querySelector(`[data-stat="${statType}-${petId}"]`)?.closest('.space-y-2');
-      if (container) {
-        createNewProgressBar(container as HTMLElement, statType, value, petId);
-      }
-    }
-  });
+  console.log('DOM manipulation disabled - using React rendering instead');
+  // No operation - let React handle the display updates
 }
 
 function createNewProgressBar(container: HTMLElement, statType: string, value: number, petId: number) {

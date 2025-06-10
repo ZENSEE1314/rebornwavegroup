@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useLayoutEffect } from "react";
 import { AnimatedProgressBar } from "@/components/AnimatedProgressBar";
-import { forceProgressBarUpdate } from "@/utils/forceProgressBarUpdate";
+// Removed DOM manipulation import to prevent cached display conflicts
 import { useAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -2099,7 +2099,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       {safePets.length > 0 && safePets[currentPetIndex] && (
         <>
           {/* Pet Info */}
-          <Card key={`pet-${safePets[currentPetIndex].id}-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].energy}`}>
+          <Card key={`pet-clean-${safePets[currentPetIndex].id}-${Date.now()}-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].energy}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
