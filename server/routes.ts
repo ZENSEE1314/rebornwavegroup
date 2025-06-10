@@ -23,6 +23,7 @@ import {
   tokenTransactions,
   paymentVerifications,
   pointsHistory,
+  commissionHistory,
 } from "@shared/schema";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -481,13 +482,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             referenceId: updatedVerification.id.toString(),
           });
 
+          // Record commission in dedicated commission history
+          await db.insert(commissionHistory).values({
+            introducerId: userInfo[0].introducerId,
+            referredUserId: updatedVerification.userId,
+            transactionAmount: transactionAmount.toString(),
+            commissionAmount: commissionAmount.toString(),
+            commissionRate: "0.10",
+            description: `10% referral commission from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
+            relatedId: updatedVerification.id,
+            relatedType: 'payment_verification',
+            status: 'completed',
+          });
+
           // Record commission transaction in general transactions
           await db.insert(transactions).values({
             userId: userInfo[0].introducerId,
             type: 'referral_commission',
             amount: commissionAmount.toString(),
             description: `Referral commission (10%) - RP ${commissionAmount.toLocaleString()} from verified purchase`,
-            status: 'completed',
             relatedId: updatedVerification.id,
           });
         }
@@ -2822,6 +2835,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching points history:", error);
       res.status(500).json({ message: "Failed to fetch points history" });
+    }
+  });
+
+  // Commission history endpoints
+  app.get('/api/commission-history/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      const commissions = await db
+        .select({
+          id: commissionHistory.id,
+          transactionAmount: commissionHistory.transactionAmount,
+          commissionAmount: commissionHistory.commissionAmount,
+          commissionRate: commissionHistory.commissionRate,
+          description: commissionHistory.description,
+          relatedId: commissionHistory.relatedId,
+          relatedType: commissionHistory.relatedType,
+          status: commissionHistory.status,
+          createdAt: commissionHistory.createdAt,
+          referredUserFirstName: users.firstName,
+          referredUserEmail: users.email,
+        })
+        .from(commissionHistory)
+        .leftJoin(users, eq(commissionHistory.referredUserId, users.id))
+        .where(eq(commissionHistory.introducerId, userId))
+        .orderBy(desc(commissionHistory.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const totalCount = await db
+        .select({ count: sql`count(*)` })
+        .from(commissionHistory)
+        .where(eq(commissionHistory.introducerId, userId));
+
+      const total = Number(totalCount[0].count);
+
+      res.json({
+        data: commissions,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching commission history:", error);
+      res.status(500).json({ message: "Failed to fetch commission history" });
+    }
+  });
+
+  // Total commission earnings for a user
+  app.get('/api/commission-stats/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+
+      const stats = await db
+        .select({
+          totalCommissions: sql<number>`sum(${commissionHistory.commissionAmount})`,
+          totalTransactions: sql<number>`count(*)`,
+        })
+        .from(commissionHistory)
+        .where(eq(commissionHistory.introducerId, userId));
+
+      res.json({
+        totalCommissions: stats[0]?.totalCommissions || 0,
+        totalTransactions: stats[0]?.totalTransactions || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching commission stats:", error);
+      res.status(500).json({ message: "Failed to fetch commission stats" });
     }
   });
 

@@ -3667,6 +3667,20 @@ export default function CompleteApp() {
     retry: false,
   });
 
+  // Fetch commission history from database
+  const { data: commissionHistoryData } = useQuery({
+    queryKey: [`/api/commission-history/${user?.id}`],
+    enabled: !!user?.id,
+    retry: false,
+  });
+
+  // Fetch commission stats
+  const { data: commissionStats } = useQuery({
+    queryKey: [`/api/commission-stats/${user?.id}`],
+    enabled: !!user?.id,
+    retry: false,
+  });
+
   // Create credit history from various sources and sort by newest first
   const allCreditHistory = [
     // From completed purchases (both buying and selling)
