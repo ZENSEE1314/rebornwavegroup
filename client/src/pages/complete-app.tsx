@@ -7284,7 +7284,6 @@ export default function CompleteApp() {
             
             {/* Credit History Content */}
             <div>
-              <div>
                 {/* Credit History Filters */}
                 <div className="flex flex-col sm:flex-row gap-3 mb-4">
                   <select
@@ -7296,25 +7295,25 @@ export default function CompleteApp() {
                     <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
                     <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
                   </select>
-              <input
-                type="date"
-                value={creditDateFilter}
-                onChange={(e) => setCreditDateFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
-              />
-              {(creditFilter !== 'all' || creditDateFilter) && (
-                <button
-                  onClick={() => {
-                    setCreditFilter('all');
-                    setCreditDateFilter('');
-                  }}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
-                >
-                  {language === "id" ? "Hapus Filter" : "Clear Filters"}
-                </button>
-              )}
-            </div>
+                  <input
+                    type="date"
+                    value={creditDateFilter}
+                    onChange={(e) => setCreditDateFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                  />
+                  {(creditFilter !== 'all' || creditDateFilter) && (
+                    <button
+                      onClick={() => {
+                        setCreditFilter('all');
+                        setCreditDateFilter('');
+                      }}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                    </button>
+                  )}
+                </div>
             
             <div className="space-y-4">
               {(() => {
@@ -7392,6 +7391,7 @@ export default function CompleteApp() {
                   </div>
                 );
               })()}
+            </div>
             </div>
           </div>
         </div>
@@ -7891,8 +7891,6 @@ export default function CompleteApp() {
             </div>
           </div>
         )}
-
-
 
       {/* Credit Top-Up Modal */}
       <CreditTopUpModal 
