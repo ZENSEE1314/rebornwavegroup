@@ -622,101 +622,22 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
-  const safePets = Array.isArray(pets) ? pets.map(pet => ({
-    ...pet,
-    // Override with local stats if available for immediate UI updates
-    ...(localPetStats[pet.id] || {})
-  })) : [];
+  const safePets = Array.isArray(pets) ? pets : [];
   
-  // Synchronous DOM update using useLayoutEffect for immediate visual changes
-  useLayoutEffect(() => {
-    if (safePets.length > 0 && safePets[currentPetIndex]) {
-      const currentPet = safePets[currentPetIndex];
-      
-      // Update progress bars directly with proper TypeScript casting
-      const hungerBar = document.querySelector(`[data-stat="hunger-${currentPet.id}"]`) as HTMLElement;
-      const happinessBar = document.querySelector(`[data-stat="happiness-${currentPet.id}"]`) as HTMLElement;
-      const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${currentPet.id}"]`) as HTMLElement;
-      const energyBar = document.querySelector(`[data-stat="energy-${currentPet.id}"]`) as HTMLElement;
-      
-      if (hungerBar) {
-        hungerBar.style.width = `${currentPet.hunger || 0}%`;
-        hungerBar.style.transform = `scaleX(${(currentPet.hunger || 0) / 100})`;
-        hungerBar.style.transformOrigin = 'left';
-      }
-      if (happinessBar) {
-        happinessBar.style.width = `${currentPet.happiness || 0}%`;
-        happinessBar.style.transform = `scaleX(${(currentPet.happiness || 0) / 100})`;
-        happinessBar.style.transformOrigin = 'left';
-      }
-      if (cleanlinessBar) {
-        cleanlinessBar.style.width = `${currentPet.cleanliness || 0}%`;
-        cleanlinessBar.style.transform = `scaleX(${(currentPet.cleanliness || 0) / 100})`;
-        cleanlinessBar.style.transformOrigin = 'left';
-      }
-      if (energyBar) {
-        energyBar.style.width = `${currentPet.energy || 0}%`;
-        energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
-        energyBar.style.transformOrigin = 'left';
-      }
-    }
-  });
+  // Removed DOM manipulation to allow proper React state synchronization
 
   // Force refresh when pet data changes (only on currentPetIndex change)
   useEffect(() => {
     setForceRefresh(prev => prev + 1);
   }, [currentPetIndex]);
 
-  // Aggressive timer-based refresh for visual updates
-  useEffect(() => {
-    const aggressiveUpdate = setInterval(() => {
-      if (safePets.length > 0 && safePets[currentPetIndex]) {
-        const currentPet = safePets[currentPetIndex];
-        
-        // Force DOM updates every 500ms
-        const hungerBar = document.querySelector(`[data-stat="hunger-${currentPet.id}"]`) as HTMLElement;
-        const happinessBar = document.querySelector(`[data-stat="happiness-${currentPet.id}"]`) as HTMLElement;
-        const cleanlinessBar = document.querySelector(`[data-stat="cleanliness-${currentPet.id}"]`) as HTMLElement;
-        const energyBar = document.querySelector(`[data-stat="energy-${currentPet.id}"]`) as HTMLElement;
-        
-        if (hungerBar) {
-          hungerBar.style.width = `${currentPet.hunger || 0}%`;
-          hungerBar.style.transform = `scaleX(${(currentPet.hunger || 0) / 100})`;
-        }
-        if (happinessBar) {
-          happinessBar.style.width = `${currentPet.happiness || 0}%`;
-          happinessBar.style.transform = `scaleX(${(currentPet.happiness || 0) / 100})`;
-        }
-        if (cleanlinessBar) {
-          cleanlinessBar.style.width = `${currentPet.cleanliness || 0}%`;
-          cleanlinessBar.style.transform = `scaleX(${(currentPet.cleanliness || 0) / 100})`;
-        }
-        if (energyBar) {
-          energyBar.style.width = `${currentPet.energy || 0}%`;
-          energyBar.style.transform = `scaleX(${(currentPet.energy || 0) / 100})`;
-        }
-      }
-    }, 500);
-
-    return () => clearInterval(aggressiveUpdate);
-  }, [safePets, currentPetIndex]);
+  // Removed aggressive DOM manipulation to prevent constant refreshing
   
-  // Force immediate and continuous sync with database to ensure real-time accuracy
+  // Minimal sync to prevent excessive refreshing
   useEffect(() => {
-    // Clear all cached data and force fresh fetch
-    queryClient.removeQueries({ queryKey: ['/api/pets'] });
+    // Initial fetch only
     queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-    refetchPets();
-    
-    // Continue syncing every 3 seconds with cache clearing
-    const syncInterval = setInterval(() => {
-      queryClient.removeQueries({ queryKey: ['/api/pets'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-      refetchPets();
-    }, 3000); // Every 3 seconds with cache clearing
-
-    return () => clearInterval(syncInterval);
-  }, [queryClient, refetchPets]);
+  }, [queryClient]);
 
   // Reduced debug logging to prevent console spam
   useEffect(() => {
