@@ -703,31 +703,40 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   
   // Force immediate and continuous sync with database to ensure real-time accuracy
   useEffect(() => {
-    // Immediate sync on component mount
+    // Clear all cached data and force fresh fetch
+    queryClient.removeQueries({ queryKey: ['/api/pets'] });
     queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
     refetchPets();
     
-    // Continue syncing every 5 seconds
+    // Continue syncing every 3 seconds with cache clearing
     const syncInterval = setInterval(() => {
+      queryClient.removeQueries({ queryKey: ['/api/pets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
       refetchPets();
-    }, 5000); // Every 5 seconds
+    }, 3000); // Every 3 seconds with cache clearing
 
     return () => clearInterval(syncInterval);
   }, [queryClient, refetchPets]);
 
-  // Debug logging to track what data we're getting
+  // Reduced debug logging to prevent console spam
   useEffect(() => {
     if (safePets.length > 0 && safePets[currentPetIndex]) {
-      console.log('Current pet data in UI:', {
-        id: safePets[currentPetIndex].id,
-        name: safePets[currentPetIndex].name,
-        hunger: safePets[currentPetIndex].hunger,
-        happiness: safePets[currentPetIndex].happiness,
-        cleanliness: safePets[currentPetIndex].cleanliness,
-        energy: safePets[currentPetIndex].energy,
-        timestamp: new Date().toISOString()
-      });
+      // Only log when pet stats change significantly
+      const pet = safePets[currentPetIndex];
+      const key = `${pet.id}-${pet.hunger}-${pet.happiness}-${pet.cleanliness}-${pet.energy}`;
+      const lastKey = localStorage.getItem('lastPetKey');
+      
+      if (key !== lastKey) {
+        console.log('Pet stats updated:', {
+          id: pet.id,
+          name: pet.name,
+          hunger: pet.hunger,
+          happiness: pet.happiness,
+          cleanliness: pet.cleanliness,
+          energy: pet.energy
+        });
+        localStorage.setItem('lastPetKey', key);
+      }
     }
   }, [safePets, currentPetIndex]);
 
@@ -2472,9 +2481,16 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           <Card>
             <CardContent className="py-4">
               <div className="text-center space-y-3">
-                <p className="text-sm text-gray-600">
-                  Current Tokens: {user?.loyaltyPoints || 0}
-                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Pet Care Tokens:</span>
+                    <span className="font-medium">{userTokens}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Loyalty Points:</span>
+                    <span className="font-medium">{user?.loyaltyPoints || 0}</span>
+                  </div>
+                </div>
                 
                 {/* 24-Hour Token System */}
                 <div className="p-3 rounded-lg border">
