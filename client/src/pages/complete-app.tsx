@@ -7274,30 +7274,16 @@ export default function CompleteApp() {
               </Button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex border-b mb-4">
-              <Button
-                variant={creditHistoryTab === 'credits' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setCreditHistoryTab('credits')}
-                className="rounded-none border-b-2 border-transparent"
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
+            {/* Tab Navigation - Removed, showing only RP Credits */}
+            <div className="mb-4">
+              <h4 className="text-lg font-semibold text-slate-800 border-b pb-3 mb-4">
+                <DollarSign className="w-5 h-5 mr-2 inline" />
                 {language === "id" ? "Kredit RP" : "RP Credits"}
-              </Button>
-              <Button
-                variant={creditHistoryTab === 'commissions' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setCreditHistoryTab('commissions')}
-                className="rounded-none border-b-2 border-transparent"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                {language === "id" ? "Komisi Referral" : "Referral Commissions"}
-              </Button>
+              </h4>
             </div>
             
-            {/* Credit History Tab Content */}
-            {creditHistoryTab === 'credits' && (
+            {/* Credit History Content */}
+            <div>
               <div>
                 {/* Credit History Filters */}
                 <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -7407,76 +7393,6 @@ export default function CompleteApp() {
                 );
               })()}
             </div>
-            </div>
-            )}
-
-            {/* Commission History Tab Content */}
-            {creditHistoryTab === 'commissions' && (
-              <div className="space-y-4">
-                {/* Commission Summary */}
-                {commissionStats && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-green-800">
-                          {language === "id" ? "Total Komisi Referral" : "Total Referral Commissions"}
-                        </h4>
-                        <p className="text-sm text-green-600">
-                          {commissionStats.totalTransactions} {language === "id" ? "transaksi" : "transactions"}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-700">
-                          RP {parseFloat(commissionStats.totalCommissions || "0").toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Commission History List */}
-                <div className="space-y-3">
-                  {commissionHistoryData?.data?.length > 0 ? (
-                    commissionHistoryData.data.map((commission: any) => (
-                      <div key={commission.id} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-green-800">{commission.description}</p>
-                            <div className="text-sm text-green-600 mt-1">
-                              {language === "id" ? "Dari:" : "From:"} {commission.referredUserFirstName || commission.referredUserEmail || 'Unknown User'}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Date(commission.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-green-700">
-                              +RP {parseFloat(commission.commissionAmount).toLocaleString()}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {(parseFloat(commission.commissionRate) * 100).toFixed(0)}% {language === "id" ? "dari" : "of"} RP {parseFloat(commission.transactionAmount).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-lg font-medium mb-2">
-                        {language === "id" ? "Belum Ada Komisi" : "No Commissions Yet"}
-                      </p>
-                      <p className="text-sm">
-                        {language === "id" 
-                          ? "Anda akan mendapatkan komisi 10% ketika orang yang Anda referensikan melakukan pembelian yang diverifikasi admin." 
-                          : "You'll earn 10% commission when people you refer make verified purchases approved by admin."
-                        }
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
