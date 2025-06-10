@@ -8020,6 +8020,95 @@ export default function CompleteApp() {
         onClose={() => setShowCreditTopUpModal(false)}
         currentCredits={userCredits.toString()}
       />
+
+      {/* QR Camera Modal */}
+      {showQRCamera && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {language === "id" ? "Pindai QR Code" : "Scan QR Code"}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={stopCamera}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="mb-4">
+              {cameraStream ? (
+                <div className="relative">
+                  <video
+                    ref={(video) => {
+                      if (video && cameraStream) {
+                        video.srcObject = cameraStream;
+                        video.play();
+                      }
+                    }}
+                    className="w-full h-64 bg-gray-200 rounded-lg object-cover"
+                    playsInline
+                    muted
+                  />
+                  <div className="absolute inset-0 border-2 border-purple-500 rounded-lg flex items-center justify-center">
+                    <div className="w-48 h-48 border-2 border-white rounded-lg bg-transparent" />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <Camera className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p className="text-gray-500">
+                      {language === "id" ? "Mengakses kamera..." : "Accessing camera..."}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-600">
+                {language === "id" 
+                  ? "Arahkan kamera ke QR code pada kemasan mainan Doluruu"
+                  : "Point camera at QR code on Doluruu toy packaging"
+                }
+              </p>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                onClick={simulateQRDetection}
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                disabled={!cameraStream}
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                {language === "id" ? "Deteksi QR" : "Detect QR"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={stopCamera}
+                className="flex-1"
+              >
+                {language === "id" ? "Tutup" : "Close"}
+              </Button>
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-700">
+                <span className="font-semibold">
+                  {language === "id" ? "💡 Tips:" : "💡 Tips:"}
+                </span>
+                {language === "id" 
+                  ? " Pastikan QR code terlihat jelas dan tidak terpotong dalam bingkai putih"
+                  : " Ensure QR code is clearly visible and not cut off within the white frame"
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
