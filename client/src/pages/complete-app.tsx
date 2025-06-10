@@ -7405,7 +7405,8 @@ export default function CompleteApp() {
                   </div>
                 );
               })()}
-              </div>
+            </div>
+            </div>
             )}
 
             {/* Commission History Tab Content */}
