@@ -128,25 +128,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         energy: pet.energy
       });
 
-      // Check if pet has enough energy for care actions (need at least 1% energy)
+      // CRITICAL FIX: Initialize stats with 0 if null to prevent auto-increase bug
+      const currentHunger = pet.hunger ?? 0;
+      const currentCleanliness = pet.cleanliness ?? 0;
+      const currentHappiness = pet.happiness ?? 0;
       const currentEnergy = pet.energy ?? 50;
       
-      // Update pet stats based on care type with CORRECT calculations
+      // Update pet stats based on care type - ONLY when user performs action
+      let statsUpdate = {};
+      
       if (careType === 'fed') {
         // Feed: Increase hunger by 25% and decrease energy by 5%
         if (currentEnergy <= 0) {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentHunger = pet.hunger ?? 0;
         const newHunger = Math.min(100, currentHunger + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { 
+        statsUpdate = { 
           hunger: newHunger,
           energy: newEnergy
-        });
+        };
         
       } else if (careType === 'bathed') {
         // Bath: Increase cleanliness by 25% and decrease energy by 5%
@@ -154,15 +158,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentCleanliness = pet.cleanliness ?? 0;
         const newCleanliness = Math.min(100, currentCleanliness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { 
+        statsUpdate = { 
           cleanliness: newCleanliness,
           energy: newEnergy
-        });
+        };
         
       } else if (careType === 'play' || careType === 'cleaned') {
         // Play: Increase happiness by 25% and decrease energy by 5%
@@ -170,28 +173,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const currentHappiness = pet.happiness ?? 0;
         const newHappiness = Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`PLAY ACTION: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { 
+        statsUpdate = { 
           happiness: newHappiness,
           energy: newEnergy
-        });
-        console.log('PLAY ACTION: Pet stats updated successfully');
+        };
         
       } else if (careType === 'slept') {
         // Sleep restores energy fully
         const newEnergy = 100;
         console.log(`Pet sleeping: energy restored to ${newEnergy}`);
         
-        await storage.updatePetStats(parseInt(petId), { 
+        statsUpdate = { 
           energy: newEnergy,
           isSleeping: false,
           sleepStartTime: null
-        });
-        console.log('Pet stats updated successfully for sleeping');
+        };
+      }
+
+      // Only update if we have stats to update
+      if (Object.keys(statsUpdate).length > 0) {
+        await storage.updatePetStats(parseInt(petId), statsUpdate);
+        console.log('Pet stats updated with:', statsUpdate);
       }
 
       // Verify the update was successful by fetching the pet again

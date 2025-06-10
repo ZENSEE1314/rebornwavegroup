@@ -2161,6 +2161,118 @@ export class DatabaseStorage implements IStorage {
 
     return { success: true, tokensAwarded };
   }
+
+  // Force complete a purchase for admin approval (bypass normal status checks)
+  async forceCompletePurchase(purchaseId: number): Promise<void> {
+    // Get purchase details
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    
+    if (!purchase) throw new Error('Purchase not found');
+
+    // Calculate seller amount (90% after 10% admin fee)
+    const totalAmount = parseFloat(purchase.amount);
+    const adminFee = totalAmount * 0.1;
+    const sellerAmount = totalAmount - adminFee;
+
+    // Transfer toy ownership to buyer
+    await db
+      .update(toys)
+      .set({ ownerId: purchase.buyerId })
+      .where(eq(toys.id, purchase.toyId));
+
+    // Add credit to seller (90% after admin fee)
+    const [seller] = await db.select().from(users).where(eq(users.id, purchase.sellerId));
+    const currentCredits = parseFloat(seller.credits || '0');
+    const newCredits = currentCredits + sellerAmount;
+    
+    await db
+      .update(users)
+      .set({ credits: newCredits.toString() })
+      .where(eq(users.id, purchase.sellerId));
+
+    // Update listing status to sold
+    await db
+      .update(listings)
+      .set({ status: 'sold' })
+      .where(eq(listings.id, purchase.listingId));
+
+    // Mark purchase as completed
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'completed',
+        confirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
+
+    // Add credit history for seller
+    await db
+      .insert(creditHistory)
+      .values({
+        userId: purchase.sellerId,
+        amount: sellerAmount.toFixed(2),
+        type: 'sale',
+        description: `Sale completed - Admin fee: RP ${adminFee.toFixed(2)}`,
+        relatedId: purchase.listingId,
+      });
+
+    // Handle referral commission for buyer's purchases
+    const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
+    if (buyer && buyer.referredById) {
+      const commissionAmount = Math.floor(totalAmount * 0.1); // 10% commission in RP
+      
+      // Add commission to referrer's credits
+      await db
+        .update(users)
+        .set({
+          credits: sql`${users.credits} + ${commissionAmount}`,
+          referralEarnings: sql`${users.referralEarnings} + ${commissionAmount}`,
+        })
+        .where(eq(users.id, buyer.referredById));
+
+      // Record commission in credit history
+      await db.insert(creditHistory).values({
+        userId: buyer.referredById,
+        amount: commissionAmount.toString(),
+        type: 'referral_commission',
+        description: `Referral commission (10%) from ${buyer.firstName || 'user'}'s marketplace purchase of RP ${totalAmount.toLocaleString()}`,
+        relatedId: purchase.id,
+      });
+
+      // Record commission in dedicated commission history
+      await db.insert(commissionHistory).values({
+        introducerId: buyer.referredById,
+        referredUserId: purchase.buyerId,
+        transactionAmount: totalAmount.toString(),
+        commissionAmount: commissionAmount.toString(),
+        commissionRate: "0.10",
+        description: `10% referral commission from ${buyer.firstName || 'user'}'s marketplace purchase of RP ${totalAmount.toLocaleString()}`,
+        relatedId: purchase.id,
+        relatedType: 'marketplace_purchase',
+        status: 'completed',
+      });
+
+      // Update referral relationship total earnings
+      await db
+        .update(referrals)
+        .set({
+          totalEarnings: sql`${referrals.totalEarnings} + ${commissionAmount}`,
+        })
+        .where(
+          and(
+            eq(referrals.referrerId, buyer.referredById),
+            eq(referrals.referredId, purchase.buyerId)
+          )
+        );
+
+      console.log(`Force completion: Awarded RP ${commissionAmount} commission to user ${buyer.referredById} for referral of ${purchase.buyerId}'s marketplace purchase`);
+    }
+
+    console.log(`Purchase ${purchaseId} force-completed by admin`);
+  }
 }
 
 export const storage = new DatabaseStorage();
