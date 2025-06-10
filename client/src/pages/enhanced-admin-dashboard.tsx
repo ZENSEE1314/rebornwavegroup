@@ -269,6 +269,7 @@ function EnhancedAdminDashboard() {
   const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
+  const pendingPurchases = allPendingPurchases || [];
 
 
 
