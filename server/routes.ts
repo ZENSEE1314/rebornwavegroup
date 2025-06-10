@@ -488,7 +488,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: commissionAmount.toString(),
             type: 'referral_commission',
             description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
-            status: 'completed',
             referenceId: updatedVerification.id.toString(),
           });
 
@@ -4144,12 +4143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateTokenClaimStatus(parseInt(id), status, adminUserId, adminNotes, trackingNumber);
       
-      // Broadcast token claim update
-      broadcastAdminUpdate('token-claim-updated', {
-        id: parseInt(id),
-        status,
-        updatedAt: new Date().toISOString()
-      });
+      // Token claim updated
+      console.log(`Token claim ${id} updated to ${status}`);
       
       res.json({ message: "Token claim updated successfully" });
     } catch (error) {

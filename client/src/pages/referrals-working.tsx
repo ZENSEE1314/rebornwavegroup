@@ -90,8 +90,6 @@ export default function Referrals() {
   const getLevelColor = (level: number) => {
     switch (level) {
       case 1: return "bg-emerald-100 text-emerald-800";
-      case 2: return "bg-blue-100 text-blue-800";
-      case 3: return "bg-purple-100 text-purple-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -99,8 +97,6 @@ export default function Referrals() {
   const getCommissionRate = (level: number) => {
     switch (level) {
       case 1: return "10%";
-      case 2: return "3%";
-      case 3: return "2%";
       default: return "0%";
     }
   };
@@ -109,7 +105,7 @@ export default function Referrals() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Referral Network</h1>
-        <p className="text-slate-600 mt-2">Invite friends and earn up to 15% commission on their purchases</p>
+        <p className="text-slate-600 mt-2">Invite friends and earn 10% commission on their verified purchases</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

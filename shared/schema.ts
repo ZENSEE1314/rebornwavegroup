@@ -181,9 +181,12 @@ export const creditHistory = pgTable("credit_history", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  type: varchar("type").notNull(), // 'purchase' | 'sale' | 'refund' | 'topup' | 'cashout'
+  type: varchar("type").notNull(), // 'purchase' | 'sale' | 'refund' | 'topup' | 'cashout' | 'referral_commission'
   description: text("description").notNull(),
+  status: varchar("status").default("completed"), // 'pending' | 'completed' | 'failed'
+  referenceId: varchar("reference_id"), // Reference to verification, purchase, etc.
   relatedId: integer("related_id"), // Reference to purchase, listing, etc.
+  pointsEarned: integer("points_earned"), // Points earned from this transaction
   createdAt: timestamp("created_at").defaultNow(),
 });
 
