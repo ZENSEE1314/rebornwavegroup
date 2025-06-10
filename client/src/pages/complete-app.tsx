@@ -4693,11 +4693,11 @@ export default function CompleteApp() {
             {[
               { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
               { id: "petcare", label: language === "id" ? "Perawatan Hewan" : "Pet Care", icon: Heart },
+              { id: "purchase", label: language === "id" ? "Verifikasi Pembelian" : "Purchase Verification", icon: Camera },
               { id: "loyalty", label: language === "id" ? "Loyalitas" : "Loyalty", icon: Star },
               { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
               { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
               { id: "inventory", label: language === "id" ? "Koleksi" : "Collections", icon: Package },
-              { id: "purchase", label: language === "id" ? "Verifikasi Pembelian" : "Purchase Verification", icon: Camera },
               ...(user?.role === 'admin' ? [{ id: "admin", label: language === "id" ? "Admin" : "Admin", icon: Settings }] : []),
               { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
               { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
