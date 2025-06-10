@@ -44,6 +44,8 @@ export const users = pgTable("users", {
   level: integer("level").default(1).notNull(),
   referralCode: varchar("referral_code").unique().notNull(),
   referredById: varchar("referred_by_id"),
+  introducerId: varchar("introducer_id"), // User who introduced this person
+  referralEarnings: decimal("referral_earnings", { precision: 10, scale: 2 }).default("0.00").notNull(),
   bankAccountNumber: varchar("bank_account_number"),
   bankName: varchar("bank_name"),
   accountHolderName: varchar("account_holder_name"),
@@ -263,6 +265,21 @@ export const paymentVerifications = pgTable("payment_verifications", {
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Commission history table - dedicated tracking for referral commissions
+export const commissionHistory = pgTable("commission_history", {
+  id: serial("id").primaryKey(),
+  introducerId: varchar("introducer_id").notNull(), // User who receives the commission
+  referredUserId: varchar("referred_user_id").notNull(), // User who made the purchase
+  transactionAmount: decimal("transaction_amount", { precision: 10, scale: 2 }).notNull(), // Original purchase amount
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(), // 10% commission in RP
+  commissionRate: decimal("commission_rate", { precision: 3, scale: 2 }).default("0.10"), // 10% = 0.10
+  description: text("description").notNull(),
+  relatedId: integer("related_id"), // Reference to payment verification ID
+  relatedType: varchar("related_type").default("payment_verification"), // 'payment_verification' | 'purchase' | 'transaction'
+  status: varchar("status").default("completed").notNull(), // 'pending' | 'completed' | 'failed'
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Reward items table
