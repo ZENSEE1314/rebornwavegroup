@@ -82,6 +82,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   
+  // Add cache control middleware for API routes
+  app.use('/api', (req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    next();
+  });
+  
   // Auth middleware
   await setupAuth(app);
 
