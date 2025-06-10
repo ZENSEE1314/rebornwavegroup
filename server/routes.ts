@@ -469,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         // Handle 10% referral commission for introducer
-        if (userInfo[0]?.introducerId) {
+        if (userInfo[0]?.referredById) {
           const transactionAmount = parseFloat(updatedVerification.amount);
           const commissionAmount = Math.floor(transactionAmount * 0.1); // 10% commission in RP
           
@@ -480,11 +480,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               credits: sql`${users.credits} + ${commissionAmount}`,
               referralEarnings: sql`${users.referralEarnings} + ${commissionAmount}`,
             })
-            .where(eq(users.id, userInfo[0].introducerId));
+            .where(eq(users.id, userInfo[0].referredById));
 
           // Record commission in credit history
           await storage.createCreditHistory({
-            userId: userInfo[0].introducerId,
+            userId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
             type: 'referral_commission',
             description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
@@ -493,7 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Record commission in dedicated commission history
           await db.insert(commissionHistory).values({
-            introducerId: userInfo[0].introducerId,
+            introducerId: userInfo[0].referredById,
             referredUserId: updatedVerification.userId,
             transactionAmount: transactionAmount.toString(),
             commissionAmount: commissionAmount.toString(),
@@ -504,14 +504,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'completed',
           });
 
-          // Record commission transaction in general transactions
-          await db.insert(transactions).values({
-            userId: userInfo[0].introducerId,
-            type: 'referral_commission',
-            amount: commissionAmount.toString(),
-            description: `Referral commission (10%) - RP ${commissionAmount.toLocaleString()} from verified purchase`,
-            relatedId: updatedVerification.id,
-          });
+          // Update referral relationship total earnings
+          await db
+            .update(referrals)
+            .set({
+              totalEarnings: sql`${referrals.totalEarnings} + ${commissionAmount}`,
+            })
+            .where(
+              and(
+                eq(referrals.referrerId, userInfo[0].referredById),
+                eq(referrals.referredId, updatedVerification.userId)
+              )
+            );
+
+          console.log(`Awarded RP ${commissionAmount} commission to user ${userInfo[0].referredById} for referral of ${updatedVerification.userId}`);
         }
       }
 
