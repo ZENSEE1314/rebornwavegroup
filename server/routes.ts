@@ -24,6 +24,7 @@ import {
   paymentVerifications,
   pointsHistory,
   commissionHistory,
+  referrals,
 } from "@shared/schema";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -429,8 +430,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/admin/payment-verifications/:id", isAuthenticated, async (req: any, res) => {
     try {
+      console.log(`*** APPROVAL DEBUG: Starting approval for verification ${req.params.id}`);
+      console.log(`*** APPROVAL DEBUG: Request body:`, req.body);
+      
       const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${req.user.claims.sub}`);
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -438,25 +443,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, adminNotes, pointsAwarded } = req.body;
       const adminId = req.user.claims.sub;
 
+      console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status}`);
+
       const [updatedVerification] = await db
         .update(paymentVerifications)
         .set({
           status,
           adminId,
           adminNotes,
-          pointsAwarded,
+          pointsAwarded: pointsAwarded || 0,
           processedAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(paymentVerifications.id, parseInt(id)))
         .returning();
 
+      if (!updatedVerification) {
+        console.log(`*** APPROVAL DEBUG: No verification found with id ${id}`);
+        return res.status(404).json({ message: "Payment verification not found" });
+      }
+
+      console.log(`*** APPROVAL DEBUG: Updated verification:`, updatedVerification);
+
       // If approved, award points to user and handle referral commission
       if (status === 'approved' && pointsAwarded > 0) {
+        console.log(`*** APPROVAL DEBUG: Processing approval with ${pointsAwarded} points`);
+        
         // Get user information to find introducer
         const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
+        console.log(`*** APPROVAL DEBUG: User info found:`, userInfo[0]);
         
         // Award points to user
+        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.userId}`);
         await db
           .update(users)
           .set({
@@ -466,6 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(users.id, updatedVerification.userId));
 
         // Record points history
+        console.log(`*** APPROVAL DEBUG: Recording points history`);
         await db.insert(pointsHistory).values({
           userId: updatedVerification.userId,
           points: pointsAwarded,
@@ -476,8 +495,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Handle 10% referral commission for introducer
         if (userInfo[0]?.referredById) {
+          console.log(`*** APPROVAL DEBUG: Processing referral commission for introducer ${userInfo[0].referredById}`);
           const transactionAmount = parseFloat(updatedVerification.amount);
           const commissionAmount = Math.floor(transactionAmount * 0.1); // 10% commission in RP
+          
+          console.log(`*** APPROVAL DEBUG: Commission calculation - amount: ${transactionAmount}, commission: ${commissionAmount}`);
           
           // Add commission to introducer's credits (actual RP credits)
           await db
@@ -489,6 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(users.id, userInfo[0].referredById));
 
           // Record commission in credit history
+          console.log(`*** APPROVAL DEBUG: Creating credit history record`);
           await storage.createCreditHistory({
             userId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
@@ -498,6 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Record commission in dedicated commission history
+          console.log(`*** APPROVAL DEBUG: Creating commission history record`);
           await db.insert(commissionHistory).values({
             introducerId: userInfo[0].referredById,
             referredUserId: updatedVerification.userId,
@@ -511,6 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Update referral relationship total earnings
+          console.log(`*** APPROVAL DEBUG: Updating referral relationship earnings`);
           await db
             .update(referrals)
             .set({
@@ -523,8 +548,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               )
             );
 
-          console.log(`Awarded RP ${commissionAmount} commission to user ${userInfo[0].referredById} for referral of ${updatedVerification.userId}`);
+          console.log(`*** APPROVAL DEBUG: Commission processing completed - awarded RP ${commissionAmount} to user ${userInfo[0].referredById}`);
+        } else {
+          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.userId}`);
         }
+      } else {
+        console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
       }
 
       // Payment verification update completed
