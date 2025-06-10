@@ -1098,6 +1098,10 @@ function EnhancedAdminDashboard() {
                 <Trophy className="h-4 w-4 mr-2" />
                 Game Leaderboard
               </TabsTrigger>
+              <TabsTrigger value="marketplace" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Marketplace Purchases
+              </TabsTrigger>
               <TabsTrigger value="tokens" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Gift className="h-4 w-4 mr-2" />
                 Token Claims
@@ -2504,6 +2508,133 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Marketplace Purchases Tab */}
+          <TabsContent value="marketplace">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Marketplace Purchases Management</CardTitle>
+                <p className="text-gray-300">Manage and approve marketplace toy purchases with commission calculations</p>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-blue-200">Purchase ID</TableHead>
+                        <TableHead className="text-blue-200">Toy</TableHead>
+                        <TableHead className="text-blue-200">Buyer</TableHead>
+                        <TableHead className="text-blue-200">Seller</TableHead>
+                        <TableHead className="text-blue-200">Amount</TableHead>
+                        <TableHead className="text-blue-200">Points</TableHead>
+                        <TableHead className="text-blue-200">Status</TableHead>
+                        <TableHead className="text-blue-200">Date</TableHead>
+                        <TableHead className="text-blue-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingPurchases.map((purchase: any) => (
+                        <TableRow key={purchase.id} className="border-white/10">
+                          <TableCell className="text-white">#{purchase.id}</TableCell>
+                          <TableCell className="text-white">
+                            <div className="flex items-center gap-2">
+                              <img 
+                                src={purchase.toy?.imageUrl} 
+                                alt={purchase.toy?.name}
+                                className="w-8 h-8 rounded object-cover"
+                              />
+                              <div>
+                                <div className="font-medium">{purchase.toy?.name}</div>
+                                <div className="text-xs text-gray-400">{purchase.toy?.series}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            User ID: {purchase.buyerId}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            User ID: {purchase.sellerId}
+                          </TableCell>
+                          <TableCell className="text-yellow-400 font-medium">
+                            RP {formatMoney(purchase.amount)}
+                          </TableCell>
+                          <TableCell className="text-blue-400">
+                            {purchase.pointsEarned} pts
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${
+                              purchase.status === 'completed' ? 'bg-green-500' :
+                              purchase.status === 'pending' ? 'bg-yellow-500' :
+                              purchase.status === 'cancelled' ? 'bg-red-500' :
+                              'bg-gray-500'
+                            }`}>
+                              {purchase.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {new Date(purchase.createdAt).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {purchase.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => {
+                                    apiRequest('PATCH', `/api/admin/marketplace-purchase/${purchase.id}/approve`, {})
+                                      .then(() => {
+                                        toast({ title: "Purchase approved successfully with commission" });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
+                                      })
+                                      .catch(() => {
+                                        toast({ title: "Failed to approve purchase", variant: "destructive" });
+                                      });
+                                  }}
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => {
+                                    apiRequest('PATCH', `/api/admin/marketplace-purchase/${purchase.id}/reject`, {})
+                                      .then(() => {
+                                        toast({ title: "Purchase rejected successfully" });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
+                                      })
+                                      .catch(() => {
+                                        toast({ title: "Failed to reject purchase", variant: "destructive" });
+                                      });
+                                  }}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                            {purchase.status !== 'pending' && (
+                              <span className="text-gray-400 text-sm">No actions available</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {(!pendingPurchases || pendingPurchases.length === 0) && (
+                    <div className="text-center py-8 text-gray-400">
+                      No marketplace purchases found
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Content Management Tab */}
