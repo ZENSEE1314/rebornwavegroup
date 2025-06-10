@@ -3614,6 +3614,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin get all pending purchases
+  app.get('/api/admin/all-pending-purchases', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const purchases = await storage.getAllPendingPurchases();
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching all pending purchases:", error);
+      res.status(500).json({ message: "Failed to fetch pending purchases" });
+    }
+  });
+
+  // Admin approve marketplace purchase (force completion with commission calculation)
+  app.post('/api/admin/purchases/:purchaseId/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const purchaseId = parseInt(req.params.purchaseId);
+      
+      // Force complete the purchase (this will trigger commission calculation)
+      await storage.buyerConfirmPurchase(purchaseId);
+      
+      res.json({ message: 'Purchase approved and completed successfully' });
+    } catch (error) {
+      console.error("Error approving purchase:", error);
+      res.status(500).json({ message: "Failed to approve purchase" });
+    }
+  });
+
   // Redeem reward endpoint
   // Public endpoint for users to get available rewards
   app.get('/api/rewards', isAuthenticated, async (req, res) => {

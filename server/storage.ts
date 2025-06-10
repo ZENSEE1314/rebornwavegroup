@@ -978,6 +978,58 @@ export class DatabaseStorage implements IStorage {
         relatedId: purchase.listingId,
       });
 
+    // Handle referral commission for buyer's purchases
+    const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
+    if (buyer && buyer.referredById) {
+      const commissionAmount = Math.floor(totalAmount * 0.1); // 10% commission in RP
+      
+      // Add commission to referrer's credits
+      await db
+        .update(users)
+        .set({
+          credits: sql`${users.credits} + ${commissionAmount}`,
+          referralEarnings: sql`${users.referralEarnings} + ${commissionAmount}`,
+        })
+        .where(eq(users.id, buyer.referredById));
+
+      // Record commission in credit history
+      await db.insert(creditHistory).values({
+        userId: buyer.referredById,
+        amount: commissionAmount.toString(),
+        type: 'referral_commission',
+        description: `Referral commission (10%) from ${buyer.firstName || 'user'}'s marketplace purchase of RP ${totalAmount.toLocaleString()}`,
+        relatedId: purchase.id,
+      });
+
+      // Record commission in dedicated commission history
+      await db.insert(commissionHistory).values({
+        introducerId: buyer.referredById,
+        referredUserId: purchase.buyerId,
+        transactionAmount: totalAmount.toString(),
+        commissionAmount: commissionAmount.toString(),
+        commissionRate: "0.10",
+        description: `10% referral commission from ${buyer.firstName || 'user'}'s marketplace purchase of RP ${totalAmount.toLocaleString()}`,
+        relatedId: purchase.id,
+        relatedType: 'marketplace_purchase',
+        status: 'completed',
+      });
+
+      // Update referral relationship total earnings
+      await db
+        .update(referrals)
+        .set({
+          totalEarnings: sql`${referrals.totalEarnings} + ${commissionAmount}`,
+        })
+        .where(
+          and(
+            eq(referrals.referrerId, buyer.referredById),
+            eq(referrals.referredId, purchase.buyerId)
+          )
+        );
+
+      console.log(`Awarded RP ${commissionAmount} commission to user ${buyer.referredById} for referral of ${purchase.buyerId}'s marketplace purchase`);
+    }
+
     // Add points to buyer's account
     if (purchase.pointsEarned && purchase.pointsEarned > 0) {
       const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
