@@ -1700,7 +1700,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "Pet already exists for this toy" });
       }
       
-      // Create pet from the toy
+      // Create pet from the toy with proper initialization
+      const now = new Date();
       const newPet = await storage.createPet({
         userId,
         toyId: toy.id,
@@ -1712,7 +1713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         energy: 100,
         currentAge: 0,
         growthStage: 'baby',
-        birthDate: new Date(),
+        birthDate: now,
+        lastCareDate: now, // Initialize to prevent stat calculation bugs
         isActive: true
       });
 
