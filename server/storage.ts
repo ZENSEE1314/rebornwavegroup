@@ -78,6 +78,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 
 // Interface for storage operations

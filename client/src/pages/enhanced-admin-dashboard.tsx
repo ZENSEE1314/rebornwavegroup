@@ -1063,6 +1063,10 @@ function EnhancedAdminDashboard() {
                 <Users className="h-4 w-4 mr-2" />
                 User Management
               </TabsTrigger>
+              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Camera className="h-4 w-4 mr-2" />
+                Payment Verification
+              </TabsTrigger>
               <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Calendar className="h-4 w-4 mr-2" />
                 Appointments
@@ -1110,10 +1114,6 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="token-transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Trophy className="h-4 w-4 mr-2" />
                 Token Transactions
-              </TabsTrigger>
-              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Camera className="h-4 w-4 mr-2" />
-                Payment Verification
               </TabsTrigger>
             </TabsList>
           </div>
