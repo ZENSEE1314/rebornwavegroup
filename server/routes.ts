@@ -516,12 +516,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Broadcast payment verification update
-      broadcastAdminUpdate('payment-verification-updated', {
-        id: updatedVerification.id,
-        status: updatedVerification.status,
-        updatedAt: updatedVerification.updatedAt
-      });
+      // Payment verification update completed
+      console.log(`Payment verification ${updatedVerification.id} updated to ${updatedVerification.status}`);
 
       res.json(updatedVerification);
     } catch (error) {
@@ -2585,12 +2581,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateTopUpRequestStatus(parseInt(id), status, adminNotes);
       
-      // Broadcast top-up request update
-      broadcastAdminUpdate('topup-request-updated', {
-        id: parseInt(id),
-        status,
-        updatedAt: new Date().toISOString()
-      });
+      // Top-up request status updated
+      console.log(`Top-up request ${id} updated to ${status}`);
       
       res.json({ message: "Top-up request status updated successfully" });
     } catch (error) {
@@ -2656,12 +2648,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateCashOutStatus(parseInt(id), status, adminNotes);
       
-      // Broadcast cash-out update
-      broadcastAdminUpdate('cash-out-updated', {
-        id: parseInt(id),
-        status,
-        updatedAt: new Date().toISOString()
-      });
+      // Cash-out request status updated
+      console.log(`Cash-out request ${id} updated to ${status}`);
       
       res.json({ message: "Cash-out status updated successfully" });
     } catch (error) {
