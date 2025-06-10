@@ -583,7 +583,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const [sleepCountdown, setSleepCountdown] = useState<number>(0);
   const [editingPetName, setEditingPetName] = useState<number | null>(null);
   const [newPetName, setNewPetName] = useState("");
-  const [localPetStats, setLocalPetStats] = useState<Record<number, any>>({});
+  // Removed local pet stats to prevent conflicts with API data
 
   // Update timer every second for real-time display
   useEffect(() => {
@@ -906,15 +906,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           energy: updatedStats.energy
         });
         
-        // Update local state immediately for instant UI change
-        setLocalPetStats(prev => {
-          const newState = {
-            ...prev,
-            [petId]: updatedStats
-          };
-          console.log('Setting local pet stats:', newState);
-          return newState;
-        });
+        // Removed local state update to prevent conflicts with API data
       }
     },
 
@@ -922,13 +914,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       console.log('=== CARE ACTIVITY SUCCESS HANDLER ===');
       console.log('Response data:', data);
       
-      // Immediately clear local state override
-      setLocalPetStats(prev => {
-        const newStats = { ...prev };
-        delete newStats[variables.petId];
-        console.log('Clearing local override for pet:', variables.petId);
-        return newStats;
-      });
+      // Removed local state clearing to prevent conflicts
       
       // Force refresh pets data from server
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
@@ -942,12 +928,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       });
     },
     onError: (err, variables, context) => {
-      // Clear local state on error
-      setLocalPetStats(prev => {
-        const newStats = { ...prev };
-        delete newStats[variables.petId];
-        return newStats;
-      });
+      // Removed local state clearing to prevent conflicts
       
       toast({
         title: language === "id" ? "Error" : "Error",
