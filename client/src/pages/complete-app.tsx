@@ -15,7 +15,7 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator, Coins
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator, Coins, Settings
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -4698,6 +4698,7 @@ export default function CompleteApp() {
               { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
               { id: "inventory", label: language === "id" ? "Koleksi" : "Collections", icon: Package },
               { id: "purchase", label: language === "id" ? "Verifikasi Pembelian" : "Purchase Verification", icon: Camera },
+              ...(user?.role === 'admin' ? [{ id: "admin", label: language === "id" ? "Admin" : "Admin", icon: Settings }] : []),
               { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
               { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
             ].map((tab) => (
