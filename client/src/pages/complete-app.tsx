@@ -3288,6 +3288,7 @@ export default function CompleteApp() {
   // Cash-out states
   const [showCashOutModal, setShowCashOutModal] = useState(false);
   const [showCreditHistory, setShowCreditHistory] = useState(false);
+  const [creditHistoryTab, setCreditHistoryTab] = useState<'credits' | 'commissions'>('credits');
   const [cashOutAmount, setCashOutAmount] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -7262,25 +7263,52 @@ export default function CompleteApp() {
       {/* Credit History Modal */}
       {showCreditHistory && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Credit History</h3>
+              <h3 className="text-lg font-semibold">
+                {language === "id" ? "Riwayat Keuangan" : "Financial History"}
+              </h3>
               <Button variant="ghost" size="sm" onClick={() => setShowCreditHistory(false)}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            
-            {/* Credit History Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <select
-                value={creditFilter}
-                onChange={(e) => setCreditFilter(e.target.value as 'all' | 'earned' | 'spent')}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+
+            {/* Tab Navigation */}
+            <div className="flex border-b mb-4">
+              <Button
+                variant={creditHistoryTab === 'credits' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setCreditHistoryTab('credits')}
+                className="rounded-none border-b-2 border-transparent"
               >
-                <option value="all">{language === "id" ? "Semua" : "All"}</option>
-                <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
-                <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
-              </select>
+                <DollarSign className="w-4 h-4 mr-2" />
+                {language === "id" ? "Kredit RP" : "RP Credits"}
+              </Button>
+              <Button
+                variant={creditHistoryTab === 'commissions' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setCreditHistoryTab('commissions')}
+                className="rounded-none border-b-2 border-transparent"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                {language === "id" ? "Komisi Referral" : "Referral Commissions"}
+              </Button>
+            </div>
+            
+            {/* Credit History Tab Content */}
+            {creditHistoryTab === 'credits' && (
+              <>
+                {/* Credit History Filters */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <select
+                    value={creditFilter}
+                    onChange={(e) => setCreditFilter(e.target.value as 'all' | 'earned' | 'spent')}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                    <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
+                    <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
+                  </select>
               <input
                 type="date"
                 value={creditDateFilter}
