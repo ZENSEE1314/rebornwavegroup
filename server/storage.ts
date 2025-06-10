@@ -163,6 +163,7 @@ export interface IStorage {
   createPendingPurchase(purchase: InsertPendingPurchase): Promise<PendingPurchase>;
   getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]>;
   getPendingPurchasesByListingId(listingId: number): Promise<PendingPurchase[]>;
+  getAllPendingPurchases(): Promise<any[]>;
   sellerConfirmPurchase(purchaseId: number): Promise<void>;
   buyerConfirmPurchase(purchaseId: number): Promise<void>;
   
@@ -886,6 +887,47 @@ export class DatabaseStorage implements IStorage {
     
     console.log("*** STORAGE DEBUG: Found results:", result.length, result);
     return result;
+  }
+
+  async getAllPendingPurchases(): Promise<any[]> {
+    const sellerUser = alias(users, 'seller_user');
+    return await db
+      .select({
+        id: pendingPurchases.id,
+        listingId: pendingPurchases.listingId,
+        buyerId: pendingPurchases.buyerId,
+        sellerId: pendingPurchases.sellerId,
+        toyId: pendingPurchases.toyId,
+        amount: pendingPurchases.amount,
+        pointsEarned: pendingPurchases.pointsEarned,
+        status: pendingPurchases.status,
+        createdAt: pendingPurchases.createdAt,
+        toy: {
+          id: toys.id,
+          name: toys.name,
+          series: toys.series,
+          rarity: toys.rarity,
+          imageUrl: toys.imageUrl,
+          qrCode: toys.qrCode,
+        },
+        buyer: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+        seller: {
+          id: sellerUser.id,
+          firstName: sellerUser.firstName,
+          lastName: sellerUser.lastName,
+          email: sellerUser.email,
+        }
+      })
+      .from(pendingPurchases)
+      .leftJoin(toys, eq(pendingPurchases.toyId, toys.id))
+      .leftJoin(users, eq(pendingPurchases.buyerId, users.id))
+      .leftJoin(sellerUser, eq(pendingPurchases.sellerId, sellerUser.id))
+      .orderBy(desc(pendingPurchases.createdAt));
   }
 
   // Seller confirms the purchase (step 1)

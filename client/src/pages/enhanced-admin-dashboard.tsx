@@ -249,6 +249,11 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  const { data: allPendingPurchases = [] } = useQuery({
+    queryKey: ['/api/admin/all-pending-purchases'],
+    retry: false,
+  });
+
   const { data: commissionStats }: any = useQuery({
     queryKey: ['/api/admin/commission-stats'],
     retry: false,
@@ -555,6 +560,19 @@ function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to delete banner", variant: "destructive" });
+    }
+  });
+
+  const approvePurchaseMutation = useMutation({
+    mutationFn: async (purchaseId: number) => {
+      return apiRequest('POST', `/api/admin/purchases/${purchaseId}/approve`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Purchase approved successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to approve purchase", variant: "destructive" });
     }
   });
 
