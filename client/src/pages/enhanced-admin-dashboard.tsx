@@ -2587,7 +2587,7 @@ function EnhancedAdminDashboard() {
                                   size="sm" 
                                   className="bg-green-600 hover:bg-green-700"
                                   onClick={() => {
-                                    apiRequest('PATCH', `/api/admin/marketplace-purchase/${purchase.id}/approve`, {})
+                                    apiRequest('POST', `/api/admin/purchases/${purchase.id}/approve`, {})
                                       .then(() => {
                                         toast({ title: "Purchase approved successfully with commission" });
                                         queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
@@ -2604,7 +2604,7 @@ function EnhancedAdminDashboard() {
                                   size="sm" 
                                   variant="destructive"
                                   onClick={() => {
-                                    apiRequest('PATCH', `/api/admin/marketplace-purchase/${purchase.id}/reject`, {})
+                                    apiRequest('POST', `/api/admin/purchases/${purchase.id}/reject`, {})
                                       .then(() => {
                                         toast({ title: "Purchase rejected successfully" });
                                         queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });

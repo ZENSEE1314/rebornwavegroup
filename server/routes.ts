@@ -3654,6 +3654,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin reject marketplace purchase
+  app.post('/api/admin/purchases/:purchaseId/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const purchaseId = parseInt(req.params.purchaseId);
+      
+      // Get purchase details for refund
+      const purchase = await storage.getPurchaseById(purchaseId);
+      if (!purchase) {
+        return res.status(404).json({ message: "Purchase not found" });
+      }
+
+      // Cancel the purchase and refund buyer
+      await storage.cancelPurchase(purchaseId);
+      
+      res.json({ message: 'Purchase rejected and refunded successfully' });
+    } catch (error) {
+      console.error("Error rejecting purchase:", error);
+      res.status(500).json({ message: "Failed to reject purchase" });
+    }
+  });
+
   // Redeem reward endpoint
   // Public endpoint for users to get available rewards
   app.get('/api/rewards', isAuthenticated, async (req, res) => {
