@@ -164,8 +164,11 @@ export interface IStorage {
   getPendingPurchasesByUserId(userId: string): Promise<PendingPurchase[]>;
   getPendingPurchasesByListingId(listingId: number): Promise<PendingPurchase[]>;
   getAllPendingPurchases(): Promise<any[]>;
+  getPurchaseById(purchaseId: number): Promise<any>;
   sellerConfirmPurchase(purchaseId: number): Promise<void>;
   buyerConfirmPurchase(purchaseId: number): Promise<void>;
+  forceCompletePurchase(purchaseId: number): Promise<void>;
+  cancelPurchase(purchaseId: number): Promise<void>;
   
   // Credit and points history operations
   createCreditHistory(credit: InsertCreditHistory): Promise<CreditHistory>;
@@ -928,6 +931,64 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(pendingPurchases.buyerId, users.id))
       .leftJoin(sellerUser, eq(pendingPurchases.sellerId, sellerUser.id))
       .orderBy(desc(pendingPurchases.createdAt));
+  }
+
+  async getPurchaseById(purchaseId: number): Promise<any> {
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    return purchase;
+  }
+
+  async forceCompletePurchase(purchaseId: number): Promise<void> {
+    // Simply mark the purchase as completed without full processing
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'completed',
+        confirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
+  }
+
+  async cancelPurchase(purchaseId: number): Promise<void> {
+    // Get purchase details for refund
+    const [purchase] = await db
+      .select()
+      .from(pendingPurchases)
+      .where(eq(pendingPurchases.id, purchaseId));
+    
+    if (!purchase) throw new Error('Purchase not found');
+
+    // Refund buyer if credits were deducted
+    if (purchase.status !== 'cancelled') {
+      const refundAmount = parseFloat(purchase.amount);
+      await db
+        .update(users)
+        .set({
+          credits: sql`${users.credits} + ${refundAmount}`
+        })
+        .where(eq(users.id, purchase.buyerId));
+
+      // Create credit history for refund
+      await db.insert(creditHistory).values({
+        userId: purchase.buyerId,
+        amount: refundAmount.toString(),
+        type: 'credit',
+        description: `Refund for cancelled marketplace purchase - Purchase ID: ${purchaseId}`,
+        relatedId: purchase.listingId,
+      });
+    }
+
+    // Mark purchase as cancelled
+    await db
+      .update(pendingPurchases)
+      .set({ 
+        status: 'cancelled',
+        confirmedAt: new Date()
+      })
+      .where(eq(pendingPurchases.id, purchaseId));
   }
 
   // Seller confirms the purchase (step 1)

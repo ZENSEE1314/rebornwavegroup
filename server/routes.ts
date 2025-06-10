@@ -3644,10 +3644,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const purchaseId = parseInt(req.params.purchaseId);
       
+      // Get purchase details
+      const purchase = await storage.getPurchaseById(purchaseId);
+      if (!purchase) {
+        return res.status(404).json({ message: "Purchase not found" });
+      }
+
+      // If already completed, just acknowledge
+      if (purchase.status === 'completed') {
+        return res.json({ message: 'Purchase is already completed' });
+      }
+
       // Force complete the purchase (this will trigger commission calculation)
-      await storage.buyerConfirmPurchase(purchaseId);
-      
-      res.json({ message: 'Purchase approved and completed successfully' });
+      try {
+        await storage.buyerConfirmPurchase(purchaseId);
+        res.json({ message: 'Purchase approved and completed successfully' });
+      } catch (error) {
+        // If the purchase can't be confirmed normally, force completion
+        console.log("Normal confirmation failed, forcing completion:", error.message);
+        
+        // Force update status to completed for admin approval
+        await storage.forceCompletePurchase(purchaseId);
+        res.json({ message: 'Purchase force-completed by admin' });
+      }
     } catch (error) {
       console.error("Error approving purchase:", error);
       res.status(500).json({ message: "Failed to approve purchase" });
