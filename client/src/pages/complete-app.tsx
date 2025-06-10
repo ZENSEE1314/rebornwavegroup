@@ -419,8 +419,14 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold">
             {language === "id" ? "Permainan Coin Catching" : "Coin Catching Game"}
@@ -4780,8 +4786,14 @@ export default function CompleteApp() {
 
       {/* Cash-out Modal */}
       {showCashOutModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCashOutModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-bold mb-4 text-green-600">
               {language === "id" ? "💰 Tarik Kredit ke Bank" : "💰 Cash Out to Bank"}
             </h3>
@@ -7411,8 +7423,14 @@ export default function CompleteApp() {
 
       {/* Gamified Achievement Pop-up */}
       {showAchievement && currentAchievement && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] animate-in fade-in duration-300">
-          <div className="relative bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl transform animate-in zoom-in-50 duration-500">
+        <div 
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] animate-in fade-in duration-300"
+          onClick={closeAchievement}
+        >
+          <div 
+            className="relative bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl transform animate-in zoom-in-50 duration-500"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Decorative elements */}
             <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
               <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${currentAchievement.color} flex items-center justify-center shadow-lg animate-bounce`}>
@@ -7674,8 +7692,14 @@ export default function CompleteApp() {
 
       {/* Token Claim Modal */}
       {showTokenClaimModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowTokenClaimModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-semibold mb-4">
               {language === "id" ? "Klaim Token Fisik" : "Claim Physical Tokens"}
             </h3>
