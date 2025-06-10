@@ -1731,7 +1731,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       </div>
                       <div>
                         <span className="text-gray-600">{language === "id" ? "Token:" : "Tokens:"}</span>
-                        <p className="font-medium">{userTokens}</p>
+                        <p className="font-medium">{pet.totalTokensEarned || 0}</p>
                       </div>
                     </div>
                     {!isDead && (
