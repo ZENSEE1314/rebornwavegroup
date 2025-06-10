@@ -561,8 +561,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedVerification);
     } catch (error) {
-      console.error("Error updating payment verification:", error);
-      res.status(500).json({ message: "Failed to update payment verification" });
+      console.error("*** APPROVAL DEBUG: Error updating payment verification:", error);
+      console.error("*** APPROVAL DEBUG: Error stack:", error.stack);
+      res.status(500).json({ message: "Failed to update payment verification", error: error.message });
     }
   });
 

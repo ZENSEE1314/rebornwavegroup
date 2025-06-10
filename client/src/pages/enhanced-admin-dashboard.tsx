@@ -763,6 +763,53 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const approvePaymentVerificationMutation = useMutation({
+    mutationFn: async ({ id, pointsAwarded, adminNotes }: { id: number, pointsAwarded: number, adminNotes: string }) => {
+      return apiRequest('PATCH', `/api/admin/payment-verifications/${id}`, {
+        status: 'approved',
+        pointsAwarded,
+        adminNotes
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Payment verification approved with 10% referral commission" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+      setOpenApproveDialog(null);
+    },
+    onError: (error: any) => {
+      console.error('Payment verification approval error:', error);
+      toast({ 
+        title: "Failed to approve verification", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const rejectPaymentVerificationMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number, adminNotes: string }) => {
+      return apiRequest('PATCH', `/api/admin/payment-verifications/${id}`, {
+        status: 'rejected',
+        pointsAwarded: 0,
+        adminNotes
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Payment verification rejected" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      setOpenRejectDialog(null);
+    },
+    onError: (error: any) => {
+      console.error('Payment verification rejection error:', error);
+      toast({ 
+        title: "Failed to reject verification", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Handler functions for rewards
   const handleEditReward = (reward: any) => {
     setEditingReward(reward);
@@ -3699,22 +3746,16 @@ function EnhancedAdminDashboard() {
                                           const pointsInput = document.getElementById(`points-${verification.id}`) as HTMLInputElement;
                                           const notesInput = document.getElementById(`notes-${verification.id}`) as HTMLTextAreaElement;
                                           
-                                          apiRequest('PATCH', `/api/admin/payment-verifications/${verification.id}`, {
-                                            status: 'approved',
+                                          approvePaymentVerificationMutation.mutate({
+                                            id: verification.id,
                                             pointsAwarded: parseInt(pointsInput.value) || 0,
                                             adminNotes: notesInput.value || ''
-                                          }).then(() => {
-                                            toast({ title: "Payment verification approved with 10% referral commission" });
-                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
-                                            queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
-                                            setOpenApproveDialog(null);
-                                          }).catch(() => {
-                                            toast({ title: "Failed to approve verification", variant: "destructive" });
                                           });
                                         }}
                                         className="bg-green-600 hover:bg-green-700"
+                                        disabled={approvePaymentVerificationMutation.isPending}
                                       >
-                                        Approve & Award Commission
+                                        {approvePaymentVerificationMutation.isPending ? "Approving..." : "Approve & Award Commission"}
                                       </Button>
                                     </div>
                                   </div>
