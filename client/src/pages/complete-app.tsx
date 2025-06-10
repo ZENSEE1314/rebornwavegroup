@@ -1136,29 +1136,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
             {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
           </p>
           
-          {/* Debug Info */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-            <div className="font-semibold text-blue-800 mb-2 text-center">Debug Info:</div>
-            <div className="grid grid-cols-2 gap-4 text-blue-700 text-center">
-              <div>
-                <span className="font-medium">Total Pets:</span> {safePets.length}
-              </div>
-              <div>
-                <span className="font-medium">Activated Toys:</span> {userOwnedToys.filter((toy: any) => toy.isActivated).length}
-              </div>
-              <div>
-                <span className="font-medium">All Owned Toys:</span> {userOwnedToys.length}
-              </div>
-              <div>
-                <span className="font-medium">Marketplace Listed:</span> {userOwnedToys.filter((toy: any) => 
-                  Array.isArray(marketplaceListings) && marketplaceListings.some((listing: any) => 
-                    listing.toyId === toy.id && listing.status === 'active'
-                  )
-                ).length}
-              </div>
-            </div>
-          </div>
-          
           {/* Pet Navigation - Only show if user has multiple pets */}
           {userPets.length > 1 && (
             <div className="flex items-center justify-center gap-4 mt-6">
