@@ -205,20 +205,17 @@ export default function Dashboard() {
           {/* Commission Structure */}
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Commission Rates</CardTitle>
+              <CardTitle>Commission Rate</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <span className="font-medium">Level 1 (Direct)</span>
+                <span className="font-medium">Direct Referrals</span>
                 <span className="font-bold text-green-600">10%</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <span className="font-medium">Level 2</span>
-                <span className="font-bold text-blue-600">3%</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                <span className="font-medium">Level 3</span>
-                <span className="font-bold text-purple-600">2%</span>
+              <div className="text-center py-2">
+                <p className="text-sm text-slate-600">
+                  Earn 10% commission on verified purchases by people you refer
+                </p>
               </div>
             </CardContent>
           </Card>
