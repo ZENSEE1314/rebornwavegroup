@@ -60,7 +60,7 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: 30000, // Refetch every 30 seconds for pet stats
+      refetchInterval: 5000, // Refetch every 5 seconds for real-time pet stats
       refetchOnWindowFocus: true,
       staleTime: 0, // No caching - always fetch fresh data
       retry: false,

@@ -2231,6 +2231,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual test endpoint to trigger immediate stat decay for testing
+  app.post('/api/pets/:petId/test-decay', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+
+      // Apply immediate decay for testing (3% reduction)
+      const currentHunger = pet.hunger || 100;
+      const currentCleanliness = pet.cleanliness || 100;
+      const currentHappiness = pet.happiness || 100;
+      
+      const newHunger = Math.max(0, currentHunger - 3);
+      const newCleanliness = Math.max(0, currentCleanliness - 3);
+      const newHappiness = Math.max(0, currentHappiness - 2);
+
+      await storage.updatePetStats(petId, {
+        hunger: newHunger,
+        cleanliness: newCleanliness,
+        happiness: newHappiness,
+        lastDecayTime: new Date()
+      });
+
+      res.json({
+        success: true,
+        message: "Test decay applied",
+        oldStats: { hunger: currentHunger, cleanliness: currentCleanliness, happiness: currentHappiness },
+        newStats: { hunger: newHunger, cleanliness: newCleanliness, happiness: newHappiness }
+      });
+    } catch (error) {
+      console.error("Error applying test decay:", error);
+      res.status(500).json({ message: "Failed to apply test decay" });
+    }
+  });
+
   // 24-Hour Token System - Check token status
   app.get('/api/pets/:petId/token-status', isAuthenticated, async (req: any, res) => {
     try {
