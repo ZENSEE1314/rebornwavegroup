@@ -71,19 +71,24 @@ app.use((req, res, next) => {
           console.log(`Pet ${pet.name} (ID: ${pet.id}): ${minutesSinceLastDecay} mins since decay, ${decayIntervals} intervals`);
           
           if (decayIntervals > 0) {
-            // Apply decay to hunger and cleanliness (1% per 3-minute interval)
+            // Apply more realistic decay rates for overnight periods
+            // Hunger and cleanliness: 3% per 3-minute interval (faster decay)
+            // After 8 hours (160 intervals), pets should be quite needy
             const currentHunger = pet.hunger || 100;
             const currentCleanliness = pet.cleanliness || 100;
             const currentHappiness = pet.happiness || 100;
             
-            const newHunger = Math.max(0, currentHunger - decayIntervals);
-            const newCleanliness = Math.max(0, currentCleanliness - decayIntervals);
+            const decayAmount = decayIntervals * 3; // 3% per interval instead of 1%
+            const newHunger = Math.max(0, currentHunger - decayAmount);
+            const newCleanliness = Math.max(0, currentCleanliness - decayAmount);
             
-            // Happiness drops when hunger or cleanliness drops
+            // Happiness drops more dramatically when other stats are low
             const hungerDrop = currentHunger - newHunger;
             const cleanlinessDrop = currentCleanliness - newCleanliness;
             const totalStatDrop = hungerDrop + cleanlinessDrop;
-            const newHappiness = Math.max(0, currentHappiness - totalStatDrop);
+            // Happiness drops at 1.5x the rate of other stats for more realistic gameplay
+            const happinessDecay = Math.floor(totalStatDrop * 1.5);
+            const newHappiness = Math.max(0, currentHappiness - happinessDecay);
 
             await db.update(pets).set({
               hunger: newHunger,
@@ -93,7 +98,7 @@ app.use((req, res, next) => {
               updatedAt: now
             }).where(eq(pets.id, pet.id));
             
-            console.log(`Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals`);
+            console.log(`Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals (${decayAmount}% total decay)`);
           }
         }
       } catch (error) {
