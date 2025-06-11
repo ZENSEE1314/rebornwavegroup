@@ -1548,6 +1548,36 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                                 {dragonEmoji}
                               </div>
                             </div>
+                          ) : ageInYears >= 80 && ageInYears < 101 ? (
+                            <div 
+                              className="w-32 h-32 mx-auto transition-transform duration-1000 hover:scale-110"
+                              style={{
+                                animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                                filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                                transform: isDead ? 'rotate(90deg)' : 'none'
+                              }}
+                            >
+                              <img 
+                                src="/attached_assets/Doluruu Grandpa_1749664964060.png" 
+                                alt="Grandpa Dragon"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  // Fallback to emoji if image fails to load
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling.style.display = 'block';
+                                }}
+                              />
+                              <div 
+                                className="text-6xl hidden"
+                                style={{
+                                  animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                                  filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                                  transform: isDead ? 'rotate(90deg)' : 'none'
+                                }}
+                              >
+                                {dragonEmoji}
+                              </div>
+                            </div>
                           ) : (
                             <div 
                               className="text-6xl transition-transform duration-1000 hover:scale-110"
