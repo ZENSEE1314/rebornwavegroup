@@ -394,7 +394,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
         });
         
         // Refresh leaderboard data
-        await queryClient.invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
+        await useQueryClient().invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
         
         toast({
           title: language === "id" ? "Permainan Selesai!" : "Game Over!",
