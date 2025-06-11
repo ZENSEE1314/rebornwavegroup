@@ -1,10 +1,10 @@
+import React, { useState, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { useState, useEffect } from "react";
 import Landing from "@/pages/landing";
 import AuthLanding from "@/pages/auth-landing";
 import CompleteApp from "@/pages/complete-app";
@@ -57,6 +57,22 @@ function Router() {
 }
 
 function App() {
+  // Suppress 401 authentication errors from console
+  React.useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args) => {
+      const errorMessage = args.join(' ');
+      if (errorMessage.includes('401') && (errorMessage.includes('Unauthorized') || errorMessage.includes('auth'))) {
+        return; // Silently ignore auth-related 401 errors
+      }
+      originalError.apply(console, args);
+    };
+
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
