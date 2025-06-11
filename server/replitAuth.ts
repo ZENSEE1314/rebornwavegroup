@@ -38,7 +38,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Set to false for development on Replit
       maxAge: sessionTtl,
       sameSite: 'lax',
     },
@@ -107,15 +107,22 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    // Use fallback domain for custom domains not yet registered with OAuth
-    const authDomain = req.hostname === 'rebornwavegroup.com' 
-      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
-      : req.hostname;
-    
-    passport.authenticate(`replitauth:${authDomain}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    try {
+      // Use fallback domain for custom domains not yet registered with OAuth
+      const authDomain = req.hostname === 'rebornwavegroup.com' 
+        ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+        : req.hostname;
+      
+      console.log(`Login attempt for domain: ${req.hostname}, using auth domain: ${authDomain}`);
+      
+      passport.authenticate(`replitauth:${authDomain}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Authentication service unavailable" });
+    }
   });
 
   app.get("/api/callback", (req, res, next) => {
@@ -130,15 +137,27 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href,
-      );
-    });
+  app.get("/api/logout", async (req, res) => {
+    try {
+      const logoutCallback = () => {
+        try {
+          const endSessionUrl = client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID!,
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          });
+          console.log(`Logout redirect to: ${endSessionUrl.href}`);
+          res.redirect(endSessionUrl.href);
+        } catch (error) {
+          console.error("End session URL error:", error);
+          res.redirect("/");
+        }
+      };
+
+      req.logout(logoutCallback);
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.redirect("/");
+    }
   });
 }
 
