@@ -163,10 +163,10 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Handle the logout redirect to ensure user goes to login page
+  // Handle the logout redirect to ensure user goes to main page
   app.get("/logout-redirect", (req, res) => {
-    console.log("Logout redirect handler - redirecting to login");
-    res.redirect("/api/login");
+    console.log("Logout redirect handler - redirecting to main page");
+    res.redirect("/");
   });
 }
 
