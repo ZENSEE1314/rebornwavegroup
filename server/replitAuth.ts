@@ -86,7 +86,7 @@ export async function setupAuth(app: Express) {
 
   // Get domains from environment and add custom domain
   const domains = process.env.REPLIT_DOMAINS!.split(",");
-  if (!domains.includes("https://rebornwavegroup.com/api/callback")) {
+  if (!domains.includes("rebornwavegroup.com")) {
     domains.push("rebornwavegroup.com");
   }
 
@@ -108,7 +108,7 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", (req, res, next) => {
     // Use fallback domain for custom domains not yet registered with OAuth
-    const authDomain = req.hostname === 'https://rebornwavegroup.com/api/callback' 
+    const authDomain = req.hostname === 'rebornwavegroup.com' 
       ? process.env.REPLIT_DOMAINS!.split(",")[0] 
       : req.hostname;
     
