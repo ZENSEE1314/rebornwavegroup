@@ -1809,6 +1809,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             });
                             return;
                           }
+                          playFemaleCuteVoice("Playtime! Let's have some fun together!");
                           careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                         }}
                         disabled={careActivityMutation.isPending}
