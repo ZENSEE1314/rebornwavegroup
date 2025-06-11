@@ -102,7 +102,7 @@ app.use((req, res, next) => {
               updatedAt: now
             }).where(eq(pets.id, pet.id));
             
-            console.log(`Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals (${decayAmount}% total decay)`);
+            console.log(`Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals - H:${currentHunger}→${newHunger}, C:${currentCleanliness}→${newCleanliness}, Hap:${currentHappiness}→${newHappiness}`);
           }
         }
       } catch (error) {
