@@ -3,6 +3,13 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    // For 401 errors, create a silent error that won't log to console
+    if (res.status === 401) {
+      const error = new Error(`${res.status}: ${text}`);
+      // Suppress console logging for auth errors on login page
+      error.name = 'SilentAuthError';
+      throw error;
+    }
     throw new Error(`${res.status}: ${text}`);
   }
 }
