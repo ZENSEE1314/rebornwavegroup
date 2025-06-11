@@ -814,23 +814,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   }, [safePets[currentPetIndex]?.isSleeping, safePets[currentPetIndex]?.id, sleepProgress]);
 
-  // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
-  useEffect(() => {
-    if (!safePets[currentPetIndex]?.id) return;
-
-    const decayInterval = setInterval(async () => {
-      try {
-        // Apply stat decay via backend endpoint
-        await apiRequest('POST', `/api/pets/${safePets[currentPetIndex].id}/auto-decay`);
-        // Refresh pet data to show updated stats
-        refetchPets();
-      } catch (error) {
-        console.error('Stat decay error:', error);
-      }
-    }, 180000); // 3 minutes = 180,000ms
-
-    return () => clearInterval(decayInterval);
-  }, [safePets[currentPetIndex]?.id]);
+  // REMOVED: Auto-decay system - stats now only change when users perform actions
 
   // Get owned toys (filter out toys that are already pets or listed in marketplace)
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
@@ -1266,83 +1250,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               dragonEmoji = "🐢"; // Baby turtle form
             }
             
-            // Hunger decreases from the last fed value over 6 hours
-            const calculateHunger = (lastFeedTime?: Date) => {
-              if (isDead) return 0; // Dead pets have 0 status
-              
-              // If care activity performed recently (within 10 seconds) or fed recently (within 5 minutes), use database value
-              if (lastFeedTime) {
-                const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
-                if (minutesSinceLastFeed < 5) {
-                  return pet.hunger ?? 0; // Use fresh database value
-                }
-              }
-              
-              // Check if any care activity was performed recently (within 10 seconds)
-              const lastCareTime = Math.max(
-                pet.lastCareDate ? new Date(pet.lastCareDate).getTime() : 0,
-                lastFeedTime ? new Date(lastFeedTime).getTime() : 0
-              );
-              if (lastCareTime > 0) {
-                const secondsSinceLastCare = (now - lastCareTime) / 1000;
-                if (secondsSinceLastCare < 10) {
-                  return pet.hunger ?? 0; // Use fresh database value
-                }
-              }
-              
-              // Use database value as starting point, then apply decay
-              const baseHunger = pet.hunger ?? 0;
-              
-              if (!lastFeedTime) {
-                // No feeding recorded, decay from birth
-                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(0, baseHunger - (hoursSinceBirth / 6) * baseHunger);
-                return Math.floor(decay);
-              }
-              
-              const hoursSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(0, baseHunger - (hoursSinceLastFeed / 6) * baseHunger);
-              return Math.floor(decay);
-            };
-
-            // Cleanliness decreases from the last bathed value over 6 hours
-            const calculateCleanliness = (lastCareTime?: Date) => {
-              if (isDead) return 0; // Dead pets have 0 status
-              
-              // If bathed recently (within 5 minutes), use database value to show immediate effect
-              if (lastCareTime) {
-                const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
-                if (minutesSinceLastCare < 5) {
-                  return pet.cleanliness ?? 0; // Use fresh database value
-                }
-              }
-              
-              // Check if any care activity was performed recently (within 10 seconds)
-              const recentCareTime = Math.max(
-                pet.lastCareDate ? new Date(pet.lastCareDate).getTime() : 0,
-                lastCareTime ? new Date(lastCareTime).getTime() : 0
-              );
-              if (recentCareTime > 0) {
-                const secondsSinceLastCare = (now - recentCareTime) / 1000;
-                if (secondsSinceLastCare < 10) {
-                  return pet.cleanliness ?? 0; // Use fresh database value
-                }
-              }
-              
-              // Use database value as starting point, then apply decay
-              const baseCleanliness = pet.cleanliness ?? 0;
-              
-              if (!lastCareTime) {
-                // No care recorded, decay from birth
-                const hoursSinceBirth = elapsedMs / (1000 * 60 * 60);
-                const decay = Math.max(0, baseCleanliness - (hoursSinceBirth / 6) * baseCleanliness);
-                return Math.floor(decay);
-              }
-              
-              const hoursSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60 * 60);
-              const decay = Math.max(0, baseCleanliness - (hoursSinceLastCare / 6) * baseCleanliness);
-              return Math.floor(decay);
-            };
+            // FIXED: Use database values directly without frontend calculations
 
             // Use synchronized database values directly for accurate display
             const hunger = isDead ? 0 : (pet.hunger ?? 0);
