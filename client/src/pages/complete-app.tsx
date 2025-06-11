@@ -1702,8 +1702,19 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        className={`flex items-center gap-2 p-4 h-auto flex-col ${
+                          energy < 5 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         onClick={async () => {
+                          if (energy < 5) {
+                            toast({
+                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
+                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              variant: "destructive"
+                            });
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            return;
+                          }
                           if (pet.isSleeping) {
                             playFemaleCuteVoice("Rise and shine! Time to wake up for feeding!");
                             await wakeMutation.mutateAsync(pet.id);
@@ -1717,16 +1728,30 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
                           }
                         }}
-                        disabled={careActivityMutation.isPending || wakeMutation.isPending}
+                        disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
                       >
                         <span className="text-2xl">🍎</span>
-                        <span className="text-sm">{language === "id" ? "Beri Makan" : "Feed"}</span>
+                        <span className="text-sm">
+                          {language === "id" ? "Beri Makan" : "Feed"}
+                          {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
+                        </span>
                       </Button>
 
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2 p-4 h-auto flex-col"
+                        className={`flex items-center gap-2 p-4 h-auto flex-col ${
+                          energy < 5 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         onClick={async () => {
+                          if (energy < 5) {
+                            toast({
+                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
+                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              variant: "destructive"
+                            });
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            return;
+                          }
                           if (pet.isSleeping) {
                             playFemaleCuteVoice("Rise and shine! Time to wake up for bath time!");
                             await wakeMutation.mutateAsync(pet.id);
@@ -1740,18 +1765,32 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
                           }
                         }}
-                        disabled={careActivityMutation.isPending || wakeMutation.isPending}
+                        disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
                       >
                         <span className="text-2xl">🛁</span>
-                        <span className="text-sm">{language === "id" ? "Mandikan" : "Bathe"}</span>
+                        <span className="text-sm">
+                          {language === "id" ? "Mandikan" : "Bathe"}
+                          {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
+                        </span>
                       </Button>
 
                       <Button
                         variant="outline"
                         className={`flex items-center gap-2 p-4 h-auto flex-col ${
                           happiness >= 100 ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${
+                          energy < 5 ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                         onClick={async () => {
+                          if (energy < 5) {
+                            toast({
+                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
+                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              variant: "destructive"
+                            });
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            return;
+                          }
                           if (happiness >= 100) {
                             toast({
                               title: language === "id" ? "Happiness Penuh!" : "Happiness Full!",
@@ -1773,12 +1812,13 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
                           }
                         }}
-                        disabled={careActivityMutation.isPending || wakeMutation.isPending}
+                        disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
                       >
                         <span className="text-2xl">🎾</span>
                         <span className="text-sm">
                           {language === "id" ? "Bermain" : "Play"}
                           {happiness >= 100 && <span className="text-xs block text-green-600">MAX</span>}
+                          {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
                       </Button>
 
