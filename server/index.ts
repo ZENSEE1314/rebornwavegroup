@@ -74,9 +74,9 @@ app.use((req, res, next) => {
             // Apply more realistic decay rates for overnight periods
             // Hunger and cleanliness: 3% per 3-minute interval (faster decay)
             // After 8 hours (160 intervals), pets should be quite needy
-            const currentHunger = pet.hunger || 100;
-            const currentCleanliness = pet.cleanliness || 100;
-            const currentHappiness = pet.happiness || 100;
+            const currentHunger = pet.hunger ?? 100;
+            const currentCleanliness = pet.cleanliness ?? 100;
+            const currentHappiness = pet.happiness ?? 100;
             
             const newHunger = Math.max(0, currentHunger - (decayIntervals * 3));
             const newCleanliness = Math.max(0, currentCleanliness - (decayIntervals * 3));
