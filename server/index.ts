@@ -71,23 +71,23 @@ app.use((req, res, next) => {
           console.log(`Pet ${pet.name} (ID: ${pet.id}): ${minutesSinceLastDecay} mins since decay, ${decayIntervals} intervals`);
           
           if (decayIntervals > 0) {
-            // Apply more realistic decay rates for overnight periods
-            // Hunger and cleanliness: 3% per 3-minute interval (faster decay)
-            // After 8 hours (160 intervals), pets should be quite needy
+            // Apply gradual decay rates
+            // Hunger and cleanliness: 1% per 3-minute interval (slow decay)
+            // After 5 hours (100 intervals), pets will need care
             const currentHunger = pet.hunger || 100;
             const currentCleanliness = pet.cleanliness || 100;
             const currentHappiness = pet.happiness || 100;
             
-            const decayAmount = decayIntervals * 3; // 3% per interval instead of 1%
+            const decayAmount = decayIntervals * 1; // 1% per interval
             const newHunger = Math.max(0, currentHunger - decayAmount);
             const newCleanliness = Math.max(0, currentCleanliness - decayAmount);
             
-            // Happiness drops more dramatically when other stats are low
+            // Happiness drops slightly faster when other stats are low
             const hungerDrop = currentHunger - newHunger;
             const cleanlinessDrop = currentCleanliness - newCleanliness;
             const totalStatDrop = hungerDrop + cleanlinessDrop;
-            // Happiness drops at 1.5x the rate of other stats for more realistic gameplay
-            const happinessDecay = Math.floor(totalStatDrop * 1.5);
+            // Happiness drops at 1.2x the rate of other stats
+            const happinessDecay = Math.floor(totalStatDrop * 1.2);
             const newHappiness = Math.max(0, currentHappiness - happinessDecay);
 
             await db.update(pets).set({

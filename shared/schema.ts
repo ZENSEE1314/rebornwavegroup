@@ -312,6 +312,7 @@ export const pets = pgTable("pets", {
   birthDate: timestamp("birth_date").defaultNow(),
   currentAge: integer("current_age").default(0), // days since birth
   growthStage: varchar("growth_stage").default("baby"), // baby, child, teen, adult, elder
+  evolutionPoints: integer("evolution_points").default(0), // Points needed for evolution
   happiness: integer("happiness").default(50), // 0-100
   hunger: integer("hunger").default(50), // 0-100 (100 = full)
   cleanliness: integer("cleanliness").default(50), // 0-100
@@ -330,6 +331,16 @@ export const pets = pgTable("pets", {
   lastEnergyUpdate: timestamp("last_energy_update"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Evolution images for different pet stages
+export const petEvolutionImages = pgTable("pet_evolution_images", {
+  id: serial("id").primaryKey(),
+  species: varchar("species").notNull(), // "Doluruu", "Dragon", etc.
+  growthStage: varchar("growth_stage").notNull(), // baby, child, teen, adult, elder
+  imageUrl: varchar("image_url").notNull(),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const petCareActivities = pgTable("pet_care_activities", {
@@ -839,3 +850,11 @@ export const insertTokenHistorySchema = createInsertSchema(tokenHistory).omit({
   createdAt: true,
 });
 export type InsertTokenHistory = z.infer<typeof insertTokenHistorySchema>;
+
+// Pet evolution image types
+export type PetEvolutionImage = typeof petEvolutionImages.$inferSelect;
+export const insertPetEvolutionImageSchema = createInsertSchema(petEvolutionImages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPetEvolutionImage = z.infer<typeof insertPetEvolutionImageSchema>;

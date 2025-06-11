@@ -1981,6 +1981,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pet evolution routes
+  app.get('/api/pets/:petId/evolution-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      // Get pet to verify ownership and get current growth stage
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      // Get evolution image for current growth stage
+      const evolutionImage = await storage.getPetEvolutionImage(pet.species || 'Doluruu', pet.growthStage || 'baby');
+      
+      res.json({
+        petId: pet.id,
+        species: pet.species,
+        growthStage: pet.growthStage,
+        evolutionPoints: pet.evolutionPoints || 0,
+        imageUrl: evolutionImage?.imageUrl || '/attached_assets/Doluruu Baby_1749663725243.png',
+        nextEvolutionAt: getNextEvolutionThreshold(pet.growthStage || 'baby')
+      });
+    } catch (error) {
+      console.error("Error fetching pet evolution image:", error);
+      res.status(500).json({ message: "Failed to fetch pet evolution image" });
+    }
+  });
+
+  // Check if pet can evolve
+  app.post('/api/pets/:petId/check-evolution', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      const currentStage = pet.growthStage || 'baby';
+      const evolutionPoints = pet.evolutionPoints || 0;
+      const requiredPoints = getNextEvolutionThreshold(currentStage);
+      
+      const canEvolve = evolutionPoints >= requiredPoints && currentStage !== 'elder';
+      const nextStage = getNextGrowthStage(currentStage);
+      
+      res.json({
+        canEvolve,
+        currentStage,
+        nextStage,
+        evolutionPoints,
+        requiredPoints,
+        pointsNeeded: Math.max(0, requiredPoints - evolutionPoints)
+      });
+    } catch (error) {
+      console.error("Error checking pet evolution:", error);
+      res.status(500).json({ message: "Failed to check pet evolution" });
+    }
+  });
+
+  // Evolve pet to next stage
+  app.post('/api/pets/:petId/evolve', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const petId = parseInt(req.params.petId);
+      
+      const pet = await storage.getPetById(petId);
+      if (!pet || pet.userId !== userId) {
+        return res.status(403).json({ message: "Pet not found or not owned by user" });
+      }
+      
+      const currentStage = pet.growthStage || 'baby';
+      const evolutionPoints = pet.evolutionPoints || 0;
+      const requiredPoints = getNextEvolutionThreshold(currentStage);
+      
+      if (evolutionPoints < requiredPoints) {
+        return res.status(400).json({ 
+          message: `Not enough evolution points! Need ${requiredPoints}, have ${evolutionPoints}`,
+          pointsNeeded: requiredPoints - evolutionPoints
+        });
+      }
+      
+      if (currentStage === 'elder') {
+        return res.status(400).json({ message: "Pet is already at maximum evolution stage" });
+      }
+      
+      const nextStage = getNextGrowthStage(currentStage);
+      
+      // Update pet to next growth stage
+      await storage.updatePetStats(petId, {
+        growthStage: nextStage,
+        evolutionPoints: 0 // Reset evolution points for next stage
+      });
+      
+      // Award evolution bonus tokens
+      await storage.addUserTokens(userId, 5);
+      
+      // Create evolution activity record
+      await storage.createCareActivity({
+        petId,
+        userId,
+        activityType: 'evolution',
+        completedAt: new Date(),
+        pointsEarned: 0
+      });
+      
+      res.json({
+        message: `Pet evolved to ${nextStage} stage!`,
+        newStage: nextStage,
+        bonusTokens: 5
+      });
+    } catch (error) {
+      console.error("Error evolving pet:", error);
+      res.status(500).json({ message: "Failed to evolve pet" });
+    }
+  });
+
   // Get sleep progress - calculates energy gained during sleep
   app.get('/api/pets/:petId/sleep-progress', isAuthenticated, async (req: any, res) => {
     try {
