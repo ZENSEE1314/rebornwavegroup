@@ -81,6 +81,7 @@ import { db } from "./db";
 import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
+import bcrypt from "bcryptjs";
 
 // Interface for storage operations
 export interface IStorage {
@@ -92,7 +93,8 @@ export interface IStorage {
   
   // Email authentication operations
   getUserByEmail(email: string): Promise<User | undefined>;
-  createEmailUser(userData: UpsertUser): Promise<User>;
+  createUser(userData: any): Promise<User>;
+  authenticateUser(email: string, password: string): Promise<User | null>;
   handleReferral(userId: string, referralCode: string): Promise<void>;
   
   // Referral operations
@@ -300,16 +302,47 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createEmailUser(userData: UpsertUser): Promise<User> {
+  async createUser(userData: any): Promise<User> {
+    const hashedPassword = userData.password ? await bcrypt.hash(userData.password, 10) : null;
+    
+    const userId = nanoid();
+    const referralCode = await this.createReferralCode();
+    
     const [user] = await db
       .insert(users)
       .values({
-        ...userData,
-        authProvider: "email",
+        id: userId,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        password: hashedPassword,
+        authProvider: userData.authProvider || "email",
+        referralCode,
+        loyaltyPoints: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning();
+    
+    // Handle referral if provided
+    if (userData.referralCode) {
+      await this.handleReferral(userId, userData.referralCode);
+    }
+    
+    return user;
+  }
+
+  async authenticateUser(email: string, password: string): Promise<User | null> {
+    const user = await this.getUserByEmail(email);
+    if (!user || !user.password) {
+      return null;
+    }
+    
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return null;
+    }
+    
     return user;
   }
 
