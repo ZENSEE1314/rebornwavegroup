@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import AuthLanding from "@/pages/auth-landing";
+import HomeDashboard from "@/pages/home-dashboard";
 import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
@@ -42,11 +43,12 @@ function Router() {
         <Route path="/" component={AuthLanding} />
       ) : (
         <>
-          {/* Default route - both admin and regular users can access main app */}
-          <Route path="/" component={CompleteApp} />
+          {/* Default route - Home Dashboard for authenticated users */}
+          <Route path="/" component={HomeDashboard} />
+          <Route path="/home" component={HomeDashboard} />
+          <Route path="/app" component={CompleteApp} />
           <Route path="/admin" component={EnhancedAdminDashboard} />
           <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
-          <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
         </>
