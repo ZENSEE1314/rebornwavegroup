@@ -78,16 +78,20 @@ app.use((req, res, next) => {
             const currentCleanliness = pet.cleanliness || 100;
             const currentHappiness = pet.happiness || 100;
             
-            const decayAmount = decayIntervals * 3; // 3% per interval instead of 1%
-            const newHunger = Math.max(0, currentHunger - decayAmount);
-            const newCleanliness = Math.max(0, currentCleanliness - decayAmount);
+            const newHunger = Math.max(0, currentHunger - (decayIntervals * 3));
+            const newCleanliness = Math.max(0, currentCleanliness - (decayIntervals * 3));
             
-            // Happiness drops more dramatically when other stats are low
-            const hungerDrop = currentHunger - newHunger;
-            const cleanlinessDrop = currentCleanliness - newCleanliness;
-            const totalStatDrop = hungerDrop + cleanlinessDrop;
-            // Happiness drops at 1.5x the rate of other stats for more realistic gameplay
-            const happinessDecay = Math.floor(totalStatDrop * 1.5);
+            // Happiness drops more aggressively based on how low hunger and cleanliness are
+            // If hunger or cleanliness is below 50%, happiness drops faster
+            let happinessDecay = decayIntervals * 2; // Base decay of 2% per interval
+            
+            if (newHunger < 50 || newCleanliness < 50) {
+              happinessDecay += decayIntervals * 3; // Additional 3% if stats are low
+            }
+            if (newHunger < 25 || newCleanliness < 25) {
+              happinessDecay += decayIntervals * 5; // Additional 5% if stats are very low
+            }
+            
             const newHappiness = Math.max(0, currentHappiness - happinessDecay);
 
             await db.update(pets).set({

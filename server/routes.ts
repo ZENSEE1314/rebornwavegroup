@@ -2151,19 +2151,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Apply decay to hunger and cleanliness (1% per 3-minute interval)
+      // Apply decay to hunger and cleanliness (3% per 3-minute interval)
       const currentHunger = pet.hunger || 100;
       const currentCleanliness = pet.cleanliness || 100;
       const currentHappiness = pet.happiness || 100;
       
-      const newHunger = Math.max(0, currentHunger - decayIntervals);
-      const newCleanliness = Math.max(0, currentCleanliness - decayIntervals);
+      const newHunger = Math.max(0, currentHunger - (decayIntervals * 3));
+      const newCleanliness = Math.max(0, currentCleanliness - (decayIntervals * 3));
       
-      // Happiness drops when hunger or cleanliness drops
-      const hungerDrop = currentHunger - newHunger;
-      const cleanlinessDrop = currentCleanliness - newCleanliness;
-      const totalStatDrop = hungerDrop + cleanlinessDrop;
-      const newHappiness = Math.max(0, currentHappiness - totalStatDrop);
+      // Happiness drops more aggressively based on how low hunger and cleanliness are
+      // If hunger or cleanliness is below 50%, happiness drops faster
+      let happinessDecay = decayIntervals * 2; // Base decay of 2% per interval
+      
+      if (newHunger < 50 || newCleanliness < 50) {
+        happinessDecay += decayIntervals * 3; // Additional 3% if stats are low
+      }
+      if (newHunger < 25 || newCleanliness < 25) {
+        happinessDecay += decayIntervals * 5; // Additional 5% if stats are very low
+      }
+      
+      const newHappiness = Math.max(0, currentHappiness - happinessDecay);
 
       await storage.updatePetStats(petId, {
         hunger: newHunger,
