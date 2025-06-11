@@ -74,9 +74,9 @@ app.use((req, res, next) => {
             // Apply gradual decay rates
             // Hunger and cleanliness: 1% per 3-minute interval (slow decay)
             // After 5 hours (100 intervals), pets will need care
-            const currentHunger = pet.hunger || 100;
-            const currentCleanliness = pet.cleanliness || 100;
-            const currentHappiness = pet.happiness || 100;
+            const currentHunger = pet.hunger ?? 0;
+            const currentCleanliness = pet.cleanliness ?? 0;
+            const currentHappiness = pet.happiness ?? 0;
             
             const decayAmount = decayIntervals * 1; // 1% per interval
             const newHunger = Math.max(0, currentHunger - decayAmount);
