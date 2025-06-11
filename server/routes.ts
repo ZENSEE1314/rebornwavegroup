@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { registerUser, loginUser, logoutUser, isAuthenticated as emailIsAuthenticated } from "./emailAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import multer from "multer";
@@ -790,10 +791,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email authentication routes
+  app.post('/api/auth/register', registerUser);
+  app.post('/api/auth/login', loginUser);
+  app.post('/api/auth/logout', logoutUser);
+
+  // Unified authentication middleware for both auth types
+  const unifiedAuth = (req: any, res: any, next: any) => {
+    // Check for email session first
+    if (req.session.userId) {
+      return next();
+    }
+    
+    // Fall back to Replit Auth
+    return isAuthenticated(req, res, next);
+  };
+
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', unifiedAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      let userId: string;
+      
+      // Get user ID from either auth method
+      if (req.session.userId) {
+        userId = req.session.userId;
+      } else if (req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+      } else {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
