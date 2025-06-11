@@ -230,37 +230,97 @@ export default function HomeDashboard() {
           </Link>
         </div>
 
-        {/* Company Info Section */}
-        <div className="mt-12 text-center">
-          <Card className="bg-white/70 backdrop-blur-sm border-white/20 max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle className="text-2xl text-gray-900">About RebornWave Group</CardTitle>
-              <CardDescription className="text-lg">
-                Your premier destination for digital pet care and entertainment services
+        {/* Company Profile Section - Prominent Display */}
+        <div className="mt-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Welcome to RebornWave Group</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Your premier destination for digital pet care, entertainment services, and innovative financial management
+            </p>
+          </div>
+
+          {/* Main Company Profile Card */}
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 max-w-6xl mx-auto mb-8">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mb-4">
+                <Sparkles className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-3xl text-gray-900">RebornWave Group</CardTitle>
+              <CardDescription className="text-lg text-gray-700">
+                Comprehensive Digital Financial Management Platform
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-700 leading-relaxed">
-                RebornWave Group is a comprehensive digital financial management platform that combines advanced 
-                gamification, interactive pet care experiences, and robust user engagement technologies. 
-                Our platform offers a unique blend of virtual pet management, marketplace transactions, 
-                and real-world service bookings.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="text-center p-4">
-                  <PawPrint className="w-12 h-12 text-purple-600 mx-auto mb-2" />
-                  <h3 className="font-semibold text-gray-900">Pet Care System</h3>
-                  <p className="text-sm text-gray-600">Interactive virtual pets with real-time stat tracking</p>
+            <CardContent className="space-y-6">
+              <div className="text-center">
+                <p className="text-lg text-gray-700 leading-relaxed max-w-4xl mx-auto">
+                  RebornWave Group is a revolutionary digital platform that combines advanced gamification, 
+                  interactive pet care experiences, and robust user engagement technologies. We offer a unique 
+                  blend of virtual pet management, collectible marketplace transactions, real-world service bookings, 
+                  and comprehensive financial management tools.
+                </p>
+              </div>
+
+              {/* Features Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+                <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+                  <PawPrint className="w-16 h-16 text-purple-600 mx-auto mb-4" />
+                  <h3 className="font-bold text-gray-900 mb-2">Digital Pet Care</h3>
+                  <p className="text-sm text-gray-600">Interactive virtual pets with real-time stat tracking and automated care systems</p>
                 </div>
-                <div className="text-center p-4">
-                  <ShoppingCart className="w-12 h-12 text-green-600 mx-auto mb-2" />
-                  <h3 className="font-semibold text-gray-900">Marketplace</h3>
-                  <p className="text-sm text-gray-600">Buy and sell collectible toys with QR activation</p>
+                <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+                  <ShoppingCart className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                  <h3 className="font-bold text-gray-900 mb-2">NFT Marketplace</h3>
+                  <p className="text-sm text-gray-600">Buy and sell collectible toys with QR code activation and blockchain verification</p>
                 </div>
-                <div className="text-center p-4">
-                  <Calendar className="w-12 h-12 text-blue-600 mx-auto mb-2" />
-                  <h3 className="font-semibold text-gray-900">Service Bookings</h3>
-                  <p className="text-sm text-gray-600">Beauty, entertainment, and restaurant services</p>
+                <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+                  <Calendar className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+                  <h3 className="font-bold text-gray-900 mb-2">Service Bookings</h3>
+                  <p className="text-sm text-gray-600">Beauty treatments, entertainment venues, and restaurant reservations</p>
+                </div>
+                <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+                  <Users className="w-16 h-16 text-orange-600 mx-auto mb-4" />
+                  <h3 className="font-bold text-gray-900 mb-2">Referral System</h3>
+                  <p className="text-sm text-gray-600">Earn commissions through our multi-level referral program and loyalty rewards</p>
+                </div>
+              </div>
+
+              {/* Company Values */}
+              <div className="bg-white rounded-lg p-6 mt-8">
+                <h3 className="text-2xl font-bold text-gray-900 text-center mb-6">Our Core Values</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <Star className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
+                    <h4 className="font-semibold text-gray-900 mb-2">Innovation</h4>
+                    <p className="text-sm text-gray-600">Cutting-edge technology meets user-friendly design</p>
+                  </div>
+                  <div className="text-center">
+                    <Crown className="w-12 h-12 text-purple-500 mx-auto mb-3" />
+                    <h4 className="font-semibold text-gray-900 mb-2">Excellence</h4>
+                    <p className="text-sm text-gray-600">Premium quality services and experiences</p>
+                  </div>
+                  <div className="text-center">
+                    <TrendingUp className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                    <h4 className="font-semibold text-gray-900 mb-2">Growth</h4>
+                    <p className="text-sm text-gray-600">Empowering users to build wealth and achieve success</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call to Action */}
+              <div className="text-center pt-6">
+                <p className="text-lg text-gray-700 mb-4">
+                  Join thousands of users who are already earning rewards and managing their digital assets with RebornWave Group
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 px-4 py-2">
+                    🏆 Premium Platform
+                  </Badge>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 px-4 py-2">
+                    💰 Earn Real Rewards
+                  </Badge>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 px-4 py-2">
+                    🔒 Secure & Trusted
+                  </Badge>
                 </div>
               </div>
             </CardContent>
