@@ -1518,7 +1518,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                                 {dragonEmoji}
                               </div>
                             </div>
-                          ) : ageInYears >= 60 && ageInYears < 120 ? (
+                          ) : ageInYears >= 60 && ageInYears < 80 ? (
                             <div 
                               className="w-32 h-32 mx-auto transition-transform duration-1000 hover:scale-110"
                               style={{
