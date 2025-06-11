@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
+import Login from "@/pages/Login";
 import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
@@ -37,7 +38,10 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/login" component={Login} />
+          <Route path="/" component={Landing} />
+        </>
       ) : (
         <>
           {/* Default route - both admin and regular users can access main app */}
