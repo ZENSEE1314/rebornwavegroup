@@ -81,30 +81,41 @@ function playFemaleCuteVoice(message: string) {
       
       const utterance = new SpeechSynthesisUtterance(message);
       
-      // Configure for cute female voice
-      utterance.pitch = 2.0; // Very high pitch for cute effect
-      utterance.rate = 1.2; // Slightly faster for excitement
-      utterance.volume = 0.8;
+      // Configure for cute female voice with higher settings
+      utterance.pitch = 1.8; // High but not too extreme
+      utterance.rate = 0.7; // Slower for cute effect
+      utterance.volume = 0.9;
       
-      // Try to find the best female voice
-      const voices = speechSynthesis.getVoices();
-      const femaleVoice = voices.find(voice => 
-        voice.name.toLowerCase().includes('female') ||
-        voice.name.toLowerCase().includes('child') ||
-        voice.name.toLowerCase().includes('girl') ||
-        voice.name.toLowerCase().includes('cute') ||
-        voice.name.toLowerCase().includes('samantha') ||
-        voice.name.toLowerCase().includes('karen') ||
-        voice.name.toLowerCase().includes('zira') ||
-        voice.name.toLowerCase().includes('eva') ||
-        (voice.lang.includes('en-US') && voice.name.toLowerCase().includes('microsoft'))
-      );
+      // Wait for voices to load, then select best female voice
+      const setVoiceAndSpeak = () => {
+        const voices = speechSynthesis.getVoices();
+        
+        // Priority order for female voices
+        const femaleVoice = voices.find(voice => 
+          voice.name.toLowerCase().includes('zira') ||
+          voice.name.toLowerCase().includes('hazel') ||
+          voice.name.toLowerCase().includes('samantha') ||
+          voice.name.toLowerCase().includes('karen') ||
+          voice.name.toLowerCase().includes('susan') ||
+          voice.name.toLowerCase().includes('anna') ||
+          voice.name.toLowerCase().includes('emma') ||
+          voice.name.toLowerCase().includes('female')
+        );
+        
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+        }
+        
+        speechSynthesis.speak(utterance);
+      };
       
-      if (femaleVoice) {
-        utterance.voice = femaleVoice;
+      // If voices are already loaded, speak immediately
+      if (speechSynthesis.getVoices().length > 0) {
+        setVoiceAndSpeak();
+      } else {
+        // Wait for voices to load
+        speechSynthesis.onvoiceschanged = setVoiceAndSpeak;
       }
-      
-      speechSynthesis.speak(utterance);
     }
   } catch (error) {
     console.log('Speech synthesis not supported');
@@ -1734,6 +1745,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           variant="outline"
                           className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50 border-blue-200"
                           onClick={() => {
+                            playFemaleCuteVoice("Rise and shine! Time to wake up, sweetie!");
                             wakeMutation.mutate(pet.id);
                           }}
                           disabled={wakeMutation.isPending}
@@ -1749,6 +1761,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           variant="outline"
                           className="flex items-center gap-2 p-4 h-auto flex-col"
                           onClick={() => {
+                            playFemaleCuteVoice("Sleep tight! Sweet dreams, my precious pet!");
                             sleepMutation.mutate(pet.id);
                           }}
                           disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
