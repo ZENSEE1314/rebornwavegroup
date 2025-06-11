@@ -1236,7 +1236,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               if (lastFeedTime) {
                 const minutesSinceLastFeed = (now - new Date(lastFeedTime).getTime()) / (1000 * 60);
                 if (minutesSinceLastFeed < 5) {
-                  return pet.hunger || 50; // Use fresh database value
+                  return pet.hunger ?? 0; // Use fresh database value
                 }
               }
               
@@ -1248,12 +1248,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               if (lastCareTime > 0) {
                 const secondsSinceLastCare = (now - lastCareTime) / 1000;
                 if (secondsSinceLastCare < 10) {
-                  return pet.hunger || 50; // Use fresh database value
+                  return pet.hunger ?? 0; // Use fresh database value
                 }
               }
               
               // Use database value as starting point, then apply decay
-              const baseHunger = pet.hunger || 50;
+              const baseHunger = pet.hunger ?? 0;
               
               if (!lastFeedTime) {
                 // No feeding recorded, decay from birth
@@ -1275,7 +1275,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               if (lastCareTime) {
                 const minutesSinceLastCare = (now - new Date(lastCareTime).getTime()) / (1000 * 60);
                 if (minutesSinceLastCare < 5) {
-                  return pet.cleanliness || 50; // Use fresh database value
+                  return pet.cleanliness ?? 0; // Use fresh database value
                 }
               }
               
@@ -1287,12 +1287,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               if (recentCareTime > 0) {
                 const secondsSinceLastCare = (now - recentCareTime) / 1000;
                 if (secondsSinceLastCare < 10) {
-                  return pet.cleanliness || 50; // Use fresh database value
+                  return pet.cleanliness ?? 0; // Use fresh database value
                 }
               }
               
               // Use database value as starting point, then apply decay
-              const baseCleanliness = pet.cleanliness || 50;
+              const baseCleanliness = pet.cleanliness ?? 0;
               
               if (!lastCareTime) {
                 // No care recorded, decay from birth
@@ -1307,13 +1307,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
             };
 
             // Use synchronized database values directly for accurate display
-            const hunger = isDead ? 0 : (pet.hunger || 0);
-            const cleanliness = isDead ? 0 : (pet.cleanliness || 0);
-            const energy = isDead ? 0 : (pet.energy || 50);
-
+            const hunger = isDead ? 0 : (pet.hunger ?? 0);
+            const cleanliness = isDead ? 0 : (pet.cleanliness ?? 0);
+            const energy = isDead ? 0 : (pet.energy ?? 0);
             
-            // Use database happiness value directly (no frontend calculation)
-            const happiness = isDead ? 0 : (pet.happiness || 50);
+            // Use database happiness value directly (no frontend calculation) - DO NOT default to 50
+            const happiness = isDead ? 0 : (pet.happiness ?? 0);
 
             // Check if pet can earn tokens (alive, stats > 0, and at least 1 day old)
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
