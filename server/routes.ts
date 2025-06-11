@@ -139,12 +139,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let statsUpdate = {};
       
       if (careType === 'fed') {
-        // Feed: Increase hunger by 25% and decrease energy by 5%
+        // Feed: Restore hunger to 100% if critically low (0-10%), otherwise add 25%
         if (currentEnergy <= 0) {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const newHunger = Math.min(100, currentHunger + 25);
+        const newHunger = currentHunger <= 10 ? 100 : Math.min(100, currentHunger + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`FEEDING: hunger ${currentHunger} -> ${newHunger}, energy ${currentEnergy} -> ${newEnergy}`);
         
@@ -154,12 +154,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
       } else if (careType === 'bathed') {
-        // Bath: Increase cleanliness by 25% and decrease energy by 5%
+        // Bath: Restore cleanliness to 100% if critically low (0-10%), otherwise add 25%
         if (currentEnergy <= 0) {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const newCleanliness = Math.min(100, currentCleanliness + 25);
+        const newCleanliness = currentCleanliness <= 10 ? 100 : Math.min(100, currentCleanliness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`BATHING: cleanliness ${currentCleanliness} -> ${newCleanliness}, energy ${currentEnergy} -> ${newEnergy}`);
         
@@ -169,12 +169,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
       } else if (careType === 'play' || careType === 'cleaned') {
-        // Play: Increase happiness by 25% and decrease energy by 5%
+        // Play: Restore happiness to 100% if critically low (0-10%), otherwise add 25%
         if (currentEnergy <= 0) {
           return res.status(400).json({ error: "Pet is too tired! Use sleep to restore energy first." });
         }
         
-        const newHappiness = Math.min(100, currentHappiness + 25);
+        const newHappiness = currentHappiness <= 10 ? 100 : Math.min(100, currentHappiness + 25);
         const newEnergy = Math.max(0, currentEnergy - 5);
         console.log(`PLAY ACTION: happiness ${currentHappiness} -> ${newHappiness}, energy ${currentEnergy} -> ${newEnergy}`);
         
