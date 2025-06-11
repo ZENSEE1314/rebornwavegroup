@@ -87,7 +87,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUser(id: string, updates: { loyaltyPoints?: number }): Promise<void>;
+  updateUser(id: string, updates: { loyaltyPoints?: number; authProvider?: string; googleId?: string; appleId?: string; profileImageUrl?: string }): Promise<void>;
   updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
   
   // Email authentication operations

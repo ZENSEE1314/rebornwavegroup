@@ -31,7 +31,9 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: varchar("email").unique(),
   password: varchar("password"), // For email/password authentication
-  authProvider: varchar("auth_provider").default("replit").notNull(), // 'replit' | 'email'
+  authProvider: varchar("auth_provider").default("replit").notNull(), // 'replit' | 'email' | 'google' | 'apple'
+  googleId: varchar("google_id").unique(),
+  appleId: varchar("apple_id").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   phoneNumber: varchar("phone_number"),
