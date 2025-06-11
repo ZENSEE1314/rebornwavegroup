@@ -38,7 +38,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // Set to false for development on Replit
+      secure: process.env.NODE_ENV === 'production',
       maxAge: sessionTtl,
       sameSite: 'lax',
     },
@@ -107,22 +107,15 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    try {
-      // Use fallback domain for custom domains not yet registered with OAuth
-      const authDomain = req.hostname === 'rebornwavegroup.com' 
-        ? process.env.REPLIT_DOMAINS!.split(",")[0] 
-        : req.hostname;
-      
-      console.log(`Login attempt for domain: ${req.hostname}, using auth domain: ${authDomain}`);
-      
-      passport.authenticate(`replitauth:${authDomain}`, {
-        prompt: "login consent",
-        scope: ["openid", "email", "profile", "offline_access"],
-      })(req, res, next);
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Authentication service unavailable" });
-    }
+    // Use fallback domain for custom domains not yet registered with OAuth
+    const authDomain = req.hostname === 'rebornwavegroup.com' 
+      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+      : req.hostname;
+    
+    passport.authenticate(`replitauth:${authDomain}`, {
+      prompt: "login consent",
+      scope: ["openid", "email", "profile", "offline_access"],
+    })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
@@ -137,36 +130,15 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/logout", async (req, res) => {
-    try {
-      const logoutCallback = () => {
-        try {
-          // Create a custom logout URL that redirects to login page
-          const host = req.get('host') || req.hostname;
-          const logoutRedirectUrl = `${req.protocol}://${host}/logout-redirect`;
-          
-          const endSessionUrl = client.buildEndSessionUrl(config, {
-            client_id: process.env.REPL_ID!,
-            post_logout_redirect_uri: logoutRedirectUrl,
-          });
-          res.redirect(endSessionUrl.href);
-        } catch (error) {
-          console.error("End session URL error:", error);
-          res.redirect("/api/login");
-        }
-      };
-
-      req.logout(logoutCallback);
-    } catch (error) {
-      console.error("Logout error:", error);
-      res.redirect("/api/login");
-    }
-  });
-
-  // Handle the logout redirect to ensure user goes to main page
-  app.get("/logout-redirect", (req, res) => {
-    console.log("Logout redirect handler - redirecting to main page");
-    res.redirect("/");
+  app.get("/api/logout", (req, res) => {
+    req.logout(() => {
+      res.redirect(
+        client.buildEndSessionUrl(config, {
+          client_id: process.env.REPL_ID!,
+          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+        }).href,
+      );
+    });
   });
 }
 

@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
-import AuthLanding from "@/pages/auth-landing";
-import Login from "@/pages/login";
-import HomeDashboard from "@/pages/home-dashboard";
 import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
@@ -41,18 +37,14 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <>
-          <Route path="/" component={AuthLanding} />
-          <Route path="/login" component={Login} />
-        </>
+        <Route path="/" component={Landing} />
       ) : (
         <>
-          {/* Default route - Home Dashboard for authenticated users */}
-          <Route path="/" component={HomeDashboard} />
-          <Route path="/home" component={HomeDashboard} />
-          <Route path="/app" component={CompleteApp} />
+          {/* Default route - both admin and regular users can access main app */}
+          <Route path="/" component={CompleteApp} />
           <Route path="/admin" component={EnhancedAdminDashboard} />
           <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
+          <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
         </>
@@ -63,41 +55,6 @@ function Router() {
 }
 
 function App() {
-  // Suppress 401 authentication errors from console
-  useEffect(() => {
-    const originalError = console.error;
-    const originalFetch = window.fetch;
-    
-    // Override console.error to suppress 401 auth errors
-    console.error = (...args) => {
-      const errorMessage = args.join(' ');
-      if (errorMessage.includes('401') && (errorMessage.includes('Unauthorized') || errorMessage.includes('auth'))) {
-        return; // Silently ignore auth-related 401 errors
-      }
-      originalError.apply(console, args);
-    };
-
-    // Override fetch to suppress 401 error logging
-    window.fetch = async (...args) => {
-      try {
-        const response = await originalFetch(...args);
-        return response;
-      } catch (error: any) {
-        // Only log non-401 errors
-        const errorMessage = error?.message || '';
-        if (!errorMessage.includes('401') && !errorMessage.includes('Unauthorized')) {
-          console.error('Fetch error:', error);
-        }
-        throw error;
-      }
-    };
-
-    return () => {
-      console.error = originalError;
-      window.fetch = originalFetch;
-    };
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

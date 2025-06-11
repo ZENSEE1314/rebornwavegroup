@@ -6,7 +6,6 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { registerUser, loginUser, logoutUser, isAuthenticated as emailIsAuthenticated } from "./emailAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import multer from "multer";
@@ -791,36 +790,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email authentication routes
-  app.post('/api/auth/register', registerUser);
-  app.post('/api/auth/login', loginUser);
-  app.post('/api/auth/logout', logoutUser);
-
-  // Unified authentication middleware for both auth types
-  const unifiedAuth = (req: any, res: any, next: any) => {
-    // Check for email session first
-    if (req.session.userId) {
-      return next();
-    }
-    
-    // Fall back to Replit Auth
-    return isAuthenticated(req, res, next);
-  };
-
   // Auth routes
-  app.get('/api/auth/user', unifiedAuth, async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      let userId: string;
-      
-      // Get user ID from either auth method
-      if (req.session.userId) {
-        userId = req.session.userId;
-      } else if (req.user?.claims?.sub) {
-        userId = req.user.claims.sub;
-      } else {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
+      const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -2151,26 +2124,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Apply decay to hunger and cleanliness (3% per 3-minute interval)
+      // Apply decay to hunger and cleanliness (1% per 3-minute interval)
       const currentHunger = pet.hunger || 100;
       const currentCleanliness = pet.cleanliness || 100;
       const currentHappiness = pet.happiness || 100;
       
-      const newHunger = Math.max(0, currentHunger - (decayIntervals * 3));
-      const newCleanliness = Math.max(0, currentCleanliness - (decayIntervals * 3));
+      const newHunger = Math.max(0, currentHunger - decayIntervals);
+      const newCleanliness = Math.max(0, currentCleanliness - decayIntervals);
       
-      // Happiness drops more aggressively based on how low hunger and cleanliness are
-      // If hunger or cleanliness is below 50%, happiness drops faster
-      let happinessDecay = decayIntervals * 2; // Base decay of 2% per interval
-      
-      if (newHunger < 50 || newCleanliness < 50) {
-        happinessDecay += decayIntervals * 3; // Additional 3% if stats are low
-      }
-      if (newHunger < 25 || newCleanliness < 25) {
-        happinessDecay += decayIntervals * 5; // Additional 5% if stats are very low
-      }
-      
-      const newHappiness = Math.max(0, currentHappiness - happinessDecay);
+      // Happiness drops when hunger or cleanliness drops
+      const hungerDrop = currentHunger - newHunger;
+      const cleanlinessDrop = currentCleanliness - newCleanliness;
+      const totalStatDrop = hungerDrop + cleanlinessDrop;
+      const newHappiness = Math.max(0, currentHappiness - totalStatDrop);
 
       await storage.updatePetStats(petId, {
         hunger: newHunger,
@@ -2235,45 +2201,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error waking pet:", error);
       res.status(500).json({ message: "Failed to wake pet" });
-    }
-  });
-
-  // Manual test endpoint to trigger immediate stat decay for testing
-  app.post('/api/pets/:petId/test-decay', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const petId = parseInt(req.params.petId);
-      
-      const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
-        return res.status(403).json({ message: "Pet not found or not owned by user" });
-      }
-
-      // Apply immediate decay for testing (3% reduction)
-      const currentHunger = pet.hunger || 100;
-      const currentCleanliness = pet.cleanliness || 100;
-      const currentHappiness = pet.happiness || 100;
-      
-      const newHunger = Math.max(0, currentHunger - 3);
-      const newCleanliness = Math.max(0, currentCleanliness - 3);
-      const newHappiness = Math.max(0, currentHappiness - 2);
-
-      await storage.updatePetStats(petId, {
-        hunger: newHunger,
-        cleanliness: newCleanliness,
-        happiness: newHappiness,
-        lastDecayTime: new Date()
-      });
-
-      res.json({
-        success: true,
-        message: "Test decay applied",
-        oldStats: { hunger: currentHunger, cleanliness: currentCleanliness, happiness: currentHappiness },
-        newStats: { hunger: newHunger, cleanliness: newCleanliness, happiness: newHappiness }
-      });
-    } catch (error) {
-      console.error("Error applying test decay:", error);
-      res.status(500).json({ message: "Failed to apply test decay" });
     }
   });
 

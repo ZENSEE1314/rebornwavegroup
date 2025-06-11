@@ -669,7 +669,37 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   }, [safePets, currentPetIndex]);
 
-  // Removed duplicate frontend decay system - backend handles all decay automatically
+  // Auto decay system - runs every 3 minutes for all pets
+  useEffect(() => {
+    if (pets && Array.isArray(pets) && pets.length > 0) {
+      const decayInterval = setInterval(async () => {
+        for (const pet of pets) {
+          if (!pet?.id) continue;
+          
+          try {
+            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`Decay applied to pet ${pet.name}:`, data.message);
+              
+              // Refresh pets to get updated stats
+              refetchPets();
+            }
+          } catch (error) {
+            console.error(`Error applying decay to pet ${pet.name}:`, error);
+          }
+        }
+      }, 180000); // Run every 3 minutes (180,000 milliseconds)
+
+      return () => clearInterval(decayInterval);
+    }
+  }, [pets]);
   
   // Get current pet from pets array
   const currentPet = safePets[currentPetIndex];
@@ -746,7 +776,23 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   }, [safePets[currentPetIndex]?.isSleeping, safePets[currentPetIndex]?.id, sleepProgress]);
 
-  // Removed second duplicate decay system - backend handles all decay centrally
+  // Automatic stat decay system - reduce hunger and cleanliness by 1% every 3 minutes
+  useEffect(() => {
+    if (!safePets[currentPetIndex]?.id) return;
+
+    const decayInterval = setInterval(async () => {
+      try {
+        // Apply stat decay via backend endpoint
+        await apiRequest('POST', `/api/pets/${safePets[currentPetIndex].id}/auto-decay`);
+        // Refresh pet data to show updated stats
+        refetchPets();
+      } catch (error) {
+        console.error('Stat decay error:', error);
+      }
+    }, 180000); // 3 minutes = 180,000ms
+
+    return () => clearInterval(decayInterval);
+  }, [safePets[currentPetIndex]?.id]);
 
   // Get owned toys (filter out toys that are already pets or listed in marketplace)
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 

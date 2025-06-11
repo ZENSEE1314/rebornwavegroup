@@ -3,13 +3,6 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    // For 401 errors, create a silent error that won't log to console
-    if (res.status === 401) {
-      const error = new Error(`${res.status}: ${text}`);
-      // Suppress console logging for auth errors on login page
-      error.name = 'SilentAuthError';
-      throw error;
-    }
     throw new Error(`${res.status}: ${text}`);
   }
 }
@@ -66,8 +59,8 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "returnNull" }),
-      refetchInterval: 5000, // Refetch every 5 seconds for real-time pet stats
+      queryFn: getQueryFn({ on401: "throw" }),
+      refetchInterval: 30000, // Refetch every 30 seconds for pet stats
       refetchOnWindowFocus: true,
       staleTime: 0, // No caching - always fetch fresh data
       retry: false,
