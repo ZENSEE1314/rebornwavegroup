@@ -73,6 +73,44 @@ function playDoluruuSound() {
   }
 }
 
+function playFemaleCuteVoice(message: string) {
+  try {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(message);
+      
+      // Configure for cute female voice
+      utterance.pitch = 2.0; // Very high pitch for cute effect
+      utterance.rate = 1.2; // Slightly faster for excitement
+      utterance.volume = 0.8;
+      
+      // Try to find the best female voice
+      const voices = speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice.name.toLowerCase().includes('female') ||
+        voice.name.toLowerCase().includes('child') ||
+        voice.name.toLowerCase().includes('girl') ||
+        voice.name.toLowerCase().includes('cute') ||
+        voice.name.toLowerCase().includes('samantha') ||
+        voice.name.toLowerCase().includes('karen') ||
+        voice.name.toLowerCase().includes('zira') ||
+        voice.name.toLowerCase().includes('eva') ||
+        (voice.lang.includes('en-US') && voice.name.toLowerCase().includes('microsoft'))
+      );
+      
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+      
+      speechSynthesis.speak(utterance);
+    }
+  } catch (error) {
+    console.log('Speech synthesis not supported');
+  }
+}
+
 // Coin Catching Game Component
 // DailyTokenChecker component for 24-hour token system
 function DailyTokenChecker({ petId, petName, currentStats }: { 
@@ -1735,6 +1773,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
+                          playFemaleCuteVoice("Yummy time! Feeding your pet now!");
                           careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
                         }}
                         disabled={careActivityMutation.isPending}
@@ -1747,6 +1786,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col"
                         onClick={() => {
+                          playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
                           careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
                         }}
                         disabled={careActivityMutation.isPending}
@@ -2432,7 +2472,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' })}
+                  onClick={() => {
+                    playFemaleCuteVoice("Yummy time! Feeding your pet now!");
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' });
+                  }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🍎</span>
@@ -2442,7 +2485,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' })}
+                  onClick={() => {
+                    playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' });
+                  }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🛁</span>
@@ -2452,7 +2498,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' })}
+                  onClick={() => {
+                    playFemaleCuteVoice("Playtime! Let's have some fun together!");
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' });
+                  }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
@@ -2462,7 +2511,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' })}
+                  onClick={() => {
+                    playFemaleCuteVoice("Sweet dreams! Time for a cozy nap!");
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' });
+                  }}
                   disabled={careActivityMutation.isPending}
                 >
                   <Bed className="w-6 h-6" />
