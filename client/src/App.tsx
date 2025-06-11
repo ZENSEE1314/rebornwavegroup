@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import AuthLanding from "@/pages/auth-landing";
+import Login from "@/pages/login";
 import HomeDashboard from "@/pages/home-dashboard";
 import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
@@ -40,7 +41,10 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={AuthLanding} />
+        <>
+          <Route path="/" component={AuthLanding} />
+          <Route path="/login" component={Login} />
+        </>
       ) : (
         <>
           {/* Default route - Home Dashboard for authenticated users */}
