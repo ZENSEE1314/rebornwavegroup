@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupMultiAuth, requireAuth } from "./multiAuth";
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import multer from "multer";
@@ -116,11 +117,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
   
-  // Auth middleware
-  await setupAuth(app);
+  // Setup multi-provider authentication
+  setupMultiAuth(app);
 
   // PET CARE ENDPOINT - HIGH PRIORITY PLACEMENT
-  app.post('/api/pets/:petId/care/:careType', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/care/:careType', requireAuth, async (req: any, res) => {
     console.log('🎯 TOP PRIORITY PET CARE ENDPOINT REACHED!');
     console.log('Care Type:', req.params.careType);
     console.log('Pet ID:', req.params.petId);

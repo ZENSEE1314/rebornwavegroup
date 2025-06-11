@@ -73,7 +73,7 @@ export function setupAppleAuth() {
     privateKeyString: process.env.APPLE_PRIVATE_KEY,
     callbackURL: "/api/auth/apple/callback"
   },
-  async (accessToken, refreshToken, idToken, profile, done) => {
+  async (accessToken: string, refreshToken: string, idToken: any, profile: AppleProfile, done: Function) => {
     try {
       const email = profile.email;
       if (!email) {

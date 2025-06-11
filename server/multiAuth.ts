@@ -1,0 +1,221 @@
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import bcrypt from 'bcryptjs';
+import { storage } from './storage';
+import type { Express, Request, Response } from 'express';
+import session from 'express-session';
+import connectPg from 'connect-pg-simple';
+
+// Setup session middleware
+export function setupSession(app: Express) {
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
+  });
+
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: sessionTtl,
+    },
+  }));
+}
+
+// Setup Passport local strategy for email/password authentication
+export function setupLocalAuth() {
+  passport.use(new LocalStrategy(
+    { usernameField: 'email' },
+    async (email: string, password: string, done) => {
+      try {
+        const user = await storage.getUserByEmail(email);
+        if (!user || !user.password) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+
+        return done(null, user);
+      } catch (error) {
+        return done(error);
+      }
+    }
+  ));
+
+  passport.serializeUser((user: any, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: string, done) => {
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
+  });
+}
+
+// Setup authentication routes
+export function setupAuthRoutes(app: Express) {
+  // Email/Password Registration
+  app.post('/api/auth/register', async (req: Request, res: Response) => {
+    try {
+      const { email, password, firstName, lastName, referralCode } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: 'User already exists with this email' });
+      }
+
+      // Hash password and create user
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newUser = await storage.createEmailUser({
+        id: userId,
+        email,
+        password: hashedPassword,
+        authProvider: 'email',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        referralCode: await storage.createReferralCode(),
+      });
+
+      // Handle referral if provided
+      if (referralCode) {
+        await storage.handleReferral(userId, referralCode);
+      }
+
+      // Log in the user
+      req.login(newUser, (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Registration successful but login failed' });
+        }
+        res.json({
+          id: newUser.id,
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          authProvider: newUser.authProvider
+        });
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ message: 'Registration failed' });
+    }
+  });
+
+  // Email/Password Login
+  app.post('/api/auth/login', (req: Request, res: Response, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: 'Authentication error' });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || 'Invalid credentials' });
+      }
+
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Login failed' });
+        }
+        res.json({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          authProvider: user.authProvider
+        });
+      });
+    })(req, res, next);
+  });
+
+  // Get current user
+  app.get('/api/auth/user', async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    try {
+      const user = await storage.getUser((req.user as any).id);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        authProvider: user.authProvider,
+        profileImageUrl: user.profileImageUrl
+      });
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // Logout
+  app.post('/api/auth/logout', (req: Request, res: Response) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Logout failed' });
+      }
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Session destruction failed' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: 'Logged out successfully' });
+      });
+    });
+  });
+
+  // OAuth placeholder routes (to be implemented when API keys are provided)
+  app.get('/api/auth/google', (req: Request, res: Response) => {
+    res.status(501).json({ 
+      message: 'Google OAuth not configured. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.' 
+    });
+  });
+
+  app.get('/api/auth/apple', (req: Request, res: Response) => {
+    res.status(501).json({ 
+      message: 'Apple Sign-In not configured. Please provide Apple OAuth credentials.' 
+    });
+  });
+}
+
+// Authentication middleware
+export function requireAuth(req: Request, res: Response, next: Function) {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  next();
+}
+
+// Initialize multi-provider authentication
+export function setupMultiAuth(app: Express) {
+  setupSession(app);
+  app.use(passport.initialize());
+  app.use(passport.session());
+  setupLocalAuth();
+  setupAuthRoutes(app);
+}
