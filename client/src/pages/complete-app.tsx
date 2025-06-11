@@ -640,7 +640,19 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const [newPetName, setNewPetName] = useState("");
   const [showQRCamera, setShowQRCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [hasGreeted, setHasGreeted] = useState(false);
   // Removed local pet stats to prevent conflicts with API data
+
+  // Play greeting when entering Pet Care tab
+  useEffect(() => {
+    if (user && !hasGreeted) {
+      const userName = user.firstName || user.email?.split('@')[0] || 'dear friend';
+      setTimeout(() => {
+        playFemaleCuteVoice(`Hello ${userName}! Welcome to Pet Care! Let's take wonderful care of your adorable pets together!`);
+        setHasGreeted(true);
+      }, 500); // Small delay to ensure component is fully loaded
+    }
+  }, [user, hasGreeted]);
 
   // Update timer every second for real-time display
   useEffect(() => {
