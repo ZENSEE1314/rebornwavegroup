@@ -58,8 +58,11 @@ function Router() {
 
 function App() {
   // Suppress 401 authentication errors from console
-  React.useEffect(() => {
+  useEffect(() => {
     const originalError = console.error;
+    const originalFetch = window.fetch;
+    
+    // Override console.error to suppress 401 auth errors
     console.error = (...args) => {
       const errorMessage = args.join(' ');
       if (errorMessage.includes('401') && (errorMessage.includes('Unauthorized') || errorMessage.includes('auth'))) {
@@ -68,8 +71,24 @@ function App() {
       originalError.apply(console, args);
     };
 
+    // Override fetch to suppress 401 error logging
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+        return response;
+      } catch (error: any) {
+        // Only log non-401 errors
+        const errorMessage = error?.message || '';
+        if (!errorMessage.includes('401') && !errorMessage.includes('Unauthorized')) {
+          console.error('Fetch error:', error);
+        }
+        throw error;
+      }
+    };
+
     return () => {
       console.error = originalError;
+      window.fetch = originalFetch;
     };
   }, []);
 
