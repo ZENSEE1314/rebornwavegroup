@@ -29,6 +29,29 @@ import {
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// Pet evolution utility functions
+function getNextEvolutionThreshold(currentStage: string): number {
+  switch (currentStage) {
+    case 'baby': return 100;
+    case 'child': return 200;
+    case 'teen': return 300;
+    case 'adult': return 500;
+    case 'elder': return Infinity; // Can't evolve further
+    default: return 100;
+  }
+}
+
+function getNextGrowthStage(currentStage: string): string {
+  switch (currentStage) {
+    case 'baby': return 'child';
+    case 'child': return 'teen';
+    case 'teen': return 'adult';
+    case 'adult': return 'elder';
+    case 'elder': return 'elder'; // Already at max
+    default: return 'child';
+  }
+}
+
 // Configure multer for image uploads
 const multerStorage = multer.diskStorage({
   destination: (req, file, cb) => {

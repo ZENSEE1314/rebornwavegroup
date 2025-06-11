@@ -17,6 +17,7 @@ import {
   pets,
   petCareActivities,
   dailyCareStatus,
+  petEvolutionImages,
   gameScores,
   tokenClaims,
   paymentMethods,
@@ -222,10 +223,13 @@ export interface IStorage {
   createPet(pet: InsertPet): Promise<Pet>;
   getPetsByUserId(userId: string): Promise<Pet[]>;
   getPetById(id: number): Promise<Pet | undefined>;
-  updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number }): Promise<void>;
+  updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; growthStage?: string; evolutionPoints?: number }): Promise<void>;
   updatePetAge(id: number, age: number): Promise<void>;
   updatePetDetails(id: number, details: { name?: string; currentAge?: number; activatedDate?: Date }): Promise<void>;
   updatePetTokens(userId: string, tokenAmount: number): Promise<void>;
+  
+  // Pet evolution operations
+  getPetEvolutionImage(species: string, growthStage: string): Promise<any>;
   
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
@@ -1559,7 +1563,7 @@ export class DatabaseStorage implements IStorage {
     return pet;
   }
 
-  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; isSleeping?: boolean; sleepStartTime?: Date | null; lastCareDate?: Date; lastTokenClaim?: Date }): Promise<void> {
+  async updatePetStats(id: number, stats: { happiness?: number; hunger?: number; cleanliness?: number; energy?: number; growthStage?: string; evolutionPoints?: number; isSleeping?: boolean; sleepStartTime?: Date | null; lastCareDate?: Date; lastTokenClaim?: Date }): Promise<void> {
     await db.update(pets).set({
       ...stats,
       updatedAt: new Date(),
@@ -1588,6 +1592,16 @@ export class DatabaseStorage implements IStorage {
     if (age < 60) return "teen";
     if (age < 90) return "adult";
     return "elder";
+  }
+
+  // Pet evolution operations
+  async getPetEvolutionImage(species: string, growthStage: string): Promise<any> {
+    const [evolutionImage] = await db.select().from(petEvolutionImages)
+      .where(and(
+        eq(petEvolutionImages.species, species),
+        eq(petEvolutionImages.growthStage, growthStage)
+      ));
+    return evolutionImage;
   }
 
   // Daily care operations

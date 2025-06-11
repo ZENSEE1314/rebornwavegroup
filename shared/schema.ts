@@ -851,7 +851,7 @@ export const insertTokenHistorySchema = createInsertSchema(tokenHistory).omit({
 });
 export type InsertTokenHistory = z.infer<typeof insertTokenHistorySchema>;
 
-// Pet evolution image types
+// Pet evolution image types (merged with existing pet types above)
 export type PetEvolutionImage = typeof petEvolutionImages.$inferSelect;
 export const insertPetEvolutionImageSchema = createInsertSchema(petEvolutionImages).omit({
   id: true,
