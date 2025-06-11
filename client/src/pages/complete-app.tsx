@@ -1578,6 +1578,33 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                                 {dragonEmoji}
                               </div>
                             </div>
+                          ) : ageInYears >= 101 ? (
+                            <div 
+                              className="w-32 h-32 mx-auto transition-transform duration-1000"
+                              style={{
+                                filter: 'grayscale(100%) opacity(0.6)',
+                                transform: 'rotate(0deg)'
+                              }}
+                            >
+                              <img 
+                                src="/attached_assets/Doluruu Death_1749665061208.jpeg" 
+                                alt="Dragon Death"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  // Fallback to emoji if image fails to load
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling.style.display = 'block';
+                                }}
+                              />
+                              <div 
+                                className="text-6xl hidden"
+                                style={{
+                                  filter: 'grayscale(100%) opacity(0.6)'
+                                }}
+                              >
+                                💀
+                              </div>
+                            </div>
                           ) : (
                             <div 
                               className="text-6xl transition-transform duration-1000 hover:scale-110"
