@@ -141,10 +141,14 @@ export async function setupAuth(app: Express) {
     try {
       const logoutCallback = () => {
         try {
-          // Redirect directly to login page after logout to avoid extra navigation step
+          // Create a custom logout URL that redirects to login page
+          const host = req.get('host') || req.hostname;
+          const logoutRedirectUrl = `${req.protocol}://${host}/logout-redirect`;
+          console.log(`Debug: host=${host}, protocol=${req.protocol}, logoutRedirectUrl=${logoutRedirectUrl}`);
+          
           const endSessionUrl = client.buildEndSessionUrl(config, {
             client_id: process.env.REPL_ID!,
-            post_logout_redirect_uri: `${req.protocol}://${req.hostname}/api/login`,
+            post_logout_redirect_uri: logoutRedirectUrl,
           });
           console.log(`Logout redirect to: ${endSessionUrl.href}`);
           res.redirect(endSessionUrl.href);
@@ -159,6 +163,12 @@ export async function setupAuth(app: Express) {
       console.error("Logout error:", error);
       res.redirect("/api/login");
     }
+  });
+
+  // Handle the logout redirect to ensure user goes to login page
+  app.get("/logout-redirect", (req, res) => {
+    console.log("Logout redirect handler - redirecting to login");
+    res.redirect("/api/login");
   });
 }
 
