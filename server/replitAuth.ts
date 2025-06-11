@@ -144,13 +144,11 @@ export async function setupAuth(app: Express) {
           // Create a custom logout URL that redirects to login page
           const host = req.get('host') || req.hostname;
           const logoutRedirectUrl = `${req.protocol}://${host}/logout-redirect`;
-          console.log(`Debug: host=${host}, protocol=${req.protocol}, logoutRedirectUrl=${logoutRedirectUrl}`);
           
           const endSessionUrl = client.buildEndSessionUrl(config, {
             client_id: process.env.REPL_ID!,
             post_logout_redirect_uri: logoutRedirectUrl,
           });
-          console.log(`Logout redirect to: ${endSessionUrl.href}`);
           res.redirect(endSessionUrl.href);
         } catch (error) {
           console.error("End session URL error:", error);
