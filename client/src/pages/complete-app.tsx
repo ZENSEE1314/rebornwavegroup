@@ -1427,16 +1427,49 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <div className="relative h-32 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden">
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className={isDead ? '' : pet.isSleeping ? '' : 'animate-bounce'}>
-                          <div 
-                            className="text-6xl transition-transform duration-1000 hover:scale-110"
-                            style={{
-                              animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
-                              filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
-                              transform: isDead ? 'rotate(90deg)' : 'none'
-                            }}
-                          >
-                            {dragonEmoji}
-                          </div>
+                          {/* Use custom baby dragon image for baby pets, emoji for others */}
+                          {ageInYears < 20 ? (
+                            <div 
+                              className="w-24 h-24 mx-auto transition-transform duration-1000 hover:scale-110"
+                              style={{
+                                animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                                filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                                transform: isDead ? 'rotate(90deg)' : 'none'
+                              }}
+                            >
+                              <img 
+                                src="/attached_assets/Doluruu Baby_1749663725243.png" 
+                                alt="Baby Dragon"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  // Fallback to emoji if image fails to load
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling.style.display = 'block';
+                                }}
+                              />
+                              <div 
+                                className="text-6xl hidden"
+                                style={{
+                                  animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                                  filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                                  transform: isDead ? 'rotate(90deg)' : 'none'
+                                }}
+                              >
+                                {dragonEmoji}
+                              </div>
+                            </div>
+                          ) : (
+                            <div 
+                              className="text-6xl transition-transform duration-1000 hover:scale-110"
+                              style={{
+                                animation: isDead ? 'none' : pet.isSleeping ? 'sleepBreathe 3s ease-in-out infinite' : 'walkLeftRight 4s ease-in-out infinite',
+                                filter: isDead ? 'grayscale(100%) opacity(0.3)' : hunger === 0 ? 'grayscale(100%) opacity(0.5)' : pet.isSleeping ? 'brightness(0.7)' : 'none',
+                                transform: isDead ? 'rotate(90deg)' : 'none'
+                              }}
+                            >
+                              {dragonEmoji}
+                            </div>
+                          )}
                         </div>
                         
                         {/* Sleep indicator with floating Z's */}
