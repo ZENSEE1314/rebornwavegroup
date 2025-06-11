@@ -2021,17 +2021,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 5;
       const nextEnergyIn = energyToAdd > 0 ? 5 : (5 - minutesSinceLastInterval);
       
-      // Calculate stat decay (hunger and cleanliness decrease 1% every 3 minutes)
+      // Calculate stat decay - DO NOT restore stats, only apply decay to current values
       const timeSinceLastCare = pet.lastCareDate ? 
         Math.floor((now.getTime() - new Date(pet.lastCareDate).getTime()) / (1000 * 60)) : 0;
       
       const decayAmount = Math.floor(timeSinceLastCare / 3); // 1% every 3 minutes
-      const newHunger = Math.max(0, (pet.hunger || 100) - decayAmount);
-      const newCleanliness = Math.max(0, (pet.cleanliness || 100) - decayAmount);
+      const currentHunger = pet.hunger ?? 0;  // Use actual current value, don't default to 100
+      const currentCleanliness = pet.cleanliness ?? 0;  // Use actual current value
+      const currentHappiness = pet.happiness ?? 0;  // Use actual current value
+      
+      const newHunger = Math.max(0, currentHunger - decayAmount);
+      const newCleanliness = Math.max(0, currentCleanliness - decayAmount);
       
       // Calculate happiness decay (2% every 30 minutes)
       const happinessDecayAmount = Math.floor(timeSinceLastCare / 30) * 2;
-      const newHappiness = Math.max(0, (pet.happiness || 100) - happinessDecayAmount);
+      const newHappiness = Math.max(0, currentHappiness - happinessDecayAmount);
       
       // Sleep provides no token rewards - only the 24-hour system awards tokens
       
