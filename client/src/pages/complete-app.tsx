@@ -710,11 +710,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     enabled: !!currentPet?.id,
   });
 
-  // Fetch sleep progress for sleeping pets with proper API endpoint
+  // Fetch sleep progress for sleeping pets with reduced polling
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    refetchInterval: 1000, // Update every second for real-time timer
+    refetchInterval: 5000, // Update every 5 seconds instead of every second
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
@@ -2957,12 +2957,12 @@ export default function CompleteApp() {
 
   // Real-time data updates via frequent polling for stable performance
   
-  // User data - fetch from database with real-time updates
+  // User data - fetch from database with reduced polling
   const { data: userStats, refetch: refetchUserStats } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
-    refetchInterval: 5000, // Update every 5 seconds for real-time data
-    refetchOnWindowFocus: true,
+    refetchInterval: 30000, // Update every 30 seconds to reduce refresh frequency
+    refetchOnWindowFocus: false, // Disable auto-refresh on window focus
   });
 
   // Genealogy tree data

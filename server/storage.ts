@@ -89,6 +89,11 @@ export interface IStorage {
   updateUser(id: string, updates: { loyaltyPoints?: number }): Promise<void>;
   updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
   
+  // Email authentication operations
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createEmailUser(userData: UpsertUser): Promise<User>;
+  handleReferral(userId: string, referralCode: string): Promise<void>;
+  
   // Referral operations
   createReferralCode(): Promise<string>;
   getReferralsByUserId(userId: string): Promise<Referral[]>;
@@ -283,6 +288,44 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(users.id, id));
+  }
+
+  // Email authentication operations
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createEmailUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...userData,
+        authProvider: "email",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return user;
+  }
+
+  async handleReferral(userId: string, referralCode: string): Promise<void> {
+    // Find the referrer by referral code
+    const [referrer] = await db
+      .select()
+      .from(users)
+      .where(eq(users.referralCode, referralCode));
+
+    if (referrer) {
+      // Create referral relationship
+      await this.createReferralRelationship(referrer.id, userId);
+      
+      // Update the referred user's referredById
+      await db
+        .update(users)
+        .set({ referredById: referrer.id })
+        .where(eq(users.id, userId));
+    }
   }
 
   async createReferralCode(): Promise<string> {
