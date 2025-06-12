@@ -246,13 +246,22 @@ export default function Login() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleOAuthLogin("apple")}
+                    onClick={() => handleOAuthLogin("facebook")}
                     className="w-full"
                   >
-                    <FaApple className="mr-2 h-4 w-4" />
-                    Apple
+                    <FaFacebook className="mr-2 h-4 w-4" />
+                    Facebook
                   </Button>
                 </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => handleOAuthLogin("instagram")}
+                  className="w-full"
+                >
+                  <FaInstagram className="mr-2 h-4 w-4" />
+                  Instagram
+                </Button>
               </div>
             </TabsContent>
 
@@ -387,13 +396,22 @@ export default function Login() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleOAuthLogin("apple")}
+                    onClick={() => handleOAuthLogin("facebook")}
                     className="w-full"
                   >
-                    <FaApple className="mr-2 h-4 w-4" />
-                    Apple
+                    <FaFacebook className="mr-2 h-4 w-4" />
+                    Facebook
                   </Button>
                 </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => handleOAuthLogin("instagram")}
+                  className="w-full"
+                >
+                  <FaInstagram className="mr-2 h-4 w-4" />
+                  Instagram
+                </Button>
               </div>
             </TabsContent>
           </Tabs>
