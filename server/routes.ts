@@ -366,10 +366,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Track care activity for evolution progression
+      await storage.createCareActivity({
+        petId: parseInt(petId),
+        userId,
+        activityType: careType,
+        completedAt: new Date(),
+        pointsEarned: 5 // Each care activity earns 5 evolution points
+      });
+
+      // Check for evolution progression
+      const careActivities = await storage.getCareActivitiesByPetId(parseInt(petId));
+      const totalCareCount = careActivities.length;
+      const currentStage = pet.growthStage || 'baby';
+      const nextThreshold = getNextEvolutionThreshold(currentStage);
+      
+      let evolutionMessage = '';
+      let evolved = false;
+      
+      // Check if pet should evolve
+      if (totalCareCount >= nextThreshold && currentStage !== 'death') {
+        const nextStage = getNextGrowthStage(currentStage);
+        await storage.updatePetStats(parseInt(petId), { growthStage: nextStage });
+        evolved = true;
+        
+        if (nextStage === 'death') {
+          evolutionMessage = `Your beloved ${pet.name} has lived a full life and peacefully passed away. They will be remembered forever.`;
+        } else {
+          evolutionMessage = `Congratulations! ${pet.name} has evolved from ${currentStage} to ${nextStage}!`;
+        }
+      }
+
       await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
       console.log('Care status updated successfully');
       
-      res.json({ success: true, message: `Pet ${careType} successfully!` });
+      const response: any = { 
+        success: true, 
+        message: `Pet ${careType} successfully!`,
+        totalCareCount,
+        currentStage: evolved ? getNextGrowthStage(currentStage) : currentStage,
+        evolutionProgress: getEvolutionProgress(currentStage, totalCareCount)
+      };
+      
+      if (evolved) {
+        response.evolved = true;
+        response.evolutionMessage = evolutionMessage;
+        response.newStage = getNextGrowthStage(currentStage);
+      }
+      
+      res.json(response);
     } catch (error) {
       console.error('PET CARE ERROR:', error);
       res.status(500).json({ message: "Failed to perform pet care action" });
