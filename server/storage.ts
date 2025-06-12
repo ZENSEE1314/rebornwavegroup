@@ -88,12 +88,14 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  updateUser(id: string, updates: { loyaltyPoints?: number; authProvider?: string; googleId?: string; appleId?: string; profileImageUrl?: string }): Promise<void>;
+  updateUser(id: string, updates: { loyaltyPoints?: number; authProvider?: string; googleId?: string; appleId?: string; profileImageUrl?: string }): Promise<User>;
   updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
   
   // Email authentication operations
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(userData: any): Promise<User>;
+  createEmailUser(userData: any): Promise<User>;
+  createGoogleUser(userData: any): Promise<User>;
   authenticateUser(email: string, password: string): Promise<User | null>;
   handleReferral(userId: string, referralCode: string): Promise<void>;
   
@@ -276,14 +278,17 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: string, updates: { loyaltyPoints?: number }): Promise<void> {
-    await db
+  async updateUser(id: string, updates: { loyaltyPoints?: number; authProvider?: string; googleId?: string; appleId?: string; profileImageUrl?: string }): Promise<User> {
+    const [user] = await db
       .update(users)
       .set({
         ...updates,
         updatedAt: new Date(),
       })
-      .where(eq(users.id, id));
+      .where(eq(users.id, id))
+      .returning();
+    
+    return user;
   }
 
   async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; email?: string; role?: string; gender?: string; dateOfBirth?: Date }): Promise<void> {
@@ -328,6 +333,35 @@ export class DatabaseStorage implements IStorage {
     if (userData.referralCode) {
       await this.handleReferral(userId, userData.referralCode);
     }
+    
+    return user;
+  }
+
+  async createEmailUser(userData: any): Promise<User> {
+    return this.createUser({ ...userData, authProvider: "email" });
+  }
+
+  async createGoogleUser(userData: any): Promise<User> {
+    const userId = userData.id || nanoid();
+    const referralCode = userData.referralCode || await this.createReferralCode();
+    
+    const [user] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        password: null,
+        authProvider: "google",
+        googleId: userData.googleId,
+        profileImageUrl: userData.profileImageUrl,
+        referralCode,
+        loyaltyPoints: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
     
     return user;
   }

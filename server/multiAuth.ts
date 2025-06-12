@@ -1,5 +1,6 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
 import type { Express, Request, Response } from 'express';
@@ -30,8 +31,9 @@ export function setupSession(app: Express) {
   }));
 }
 
-// Setup Passport local strategy for email/password authentication
+// Setup Passport strategies for authentication
 export function setupLocalAuth() {
+  // Local Strategy for email/password
   passport.use(new LocalStrategy(
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
@@ -52,6 +54,51 @@ export function setupLocalAuth() {
       }
     }
   ));
+
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/api/auth/google/callback"
+    },
+    async (accessToken: string, refreshToken: string, profile: any, done) => {
+      try {
+        // Check if user already exists
+        let user = await storage.getUserByEmail(profile.emails[0].value);
+        
+        if (user) {
+          // Update existing user with Google profile info if needed
+          if (user.authProvider !== 'google') {
+            user = await storage.updateUser(user.id, {
+              authProvider: 'google',
+              googleId: profile.id,
+              profileImageUrl: profile.photos[0]?.value
+            });
+          }
+          return done(null, user);
+        } else {
+          // Create new user
+          const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const newUser = await storage.createGoogleUser({
+            id: userId,
+            email: profile.emails[0].value,
+            firstName: profile.name.givenName || '',
+            lastName: profile.name.familyName || '',
+            authProvider: 'google',
+            googleId: profile.id,
+            profileImageUrl: profile.photos[0]?.value,
+            referralCode: await storage.createReferralCode(),
+          });
+          
+          return done(null, newUser);
+        }
+      } catch (error) {
+        console.error('Google auth error:', error);
+        return done(error);
+      }
+    }));
+  }
 
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
