@@ -4,7 +4,7 @@ import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap
 
 export default function Landing() {
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
   };
 
   return (
