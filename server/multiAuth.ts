@@ -381,18 +381,157 @@ export function setupAuthRoutes(app: Express) {
     );
   } else {
     app.get('/api/auth/facebook', (req: Request, res: Response) => {
+      const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+      const redirectUri = `https://${currentDomain}/api/auth/facebook/callback`;
+      
       res.status(501).json({ 
-        message: 'Facebook OAuth not configured. Please provide FACEBOOK_APP_ID and FACEBOOK_APP_SECRET environment variables.' 
+        message: 'Facebook OAuth setup required',
+        currentDomain,
+        redirectUri,
+        instructions: [
+          '1. Go to Facebook Developers: https://developers.facebook.com/',
+          '2. Create a new app or select existing app',
+          '3. Add Facebook Login product',
+          `4. Add this redirect URI to "Valid OAuth Redirect URIs": ${redirectUri}`,
+          '5. Get your App ID and App Secret',
+          '6. Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to environment variables',
+          '7. Try Facebook login again'
+        ]
+      });
+    });
+    
+    // Facebook setup instructions endpoint
+    app.get('/api/auth/facebook-setup', (req: Request, res: Response) => {
+      const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+      const redirectUri = `https://${currentDomain}/api/auth/facebook/callback`;
+      
+      res.json({
+        currentDomain,
+        redirectUri,
+        instructions: [
+          '1. Go to Facebook Developers: https://developers.facebook.com/',
+          '2. Create a new app or select existing app',
+          '3. Add Facebook Login product',
+          `4. Add this redirect URI to "Valid OAuth Redirect URIs": ${redirectUri}`,
+          '5. Get your App ID and App Secret',
+          '6. Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to environment variables'
+        ]
       });
     });
   }
 
-  // Instagram OAuth routes (placeholder for future implementation)
-  app.get('/api/auth/instagram', (req: Request, res: Response) => {
-    res.status(501).json({ 
-      message: 'Instagram OAuth not configured. Please provide Instagram OAuth credentials.' 
+  // Instagram OAuth routes
+  if (process.env.INSTAGRAM_CLIENT_ID && process.env.INSTAGRAM_CLIENT_SECRET) {
+    app.get('/api/auth/instagram', (req: Request, res: Response) => {
+      const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+      const redirectUri = `https://${currentDomain}/api/auth/instagram/callback`;
+      const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user_profile,user_media&response_type=code`;
+      
+      res.redirect(instagramAuthUrl);
     });
-  });
+
+    app.get('/api/auth/instagram/callback', async (req: Request, res: Response) => {
+      const { code } = req.query;
+      
+      if (!code) {
+        return res.redirect('/login?error=instagram_auth_failed');
+      }
+
+      try {
+        const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+        const redirectUri = `https://${currentDomain}/api/auth/instagram/callback`;
+        
+        // Exchange code for access token
+        const tokenResponse = await fetch('https://api.instagram.com/oauth/access_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: process.env.INSTAGRAM_CLIENT_ID!,
+            client_secret: process.env.INSTAGRAM_CLIENT_SECRET!,
+            grant_type: 'authorization_code',
+            redirect_uri: redirectUri,
+            code: code as string,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json();
+        
+        if (!tokenData.access_token) {
+          return res.redirect('/login?error=instagram_token_failed');
+        }
+
+        // Get user profile
+        const profileResponse = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${tokenData.access_token}`);
+        const profileData = await profileResponse.json();
+
+        // Create or update user
+        const userData = {
+          email: `${profileData.username}@instagram.local`,
+          firstName: profileData.username,
+          lastName: '',
+          authProvider: 'instagram',
+          providerId: profileData.id,
+          profileImageUrl: null
+        };
+
+        // Handle referral code from localStorage (similar to other OAuth providers)
+        const user = await storage.createUser(userData);
+        
+        // Set up session
+        req.login(user, (err) => {
+          if (err) {
+            return res.redirect('/login?error=session_failed');
+          }
+          res.redirect('/?oauth_success=true');
+        });
+
+      } catch (error) {
+        console.error('Instagram OAuth error:', error);
+        res.redirect('/login?error=instagram_auth_failed');
+      }
+    });
+  } else {
+    app.get('/api/auth/instagram', (req: Request, res: Response) => {
+      const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+      const redirectUri = `https://${currentDomain}/api/auth/instagram/callback`;
+      
+      res.status(501).json({ 
+        message: 'Instagram OAuth setup required',
+        currentDomain,
+        redirectUri,
+        instructions: [
+          '1. Go to Instagram Basic Display: https://developers.facebook.com/apps/',
+          '2. Create a new app or select existing app',
+          '3. Add Instagram Basic Display product',
+          `4. Add this redirect URI to "Valid OAuth Redirect URIs": ${redirectUri}`,
+          '5. Get your Instagram App ID and App Secret',
+          '6. Add INSTAGRAM_CLIENT_ID and INSTAGRAM_CLIENT_SECRET to environment variables',
+          '7. Try Instagram login again'
+        ]
+      });
+    });
+    
+    // Instagram setup instructions endpoint
+    app.get('/api/auth/instagram-setup', (req: Request, res: Response) => {
+      const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+      const redirectUri = `https://${currentDomain}/api/auth/instagram/callback`;
+      
+      res.json({
+        currentDomain,
+        redirectUri,
+        instructions: [
+          '1. Go to Instagram Basic Display: https://developers.facebook.com/apps/',
+          '2. Create a new app or select existing app',
+          '3. Add Instagram Basic Display product',
+          `4. Add this redirect URI to "Valid OAuth Redirect URIs": ${redirectUri}`,
+          '5. Get your Instagram App ID and App Secret',
+          '6. Add INSTAGRAM_CLIENT_ID and INSTAGRAM_CLIENT_SECRET to environment variables'
+        ]
+      });
+    });
+  }
 }
 
 // Authentication middleware
