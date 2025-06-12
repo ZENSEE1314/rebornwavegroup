@@ -345,6 +345,24 @@ export function setupAuthRoutes(app: Express) {
     });
   }
 
+  // Google OAuth setup instructions endpoint
+  app.get('/api/auth/google-setup', (req: Request, res: Response) => {
+    const currentDomain = process.env.REPLIT_DEV_DOMAIN || req.get('host');
+    const redirectUri = `https://${currentDomain}/api/auth/google/callback`;
+    
+    res.json({
+      currentDomain,
+      redirectUri,
+      instructions: [
+        '1. Go to Google Cloud Console: https://console.cloud.google.com/',
+        '2. Navigate to APIs & Services → Credentials',
+        '3. Find your OAuth 2.0 Client ID',
+        `4. Add this redirect URI to "Authorized redirect URIs": ${redirectUri}`,
+        '5. Save changes and try Google login again'
+      ]
+    });
+  });
+
   // Facebook OAuth routes
   if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
     app.get('/api/auth/facebook', 
