@@ -1694,6 +1694,65 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       </div>
                     </div>
 
+                    {/* Evolution Progress Display */}
+                    <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-semibold text-purple-800">
+                          {language === "id" ? "Perkembangan Evolusi" : "Evolution Progress"}
+                        </h3>
+                        <div className="text-2xl">🌟</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-purple-700">
+                            {language === "id" ? "Tahap Saat Ini:" : "Current Stage:"}
+                          </span>
+                          <span className="font-semibold text-purple-800 capitalize">
+                            {growthStage}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-purple-700">
+                            {language === "id" ? "Umur Pet:" : "Pet Age:"}
+                          </span>
+                          <span className="font-semibold text-purple-800">
+                            {ageInYears} {language === "id" ? "tahun" : "years"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-purple-700">
+                            {language === "id" ? "Evolusi Berikutnya:" : "Next Evolution:"}
+                          </span>
+                          <span className="font-semibold text-purple-800">
+                            {ageInYears >= 80 ? (language === "id" ? "Maksimal" : "Maximum") : 
+                             ageInYears >= 60 ? (language === "id" ? "Lansia" : "Elder") :
+                             ageInYears >= 40 ? (language === "id" ? "Dewasa" : "Adult") :
+                             ageInYears >= 20 ? (language === "id" ? "Remaja" : "Teen") :
+                             (language === "id" ? "Anak" : "Child")}
+                          </span>
+                        </div>
+                        
+                        <div className="w-full bg-purple-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${Math.min(100, (ageInYears % 20) / 20 * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                        
+                        <div className="text-xs text-purple-600 text-center mt-2">
+                          {isDead ? 
+                            (language === "id" ? "Pet telah mencapai akhir hidupnya dengan penuh kasih." : "Pet has reached the end of its loving life.") :
+                            (language === "id" ? "Rawat pet Anda untuk mempercepat perkembangan!" : "Care for your pet to accelerate development!")
+                          }
+                        </div>
+                      </div>
+                    </div>
+
                   {/* Daily Care Activities */}
                   <div className="space-y-3">
                     <h4 className="font-semibold text-gray-900">

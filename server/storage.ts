@@ -240,6 +240,7 @@ export interface IStorage {
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
   updateCareStatus(petId: number, userId: string, careType: 'fed' | 'bathed' | 'slept' | 'cleaned', completed: boolean): Promise<void>;
   createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
+  getCareActivitiesByPetId(petId: number): Promise<PetCareActivity[]>;
   checkAllCareCompleted(petId: number): Promise<boolean>;
   checkTokenEligibility(petId: number): Promise<{ eligible: boolean; reason?: string }>;
   awardDailyToken(userId: string, petId: number): Promise<void>;
@@ -1744,6 +1745,12 @@ export class DatabaseStorage implements IStorage {
   async createCareActivity(activityData: InsertPetCareActivity): Promise<PetCareActivity> {
     const [activity] = await db.insert(petCareActivities).values(activityData).returning();
     return activity;
+  }
+
+  async getCareActivitiesByPetId(petId: number): Promise<PetCareActivity[]> {
+    return await db.select().from(petCareActivities)
+      .where(eq(petCareActivities.petId, petId))
+      .orderBy(petCareActivities.completedAt);
   }
 
   async checkAllCareCompleted(petId: number): Promise<boolean> {
