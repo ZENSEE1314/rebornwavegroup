@@ -162,6 +162,14 @@ export default function Login() {
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Sign Up</TabsTrigger>
             </TabsList>
+            
+            {activeTab === "register" && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
+                  <strong>Have a referral code?</strong> Enter it in the form below before choosing your sign-up method
+                </p>
+              </div>
+            )}
 
             {error && (
               <Alert variant="destructive" className="mt-4">
@@ -364,12 +372,17 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="referralCode">Referral Code (Optional)</Label>
+                  <Label htmlFor="referralCode" className="text-sm font-medium">
+                    Referral Code (Optional)
+                  </Label>
                   <Input
                     id="referralCode"
                     placeholder="Enter referral code"
                     {...registerForm.register("referralCode")}
                   />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    💡 Enter your referral code here before signing up with email or Google/Facebook
+                  </p>
                 </div>
 
                 <Button
@@ -388,7 +401,7 @@ export default function Login() {
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-background px-2 text-muted-foreground">
-                      Or sign up with
+                      Or sign up with (referral code above will be applied)
                     </span>
                   </div>
                 </div>
