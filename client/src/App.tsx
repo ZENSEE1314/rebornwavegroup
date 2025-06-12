@@ -38,11 +38,9 @@ function Router() {
       
       if (pendingReferralCode) {
         // Apply the referral code
-        apiRequest('/api/auth/apply-referral', {
-          method: 'POST',
-          body: { referralCode: pendingReferralCode }
-        })
-        .then(() => {
+        apiRequest('POST', '/api/auth/apply-referral', { referralCode: pendingReferralCode })
+        .then(async (response) => {
+          const result = await response.json();
           toast({
             title: "Referral Applied",
             description: `Referral code "${pendingReferralCode}" has been applied to your account!`,
