@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Mail, User, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { FaGoogle, FaApple } from "react-icons/fa";
+import { FaGoogle, FaFacebook, FaInstagram } from "react-icons/fa";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -123,14 +123,15 @@ export default function Login() {
     registerMutation.mutate(data);
   };
 
-  const handleOAuthLogin = (provider: "google" | "apple") => {
+  const handleOAuthLogin = (provider: "google" | "facebook" | "instagram") => {
     if (provider === "google") {
-      // Redirect to Google OAuth endpoint
       window.location.href = "/api/auth/google";
-    } else {
+    } else if (provider === "facebook") {
+      window.location.href = "/api/auth/facebook";
+    } else if (provider === "instagram") {
       toast({
         title: "OAuth Setup Required",
-        description: "Apple Sign-In requires additional configuration. Please use email/password login for now.",
+        description: "Instagram authentication requires additional configuration. Please use email/password login for now.",
         variant: "destructive",
       });
     }

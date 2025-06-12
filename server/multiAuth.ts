@@ -1,6 +1,7 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as FacebookStrategy } from 'passport-facebook';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
 import type { Express, Request, Response } from 'express';
@@ -95,6 +96,51 @@ export function setupLocalAuth() {
         }
       } catch (error) {
         console.error('Google auth error:', error);
+        return done(error);
+      }
+    }));
+  }
+
+  // Facebook OAuth Strategy
+  if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    passport.use(new FacebookStrategy({
+      clientID: process.env.FACEBOOK_APP_ID,
+      clientSecret: process.env.FACEBOOK_APP_SECRET,
+      callbackURL: "/api/auth/facebook/callback",
+      profileFields: ['id', 'emails', 'name', 'picture.type(large)']
+    },
+    async (accessToken: string, refreshToken: string, profile: any, done) => {
+      try {
+        // Check if user already exists
+        let user = await storage.getUserByEmail(profile.emails[0].value);
+        
+        if (user) {
+          // Update existing user with Facebook profile info if needed
+          if (user.authProvider !== 'facebook') {
+            user = await storage.updateUser(user.id, {
+              authProvider: 'facebook',
+              profileImageUrl: profile.photos[0]?.value
+            });
+          }
+          return done(null, user);
+        } else {
+          // Create new user
+          const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const newUser = await storage.createFacebookUser({
+            id: userId,
+            email: profile.emails[0].value,
+            firstName: profile.name.givenName || '',
+            lastName: profile.name.familyName || '',
+            authProvider: 'facebook',
+            facebookId: profile.id,
+            profileImageUrl: profile.photos[0]?.value,
+            referralCode: await storage.createReferralCode(),
+          });
+          
+          return done(null, newUser);
+        }
+      } catch (error) {
+        console.error('Facebook auth error:', error);
         return done(error);
       }
     }));
@@ -260,9 +306,30 @@ export function setupAuthRoutes(app: Express) {
     });
   }
 
-  app.get('/api/auth/apple', (req: Request, res: Response) => {
+  // Facebook OAuth routes
+  if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    app.get('/api/auth/facebook', 
+      passport.authenticate('facebook', { scope: ['email'] })
+    );
+
+    app.get('/api/auth/facebook/callback',
+      passport.authenticate('facebook', { failureRedirect: '/login' }),
+      (req: Request, res: Response) => {
+        res.redirect('/');
+      }
+    );
+  } else {
+    app.get('/api/auth/facebook', (req: Request, res: Response) => {
+      res.status(501).json({ 
+        message: 'Facebook OAuth not configured. Please provide FACEBOOK_APP_ID and FACEBOOK_APP_SECRET environment variables.' 
+      });
+    });
+  }
+
+  // Instagram OAuth routes (placeholder for future implementation)
+  app.get('/api/auth/instagram', (req: Request, res: Response) => {
     res.status(501).json({ 
-      message: 'Apple Sign-In not configured. Please provide Apple OAuth credentials.' 
+      message: 'Instagram OAuth not configured. Please provide Instagram OAuth credentials.' 
     });
   });
 }

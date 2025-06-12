@@ -96,6 +96,7 @@ export interface IStorage {
   createUser(userData: any): Promise<User>;
   createEmailUser(userData: any): Promise<User>;
   createGoogleUser(userData: any): Promise<User>;
+  createFacebookUser(userData: any): Promise<User>;
   authenticateUser(email: string, password: string): Promise<User | null>;
   handleReferral(userId: string, referralCode: string): Promise<void>;
   
@@ -355,6 +356,31 @@ export class DatabaseStorage implements IStorage {
         password: null,
         authProvider: "google",
         googleId: userData.googleId,
+        profileImageUrl: userData.profileImageUrl,
+        referralCode,
+        loyaltyPoints: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return user;
+  }
+
+  async createFacebookUser(userData: any): Promise<User> {
+    const userId = userData.id || nanoid();
+    const referralCode = userData.referralCode || await this.createReferralCode();
+    
+    const [user] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        password: null,
+        authProvider: "facebook",
+        facebookId: userData.facebookId,
         profileImageUrl: userData.profileImageUrl,
         referralCode,
         loyaltyPoints: 0,
