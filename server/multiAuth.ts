@@ -244,6 +244,40 @@ export function setupAuthRoutes(app: Express) {
     })(req, res, next);
   });
 
+  // Apply referral code for authenticated users
+  app.post('/api/auth/apply-referral', async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    try {
+      const { referralCode } = req.body;
+      if (!referralCode) {
+        return res.status(400).json({ message: 'Referral code is required' });
+      }
+      
+      const userId = (req.user as any).id;
+      
+      // Check if user already has a referral applied
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      if (user.referredById) {
+        return res.status(400).json({ message: 'Referral code already applied to this account' });
+      }
+      
+      // Apply the referral code
+      await storage.handleReferral(userId, referralCode);
+      
+      res.json({ message: 'Referral code applied successfully' });
+    } catch (error) {
+      console.error('Error applying referral code:', error);
+      res.status(500).json({ message: 'Failed to apply referral code' });
+    }
+  });
+
   // Get current user
   app.get('/api/auth/user', async (req: Request, res: Response) => {
     if (!req.user) {
@@ -294,8 +328,13 @@ export function setupAuthRoutes(app: Express) {
 
     app.get('/api/auth/google/callback',
       passport.authenticate('google', { failureRedirect: '/login' }),
-      (req: Request, res: Response) => {
-        res.redirect('/');
+      async (req: Request, res: Response) => {
+        // Handle pending referral code for new OAuth users
+        if (req.user) {
+          res.redirect('/?oauth_success=true');
+        } else {
+          res.redirect('/login');
+        }
       }
     );
   } else {
@@ -314,8 +353,12 @@ export function setupAuthRoutes(app: Express) {
 
     app.get('/api/auth/facebook/callback',
       passport.authenticate('facebook', { failureRedirect: '/login' }),
-      (req: Request, res: Response) => {
-        res.redirect('/');
+      async (req: Request, res: Response) => {
+        if (req.user) {
+          res.redirect('/?oauth_success=true');
+        } else {
+          res.redirect('/login');
+        }
       }
     );
   } else {

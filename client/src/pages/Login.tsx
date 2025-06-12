@@ -34,6 +34,7 @@ export default function Login() {
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [globalReferralCode, setGlobalReferralCode] = useState("");
   const { toast } = useToast();
 
   const loginForm = useForm<LoginFormData>({
@@ -124,6 +125,11 @@ export default function Login() {
   };
 
   const handleOAuthLogin = (provider: "google" | "facebook" | "instagram") => {
+    // Store referral code in localStorage before OAuth redirect
+    if (globalReferralCode) {
+      localStorage.setItem("pendingReferralCode", globalReferralCode);
+    }
+    
     if (provider === "google") {
       window.location.href = "/api/auth/google";
     } else if (provider === "facebook") {
@@ -147,6 +153,25 @@ export default function Login() {
           <CardDescription className="text-gray-600 dark:text-gray-300">
             Your digital pet adventure awaits
           </CardDescription>
+          
+          {/* Global Referral Code Input */}
+          <div className="mt-4 space-y-2">
+            <Label htmlFor="globalReferralCode" className="text-sm font-medium">
+              Have a referral code? (Optional)
+            </Label>
+            <Input
+              id="globalReferralCode"
+              placeholder="Enter referral code"
+              value={globalReferralCode}
+              onChange={(e) => setGlobalReferralCode(e.target.value)}
+              className="text-center"
+            />
+            {globalReferralCode && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                Referral code will be applied to your account
+              </p>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
