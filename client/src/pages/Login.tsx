@@ -124,11 +124,16 @@ export default function Login() {
   };
 
   const handleOAuthLogin = (provider: "google" | "apple") => {
-    toast({
-      title: "OAuth Setup Required",
-      description: `${provider === "google" ? "Google" : "Apple"} Sign-In requires additional configuration. Please use email/password login for now.`,
-      variant: "destructive",
-    });
+    if (provider === "google") {
+      // Redirect to Google OAuth endpoint
+      window.location.href = "/api/auth/google";
+    } else {
+      toast({
+        title: "OAuth Setup Required",
+        description: "Apple Sign-In requires additional configuration. Please use email/password login for now.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

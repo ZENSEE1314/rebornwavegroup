@@ -240,12 +240,25 @@ export function setupAuthRoutes(app: Express) {
     });
   });
 
-  // OAuth placeholder routes (to be implemented when API keys are provided)
-  app.get('/api/auth/google', (req: Request, res: Response) => {
-    res.status(501).json({ 
-      message: 'Google OAuth not configured. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.' 
+  // Google OAuth routes
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    app.get('/api/auth/google', 
+      passport.authenticate('google', { scope: ['profile', 'email'] })
+    );
+
+    app.get('/api/auth/google/callback',
+      passport.authenticate('google', { failureRedirect: '/login' }),
+      (req: Request, res: Response) => {
+        res.redirect('/');
+      }
+    );
+  } else {
+    app.get('/api/auth/google', (req: Request, res: Response) => {
+      res.status(501).json({ 
+        message: 'Google OAuth not configured. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.' 
+      });
     });
-  });
+  }
 
   app.get('/api/auth/apple', (req: Request, res: Response) => {
     res.status(501).json({ 
