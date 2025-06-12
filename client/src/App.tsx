@@ -26,6 +26,45 @@ import MobileNav from "@/components/mobile-nav";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { toast } = useToast();
+
+  // Handle OAuth referral code processing
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get('oauth_success');
+    
+    if (oauthSuccess === 'true' && isAuthenticated) {
+      const pendingReferralCode = localStorage.getItem('pendingReferralCode');
+      
+      if (pendingReferralCode) {
+        // Apply the referral code
+        apiRequest('/api/auth/apply-referral', {
+          method: 'POST',
+          body: { referralCode: pendingReferralCode }
+        })
+        .then(() => {
+          toast({
+            title: "Referral Applied",
+            description: `Referral code "${pendingReferralCode}" has been applied to your account!`,
+            variant: "default",
+          });
+          localStorage.removeItem('pendingReferralCode');
+        })
+        .catch((error) => {
+          console.error('Error applying referral code:', error);
+          toast({
+            title: "Referral Code Error",
+            description: error.message || "Failed to apply referral code",
+            variant: "destructive",
+          });
+          localStorage.removeItem('pendingReferralCode');
+        });
+      }
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [isAuthenticated, toast]);
 
   if (isLoading) {
     return (
