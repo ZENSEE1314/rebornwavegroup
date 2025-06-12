@@ -30,15 +30,16 @@ import {
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 
-// Pet evolution utility functions
+// Enhanced pet evolution utility functions
 function getNextEvolutionThreshold(currentStage: string): number {
   switch (currentStage) {
-    case 'baby': return 100;
-    case 'child': return 200;
-    case 'teen': return 300;
-    case 'adult': return 500;
-    case 'elder': return Infinity; // Can't evolve further
-    default: return 100;
+    case 'baby': return 150;     // Increased from 100
+    case 'child': return 300;    // Increased from 200
+    case 'teen': return 500;     // Increased from 300
+    case 'adult': return 800;    // Increased from 500
+    case 'elder': return 1200;   // New death threshold
+    case 'death': return Infinity; // Can't evolve further
+    default: return 150;
   }
 }
 
@@ -48,8 +49,32 @@ function getNextGrowthStage(currentStage: string): string {
     case 'child': return 'teen';
     case 'teen': return 'adult';
     case 'adult': return 'elder';
-    case 'elder': return 'elder'; // Already at max
+    case 'elder': return 'death';  // Evolution to death
+    case 'death': return 'death';  // Already dead
     default: return 'child';
+  }
+}
+
+// Calculate evolution progress for current stage
+function getEvolutionProgress(currentStage: string, totalCareCount: number): number {
+  const currentThreshold = getEvolutionThreshold(currentStage);
+  const nextThreshold = getNextEvolutionThreshold(currentStage);
+  
+  if (currentStage === 'death') return 100;
+  
+  const progress = ((totalCareCount - currentThreshold) / (nextThreshold - currentThreshold)) * 100;
+  return Math.max(0, Math.min(100, progress));
+}
+
+function getEvolutionThreshold(stage: string): number {
+  switch (stage) {
+    case 'baby': return 0;
+    case 'child': return 150;
+    case 'teen': return 300;
+    case 'adult': return 500;
+    case 'elder': return 800;
+    case 'death': return 1200;
+    default: return 0;
   }
 }
 
