@@ -37,11 +37,11 @@ function Router() {
 
   return (
     <Switch>
+      {/* Login route should always be accessible */}
+      <Route path="/login" component={Login} />
+      
       {!isAuthenticated ? (
-        <>
-          <Route path="/login" component={Login} />
-          <Route path="/" component={Landing} />
-        </>
+        <Route path="/" component={Landing} />
       ) : (
         <>
           {/* Default route - both admin and regular users can access main app */}
@@ -51,6 +51,13 @@ function Router() {
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
+          <Route path="/test" component={TestPetCare} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/marketplace" component={Marketplace} />
+          <Route path="/referrals" component={Referrals} />
+          <Route path="/my-referral" component={MyReferral} />
+          <Route path="/loyalty-program" component={LoyaltyProgram} />
+          <Route path="/profile" component={Profile} />
         </>
       )}
       <Route component={NotFound} />
