@@ -244,6 +244,87 @@ export function setupAuthRoutes(app: Express) {
     })(req, res, next);
   });
 
+  // Forgot Password
+  app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // For security, return success even if user doesn't exist
+        return res.json({ message: 'If an account with that email exists, you will receive a password reset email.' });
+      }
+
+      // Generate reset token
+      const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset token
+      await storage.setPasswordResetToken(user.id, resetToken, resetTokenExpiry);
+
+      // Send reset email (import emailService)
+      const { sendEmail } = await import('./emailService');
+      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+      
+      await sendEmail({
+        to: email,
+        from: 'noreply@rebornwavegroup.com',
+        subject: 'Password Reset Request',
+        html: `
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your Reborn Wave Pet Care account.</p>
+          <p>Your reset token is: <strong>${resetToken}</strong></p>
+          <p>Or click this link: <a href="${resetUrl}">Reset Password</a></p>
+          <p>This token will expire in 1 hour.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        `
+      });
+
+      res.json({ message: 'Password reset email sent successfully' });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ message: 'Failed to send reset email' });
+    }
+  });
+
+  // Reset Password
+  app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: 'Token and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
+
+      // Verify reset token
+      const userId = await storage.verifyPasswordResetToken(token);
+      if (!userId) {
+        return res.status(400).json({ message: 'Invalid or expired reset token' });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Update password and clear reset token
+      await storage.updateUserPassword(userId, hashedPassword);
+      await storage.clearPasswordResetToken(userId);
+
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ message: 'Failed to reset password' });
+    }
+  });
+
   // Apply referral code for authenticated users
   app.post('/api/auth/apply-referral', async (req: Request, res: Response) => {
     if (!req.user) {

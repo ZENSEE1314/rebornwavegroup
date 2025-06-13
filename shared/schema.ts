@@ -53,6 +53,8 @@ export const users = pgTable("users", {
   bankAccountNumber: varchar("bank_account_number"),
   bankName: varchar("bank_name"),
   accountHolderName: varchar("account_holder_name"),
+  passwordResetToken: varchar("password_reset_token"),
+  passwordResetExpiry: timestamp("password_reset_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

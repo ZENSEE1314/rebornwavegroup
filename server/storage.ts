@@ -2431,6 +2431,50 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Purchase ${purchaseId} force-completed by admin`);
   }
+
+  // Password reset functionality
+  async setPasswordResetToken(userId: string, token: string, expiry: Date): Promise<void> {
+    await db.update(users).set({
+      passwordResetToken: token,
+      passwordResetExpiry: expiry,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
+
+  async verifyPasswordResetToken(token: string): Promise<string | null> {
+    const [user] = await db.select({
+      id: users.id,
+      passwordResetExpiry: users.passwordResetExpiry
+    }).from(users).where(eq(users.passwordResetToken, token));
+
+    if (!user || !user.passwordResetExpiry) {
+      return null;
+    }
+
+    // Check if token has expired
+    if (new Date() > user.passwordResetExpiry) {
+      // Clean up expired token
+      await this.clearPasswordResetToken(user.id);
+      return null;
+    }
+
+    return user.id;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
+    await db.update(users).set({
+      password: hashedPassword,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    await db.update(users).set({
+      passwordResetToken: null,
+      passwordResetExpiry: null,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
 }
 
 export const storage = new DatabaseStorage();
