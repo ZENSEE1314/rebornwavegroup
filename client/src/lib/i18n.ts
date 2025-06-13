@@ -174,12 +174,27 @@ export const translations: Translations = {
     zh: '等待验证',
     id: 'Menunggu Verifikasi'
   },
-  // Loyalty Program
-  'loyalty.title': {
-    en: 'Loyalty Program',
-    zh: '忠诚度计划',
-    id: 'Program Loyalitas'
+  'purchase.status.approved': {
+    en: 'Approved',
+    zh: '已批准',
+    id: 'Disetujui'
   },
+  'purchase.status.rejected': {
+    en: 'Rejected',
+    zh: '已拒绝',
+    id: 'Ditolak'
+  },
+  'purchase.status.pending': {
+    en: 'Pending',
+    zh: '等待中',
+    id: 'Menunggu'
+  },
+  'purchase.submitError': {
+    en: 'Failed to submit verification',
+    zh: '提交验证失败',
+    id: 'Gagal mengirim verifikasi'
+  },
+  // Loyalty Program
   'loyalty.redeemPoints': {
     en: 'Redeem Points',
     zh: '兑换积分',
@@ -217,11 +232,6 @@ export const translations: Translations = {
     id: 'Booking Sekarang'
   },
   // Toy Marketplace
-  'marketplace.title': {
-    en: 'Toy Marketplace',
-    zh: '玩具市场',
-    id: 'Marketplace Mainan'
-  },
   'marketplace.buyToys': {
     en: 'Buy Toys',
     zh: '购买玩具',

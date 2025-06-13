@@ -2897,8 +2897,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     } catch (error) {
       console.error('Error in form submission process:', error);
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification",
+        title: t('common.error'),
+        description: t('purchase.submitError'),
         variant: "destructive",
       });
       setIsSubmitting(false);
