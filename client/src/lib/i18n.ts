@@ -2084,10 +2084,10 @@ export const translations: Translations = {
     zh: '积分历史',
     id: 'Riwayat Poin'
   },
-  'booking.selectCategory': {
-    en: 'Select Category',
-    zh: '选择类别',
-    id: 'Pilih Kategori'
+  'booking.createNewBooking': {
+    en: 'Create New Booking',
+    zh: '创建新预订',
+    id: 'Buat Pemesanan Baru'
   },
   'toyActivation.enterQRCode': {
     en: 'Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)',
@@ -2109,10 +2109,40 @@ export const translations: Translations = {
     zh: '您的预约',
     id: 'Janji Temu Anda'
   },
-  'toyActivation.camera': {
-    en: 'Camera',
-    zh: '相机',
-    id: 'Kamera'
+  'filter.all': {
+    en: 'All',
+    zh: '全部',
+    id: 'Semua'
+  },
+  'filter.pending': {
+    en: 'Pending',
+    zh: '待处理',
+    id: 'Menunggu'
+  },
+  'filter.scheduled': {
+    en: 'Scheduled',
+    zh: '已安排',
+    id: 'Terjadwal'
+  },
+  'filter.completed': {
+    en: 'Completed',
+    zh: '已完成',
+    id: 'Selesai'
+  },
+  'filter.cancelled': {
+    en: 'Cancelled',
+    zh: '已取消',
+    id: 'Dibatalkan'
+  },
+  'filter.clearFilters': {
+    en: 'Clear Filters',
+    zh: '清除筛选',
+    id: 'Hapus Filter'
+  },
+  'filter.filterByDate': {
+    en: 'Filter by date',
+    zh: '按日期筛选',
+    id: 'Filter tanggal'
   },
   'commission.structure': {
     en: 'Commission Structure',

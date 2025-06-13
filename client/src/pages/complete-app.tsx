@@ -6241,18 +6241,18 @@ export default function CompleteApp() {
             {/* Current Appointments */}
             <Card>
               <CardHeader>
-                <CardTitle>{language === "id" ? "Reservasi Anda" : "Your Appointments"}</CardTitle>
+                <CardTitle>{t('booking.yourAppointments')}</CardTitle>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <select
                     value={appointmentsFilter}
                     onChange={(e) => setAppointmentsFilter(e.target.value as 'all' | 'pending' | 'scheduled' | 'completed' | 'cancelled')}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="all">{language === "id" ? "Semua" : "All"}</option>
-                    <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
-                    <option value="scheduled">{language === "id" ? "Terjadwal" : "Scheduled"}</option>
-                    <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
-                    <option value="cancelled">{language === "id" ? "Dibatalkan" : "Cancelled"}</option>
+                    <option value="all">{t('filter.all')}</option>
+                    <option value="pending">{t('filter.pending')}</option>
+                    <option value="scheduled">{t('filter.scheduled')}</option>
+                    <option value="completed">{t('filter.completed')}</option>
+                    <option value="cancelled">{t('filter.cancelled')}</option>
                   </select>
                   <input
                     type="date"
