@@ -3419,9 +3419,9 @@ export default function CompleteApp() {
       id: "referral_1",
       type: "referral",
       count: 1,
-      title: language === "id" ? "Pengundang Pertama" : "First Inviter",
-      description: language === "id" ? "Undang teman pertama Anda!" : "Invite your first friend!",
-      reward: language === "id" ? "50 Poin" : "50 Points",
+      title: t('achievements.firstInviter'),
+      description: t('achievements.inviteFirstFriend'),
+      reward: t('achievements.50Points'),
       icon: Users,
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-50",
@@ -3431,9 +3431,9 @@ export default function CompleteApp() {
       id: "referral_5",
       type: "referral",
       count: 5,
-      title: language === "id" ? "Kupu-kupu Sosial" : "Social Butterfly",
-      description: language === "id" ? "Undang 5 teman bergabung!" : "Invite 5 friends to join!",
-      reward: language === "id" ? "250 Poin + 150 Bonus" : "250 Points + 150 Bonus",
+      title: t('achievements.socialButterfly'),
+      description: t('achievements.invite5Friends'),
+      reward: t('achievements.250PointsBonus'),
       icon: Star,
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
@@ -3443,9 +3443,9 @@ export default function CompleteApp() {
       id: "referral_10",
       type: "referral",
       count: 10,
-      title: language === "id" ? "Pembangun Jaringan" : "Network Builder",
-      description: language === "id" ? "Bangun jaringan 10 referral!" : "Build a network of 10 referrals!",
-      reward: language === "id" ? "500 Poin + 300 Bonus" : "500 Points + 300 Bonus",
+      title: t('achievements.networkBuilder'),
+      description: t('achievements.build10Referrals'),
+      reward: t('achievements.500PointsBonus'),
       icon: Trophy,
       color: "from-green-500 to-green-600",
       bgColor: "bg-green-50",
@@ -3622,8 +3622,8 @@ export default function CompleteApp() {
   const resetAchievements = () => {
     localStorage.removeItem('seenAchievements');
     toast({
-      title: language === "id" ? "Reset Berhasil" : "Reset Successful",
-      description: language === "id" ? "Tracking pencapaian telah direset" : "Achievement tracking has been reset",
+      title: t('achievements.resetSuccessful'),
+      description: t('achievements.trackingReset'),
     });
   };
   

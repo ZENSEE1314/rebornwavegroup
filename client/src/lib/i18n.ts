@@ -1076,11 +1076,88 @@ export const translations: Translations = {
     zh: '专属活动',
     id: 'Event eksklusif'
   },
+  'loyalty.diamond': {
+    en: 'Diamond',
+    zh: '钻石',
+    id: 'Berlian'
+  },
+  'loyalty.discount10Percent': {
+    en: '10% discount on all services',
+    zh: '所有服务10%折扣',
+    id: 'Diskon 10% semua layanan'
+  },
+  'loyalty.personalConcierge': {
+    en: 'Personal concierge service',
+    zh: '私人礼宾服务',
+    id: 'Layanan concierge pribadi'
+  },
+  'loyalty.unlimitedAccess': {
+    en: 'Unlimited access to all facilities',
+    zh: '无限制访问所有设施',
+    id: 'Akses unlimited ke semua fasilitas'
+  },
+  'loyalty.vipEventInvitations': {
+    en: 'VIP event invitations',
+    zh: 'VIP活动邀请',
+    id: 'Undangan acara VIP'
+  },
+  'loyalty.exclusiveAnnualGifts': {
+    en: 'Exclusive annual gifts',
+    zh: '专属年度礼品',
+    id: 'Hadiah tahunan eksklusif'
+  },
 
   'loyalty.pointsLeft': {
     en: 'points left',
     zh: '积分剩余',
     id: 'poin tersisa'
+  },
+
+  // Achievements
+  'achievements.firstInviter': {
+    en: 'First Inviter',
+    zh: '首次邀请者',
+    id: 'Pengundang Pertama'
+  },
+  'achievements.inviteFirstFriend': {
+    en: 'Invite your first friend!',
+    zh: '邀请您的第一个朋友！',
+    id: 'Undang teman pertama Anda!'
+  },
+  'achievements.50Points': {
+    en: '50 Points',
+    zh: '50分',
+    id: '50 Poin'
+  },
+  'achievements.socialButterfly': {
+    en: 'Social Butterfly',
+    zh: '社交蝴蝶',
+    id: 'Kupu-kupu Sosial'
+  },
+  'achievements.invite5Friends': {
+    en: 'Invite 5 friends to join!',
+    zh: '邀请5位朋友加入！',
+    id: 'Undang 5 teman bergabung!'
+  },
+  'achievements.250PointsBonus': {
+    en: '250 Points + 150 Bonus',
+    zh: '250分 + 150奖励',
+    id: '250 Poin + 150 Bonus'
+  },
+  'achievements.networkBuilder': {
+    en: 'Network Builder',
+    zh: '网络建设者',
+    id: 'Pembangun Jaringan'
+  },
+  'achievements.build10Referrals': {
+    en: 'Build a network of 10 referrals!',
+    zh: '建立10个推荐的网络！',
+    id: 'Bangun jaringan 10 referral!'
+  },
+  'achievements.500PointsBonus': {
+    en: '500 Points + 300 Bonus',
+    zh: '500分 + 300奖励',
+    id: '500 Poin + 300 Bonus'
   },
   'loyalty.currentLevel': {
     en: 'Current Level',
