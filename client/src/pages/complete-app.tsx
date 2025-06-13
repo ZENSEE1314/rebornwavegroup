@@ -3205,6 +3205,7 @@ export default function CompleteApp() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   
   // Enable WebSocket connection for real-time updates
   useWebSocket(true);
@@ -5027,20 +5028,13 @@ export default function CompleteApp() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLanguage(language === "en" ? "id" : "en")}
-              >
-                <Globe className="w-4 h-4 mr-2" />
-                {language === "en" ? "ID" : "EN"}
-              </Button>
+              <LanguageSelector />
               <span className="text-sm text-gray-600">
-                {language === "id" ? "Halo" : "Welcome"}, {user?.firstName || user?.email?.split('@')[0] || 'User'}!
+                {t('dashboard.welcome')}, {user?.firstName || user?.email?.split('@')[0] || 'User'}!
               </span>
               <Button variant="outline" size="sm" onClick={() => window.location.href = '/api/logout'}>
                 <LogOut className="w-4 h-4 mr-2" />
-                {language === "id" ? "Keluar" : "Logout"}
+                {t('dashboard.logout')}
               </Button>
             </div>
           </div>

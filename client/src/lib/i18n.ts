@@ -43,6 +43,10 @@ export const translations: Translations = {
     en: 'Logout',
     zh: '退出登录'
   },
+  'dashboard.logout': {
+    en: 'Logout',
+    zh: '退出登录'
+  },
   'common.save': {
     en: 'Save',
     zh: '保存'
