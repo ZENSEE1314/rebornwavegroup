@@ -416,8 +416,17 @@ If you didn't request this password reset, please ignore this email.
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth,
         authProvider: user.authProvider,
-        profileImageUrl: user.profileImageUrl
+        profileImageUrl: user.profileImageUrl,
+        role: user.role,
+        credits: user.credits,
+        loyaltyPoints: user.loyaltyPoints,
+        lifetimePoints: user.lifetimePoints,
+        referralEarnings: user.referralEarnings,
+        tokens: user.tokens
       });
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -675,8 +684,8 @@ If you didn't request this password reset, please ignore this email.
 
 // Authentication middleware
 export function requireAuth(req: Request, res: Response, next: Function) {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ message: 'User not authenticated' });
   }
   next();
 }

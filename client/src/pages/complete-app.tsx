@@ -3278,11 +3278,22 @@ export default function CompleteApp() {
   const userReferrals = userStats?.referrals || [];
 
   const [language, setLanguage] = useState("en");
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "+62 812-3456-7890");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
   const [gender, setGender] = useState(user?.gender || "");
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
+
+  // Update state when user data changes
+  useEffect(() => {
+    if (user) {
+      setPhoneNumber(user.phoneNumber || "");
+      setFirstName(user.firstName || "");
+      setLastName(user.lastName || "");
+      setGender(user.gender || "");
+      setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
+    }
+  }, [user]);
   const [profileImage, setProfileImage] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);

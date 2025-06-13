@@ -236,15 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
-  app.get('/api/auth/user', requireAuth, async (req, res) => {
-    try {
-      const user = req.user;
-      res.json(user);
-    } catch (error) {
-      console.error('Get user error:', error);
-      res.status(500).json({ message: 'Failed to get user' });
-    }
-  });
+  // Remove duplicate auth/user route - handled by multiAuth.ts
 
   // PET CARE ENDPOINT - HIGH PRIORITY PLACEMENT
   app.post('/api/pets/:petId/care/:careType', requireAuth, async (req: any, res) => {
