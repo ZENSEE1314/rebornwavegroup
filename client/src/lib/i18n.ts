@@ -535,6 +535,28 @@ export const translations: Translations = {
     id: 'Belum punya akun?'
   },
 
+  // Dashboard Quick Booking
+  'dashboard.quickBooking': {
+    en: 'Quick Booking',
+    zh: '快速预约',
+    id: 'Reservasi Cepat'
+  },
+  'dashboard.selectCategory': {
+    en: 'Select Category',
+    zh: '选择类别',
+    id: 'Pilih Kategori'
+  },
+  'dashboard.selectTime': {
+    en: 'Select Time',
+    zh: '选择时间',
+    id: 'Pilih Waktu'
+  },
+  'dashboard.bookAppointment': {
+    en: 'Book Appointment',
+    zh: '预约',
+    id: 'Buat Janji'
+  },
+
   // Pet Care
   'pet.care.feed': {
     en: 'Feed',
