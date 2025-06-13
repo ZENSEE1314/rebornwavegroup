@@ -59,31 +59,38 @@ export const translations: Translations = {
   },
   'common.save': {
     en: 'Save',
-    zh: '保存'
+    zh: '保存',
+    id: 'Simpan'
   },
   'common.cancel': {
     en: 'Cancel',
-    zh: '取消'
+    zh: '取消',
+    id: 'Batal'
   },
   'common.delete': {
     en: 'Delete',
-    zh: '删除'
+    zh: '删除',
+    id: 'Hapus'
   },
   'common.edit': {
     en: 'Edit',
-    zh: '编辑'
+    zh: '编辑',
+    id: 'Edit'
   },
   'common.loading': {
     en: 'Loading...',
-    zh: '加载中...'
+    zh: '加载中...',
+    id: 'Memuat...'
   },
   'common.error': {
     en: 'Error',
-    zh: '错误'
+    zh: '错误',
+    id: 'Error'
   },
   'common.success': {
     en: 'Success',
-    zh: '成功'
+    zh: '成功',
+    id: 'Berhasil'
   },
   'common.confirm': {
     en: 'Confirm',
