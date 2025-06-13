@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap, ChevronRight, TrendingUp, Award, DollarSign } from "lucide-react";
+import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap, ChevronRight, TrendingUp, Award, DollarSign, ArrowRight, Check, Globe, Shield, Rocket } from "lucide-react";
 
 export default function Landing() {
   const handleLogin = () => {
@@ -8,77 +8,102 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
-      {/* Animated Background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden relative">
+      {/* Enhanced Animated Background */}
       <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20"></div>
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-cyan-900/30"></div>
+        <div className="absolute top-20 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/15 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute top-10 right-10 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl animate-pulse delay-700"></div>
+        <div className="absolute bottom-10 left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl animate-pulse delay-300"></div>
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 bg-black/50 backdrop-blur-lg border-b border-white/10">
+      {/* Floating particles */}
+      <div className="fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/3 w-2 h-2 bg-white/20 rounded-full animate-ping"></div>
+        <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-purple-400/30 rounded-full animate-ping delay-1000"></div>
+        <div className="absolute bottom-1/3 left-1/4 w-1.5 h-1.5 bg-cyan-400/25 rounded-full animate-ping delay-500"></div>
+      </div>
+
+      {/* Enhanced Header */}
+      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-xl flex items-center justify-center relative">
-                <Sparkles className="w-5 h-5 text-white" />
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-xl blur-sm opacity-50"></div>
+            <div className="flex items-center space-x-4">
+              <div className="relative group">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
+                  <Sparkles className="w-6 h-6 text-white relative z-10" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-2xl blur-sm opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
+                </div>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                Reborn Wave Group
-              </span>
+              <div className="hidden sm:block">
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  Reborn Wave Group
+                </span>
+                <div className="text-xs text-white/60 font-medium tracking-wider">
+                  Premium Digital Platform
+                </div>
+              </div>
+              <div className="sm:hidden">
+                <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  RWG
+                </span>
+              </div>
             </div>
             <Button 
               onClick={handleLogin} 
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
             >
               <Zap className="w-4 h-4 mr-2" />
-              Access Platform
+              <span className="hidden sm:inline">Access Platform</span>
+              <span className="sm:hidden">Login</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative z-10 py-32 px-4 sm:px-6 lg:px-8">
+      {/* Enhanced Hero Section */}
+      <section className="relative z-10 py-20 sm:py-32 lg:py-40 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="mb-8">
-            <span className="px-4 py-2 bg-gradient-to-r from-purple-600/20 to-cyan-600/20 border border-purple-500/30 rounded-full text-sm font-medium">
-              ✨ The Future of Beauty, Food & Beverage & Entertainment
-            </span>
+          <div className="mb-10">
+            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-400/40 rounded-full text-sm font-semibold backdrop-blur-md shadow-lg hover:shadow-purple-500/20 transition-all duration-300">
+              <Sparkles className="w-4 h-4 mr-2 text-purple-300" />
+              The Future of Beauty, Food & Beverage & Entertainment
+            </div>
           </div>
           
-          <h1 className="text-5xl md:text-8xl font-bold mb-8 leading-tight">
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-6xl lg:text-8xl xl:text-9xl font-bold mb-8 leading-tight tracking-tight">
+            <span className="bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent drop-shadow-2xl">
               Reborn Wave
             </span>
             <br />
-            <span className="text-white/90">
+            <span className="text-white/95 drop-shadow-lg">
               Group
             </span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-white/70 mb-12 max-w-4xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl lg:text-2xl text-white/80 mb-12 max-w-5xl mx-auto leading-relaxed font-light">
             Experience the next generation of premium services across three revolutionary sectors. 
-            Join our exclusive platform and unlock infinite possibilities.
+            Join our exclusive platform and unlock infinite possibilities in the digital age.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
             <Button 
               onClick={handleLogin}
               size="lg" 
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
+              className="group bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
-              <ChevronRight className="w-5 h-5 mr-2" />
-              Enter the Future
+              <Rocket className="w-5 h-5 mr-2 group-hover:animate-pulse" />
+              <span>Enter the Future</span>
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
             </Button>
             <Button 
               variant="outline" 
               size="lg" 
-              className="border-white/20 bg-white/5 hover:bg-white/10 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-sm transition-all duration-300"
+              className="border-white/30 bg-white/10 hover:bg-white/20 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:shadow-xl"
             >
+              <Globe className="w-5 h-5 mr-2" />
               Explore Services
             </Button>
           </div>
