@@ -1052,14 +1052,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Hewan peliharaan sedang tidur" : "Pet is now sleeping",
+        title: t('common.success'),
+        description: t('petCare.sleeping'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal menidurkan hewan" : "Failed to put pet to sleep"),
+        title: t('common.error'),
+        description: error.message || t('petCare.failedSleep'),
         variant: "destructive"
       });
     }
@@ -4252,8 +4252,8 @@ export default function CompleteApp() {
   const bookAppointment = async () => {
     if (!newAppointment.category || !newAppointment.service || !newAppointment.date || !newAppointment.time) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Harap isi semua field" : "Please fill in all fields",
+        title: t('common.error'),
+        description: t('appointments.fillAllFields'),
         variant: "destructive"
       });
       return;
@@ -4267,8 +4267,8 @@ export default function CompleteApp() {
 
     if (hoursDiff < 2) {
       toast({
-        title: language === "id" ? "Error" : "Error", 
-        description: language === "id" ? "Reservasi harus dibuat minimal 2 jam ke depan" : "Booking must be at least 2 hours in advance",
+        title: t('common.error'),
+        description: t('appointments.twoHourNotice'),
         variant: "destructive"
       });
       return;

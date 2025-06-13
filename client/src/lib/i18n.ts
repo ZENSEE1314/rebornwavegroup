@@ -2660,6 +2660,56 @@ export const translations: Translations = {
     en: 'Appointments must be booked at least 2 hours in advance',
     zh: '预约必须至少提前2小时',
     id: 'Janji temu harus dipesan setidaknya 2 jam sebelumnya'
+  },
+  'petCare.failedSleep': {
+    en: 'Failed to put pet to sleep',
+    zh: '无法让宠物睡觉',
+    id: 'Gagal menidurkan hewan'
+  },
+  'petCare.awake': {
+    en: 'Pet is now awake',
+    zh: '宠物现在醒了',
+    id: 'Hewan peliharaan sudah bangun'
+  },
+  'petCare.failedWakeUp': {
+    en: 'Failed to wake up pet',
+    zh: '无法唤醒宠物',
+    id: 'Gagal membangunkan hewan'
+  },
+  'toy.activated': {
+    en: 'Toy successfully activated!',
+    zh: '玩具成功激活！',
+    id: 'Mainan berhasil diaktifkan!'
+  },
+  'toy.failedActivation': {
+    en: 'Failed to activate toy',
+    zh: '无法激活玩具',
+    id: 'Gagal mengaktifkan mainan'
+  },
+  'petCare.systemTitle': {
+    en: 'Pet Care System',
+    zh: '宠物护理系统',
+    id: 'Sistem Perawatan Hewan'
+  },
+  'petCare.careDescription': {
+    en: 'Take care of your digital pets to earn daily tokens!',
+    zh: '照顾您的数字宠物以获得每日代币！',
+    id: 'Rawat hewan digital Anda untuk mendapatkan token harian!'
+  },
+  'navigation.previous': {
+    en: 'Previous',
+    zh: '上一个',
+    id: 'Sebelumnya'
+  },
+  'navigation.next': {
+    en: 'Next',
+    zh: '下一个',
+    id: 'Selanjutnya'
+  },
+  'pet.count': {
+    en: 'Pet {current} of {total}',
+    zh: '宠物 {current} / {total}',
+    id: 'Hewan {current} dari {total}'
   }
 };
 
