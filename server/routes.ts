@@ -7,6 +7,11 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
+
+// Helper function to extract user ID from different auth formats
+function getUserId(req: any): string | null {
+  return req.user?.claims?.sub || req.user?.id || null;
+}
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import multer from "multer";
@@ -4139,9 +4144,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user dashboard stats from database
-  app.get('/api/user-stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
