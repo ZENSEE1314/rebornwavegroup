@@ -159,6 +159,11 @@ export const translations: Translations = {
     zh: '购买验证',
     id: 'Verifikasi Pembelian'
   },
+  'purchase.description': {
+    en: 'Upload purchase receipts to earn loyalty points',
+    zh: '上传购买收据以获得忠诚度积分',
+    id: 'Upload bukti pembelian untuk mendapatkan poin loyalitas'
+  },
   'purchase.uploadReceipt': {
     en: 'Upload Receipt',
     zh: '上传收据',
@@ -571,13 +576,6 @@ export const translations: Translations = {
     zh: '纪念',
     id: 'Memorial'
   },
-
-  // Dashboard
-  'dashboard.welcome': {
-    en: 'Welcome Back',
-    zh: '欢迎回来',
-    id: 'Selamat Datang Kembali'
-  },
   'tabs.dashboard': {
     en: 'Dashboard',
     zh: '仪表板',
@@ -623,15 +621,15 @@ export const translations: Translations = {
     zh: '购买验证',
     id: 'Verifikasi Pembelian'
   },
-  'loyalty.title': {
-    en: 'Loyalty',
-    zh: '忠诚度',
-    id: 'Loyalitas'
-  },
   'bookings.title': {
     en: 'Bookings',
     zh: '预约',
     id: 'Reservasi'
+  },
+  'loyalty.title': {
+    en: 'Loyalty',
+    zh: '忠诚度',
+    id: 'Loyalitas'
   },
   'marketplace.title': {
     en: 'Marketplace',

@@ -2740,6 +2740,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationPage, setVerificationPage] = useState(1);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // Fetch user's payment verifications with pagination
   const { data: userVerificationsResponse, isLoading: verificationsLoading } = useQuery({
@@ -2924,12 +2925,10 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     <div className="space-y-8">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-slate-900 mb-2">
-          {language === "id" ? "Verifikasi Pembelian" : "Purchase Verification"}
+          {t('purchase.title')}
         </h2>
         <p className="text-slate-600">
-          {language === "id" 
-            ? "Upload bukti pembelian untuk mendapatkan poin loyalitas" 
-            : "Upload purchase receipts to earn loyalty points"}
+          {t('purchase.description')}
         </p>
       </div>
 
