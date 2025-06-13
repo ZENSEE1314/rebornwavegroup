@@ -1074,14 +1074,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Hewan peliharaan sudah bangun" : "Pet is now awake",
+        title: t('common.success'),
+        description: t('petCare.awake'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal membangunkan hewan" : "Failed to wake up pet"),
+        title: t('common.error'),
+        description: error.message || t('petCare.failedWakeUp'),
         variant: "destructive"
       });
     }
@@ -1135,14 +1135,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Mainan berhasil diaktifkan!" : "Toy successfully activated!",
+        title: t('common.success'),
+        description: t('toy.activated'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal mengaktifkan mainan" : "Failed to activate toy"),
+        title: t('common.error'),
+        description: error.message || t('toy.activationFailed'),
         variant: "destructive"
       });
     }

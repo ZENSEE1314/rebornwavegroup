@@ -2666,20 +2666,25 @@ export const translations: Translations = {
     zh: '无法让宠物睡觉',
     id: 'Gagal menidurkan hewan'
   },
+  'petCare.failedWakeUp': {
+    en: 'Failed to wake up pet',
+    zh: '无法让宠物醒来',
+    id: 'Gagal membangunkan hewan'
+  },
   'petCare.awake': {
     en: 'Pet is now awake',
     zh: '宠物现在醒了',
     id: 'Hewan peliharaan sudah bangun'
   },
-  'petCare.failedWakeUp': {
-    en: 'Failed to wake up pet',
-    zh: '无法唤醒宠物',
-    id: 'Gagal membangunkan hewan'
-  },
   'toy.activated': {
     en: 'Toy successfully activated!',
     zh: '玩具成功激活！',
     id: 'Mainan berhasil diaktifkan!'
+  },
+  'toy.activationFailed': {
+    en: 'Failed to activate toy',
+    zh: '激活玩具失败',
+    id: 'Gagal mengaktifkan mainan'
   },
   'toy.failedActivation': {
     en: 'Failed to activate toy',
