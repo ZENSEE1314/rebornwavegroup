@@ -691,11 +691,23 @@ export const translations: Translations = {
   },
   'voice.petEvolved': {
     en: 'Congratulations! Your dragon has evolved!',
-    zh: '恭喜！您的龙已经进化了！'
+    zh: '恭喜！您的龙已经进化了！',
+    id: 'Selamat! Naga Anda telah berevolusi!'
   },
   'voice.dailyReward': {
     en: 'Daily reward claimed! Keep caring for your pets!',
-    zh: '每日奖励已领取！继续照顾您的宠物！'
+    zh: '每日奖励已领取！继续照顾您的宠物！',
+    id: 'Hadiah harian diklaim! Terus rawat hewan peliharaan Anda!'
+  },
+  'voice.petSlept': {
+    en: 'Your dragon is now well rested and energized!',
+    zh: '您的龙现在休息得很好，精力充沛！',
+    id: 'Naga Anda sekarang beristirahat dengan baik dan berenergi!'
+  },
+  'voice.petHealed': {
+    en: 'Your dragon is now healthy and strong!',
+    zh: '您的龙现在健康强壮！',
+    id: 'Naga Anda sekarang sehat dan kuat!'
   }
 };
 
@@ -706,7 +718,7 @@ let languageChangeListeners: ((lang: Language) => void)[] = [];
 export function getCurrentLanguage(): Language {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('language') as Language;
-    if (stored && (stored === 'en' || stored === 'zh')) {
+    if (stored && (stored === 'en' || stored === 'zh' || stored === 'id')) {
       currentLanguage = stored;
     }
   }
