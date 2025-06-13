@@ -684,11 +684,6 @@ export const translations: Translations = {
   },
 
   // Booking Management
-  'booking.title': {
-    en: 'Booking Management',
-    zh: '预约管理',
-    id: 'Manajemen Booking'
-  },
   'booking.viewAppointments': {
     en: 'View and manage your service appointments',
     zh: '查看和管理您的服务预约',
@@ -1017,11 +1012,6 @@ export const translations: Translations = {
     zh: '生日奖励',
     id: 'Hadiah ulang tahun'
   },
-  'loyalty.platinum': {
-    en: 'Platinum',
-    zh: '白金',
-    id: 'Platinum'
-  },
   'loyalty.discount6Percent': {
     en: '6% discount on all services',
     zh: '所有服务6%折扣',
@@ -1048,20 +1038,10 @@ export const translations: Translations = {
     id: 'Event eksklusif'
   },
 
-  'loyalty.diamond': {
-    en: 'Diamond',
-    zh: '钻石',
-    id: 'Berlian'
-  },
   'loyalty.discount10Percent': {
     en: '10% discount on all services',
     zh: '所有服务10%折扣',
     id: 'Diskon 10% semua layanan'
-  },
-  'loyalty.personalConcierge': {
-    en: 'Personal concierge service',
-    zh: '私人礼宾服务',
-    id: 'Layanan concierge pribadi'
   },
   'loyalty.unlimitedAccess': {
     en: 'Unlimited access to all facilities',
