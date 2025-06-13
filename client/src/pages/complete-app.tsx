@@ -5332,10 +5332,10 @@ export default function CompleteApp() {
             {/* Welcome Section */}
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
               <h2 className="text-3xl font-bold mb-2">
-                {language === "id" ? "Selamat datang kembali" : "Welcome back"}, {user?.firstName || 'Candy'}!
+                {t('dashboard.welcome')}, {user?.firstName || 'Candy'}!
               </h2>
               <p className="text-blue-100">
-                Level {currentLoyaltyLevel.level} • {loyaltyPoints} {language === "id" ? "poin" : "points"} • RP {formatRupiah(userCredits)}
+                Level {currentLoyaltyLevel.level} • {loyaltyPoints} {t('dashboard.points')} • RP {formatRupiah(userCredits)}
               </p>
             </div>
 
