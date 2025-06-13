@@ -2144,6 +2144,16 @@ export const translations: Translations = {
     zh: '按日期筛选',
     id: 'Filter tanggal'
   },
+  'appointments.noAppointments': {
+    en: 'No appointments yet',
+    zh: '暂无预约',
+    id: 'Belum ada janji temu'
+  },
+  'appointments.bookingsWillAppear': {
+    en: 'Your bookings and appointments will appear here',
+    zh: '您的预订和预约将显示在这里',
+    id: 'Pemesanan dan janji temu Anda akan muncul di sini'
+  },
   'commission.structure': {
     en: 'Commission Structure',
     zh: '佣金结构',

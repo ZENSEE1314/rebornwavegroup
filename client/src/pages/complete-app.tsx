@@ -6259,7 +6259,7 @@ export default function CompleteApp() {
                     value={appointmentsDateFilter}
                     onChange={(e) => setAppointmentsDateFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                    placeholder={t('filter.filterByDate')}
                   />
                   {(appointmentsFilter !== 'all' || appointmentsDateFilter) && (
                     <button
@@ -6269,7 +6269,7 @@ export default function CompleteApp() {
                       }}
                       className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
                     >
-                      {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                      {t('filter.clearFilters')}
                     </button>
                   )}
                 </div>
@@ -6287,8 +6287,8 @@ export default function CompleteApp() {
                     return (
                       <div className="text-center py-8 text-gray-500">
                         <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No appointments yet</p>
-                        <p className="text-sm mt-2">Your bookings and appointments will appear here</p>
+                        <p>{t('appointments.noAppointments')}</p>
+                        <p className="text-sm mt-2">{t('appointments.bookingsWillAppear')}</p>
                       </div>
                     );
                   }
