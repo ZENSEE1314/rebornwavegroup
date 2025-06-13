@@ -285,7 +285,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
           </div>
           <div>
             <p className="font-semibold text-gray-900">
-              {language === "id" ? "Token Saat Ini" : "Current Tokens"}
+              {t('tokens.current')}
             </p>
             <p className="text-2xl font-bold text-yellow-600">{userTokens || 0}</p>
           </div>
@@ -296,12 +296,12 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
       <div className="bg-white rounded-lg p-4 border">
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-gray-900">
-            {language === "id" ? "Hadiah Harian" : "Daily Reward"}
+            {t('dailyReward.title')}
           </h4>
           <Badge variant={canClaim ? "default" : "secondary"}>
             {canClaim 
-              ? (language === "id" ? "Siap Diklaim!" : "Ready to Claim!") 
-              : (language === "id" ? "Belum Tersedia" : "Not Available")
+              ? t('dailyReward.readyToClaim')
+              : t('dailyReward.notAvailable')
             }
           </Badge>
         </div>
@@ -311,13 +311,13 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
           <div className="flex items-center gap-2 mb-2">
             <Heart className={`w-4 h-4 ${allPetsHealthy ? 'text-green-500' : 'text-red-500'}`} />
             <span className="text-sm font-medium">
-              {language === "id" ? "Status Kesehatan Hewan" : "Pet Health Status"}
+              {t('petHealth.status')}
             </span>
           </div>
           <p className="text-sm text-gray-600">
             {allPetsHealthy 
-              ? (language === "id" ? `Semua ${petCount} hewan sehat! ✓` : `All ${petCount} pets are healthy! ✓`)
-              : (language === "id" ? "Beberapa hewan memerlukan perawatan" : "Some pets need care")
+              ? `${t('common.all')} ${petCount} ${t('petHealth.allHealthy')}`
+              : t('petHealth.needCare')
             }
           </p>
         </div>

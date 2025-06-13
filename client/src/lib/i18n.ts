@@ -2408,6 +2408,103 @@ export const translations: Translations = {
     en: 'Referral Earnings',
     zh: '推荐收益',
     id: 'Pendapatan Rujukan'
+  },
+
+  // Additional daily reward and game translations
+  'tokens.current': {
+    en: 'Current Tokens',
+    zh: '当前代币',
+    id: 'Token Saat Ini'
+  },
+  'dailyReward.title': {
+    en: 'Daily Reward',
+    zh: '每日奖励',
+    id: 'Hadiah Harian'
+  },
+  'dailyReward.readyToClaim': {
+    en: 'Ready to Claim!',
+    zh: '准备领取！',
+    id: 'Siap Diklaim!'
+  },
+  'dailyReward.notAvailable': {
+    en: 'Not Available',
+    zh: '不可用',
+    id: 'Belum Tersedia'
+  },
+  'petHealth.status': {
+    en: 'Pet Health Status',
+    zh: '宠物健康状态',
+    id: 'Status Kesehatan Hewan'
+  },
+  'petHealth.allHealthy': {
+    en: 'pets are healthy! ✓',
+    zh: '只宠物都很健康！✓',
+    id: 'hewan sehat! ✓'
+  },
+  'common.all': {
+    en: 'All',
+    zh: '所有',
+    id: 'Semua'
+  },
+  'petHealth.needCare': {
+    en: 'Some pets need care',
+    zh: '一些宠物需要照顾',
+    id: 'Beberapa hewan memerlukan perawatan'
+  },
+  'dailyReward.claiming': {
+    en: 'Claiming...',
+    zh: '领取中...',
+    id: 'Mengklaim...'
+  },
+  'dailyReward.claimToken': {
+    en: 'Claim 1 Token',
+    zh: '领取1个代币',
+    id: 'Klaim 1 Token'
+  },
+  'dailyReward.nextAvailable': {
+    en: 'Next reward available in:',
+    zh: '下一个奖励可用时间：',
+    id: 'Hadiah berikutnya tersedia dalam:'
+  },
+  'dailyReward.requirements': {
+    en: 'Requirements:',
+    zh: '要求：',
+    id: 'Persyaratan:'
+  },
+  'dailyReward.wait24Hours': {
+    en: 'Wait 24 hours since last claim',
+    zh: '自上次领取后等待24小时',
+    id: 'Tunggu 24 jam sejak klaim terakhir'
+  },
+  'dailyReward.allPetsHealthy': {
+    en: 'All pets must be healthy (no 0% stats)',
+    zh: '所有宠物必须健康（没有0%统计）',
+    id: 'Semua hewan harus sehat (tidak ada stat 0%)'
+  },
+  'game.over': {
+    en: 'Game Over!',
+    zh: '游戏结束！',
+    id: 'Permainan Selesai!'
+  },
+  'game.error': {
+    en: 'Error',
+    zh: '错误',
+    id: 'Error'
+  },
+  'game.failedToSave': {
+    en: 'Failed to save score',
+    zh: '保存分数失败',
+    id: 'Gagal menyimpan skor'
+  },
+  'game.coinCatching': {
+    en: 'Coin Catching Game',
+    zh: '抓硬币游戏',
+    id: 'Permainan Coin Catching'
+  },
+  'game.startGame': {
+    en: 'Start Game',
+    zh: '开始游戏',
+    id: 'Mulai Permainan'
   }
 };
 
