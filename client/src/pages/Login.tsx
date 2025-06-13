@@ -27,7 +27,10 @@ const registerSchema = z.object({
   countryCode: z.string().min(1, "Please select a country code"),
   phoneNumber: z.string().min(7, "Please enter a valid phone number"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.string().min(1, "Please select a gender"),
+  gender: z.enum(["male", "female"], {
+    required_error: "Please select a gender",
+    invalid_type_error: "Gender must be male or female"
+  }),
   referralCode: z.string().optional(),
 });
 
@@ -516,35 +519,64 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Phone Number</Label>
                   <div className="flex gap-2">
-                    <div className="relative w-32">
+                    <div className="relative w-56">
                       <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         {...registerForm.register("countryCode")}
                       >
-                        <option value="+1">🇺🇸 +1</option>
-                        <option value="+44">🇬🇧 +44</option>
-                        <option value="+86">🇨🇳 +86</option>
-                        <option value="+81">🇯🇵 +81</option>
-                        <option value="+82">🇰🇷 +82</option>
-                        <option value="+65">🇸🇬 +65</option>
-                        <option value="+60">🇲🇾 +60</option>
-                        <option value="+62">🇮🇩 +62</option>
-                        <option value="+63">🇵🇭 +63</option>
-                        <option value="+66">🇹🇭 +66</option>
-                        <option value="+84">🇻🇳 +84</option>
-                        <option value="+91">🇮🇳 +91</option>
-                        <option value="+61">🇦🇺 +61</option>
-                        <option value="+33">🇫🇷 +33</option>
-                        <option value="+49">🇩🇪 +49</option>
-                        <option value="+39">🇮🇹 +39</option>
-                        <option value="+34">🇪🇸 +34</option>
-                        <option value="+7">🇷🇺 +7</option>
-                        <option value="+55">🇧🇷 +55</option>
-                        <option value="+52">🇲🇽 +52</option>
-                        <option value="+27">🇿🇦 +27</option>
-                        <option value="+20">🇪🇬 +20</option>
-                        <option value="+971">🇦🇪 +971</option>
-                        <option value="+966">🇸🇦 +966</option>
+                        <option value="+1">United States (+1)</option>
+                        <option value="+44">United Kingdom (+44)</option>
+                        <option value="+86">China (+86)</option>
+                        <option value="+81">Japan (+81)</option>
+                        <option value="+82">South Korea (+82)</option>
+                        <option value="+65">Singapore (+65)</option>
+                        <option value="+60">Malaysia (+60)</option>
+                        <option value="+62">Indonesia (+62)</option>
+                        <option value="+63">Philippines (+63)</option>
+                        <option value="+66">Thailand (+66)</option>
+                        <option value="+84">Vietnam (+84)</option>
+                        <option value="+91">India (+91)</option>
+                        <option value="+61">Australia (+61)</option>
+                        <option value="+33">France (+33)</option>
+                        <option value="+49">Germany (+49)</option>
+                        <option value="+39">Italy (+39)</option>
+                        <option value="+34">Spain (+34)</option>
+                        <option value="+7">Russia (+7)</option>
+                        <option value="+55">Brazil (+55)</option>
+                        <option value="+52">Mexico (+52)</option>
+                        <option value="+27">South Africa (+27)</option>
+                        <option value="+20">Egypt (+20)</option>
+                        <option value="+971">United Arab Emirates (+971)</option>
+                        <option value="+966">Saudi Arabia (+966)</option>
+                        <option value="+1">Canada (+1)</option>
+                        <option value="+351">Portugal (+351)</option>
+                        <option value="+31">Netherlands (+31)</option>
+                        <option value="+46">Sweden (+46)</option>
+                        <option value="+47">Norway (+47)</option>
+                        <option value="+45">Denmark (+45)</option>
+                        <option value="+358">Finland (+358)</option>
+                        <option value="+41">Switzerland (+41)</option>
+                        <option value="+43">Austria (+43)</option>
+                        <option value="+32">Belgium (+32)</option>
+                        <option value="+353">Ireland (+353)</option>
+                        <option value="+48">Poland (+48)</option>
+                        <option value="+420">Czech Republic (+420)</option>
+                        <option value="+36">Hungary (+36)</option>
+                        <option value="+30">Greece (+30)</option>
+                        <option value="+90">Turkey (+90)</option>
+                        <option value="+972">Israel (+972)</option>
+                        <option value="+234">Nigeria (+234)</option>
+                        <option value="+254">Kenya (+254)</option>
+                        <option value="+56">Chile (+56)</option>
+                        <option value="+54">Argentina (+54)</option>
+                        <option value="+57">Colombia (+57)</option>
+                        <option value="+51">Peru (+51)</option>
+                        <option value="+58">Venezuela (+58)</option>
+                        <option value="+92">Pakistan (+92)</option>
+                        <option value="+880">Bangladesh (+880)</option>
+                        <option value="+94">Sri Lanka (+94)</option>
+                        <option value="+95">Myanmar (+95)</option>
+                        <option value="+977">Nepal (+977)</option>
                       </select>
                     </div>
                     <div className="relative flex-1">
@@ -595,8 +627,6 @@ export default function Login() {
                         <option value="">Select gender</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
-                        <option value="other">Other</option>
-                        <option value="prefer-not-to-say">Prefer not to say</option>
                       </select>
                     </div>
                     {registerForm.formState.errors.gender && (
