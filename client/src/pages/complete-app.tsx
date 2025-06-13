@@ -3069,11 +3069,9 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
             ) : userVerifications.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Camera className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>{language === "id" ? "Belum ada verifikasi" : "No verifications yet"}</p>
+                <p>{t('payment.noVerifications')}</p>
                 <p className="text-sm mt-2">
-                  {language === "id" 
-                    ? "Upload bukti pembelian untuk memulai" 
-                    : "Upload purchase receipts to get started"}
+                  {t('payment.uploadToGetStarted')}
                 </p>
               </div>
             ) : (
@@ -3319,8 +3317,8 @@ export default function CompleteApp() {
       borderColor: "border-orange-200",
       icon: Award,
       benefits: [
-        language === "id" ? "Akses ke platform" : "Platform access",
-        language === "id" ? "Program referral dasar" : "Basic referral program"
+        t('loyalty.platformAccess'),
+        t('loyalty.basicReferral')
       ]
     },
     { 
@@ -3328,7 +3326,7 @@ export default function CompleteApp() {
       minPoints: 500, 
       maxPoints: 24999, 
       discount: 2, 
-      name: language === "id" ? "Perak" : "Silver",
+      name: t('loyalty.silver'),
       color: "from-gray-500 to-gray-600",
       bgColor: "bg-gray-50",
       borderColor: "border-gray-200",

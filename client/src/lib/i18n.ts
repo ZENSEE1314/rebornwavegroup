@@ -981,6 +981,26 @@ export const translations: Translations = {
     zh: '提交中...',
     id: 'Mengirim...'
   },
+  'payment.noVerifications': {
+    en: 'No verifications yet',
+    zh: '暂无验证记录',
+    id: 'Belum ada verifikasi'
+  },
+  'payment.uploadToGetStarted': {
+    en: 'Upload purchase receipts to get started',
+    zh: '上传购买收据开始使用',
+    id: 'Upload bukti pembelian untuk memulai'
+  },
+  'loyalty.platformAccess': {
+    en: 'Platform access',
+    zh: '平台访问',
+    id: 'Akses ke platform'
+  },
+  'loyalty.basicReferral': {
+    en: 'Basic referral program',
+    zh: '基础推荐计划',
+    id: 'Program referral dasar'
+  },
 
   'loyalty.pointsLeft': {
     en: 'points left',
