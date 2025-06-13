@@ -264,7 +264,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
         <div className="text-center">
           <Clock className="w-6 h-6 mx-auto mb-2 text-gray-400" />
           <p className="text-sm text-gray-500">
-            {language === "id" ? "Memuat status hadiah..." : "Loading reward status..."}
+            {t('daily.loadingStatus')}
           </p>
         </div>
       </div>

@@ -1204,6 +1204,37 @@ export const translations: Translations = {
     id: 'Lihat Peringkat'
   },
 
+  // Marketplace Empty States
+  'marketplace.noToysForSale': {
+    en: 'No toys for sale yet',
+    zh: '暂无玩具出售',
+    id: 'Belum ada mainan dijual'
+  },
+  'marketplace.beFirstToSell': {
+    en: 'Be the first to sell a toy!',
+    zh: '成为第一个出售玩具的人！',
+    id: 'Jadilah yang pertama menjual mainan!'
+  },
+
+  // Redemption History
+  'redemption.noHistoryYet': {
+    en: 'No redemption history yet',
+    zh: '暂无兑换历史',
+    id: 'Belum ada riwayat penukaran'
+  },
+  'redemption.rewardsWillAppear': {
+    en: 'Your reward redemptions will appear here',
+    zh: '您的奖励兑换将显示在这里',
+    id: 'Penukaran reward Anda akan muncul di sini'
+  },
+
+  // Daily Reward Status
+  'daily.loadingStatus': {
+    en: 'Loading reward status...',
+    zh: '加载奖励状态...',
+    id: 'Memuat status hadiah...'
+  },
+
   // Points and History Section
   'points.history': {
     en: 'Point History',
@@ -1225,16 +1256,7 @@ export const translations: Translations = {
     zh: '兑换历史',
     id: 'Riwayat Penukaran'
   },
-  'redemption.noHistoryYet': {
-    en: 'No redemption history yet',
-    zh: '暂无兑换历史',
-    id: 'Belum ada riwayat penukaran'
-  },
-  'redemption.rewardsWillAppear': {
-    en: 'Your reward redemptions will appear here',
-    zh: '您的奖励兑换记录将显示在这里',
-    id: 'Penukaran reward Anda akan muncul di sini'
-  },
+
 
   // Loyalty Benefits
   'loyalty.bonusPoints': {
@@ -1741,16 +1763,7 @@ export const translations: Translations = {
     zh: '出售我的玩具',
     id: 'Jual Mainan Saya'
   },
-  'marketplace.noToysForSale': {
-    en: 'No toys for sale yet',
-    zh: '暂无玩具出售',
-    id: 'Belum ada mainan yang dijual'
-  },
-  'marketplace.beFirstToSell': {
-    en: 'Be the first to sell a toy!',
-    zh: '成为第一个出售玩具的人！',
-    id: 'Jadilah yang pertama menjual mainan!'
-  },
+
 
   // Toy Activation
   'toyActivation.title': {
