@@ -191,8 +191,8 @@ function DailyTokenChecker({ petId, petName, currentStats }: {
         const result = await response.json();
         if (result.success) {
           setTokenStatus(prev => ({ ...prev, canClaim: false, lastTokenClaim: new Date() }));
-          // Refresh user data to show new token count
-          window.location.reload();
+          // Refresh user data to show new token count without page reload
+          refetchUserStats();
         }
       }
     } catch (error) {
