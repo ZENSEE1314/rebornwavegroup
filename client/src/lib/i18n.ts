@@ -986,31 +986,16 @@ export const translations: Translations = {
     zh: '上传购买收据开始使用',
     id: 'Upload bukti pembelian untuk memulai'
   },
-  'loyalty.platformAccess': {
-    en: 'Platform access',
-    zh: '平台访问',
-    id: 'Akses ke platform'
-  },
 
   'loyalty.discount2Percent': {
     en: '2% discount on all services',
     zh: '所有服务2%折扣',
     id: 'Diskon 2% semua layanan'
   },
-  'loyalty.priorityBooking': {
-    en: 'Priority booking',
-    zh: '优先预订',
-    id: 'Booking prioritas'
-  },
   'loyalty.bonusReferralPoints': {
     en: 'Bonus referral points',
     zh: '奖励推荐积分',
     id: 'Bonus poin referral'
-  },
-  'loyalty.gold': {
-    en: 'Gold',
-    zh: '金牌',
-    id: 'Emas'
   },
   'loyalty.discount4Percent': {
     en: '4% discount on all services',
@@ -1431,11 +1416,6 @@ export const translations: Translations = {
     zh: '奖励中心',
     id: 'Pusat Hadiah'
   },
-  'rewards.redeem': {
-    en: 'Redeem',
-    zh: '兑换',
-    id: 'Tukar'
-  },
   'rewards.pointsRequired': {
     en: 'Points Required',
     zh: '所需积分',
@@ -1739,11 +1719,6 @@ export const translations: Translations = {
   },
 
   // Referral Program
-  'referral.title': {
-    en: 'Referral Program',
-    zh: '推荐计划',
-    id: 'Program Rujukan'
-  },
   'referral.subtitle': {
     en: 'Invite friends and earn commissions',
     zh: '邀请朋友并赚取佣金',
