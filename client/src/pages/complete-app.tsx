@@ -893,8 +893,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Gagal!" : "Error!",
-        description: error.message || (language === "id" ? "Gagal mengubah nama pet" : "Failed to update pet name"),
+        title: t('common.error'),
+        description: error.message || t('pet.nameUpdateError'),
         variant: "destructive",
       });
     }
@@ -976,16 +976,16 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       await queryClient.refetchQueries({ queryKey: ["/api/user-stats"] });
       
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Aktivitas perawatan berhasil!" : "Care activity completed!",
+        title: t('common.success'),
+        description: t('petCare.activitySuccess'),
       });
     },
     onError: (err, variables, context) => {
       // Removed local state clearing to prevent conflicts
       
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: err.message || (language === "id" ? "Gagal melakukan aktivitas perawatan" : "Failed to perform care activity"),
+        title: t('common.error'),
+        description: err.message || t('petCare.activityError'),
         variant: "destructive"
       });
     }
@@ -1005,14 +1005,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       refetchDailyReward();
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       toast({
-        title: language === "id" ? "Token Harian Diklaim!" : "Daily Token Claimed!",
-        description: language === "id" ? "Anda telah menerima 1 token!" : "You've received 1 token!",
+        title: t('dailyToken.claimed'),
+        description: t('dailyToken.received'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Gagal Mengklaim Token" : "Failed to Claim Token",
-        description: error.message || (language === "id" ? "Terjadi kesalahan saat mengklaim token harian" : "An error occurred while claiming daily token"),
+        title: t('dailyToken.claimFailed'),
+        description: error.message || t('dailyToken.claimError'),
         variant: "destructive",
       });
     },

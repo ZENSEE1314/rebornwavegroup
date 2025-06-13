@@ -2565,6 +2565,56 @@ export const translations: Translations = {
     en: 'Failed to update pet name',
     zh: '更新宠物名称失败',
     id: 'Gagal mengubah nama pet'
+  },
+  'petCare.activitySuccess': {
+    en: 'Care activity completed!',
+    zh: '护理活动完成！',
+    id: 'Aktivitas perawatan berhasil!'
+  },
+  'petCare.activityError': {
+    en: 'Failed to perform care activity',
+    zh: '执行护理活动失败',
+    id: 'Gagal melakukan aktivitas perawatan'
+  },
+  'dailyToken.claimed': {
+    en: 'Daily Token Claimed!',
+    zh: '每日代币已领取！',
+    id: 'Token Harian Diklaim!'
+  },
+  'dailyToken.received': {
+    en: "You've received 1 token!",
+    zh: '您已收到1个代币！',
+    id: 'Anda telah menerima 1 token!'
+  },
+  'dailyToken.claimFailed': {
+    en: 'Failed to Claim Token',
+    zh: '领取代币失败',
+    id: 'Gagal Mengklaim Token'
+  },
+  'dailyToken.claimError': {
+    en: 'An error occurred while claiming daily token',
+    zh: '领取每日代币时发生错误',
+    id: 'Terjadi kesalahan saat mengklaim token harian'
+  },
+  'energyPotion.success': {
+    en: 'Energy Potion Success!',
+    zh: '能量药水成功！',
+    id: 'Ramuan Energi Berhasil!'
+  },
+  'energyPotion.restored': {
+    en: 'Pet energy restored to 100%! Tokens: {tokens}',
+    zh: '宠物能量恢复到100%！代币：{tokens}',
+    id: 'Energi pet dipulihkan ke 100%! Token: {tokens}'
+  },
+  'energyPotion.failed': {
+    en: 'Failed to Use Potion',
+    zh: '使用药水失败',
+    id: 'Gagal Menggunakan Ramuan'
+  },
+  'energyPotion.error': {
+    en: 'Failed to use energy potion',
+    zh: '使用能量药水失败',
+    id: 'Gagal menggunakan ramuan energi'
   }
 };
 
