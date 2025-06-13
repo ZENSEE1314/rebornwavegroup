@@ -4207,7 +4207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Credit history route for transaction timestamps
   app.get('/api/credit-history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -4535,7 +4535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comprehensive token transaction history for a user
   app.get('/api/tokens/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
