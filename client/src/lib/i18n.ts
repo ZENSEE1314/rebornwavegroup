@@ -603,6 +603,43 @@ export const translations: Translations = {
     zh: '治疗',
     id: 'Sembuhkan'
   },
+
+  // Points Calculator
+  'points.calculator.title': {
+    en: 'Points Calculator',
+    zh: '积分计算器',
+    id: 'Kalkulator Poin'
+  },
+  'points.calculator.calculate': {
+    en: 'Calculate Points',
+    zh: '计算积分',
+    id: 'Hitung Poin'
+  },
+  'points.calculator.currentPoints': {
+    en: 'Current Points',
+    zh: '当前积分',
+    id: 'Poin Saat Ini'
+  },
+  'points.calculator.targetPoints': {
+    en: 'Target Points',
+    zh: '目标积分',
+    id: 'Target Poin'
+  },
+  'points.calculator.enterAmount': {
+    en: 'Enter amount to calculate points',
+    zh: '输入金额以计算积分',
+    id: 'Masukkan jumlah untuk menghitung poin'
+  },
+  'points.calculator.purchaseAmount': {
+    en: 'Purchase Amount (RP)',
+    zh: '购买金额 (RP)',
+    id: 'Jumlah Pembelian (RP)'
+  },
+  'points.calculator.pointsEarned': {
+    en: 'Points to be earned:',
+    zh: '将获得的积分：',
+    id: 'Poin yang akan diperoleh:'
+  },
   'pet.stats.happiness': {
     en: 'Happiness',
     zh: '快乐度',

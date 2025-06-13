@@ -2932,7 +2932,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calculator className="w-5 h-5" />
-              {language === "id" ? "Kalkulator Poin" : "Points Calculator"}
+              {t('points.calculator.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -2940,7 +2940,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
               {/* Amount Input */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Jumlah Pembelian (RP)" : "Purchase Amount (RP)"}
+                  {t('points.calculator.purchaseAmount')}
                 </label>
                 <Input
                   type="number"
