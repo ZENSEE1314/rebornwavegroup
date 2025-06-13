@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
-import { Mail, User, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users } from "lucide-react";
 import { FaGoogle, FaFacebook, FaInstagram } from "react-icons/fa";
 
 const loginSchema = z.object({
@@ -24,6 +24,9 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().min(10, "Please enter a valid phone number"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  gender: z.string().min(1, "Please select a gender"),
   referralCode: z.string().optional(),
 });
 
@@ -70,6 +73,9 @@ export default function Login() {
       password: "",
       firstName: "",
       lastName: "",
+      phoneNumber: "",
+      dateOfBirth: "",
+      gender: "",
       referralCode: "",
     },
   });

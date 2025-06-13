@@ -271,20 +271,49 @@ export function setupAuthRoutes(app: Express) {
       const { sendEmail } = await import('./emailService');
       const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
       
-      await sendEmail({
+      console.log(`Attempting to send password reset email to: ${email}`);
+      console.log(`Reset token generated: ${resetToken}`);
+      
+      const emailSent = await sendEmail({
         to: email,
         from: 'noreply@rebornwavegroup.com',
-        subject: 'Password Reset Request',
+        subject: 'Password Reset Request - Reborn Wave Pet Care',
         html: `
-          <h2>Password Reset Request</h2>
-          <p>You requested a password reset for your Reborn Wave Pet Care account.</p>
-          <p>Your reset token is: <strong>${resetToken}</strong></p>
-          <p>Or click this link: <a href="${resetUrl}">Reset Password</a></p>
-          <p>This token will expire in 1 hour.</p>
-          <p>If you didn't request this, please ignore this email.</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Password Reset Request</h2>
+            <p>You requested a password reset for your Reborn Wave Pet Care account.</p>
+            <div style="background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px;">
+              <p><strong>Your reset token is:</strong></p>
+              <h3 style="color: #007bff; font-family: monospace; letter-spacing: 2px;">${resetToken}</h3>
+            </div>
+            <p>Copy and paste this token into the password reset form on our website.</p>
+            <p><strong>This token will expire in 1 hour.</strong></p>
+            <p>If you didn't request this password reset, please ignore this email.</p>
+            <hr style="margin: 30px 0;">
+            <p style="color: #666; font-size: 12px;">Reborn Wave Pet Care - Digital Pet Adventure</p>
+          </div>
+        `,
+        text: `
+Password Reset Request
+
+You requested a password reset for your Reborn Wave Pet Care account.
+
+Your reset token is: ${resetToken}
+
+Copy and paste this token into the password reset form on our website.
+
+This token will expire in 1 hour.
+
+If you didn't request this password reset, please ignore this email.
         `
       });
 
+      if (!emailSent) {
+        console.error(`Failed to send password reset email to: ${email}`);
+        return res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
+      }
+
+      console.log(`Password reset email sent successfully to: ${email}`);
       res.json({ message: 'Password reset email sent successfully' });
     } catch (error) {
       console.error('Forgot password error:', error);
