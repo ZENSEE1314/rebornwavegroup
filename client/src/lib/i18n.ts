@@ -2154,6 +2154,196 @@ export const translations: Translations = {
     zh: '您的预订和预约将显示在这里',
     id: 'Pemesanan dan janji temu Anda akan muncul di sini'
   },
+  'referralProgram.title': {
+    en: 'Referral Program',
+    zh: '推荐计划',
+    id: 'Program Rujukan'
+  },
+  'referralProgram.inviteFriends': {
+    en: 'Invite friends and earn commissions',
+    zh: '邀请朋友并赚取佣金',
+    id: 'Undang teman dan dapatkan komisi'
+  },
+  'referralProgram.directReferrals': {
+    en: 'Direct Referrals',
+    zh: '直接推荐',
+    id: 'Rujukan Langsung'
+  },
+  'referralProgram.totalEarnings': {
+    en: 'Total Earnings',
+    zh: '总收入',
+    id: 'Total Pendapatan'
+  },
+  'referralProgram.referrerLevel': {
+    en: 'Referrer Level',
+    zh: '推荐者级别',
+    id: 'Level Rujukan'
+  },
+  'referralProgram.commissionRate': {
+    en: 'Commission Rate',
+    zh: '佣金率',
+    id: 'Tingkat Komisi'
+  },
+  'referralProgram.shareCode': {
+    en: 'Share Your Referral Code',
+    zh: '分享您的推荐码',
+    id: 'Bagikan Kode Rujukan Anda'
+  },
+  'referralProgram.shareToEarn': {
+    en: 'Share to earn 10% commission',
+    zh: '分享即可获得10%佣金',
+    id: 'Bagikan untuk mendapat komisi 10%'
+  },
+  'referralProgram.copyCode': {
+    en: 'Copy Code',
+    zh: '复制代码',
+    id: 'Salin Kode'
+  },
+  'referralProgram.noNetwork': {
+    en: 'No Referral Network Yet',
+    zh: '暂无推荐网络',
+    id: 'Belum Ada Jaringan Rujukan'
+  },
+  'referralProgram.shareLink': {
+    en: 'Share your referral link to start building your network and earning commissions.',
+    zh: '分享您的推荐链接，开始建立您的网络并赚取佣金。',
+    id: 'Bagikan tautan rujukan Anda untuk mulai membangun jaringan dan mendapatkan komisi.'
+  },
+  'profilePage.title': {
+    en: 'Your Profile',
+    zh: '您的资料',
+    id: 'Profil Anda'
+  },
+  'profilePage.manageAccount': {
+    en: 'Manage your account settings and preferences',
+    zh: '管理您的账户设置和偏好',
+    id: 'Kelola pengaturan dan preferensi akun Anda'
+  },
+  'profilePage.memberSince': {
+    en: 'Member Since:',
+    zh: '注册时间：',
+    id: 'Anggota Sejak:'
+  },
+  'profilePage.personalInfo': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'profilePage.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'profilePage.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'profilePage.email': {
+    en: 'Email',
+    zh: '邮箱',
+    id: 'Email'
+  },
+  'profilePage.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
+  },
+  'profilePage.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'profilePage.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'profilePage.male': {
+    en: 'Male',
+    zh: '男',
+    id: 'Laki-laki'
+  },
+  'profilePage.preferences': {
+    en: 'Preferences',
+    zh: '偏好设置',
+    id: 'Preferensi'
+  },
+  'profilePage.emailNotifications': {
+    en: 'Email Notifications',
+    zh: '邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'profilePage.receiveUpdates': {
+    en: 'Receive updates about appointments and promotions',
+    zh: '接收预约和促销的更新',
+    id: 'Terima update tentang janji temu dan promosi'
+  },
+  'profilePage.manage': {
+    en: 'Manage',
+    zh: '管理',
+    id: 'Kelola'
+  },
+  'profilePage.accountActions': {
+    en: 'Account Actions',
+    zh: '账户操作',
+    id: 'Tindakan Akun'
+  },
+  'profilePage.editProfile': {
+    en: 'Edit Profile',
+    zh: '编辑资料',
+    id: 'Edit Profil'
+  },
+  'profilePage.changePassword': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Kata Sandi'
+  },
+  'toyColors.red': {
+    en: 'Red',
+    zh: '红色',
+    id: 'Merah'
+  },
+  'toyColors.blue': {
+    en: 'Blue',
+    zh: '蓝色',
+    id: 'Biru'
+  },
+  'toyColors.orange': {
+    en: 'Orange',
+    zh: '橙色',
+    id: 'Oranye'
+  },
+  'toyColors.green': {
+    en: 'Green',
+    zh: '绿色',
+    id: 'Hijau'
+  },
+  'toyColors.white': {
+    en: 'White',
+    zh: '白色',
+    id: 'Putih'
+  },
+  'toyColors.purple': {
+    en: 'Purple',
+    zh: '紫色',
+    id: 'Ungu'
+  },
+  'toyColors.secret': {
+    en: 'Secret',
+    zh: '神秘',
+    id: 'Rahasia'
+  },
+  'seasonCollection.title': {
+    en: 'Season 1 Collection - 7,000 toys available',
+    zh: '第一季收藏 - 7,000个玩具可用',
+    id: 'Koleksi Musim 1 - 7,000 mainan tersedia'
+  },
+  'seasonCollection.rarity': {
+    en: '1,000 secret rarity • 6,000 common rarity',
+    zh: '1,000个神秘稀有度 • 6,000个普通稀有度',
+    id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
+  },
   'commission.structure': {
     en: 'Commission Structure',
     zh: '佣金结构',
@@ -2173,91 +2363,6 @@ export const translations: Translations = {
     en: 'Share your referral link to start building your network and earning commissions.',
     zh: '分享您的推荐链接开始建立您的网络并赚取佣金。',
     id: 'Bagikan tautan rujukan Anda untuk mulai membangun jaringan dan mendapatkan komisi.'
-  },
-  'profile.yourProfile': {
-    en: 'Your Profile',
-    zh: '您的个人资料',
-    id: 'Profil Anda'
-  },
-  'profile.manageAccount': {
-    en: 'Manage your account settings and preferences',
-    zh: '管理您的账户设置和偏好',
-    id: 'Kelola pengaturan dan preferensi akun Anda'
-  },
-  'profile.bronzeExplorer': {
-    en: 'Bronze Explorer',
-    zh: '青铜探险家',
-    id: 'Penjelajah Perunggu'
-  },
-  'profile.memberSince': {
-    en: 'Member Since:',
-    zh: '会员自：',
-    id: 'Anggota Sejak:'
-  },
-  'account.settings': {
-    en: 'Account Settings',
-    zh: '账户设置',
-    id: 'Pengaturan Akun'
-  },
-  'account.personalInformation': {
-    en: 'Personal Information',
-    zh: '个人信息',
-    id: 'Informasi Pribadi'
-  },
-  'account.firstName': {
-    en: 'First Name',
-    zh: '名字',
-    id: 'Nama Depan'
-  },
-  'account.lastName': {
-    en: 'Last Name',
-    zh: '姓氏',
-    id: 'Nama Belakang'
-  },
-  'account.email': {
-    en: 'Email',
-    zh: '电子邮件',
-    id: 'Email'
-  },
-  'account.phoneNumber': {
-    en: 'Phone Number',
-    zh: '电话号码',
-    id: 'Nomor Telepon'
-  },
-  'account.gender': {
-    en: 'Gender',
-    zh: '性别',
-    id: 'Jenis Kelamin'
-  },
-  'account.male': {
-    en: 'Male',
-    zh: '男性',
-    id: 'Laki-laki'
-  },
-  'account.female': {
-    en: 'Female',
-    zh: '女性',
-    id: 'Perempuan'
-  },
-  'account.dateOfBirth': {
-    en: 'Date of Birth',
-    zh: '出生日期',
-    id: 'Tanggal Lahir'
-  },
-  'account.preferences': {
-    en: 'Preferences',
-    zh: '偏好设置',
-    id: 'Preferensi'
-  },
-  'account.emailNotifications': {
-    en: 'Email Notifications',
-    zh: '电子邮件通知',
-    id: 'Notifikasi Email'
-  },
-  'account.receiveUpdates': {
-    en: 'Receive updates about appointments and promotions',
-    zh: '接收关于预约和促销的更新',
-    id: 'Terima pembaruan tentang janji temu dan promosi'
   },
   'account.manage': {
     en: 'Manage',
