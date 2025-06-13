@@ -640,6 +640,48 @@ export const translations: Translations = {
     zh: '将获得的积分：',
     id: 'Poin yang akan diperoleh:'
   },
+  'points.calculator.serviceCategory': {
+    en: 'Service Category',
+    zh: '服务类别',
+    id: 'Kategori Layanan'
+  },
+  'points.calculator.selectCategory': {
+    en: 'Select service category',
+    zh: '选择服务类别',
+    id: 'Pilih kategori layanan'
+  },
+
+  // Loyalty Program
+  'loyalty.title': {
+    en: 'Loyalty Program',
+    zh: '忠诚度计划',
+    id: 'Program Loyalitas'
+  },
+  'loyalty.description': {
+    en: 'Earn points, unlock levels, and claim amazing rewards!',
+    zh: '赚取积分，解锁等级，获得丰厚奖励！',
+    id: 'Dapatkan poin, buka level, dan klaim hadiah menarik!'
+  },
+  'loyalty.availablePoints': {
+    en: 'Available Points',
+    zh: '可用积分',
+    id: 'Poin Tersedia'
+  },
+  'loyalty.progressTo': {
+    en: 'Progress to',
+    zh: '进度至',
+    id: 'Progress ke'
+  },
+  'loyalty.pointsLeft': {
+    en: 'points left',
+    zh: '积分剩余',
+    id: 'poin tersisa'
+  },
+  'loyalty.currentLevel': {
+    en: 'Current Level',
+    zh: '当前等级',
+    id: 'Level Saat Ini'
+  },
   'pet.stats.happiness': {
     en: 'Happiness',
     zh: '快乐度',
@@ -750,11 +792,7 @@ export const translations: Translations = {
     zh: '预约',
     id: 'Reservasi'
   },
-  'loyalty.title': {
-    en: 'Loyalty',
-    zh: '忠诚度',
-    id: 'Loyalitas'
-  },
+
   'marketplace.title': {
     en: 'Marketplace',
     zh: '市场',

@@ -2951,7 +2951,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 />
                 {amount && (
                   <p className="text-sm text-blue-600 mt-1">
-                    {language === "id" ? "Poin yang akan diperoleh: " : "Points to earn: "}
+                    {t('points.calculator.pointsEarned')}
                     <span className="font-bold">{calculatedPoints} poin</span>
                   </p>
                 )}
@@ -2960,11 +2960,11 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
               {/* Service Category */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Kategori Layanan" : "Service Category"}
+                  {t('points.calculator.serviceCategory')}
                 </label>
                 <Select value={description} onValueChange={setDescription}>
                   <SelectTrigger>
-                    <SelectValue placeholder={language === "id" ? "Pilih kategori layanan" : "Select service category"} />
+                    <SelectValue placeholder={t('points.calculator.selectCategory')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="KTV Level 1">KTV Level 1</SelectItem>
