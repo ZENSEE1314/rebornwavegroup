@@ -24,7 +24,8 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: z.string().min(10, "Please enter a valid phone number"),
+  countryCode: z.string().min(1, "Please select a country code"),
+  phoneNumber: z.string().min(7, "Please enter a valid phone number"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
   gender: z.string().min(1, "Please select a gender"),
   referralCode: z.string().optional(),
@@ -73,6 +74,7 @@ export default function Login() {
       password: "",
       firstName: "",
       lastName: "",
+      countryCode: "+1",
       phoneNumber: "",
       dateOfBirth: "",
       gender: "",
@@ -127,12 +129,20 @@ export default function Login() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
+      // Combine country code and phone number
+      const fullPhoneNumber = `${data.countryCode}${data.phoneNumber}`;
+      const registrationData = {
+        ...data,
+        phoneNumber: fullPhoneNumber
+      };
+      delete (registrationData as any).countryCode; // Remove countryCode as it's now part of phoneNumber
+      
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(registrationData),
       });
       
       if (!response.ok) {
@@ -505,14 +515,47 @@ export default function Login() {
 
                 <div className="space-y-2">
                   <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="phoneNumber"
-                      placeholder="Enter your phone number"
-                      className="pl-10"
-                      {...registerForm.register("phoneNumber")}
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative w-32">
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        {...registerForm.register("countryCode")}
+                      >
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+86">🇨🇳 +86</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+82">🇰🇷 +82</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+60">🇲🇾 +60</option>
+                        <option value="+62">🇮🇩 +62</option>
+                        <option value="+63">🇵🇭 +63</option>
+                        <option value="+66">🇹🇭 +66</option>
+                        <option value="+84">🇻🇳 +84</option>
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+39">🇮🇹 +39</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+7">🇷🇺 +7</option>
+                        <option value="+55">🇧🇷 +55</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+27">🇿🇦 +27</option>
+                        <option value="+20">🇪🇬 +20</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+966">🇸🇦 +966</option>
+                      </select>
+                    </div>
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="phoneNumber"
+                        placeholder="Enter phone number"
+                        className="pl-10"
+                        {...registerForm.register("phoneNumber")}
+                      />
+                    </div>
                   </div>
                   {registerForm.formState.errors.phoneNumber && (
                     <p className="text-sm text-red-500">
