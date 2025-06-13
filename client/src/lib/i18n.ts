@@ -2895,6 +2895,56 @@ export const translations: Translations = {
     en: 'Pet needs to rest or sleep to gain energy.',
     zh: '宠物需要休息或睡觉来获得能量。',
     id: 'Pet perlu istirahat atau tidur untuk mendapatkan energi.'
+  },
+  'careButtons.feed': {
+    en: 'Feed',
+    zh: '喂食',
+    id: 'Beri Makan'
+  },
+  'careButtons.bathe': {
+    en: 'Bathe',
+    zh: '洗澡',
+    id: 'Mandikan'
+  },
+  'careButtons.play': {
+    en: 'Play',
+    zh: '玩耍',
+    id: 'Bermain'
+  },
+  'careButtons.wakeUp': {
+    en: 'Wake Up',
+    zh: '唤醒',
+    id: 'Bangunkan'
+  },
+  'careButtons.sleep': {
+    en: 'Sleep',
+    zh: '睡觉',
+    id: 'Tidurkan'
+  },
+  'careButtons.energy': {
+    en: 'Energy',
+    zh: '能量',
+    id: 'Energi'
+  },
+  'petStates.sleeping': {
+    en: 'Sleeping',
+    zh: '睡觉中',
+    id: 'Sedang Tidur'
+  },
+  'petStates.fullEnergy': {
+    en: 'Full Energy',
+    zh: '能量满满',
+    id: 'Penuh Energi'
+  },
+  'happiness.full.title': {
+    en: 'Happiness Full!',
+    zh: '快乐满满！',
+    id: 'Happiness Penuh!'
+  },
+  'happiness.full.description': {
+    en: 'Pet is already very happy!',
+    zh: '宠物已经很开心了！',
+    id: 'Pet sudah sangat bahagia!'
   }
 };
 

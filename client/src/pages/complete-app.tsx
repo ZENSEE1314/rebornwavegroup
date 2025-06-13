@@ -1791,7 +1791,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       >
                         <span className="text-2xl">🍎</span>
                         <span className="text-sm">
-                          {language === "id" ? "Beri Makan" : "Feed"}
+                          {t('careButtons.feed')}
                           {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
                       </Button>
@@ -1828,7 +1828,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       >
                         <span className="text-2xl">🛁</span>
                         <span className="text-sm">
-                          {language === "id" ? "Mandikan" : "Bathe"}
+                          {t('careButtons.bathe')}
                           {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
                       </Button>
@@ -1852,8 +1852,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           }
                           if (happiness >= 100) {
                             toast({
-                              title: language === "id" ? "Happiness Penuh!" : "Happiness Full!",
-                              description: language === "id" ? "Pet sudah sangat bahagia!" : "Pet is already very happy!",
+                              title: t('happiness.full.title'),
+                              description: t('happiness.full.description'),
                               variant: "default"
                             });
                             return;
@@ -1875,7 +1875,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       >
                         <span className="text-2xl">🎾</span>
                         <span className="text-sm">
-                          {language === "id" ? "Bermain" : "Play"}
+                          {t('careButtons.play')}
                           {happiness >= 100 && <span className="text-xs block text-green-600">MAX</span>}
                           {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
@@ -1892,9 +1892,9 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           disabled={wakeMutation.isPending}
                         >
                           <span className="text-2xl">☀️</span>
-                          <span className="text-sm">{language === "id" ? "Bangunkan" : "Wake Up"}</span>
+                          <span className="text-sm">{t('careButtons.wakeUp')}</span>
                           <span className="text-xs text-blue-600">
-                            {language === "id" ? "Sedang Tidur" : "Sleeping"}
+                            {t('petStates.sleeping')}
                           </span>
                         </Button>
                       ) : (
