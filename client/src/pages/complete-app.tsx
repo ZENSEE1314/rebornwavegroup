@@ -6081,7 +6081,7 @@ export default function CompleteApp() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
-                        {language === "id" ? "Total Poin:" : "Total Points:"}
+                        {t('loyalty.totalPoints')}:
                       </span>
                       <span className="font-bold text-purple-600">{loyaltyPoints}</span>
                     </div>
@@ -7374,7 +7374,7 @@ export default function CompleteApp() {
                       <span className="font-medium">May 2025</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>{language === "id" ? "Total Poin:" : "Total Points:"}</span>
+                      <span>{t('loyalty.totalPoints')}:</span>
                       <span className="font-medium">{lifetimePoints}</span>
                     </div>
                     <div className="flex justify-between">
