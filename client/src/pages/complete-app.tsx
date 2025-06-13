@@ -1175,10 +1175,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       <div className="space-y-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+            {t('petCare.system')}
           </h2>
           <p className="text-slate-600">
-            {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
+            {t('petCare.description')}
           </p>
           
           {/* Pet Navigation - Only show if user has multiple pets */}

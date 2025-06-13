@@ -2686,6 +2686,31 @@ export const translations: Translations = {
     zh: '激活玩具失败',
     id: 'Gagal mengaktifkan mainan'
   },
+  'petCare.system': {
+    en: 'Pet Care System',
+    zh: '宠物护理系统',
+    id: 'Sistem Perawatan Hewan'
+  },
+  'petCare.description': {
+    en: 'Take care of your digital pets to earn daily tokens!',
+    zh: '照顾您的数字宠物以获得每日代币！',
+    id: 'Rawat hewan digital Anda untuk mendapatkan token harian!'
+  },
+  'navigation.previous': {
+    en: 'Previous',
+    zh: '上一个',
+    id: 'Sebelumnya'
+  },
+  'navigation.next': {
+    en: 'Next',
+    zh: '下一个',
+    id: 'Selanjutnya'
+  },
+  'petCounter.text': {
+    en: 'Pet {current} of {total}',
+    zh: '宠物 {current} 共 {total}',
+    id: 'Hewan {current} dari {total}'
+  },
   'toy.failedActivation': {
     en: 'Failed to activate toy',
     zh: '无法激活玩具',
@@ -2700,16 +2725,6 @@ export const translations: Translations = {
     en: 'Take care of your digital pets to earn daily tokens!',
     zh: '照顾您的数字宠物以获得每日代币！',
     id: 'Rawat hewan digital Anda untuk mendapatkan token harian!'
-  },
-  'navigation.previous': {
-    en: 'Previous',
-    zh: '上一个',
-    id: 'Sebelumnya'
-  },
-  'navigation.next': {
-    en: 'Next',
-    zh: '下一个',
-    id: 'Selanjutnya'
   },
   'pet.count': {
     en: 'Pet {current} of {total}',
