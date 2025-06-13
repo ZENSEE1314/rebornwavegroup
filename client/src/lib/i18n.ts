@@ -1374,12 +1374,6 @@ export const translations: Translations = {
     zh: '预约',
     id: 'Reservasi'
   },
-
-  'marketplace.title': {
-    en: 'Marketplace',
-    zh: '市场',
-    id: 'Pasar'
-  },
   'inventory.title': {
     en: 'Collections',
     zh: '收藏',
@@ -1624,6 +1618,316 @@ export const translations: Translations = {
     en: 'Your dragon is now healthy and strong!',
     zh: '您的龙现在健康强壮！',
     id: 'Naga Anda sekarang sehat dan kuat!'
+  },
+
+  // Appointments
+  'appointments.beautyServices': {
+    en: 'Beauty Services',
+    zh: '美容服务',
+    id: 'Layanan Kecantikan'
+  },
+  'appointments.entertainment': {
+    en: 'Entertainment',
+    zh: '娱乐',
+    id: 'Hiburan'
+  },
+  'appointments.cafeRestaurant': {
+    en: 'Cafe & Restaurant',
+    zh: '咖啡厅和餐厅',
+    id: 'Kafe & Restoran'
+  },
+  'appointments.hairSpaFacialsNails': {
+    en: 'Hair Spa, Facials, Nails',
+    zh: '头发水疗，面部护理，美甲',
+    id: 'Spa Rambut, Facial, Kuku'
+  },
+  'appointments.clawMachineKtvRooms': {
+    en: 'Claw Machine, KTV Rooms',
+    zh: '夹娃娃机，KTV包间',
+    id: 'Mesin Cakar, Ruang KTV'
+  },
+  'appointments.breakfastLunchDinner': {
+    en: 'Breakfast, Lunch, Dinner',
+    zh: '早餐，午餐，晚餐',
+    id: 'Sarapan, Makan Siang, Makan Malam'
+  },
+  'appointments.startingFrom': {
+    en: 'Starting from',
+    zh: '起价',
+    id: 'Mulai dari'
+  },
+  'appointments.createNewBooking': {
+    en: 'Create New Booking',
+    zh: '创建新预订',
+    id: 'Buat Pemesanan Baru'
+  },
+  'appointments.selectCategory': {
+    en: 'Select Category',
+    zh: '选择类别',
+    id: 'Pilih Kategori'
+  },
+  'appointments.selectTime': {
+    en: 'Select Time',
+    zh: '选择时间',
+    id: 'Pilih Waktu'
+  },
+  'appointments.bookAppointment': {
+    en: 'Book Appointment',
+    zh: '预约',
+    id: 'Buat Janji'
+  },
+  'appointments.yourAppointments': {
+    en: 'Your Appointments',
+    zh: '您的预约',
+    id: 'Janji Temu Anda'
+  },
+
+  // Marketplace
+  'marketplace.title': {
+    en: 'Toy Marketplace',
+    zh: '玩具市场',
+    id: 'Pasar Mainan'
+  },
+  'marketplace.browse': {
+    en: 'Browse and purchase pet toys',
+    zh: '浏览并购买宠物玩具',
+    id: 'Jelajahi dan beli mainan hewan'
+  },
+  'marketplace.sellMyToy': {
+    en: 'Sell My Toy',
+    zh: '出售我的玩具',
+    id: 'Jual Mainan Saya'
+  },
+  'marketplace.noToysForSale': {
+    en: 'No toys for sale yet',
+    zh: '暂无玩具出售',
+    id: 'Belum ada mainan yang dijual'
+  },
+  'marketplace.beFirstToSell': {
+    en: 'Be the first to sell a toy!',
+    zh: '成为第一个出售玩具的人！',
+    id: 'Jadilah yang pertama menjual mainan!'
+  },
+
+  // Toy Activation
+  'toyActivation.title': {
+    en: 'Activate Doluruu Toy',
+    zh: '激活Doluruu玩具',
+    id: 'Aktifkan Mainan Doluruu'
+  },
+  'toyActivation.enterQrCode': {
+    en: 'Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)',
+    zh: '输入玩具二维码（例如：QR-87b4a03b003a-07377ac9-53d8fd）',
+    id: 'Masukkan Kode QR mainan (mis. QR-87b4a03b003a-07377ac9-53d8fd)'
+  },
+  'toyActivation.camera': {
+    en: 'Camera',
+    zh: '相机',
+    id: 'Kamera'
+  },
+  'toyActivation.activate': {
+    en: 'Activate',
+    zh: '激活',
+    id: 'Aktifkan'
+  },
+  'toyActivation.howToActivate': {
+    en: 'How to Activate Toys:',
+    zh: '如何激活玩具：',
+    id: 'Cara Mengaktifkan Mainan:'
+  },
+  'toyActivation.step1': {
+    en: 'Purchase Doluruu toy from physical store',
+    zh: '从实体店购买Doluruu玩具',
+    id: 'Beli mainan Doluruu dari toko fisik'
+  },
+  'toyActivation.step2': {
+    en: 'Find unique QR code on toy packaging',
+    zh: '在玩具包装上找到独特的二维码',
+    id: 'Temukan kode QR unik pada kemasan mainan'
+  },
+  'toyActivation.step3': {
+    en: 'Enter secure QR code above to activate',
+    zh: '在上方输入安全二维码以激活',
+    id: 'Masukkan kode QR aman di atas untuk mengaktifkan'
+  },
+  'toyActivation.step4': {
+    en: 'Toy will be added to your digital collection!',
+    zh: '玩具将添加到您的数字收藏中！',
+    id: 'Mainan akan ditambahkan ke koleksi digital Anda!'
+  },
+  'toyActivation.securitySystem': {
+    en: 'Security System: Each QR code is unique and unpredictable to prevent unauthorized toy additions.',
+    zh: '安全系统：每个二维码都是独特且不可预测的，以防止未经授权的玩具添加。',
+    id: 'Sistem Keamanan: Setiap kode QR unik dan tidak dapat diprediksi untuk mencegah penambahan mainan yang tidak sah.'
+  },
+  'toyActivation.seasonCollection': {
+    en: 'Season 1 Collection - 7,000 toys available',
+    zh: '第一季收藏 - 7,000个玩具可用',
+    id: 'Koleksi Musim 1 - 7.000 mainan tersedia'
+  },
+  'toyActivation.rarityInfo': {
+    en: '1,000 secret rarity • 6,000 common rarity',
+    zh: '1,000个秘密稀有度 • 6,000个普通稀有度',
+    id: '1.000 kelangkaan rahasia • 6.000 kelangkaan umum'
+  },
+
+  // Referral Program
+  'referral.title': {
+    en: 'Referral Program',
+    zh: '推荐计划',
+    id: 'Program Rujukan'
+  },
+  'referral.subtitle': {
+    en: 'Invite friends and earn commissions',
+    zh: '邀请朋友并赚取佣金',
+    id: 'Undang teman dan dapatkan komisi'
+  },
+  'referral.directReferrals': {
+    en: 'Direct Referrals',
+    zh: '直接推荐',
+    id: 'Rujukan Langsung'
+  },
+  'referral.totalEarnings': {
+    en: 'Total Earnings',
+    zh: '总收入',
+    id: 'Total Penghasilan'
+  },
+  'referral.referrerLevel': {
+    en: 'Referrer Level',
+    zh: '推荐者等级',
+    id: 'Level Perujuk'
+  },
+  'referral.commissionRate': {
+    en: 'Commission Rate',
+    zh: '佣金率',
+    id: 'Tingkat Komisi'
+  },
+  'referral.shareReferralCode': {
+    en: 'Share Your Referral Code',
+    zh: '分享您的推荐码',
+    id: 'Bagikan Kode Rujukan Anda'
+  },
+  'referral.shareToEarnCommission': {
+    en: 'Share to earn 10% commission',
+    zh: '分享赚取10%佣金',
+    id: 'Bagikan untuk mendapat komisi 10%'
+  },
+  'referral.copyCode': {
+    en: 'Copy Code',
+    zh: '复制代码',
+    id: 'Salin Kode'
+  },
+
+  // Account Settings
+  'accountSettings.title': {
+    en: 'Account Settings',
+    zh: '账户设置',
+    id: 'Pengaturan Akun'
+  },
+  'accountSettings.personalInformation': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'accountSettings.firstName': {
+    en: 'First Name',
+    zh: '名',
+    id: 'Nama Depan'
+  },
+  'accountSettings.lastName': {
+    en: 'Last Name',
+    zh: '姓',
+    id: 'Nama Belakang'
+  },
+  'accountSettings.email': {
+    en: 'Email',
+    zh: '电子邮件',
+    id: 'Email'
+  },
+  'accountSettings.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
+  },
+  'accountSettings.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'accountSettings.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'accountSettings.male': {
+    en: 'Male',
+    zh: '男',
+    id: 'Laki-laki'
+  },
+  'accountSettings.female': {
+    en: 'Female',
+    zh: '女',
+    id: 'Perempuan'
+  },
+  'accountSettings.preferences': {
+    en: 'Preferences',
+    zh: '偏好设置',
+    id: 'Preferensi'
+  },
+  'accountSettings.emailNotifications': {
+    en: 'Email Notifications',
+    zh: '电子邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'accountSettings.receiveUpdatesAbout': {
+    en: 'Receive updates about appointments and promotions',
+    zh: '接收关于预约和促销的更新',
+    id: 'Terima pembaruan tentang janji temu dan promosi'
+  },
+  'accountSettings.manage': {
+    en: 'Manage',
+    zh: '管理',
+    id: 'Kelola'
+  },
+  'accountSettings.accountActions': {
+    en: 'Account Actions',
+    zh: '账户操作',
+    id: 'Tindakan Akun'
+  },
+  'accountSettings.editProfile': {
+    en: 'Edit Profile',
+    zh: '编辑个人资料',
+    id: 'Edit Profil'
+  },
+  'accountSettings.changePassword': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Kata Sandi'
+  },
+  'accountSettings.accountStatistics': {
+    en: 'Account Statistics',
+    zh: '账户统计',
+    id: 'Statistik Akun'
+  },
+  'accountSettings.currentCredits': {
+    en: 'Current Credits',
+    zh: '当前信用',
+    id: 'Kredit Saat Ini'
+  },
+  'accountSettings.loyaltyPoints': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'accountSettings.totalBookings': {
+    en: 'Total Bookings',
+    zh: '总预订',
+    id: 'Total Pemesanan'
+  },
+  'accountSettings.referralEarnings': {
+    en: 'Referral Earnings',
+    zh: '推荐收入',
+    id: 'Penghasilan Rujukan'
   }
 };
 
