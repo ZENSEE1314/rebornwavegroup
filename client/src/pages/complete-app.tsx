@@ -594,18 +594,18 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           <div className="text-center space-y-4">
             <div className="text-4xl">🏆</div>
             <h4 className="text-lg font-semibold">
-              {language === "id" ? "Permainan Selesai!" : "Game Over!"}
+              {t('game.gameOver')}
             </h4>
             <p className="text-gray-600">
-              {language === "id" ? `Skor Akhir: ${score}` : `Final Score: ${score}`}
+              {t('game.finalScore').replace('{score}', score.toString())}
             </p>
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Button onClick={startGame} variant="outline">
-                  {language === "id" ? "Main Lagi" : "Play Again"}
+                  {t('game.playAgain')}
                 </Button>
                 <Button onClick={onClose}>
-                  {language === "id" ? "Selesai" : "Done"}
+                  {t('game.done')}
                 </Button>
               </div>
               <Button 
@@ -614,7 +614,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                 className="w-full"
               >
                 <Trophy className="h-4 w-4 mr-2" />
-                {language === "id" ? "Lihat Peringkat" : "View Leaderboard"}
+                {t('game.viewLeaderboard')}
               </Button>
             </div>
           </div>
@@ -784,8 +784,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       // Check for auto wake-up
       if (data.autoWoken) {
         toast({
-          title: language === "id" ? "Pet Bangun Otomatis!" : "Pet Auto-Woke!",
-          description: language === "id" ? "Energi pet sudah penuh (100%)!" : "Pet's energy is now full (100%)!",
+          title: t('pet.autoWoke'),
+          description: t('pet.energyFull'),
         });
         // Refresh pet data to show updated status
         refetchPets();
@@ -887,8 +887,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       setEditingPetName(null);
       setNewPetName("");
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Nama pet berhasil diubah! (-5 token)" : "Pet name updated successfully! (-5 tokens)",
+        title: t('common.success'),
+        description: t('pet.nameUpdateSuccess'),
       });
     },
     onError: (error: any) => {
