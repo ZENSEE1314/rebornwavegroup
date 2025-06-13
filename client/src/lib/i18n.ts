@@ -1176,6 +1176,122 @@ export const translations: Translations = {
     zh: '兑换奖励失败',
     id: 'Gagal menukar reward'
   },
+
+  // Game Section
+  'game.gameOver': {
+    en: 'Game Over!',
+    zh: '游戏结束！',
+    id: 'Permainan Selesai!'
+  },
+  'game.finalScore': {
+    en: 'Final Score: {score}',
+    zh: '最终得分：{score}',
+    id: 'Skor Akhir: {score}'
+  },
+  'game.playAgain': {
+    en: 'Play Again',
+    zh: '再玩一次',
+    id: 'Main Lagi'
+  },
+  'game.done': {
+    en: 'Done',
+    zh: '完成',
+    id: 'Selesai'
+  },
+  'game.viewLeaderboard': {
+    en: 'View Leaderboard',
+    zh: '查看排行榜',
+    id: 'Lihat Peringkat'
+  },
+
+  // Points and History Section
+  'points.history': {
+    en: 'Point History',
+    zh: '积分历史',
+    id: 'Riwayat Poin'
+  },
+  'points.noHistoryYet': {
+    en: 'No points history yet',
+    zh: '暂无积分历史',
+    id: 'Belum ada riwayat poin'
+  },
+  'points.earningsWillAppear': {
+    en: 'Your point earnings and redemptions will appear here',
+    zh: '您的积分收入和兑换记录将显示在这里',
+    id: 'Penghasilan dan penukaran poin Anda akan muncul di sini'
+  },
+  'redemption.history': {
+    en: 'Redemption History',
+    zh: '兑换历史',
+    id: 'Riwayat Penukaran'
+  },
+  'redemption.noHistoryYet': {
+    en: 'No redemption history yet',
+    zh: '暂无兑换历史',
+    id: 'Belum ada riwayat penukaran'
+  },
+  'redemption.rewardsWillAppear': {
+    en: 'Your reward redemptions will appear here',
+    zh: '您的奖励兑换记录将显示在这里',
+    id: 'Penukaran reward Anda akan muncul di sini'
+  },
+
+  // Loyalty Benefits
+  'loyalty.bonusPoints': {
+    en: '5% bonus points',
+    zh: '5%奖励积分',
+    id: '5% bonus poin'
+  },
+  'loyalty.birthdayDiscount': {
+    en: 'Birthday discount 10%',
+    zh: '生日折扣10%',
+    id: 'Diskon ulang tahun 10%'
+  },
+  'loyalty.freeShipping': {
+    en: 'Free shipping',
+    zh: '免费配送',
+    id: 'Gratis ongkir'
+  },
+
+  // Booking Section
+  'booking.beautyServices': {
+    en: 'Beauty Services',
+    zh: '美容服务',
+    id: 'Layanan Kecantikan'
+  },
+  'booking.hairSpaNails': {
+    en: 'Hair Spa, Facials, Nails',
+    zh: '发型、面部护理、美甲',
+    id: 'Hair Spa, Facial, Kuku'
+  },
+  'booking.entertainment': {
+    en: 'Entertainment',
+    zh: '娱乐',
+    id: 'Hiburan'
+  },
+  'booking.clawMachineKTV': {
+    en: 'Claw Machine, KTV Rooms',
+    zh: '抓娃娃机、KTV包房',
+    id: 'Claw Machine, Ruang KTV'
+  },
+  'booking.cafeRestaurant': {
+    en: 'Cafe & Restaurant',
+    zh: '咖啡厅和餐厅',
+    id: 'Kafe & Restoran'
+  },
+  'booking.mealsDescription': {
+    en: 'Breakfast, Lunch, Dinner',
+    zh: '早餐、午餐、晚餐',
+    id: 'Sarapan, Makan Siang, Makan Malam'
+  },
+  'booking.startingFrom': {
+    en: 'Starting from RP 0',
+    zh: '起价 RP 0',
+    id: 'Mulai dari RP 0'
+  },
+
+
+
   'rewards.availableRewards': {
     en: 'Available Rewards',
     zh: '可用奖励',

@@ -27,6 +27,7 @@ A comprehensive digital financial management and collectible toy platform that c
 ## Recent Changes
 
 ### Translation Implementation Progress (June 13, 2025)
+- **Infrastructure Restoration**: ✓ Successfully resolved all duplicate key errors in i18n.ts
 - **Completed Sections**:
   - ✓ Loyalty program sections (Silver, Gold, Platinum, Diamond tiers)
   - ✓ Achievement system with all three achievements fully translated
@@ -36,16 +37,13 @@ A comprehensive digital financial management and collectible toy platform that c
   - ✓ Insufficient points messages and reward redemption flows
   - ✓ Out of stock messages and marketplace error handling
   - ✓ Reward redemption success/error messages
+  - ✓ Game section (mini-games, leaderboard, scores)
 
-- **Translation Keys Added**:
-  - toys.activationError, common.error
-  - marketplace.selectToyAndPrice
-  - rewards.insufficientPoints, rewards.needMorePoints
-  - rewards.outOfStock, rewards.unavailable
-  - rewards.redeemed, rewards.redeemedWithCredit, rewards.redeemedSuccess, rewards.redeemError
+- **Latest Translation Keys Added**:
+  - game.gameOver, game.finalScore, game.playAgain, game.done, game.viewLeaderboard
+  - Removed all duplicate keys: common.error, rewards.needMorePoints, profile.title, loyalty.gold, loyalty.platinum, loyalty.diamond, loyalty.personalConcierge, booking.title
 
-- **Translation Infrastructure**: Successfully restored with all duplicate keys resolved
-- **Next Phase**: Ready to continue systematic hardcoded text replacement with t() functions
+- **Current Phase**: Continuing systematic hardcoded text replacement across all UI components
 
 ### Authentication System
 - Multi-provider authentication implemented

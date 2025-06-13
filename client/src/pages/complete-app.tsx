@@ -5786,8 +5786,8 @@ export default function CompleteApp() {
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>No points history yet</p>
-                            <p className="text-sm mt-2">Your point earnings and redemptions will appear here</p>
+                            <p>{t('points.noHistoryYet')}</p>
+                            <p className="text-sm mt-2">{t('points.earningsWillAppear')}</p>
                           </div>
                         );
                       }
