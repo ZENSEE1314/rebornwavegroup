@@ -3348,10 +3348,10 @@ export default function CompleteApp() {
       borderColor: "border-yellow-200",
       icon: Star,
       benefits: [
-        language === "id" ? "Diskon 4% semua layanan" : "4% discount on all services",
-        language === "id" ? "Akses layanan eksklusif" : "Exclusive service access",
-        language === "id" ? "Dukungan prioritas" : "Priority support",
-        language === "id" ? "Hadiah ulang tahun" : "Birthday rewards"
+        t('loyalty.discount4Percent'),
+        t('loyalty.exclusiveServiceAccess'),
+        t('loyalty.prioritySupport'),
+        t('loyalty.birthdayRewards')
       ]
     },
     { 
@@ -3359,17 +3359,17 @@ export default function CompleteApp() {
       minPoints: 250000, 
       maxPoints: 999999, 
       discount: 6, 
-      name: language === "id" ? "Platinum" : "Platinum",
+      name: t('loyalty.platinum'),
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
       borderColor: "border-purple-200",
       icon: Crown,
       benefits: [
-        language === "id" ? "Diskon 6% semua layanan" : "6% discount on all services",
-        language === "id" ? "Akses VIP room" : "VIP room access",
-        language === "id" ? "Personal account manager" : "Personal account manager",
-        language === "id" ? "Upgrade gratis" : "Free upgrades",
-        language === "id" ? "Event eksklusif" : "Exclusive events"
+        t('loyalty.discount6Percent'),
+        t('loyalty.vipRoomAccess'),
+        t('loyalty.personalAccountManager'),
+        t('loyalty.freeUpgrades'),
+        t('loyalty.exclusiveEvents')
       ]
     },
     { 
@@ -3377,17 +3377,17 @@ export default function CompleteApp() {
       minPoints: 1000000, 
       maxPoints: Infinity, 
       discount: 10, 
-      name: language === "id" ? "Berlian" : "Diamond",
+      name: t('loyalty.diamond'),
       color: "from-blue-600 to-indigo-600",
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
       icon: Trophy,
       benefits: [
-        language === "id" ? "Diskon 10% semua layanan" : "10% discount on all services",
-        language === "id" ? "Layanan concierge pribadi" : "Personal concierge service",
-        language === "id" ? "Akses unlimited ke semua fasilitas" : "Unlimited access to all facilities",
-        language === "id" ? "Undangan acara VIP" : "VIP event invitations",
-        language === "id" ? "Hadiah tahunan eksklusif" : "Exclusive annual gifts"
+        t('loyalty.discount10Percent'),
+        t('loyalty.personalConcierge'),
+        t('loyalty.unlimitedAccess'),
+        t('loyalty.vipEventInvitations'),
+        t('loyalty.exclusiveAnnualGifts')
       ]
     }
   ];

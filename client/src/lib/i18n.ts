@@ -1026,6 +1026,56 @@ export const translations: Translations = {
     zh: '金牌',
     id: 'Emas'
   },
+  'loyalty.discount4Percent': {
+    en: '4% discount on all services',
+    zh: '所有服务4%折扣',
+    id: 'Diskon 4% semua layanan'
+  },
+  'loyalty.exclusiveServiceAccess': {
+    en: 'Exclusive service access',
+    zh: '专属服务访问',
+    id: 'Akses layanan eksklusif'
+  },
+  'loyalty.prioritySupport': {
+    en: 'Priority support',
+    zh: '优先支持',
+    id: 'Dukungan prioritas'
+  },
+  'loyalty.birthdayRewards': {
+    en: 'Birthday rewards',
+    zh: '生日奖励',
+    id: 'Hadiah ulang tahun'
+  },
+  'loyalty.platinum': {
+    en: 'Platinum',
+    zh: '白金',
+    id: 'Platinum'
+  },
+  'loyalty.discount6Percent': {
+    en: '6% discount on all services',
+    zh: '所有服务6%折扣',
+    id: 'Diskon 6% semua layanan'
+  },
+  'loyalty.vipRoomAccess': {
+    en: 'VIP room access',
+    zh: 'VIP房间访问',
+    id: 'Akses VIP room'
+  },
+  'loyalty.personalAccountManager': {
+    en: 'Personal account manager',
+    zh: '专属客户经理',
+    id: 'Personal account manager'
+  },
+  'loyalty.freeUpgrades': {
+    en: 'Free upgrades',
+    zh: '免费升级',
+    id: 'Upgrade gratis'
+  },
+  'loyalty.exclusiveEvents': {
+    en: 'Exclusive events',
+    zh: '专属活动',
+    id: 'Event eksklusif'
+  },
 
   'loyalty.pointsLeft': {
     en: 'points left',
