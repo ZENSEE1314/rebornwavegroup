@@ -2730,6 +2730,86 @@ export const translations: Translations = {
     en: 'Pet {current} of {total}',
     zh: '宠物 {current} / {total}',
     id: 'Hewan {current} dari {total}'
+  },
+  'petStage.grandTurtleDragon': {
+    en: 'Grand Turtle Dragon',
+    zh: '巨龙龟',
+    id: 'Grand Turtle Dragon'
+  },
+  'petStage.adultTurtleDragon': {
+    en: 'Adult Turtle Dragon',
+    zh: '成年龙龟',
+    id: 'Adult Turtle Dragon'
+  },
+  'petStage.teenagerTurtleDragon': {
+    en: 'Teenager Turtle Dragon',
+    zh: '青年龙龟',
+    id: 'Teenager Turtle Dragon'
+  },
+  'petStage.youthTurtleDragon': {
+    en: 'Youth Turtle Dragon',
+    zh: '幼年龙龟',
+    id: 'Youth Turtle Dragon'
+  },
+  'petStage.babyTurtleDragon': {
+    en: 'Baby Turtle Dragon',
+    zh: '婴儿龙龟',
+    id: 'Baby Turtle Dragon'
+  },
+  'petStage.deceased': {
+    en: 'Deceased',
+    zh: '已故',
+    id: 'Meninggal'
+  },
+  'petStatus.lifetime': {
+    en: 'Lifetime:',
+    zh: '生命周期：',
+    id: 'Waktu Hidup:'
+  },
+  'petStatus.age': {
+    en: 'Age:',
+    zh: '年龄：',
+    id: 'Umur:'
+  },
+  'petStatus.yearsOld': {
+    en: 'years old',
+    zh: '岁',
+    id: 'tahun'
+  },
+  'petStatus.diedAt100': {
+    en: 'Died at age 100',
+    zh: '100岁时死亡',
+    id: 'Meninggal pada usia 100 tahun'
+  },
+  'petStatus.approachingMax': {
+    en: 'Approaching maximum age!',
+    zh: '接近最大年龄！',
+    id: 'Mendekati usia maksimal!'
+  },
+  'petStatus.stage': {
+    en: 'Stage:',
+    zh: '阶段：',
+    id: 'Tahap:'
+  },
+  'petStatus.starving': {
+    en: 'Starving',
+    zh: '饥饿',
+    id: 'Lapar'
+  },
+  'petStatus.tooYoung': {
+    en: 'Too young for tokens',
+    zh: '太小无法获得代币',
+    id: 'Terlalu muda untuk token'
+  },
+  'petStats.happiness': {
+    en: 'Happiness',
+    zh: '快乐度',
+    id: 'Kebahagiaan'
+  },
+  'petStats.hunger': {
+    en: 'Hunger',
+    zh: '饥饿度',
+    id: 'Lapar'
   }
 };
 

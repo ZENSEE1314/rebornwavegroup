@@ -1191,12 +1191,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                {language === "id" ? "Sebelumnya" : "Previous"}
+                {t('navigation.previous')}
               </Button>
               
               <div className="bg-white border rounded-lg px-4 py-2 shadow-sm">
                 <span className="text-sm font-medium">
-                  {language === "id" ? `Hewan ${currentPetIndex + 1} dari ${userPets.length}` : `Pet ${currentPetIndex + 1} of ${userPets.length}`}
+                  {t('pet.count').replace('{current}', (currentPetIndex + 1).toString()).replace('{total}', userPets.length.toString())}
                 </span>
               </div>
               
@@ -1206,7 +1206,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 onClick={() => setCurrentPetIndex((prev) => (prev < userPets.length - 1 ? prev + 1 : 0))}
                 className="flex items-center gap-2"
               >
-                {language === "id" ? "Selanjutnya" : "Next"}
+                {t('navigation.next')}
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
@@ -1254,22 +1254,22 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
             let dragonEmoji = "🥚"; // Default baby stage
             
             if (isDead) {
-              growthStage = "Deceased";
+              growthStage = t('petStage.deceased');
               dragonEmoji = "💀";
             } else if (ageInYears >= 80) {
-              growthStage = language === "id" ? "Grand Turtle Dragon" : "Grand Turtle Dragon";
+              growthStage = t('petStage.grandTurtleDragon');
               dragonEmoji = "🐉"; // Majestic dragon
             } else if (ageInYears >= 60) {
-              growthStage = language === "id" ? "Adult Turtle Dragon" : "Adult Turtle Dragon";
+              growthStage = t('petStage.adultTurtleDragon');
               dragonEmoji = "🐲"; // Full grown dragon
             } else if (ageInYears >= 40) {
-              growthStage = language === "id" ? "Teenager Turtle Dragon" : "Teenager Turtle Dragon";
+              growthStage = t('petStage.teenagerTurtleDragon');
               dragonEmoji = "🦕"; // Large dinosaur
             } else if (ageInYears >= 20) {
-              growthStage = language === "id" ? "Youth Turtle Dragon" : "Youth Turtle Dragon";
+              growthStage = t('petStage.youthTurtleDragon');
               dragonEmoji = "🐢"; // Turtle form
             } else {
-              growthStage = language === "id" ? "Baby Turtle Dragon" : "Baby Turtle Dragon";
+              growthStage = t('petStage.babyTurtleDragon');
               dragonEmoji = "🐢"; // Baby turtle form
             }
             
@@ -1371,21 +1371,21 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   </CardTitle>
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between items-center">
-                      <span>{language === "id" ? "Waktu Hidup:" : "Lifetime:"}</span>
+                      <span>{t('petStatus.lifetime')}</span>
                       <span className="font-mono text-lg">{timerDisplay}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>{language === "id" ? "Umur:" : "Age:"}</span>
-                      <span>{ageInYears} {language === "id" ? "tahun" : "years old"}</span>
+                      <span>{t('petStatus.age')}</span>
+                      <span>{ageInYears} {t('petStatus.yearsOld')}</span>
                     </div>
                     {isDead && (
                       <div className="text-red-300 font-bold text-center">
-                        💀 {language === "id" ? "Meninggal pada usia 100 tahun" : "Died at age 100"}
+                        💀 {t('petStatus.diedAt100')}
                       </div>
                     )}
                     {days >= 90 && !isDead && (
                       <div className="text-yellow-300 font-bold text-center">
-                        ⚠️ {language === "id" ? "Mendekati usia maksimal!" : "Approaching maximum age!"}
+                        ⚠️ {t('petStatus.approachingMax')}
                       </div>
                     )}
                   </div>
