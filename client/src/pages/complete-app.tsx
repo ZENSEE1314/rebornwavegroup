@@ -4513,13 +4513,13 @@ export default function CompleteApp() {
       setNewToyCode("");
       
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Mainan Doluruu berhasil diaktifkan dan ditambahkan ke koleksi!" : "Doluruu toy successfully activated and added to collection!",
+        title: t('toys.activationSuccess'),
+        description: t('toys.activationSuccessMessage'),
       });
     } catch (error: any) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: error.message || (language === "id" ? "Gagal mengaktifkan mainan" : "Failed to activate toy"),
+        title: t('common.error'),
+        description: error.message || t('toys.activationError'),
         variant: "destructive"
       });
     }
@@ -4528,8 +4528,8 @@ export default function CompleteApp() {
   const createMarketplaceListing = () => {
     if (!newListingPrice || !selectedToyForSale) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Harap pilih mainan dan masukkan harga" : "Please select toy and enter price",
+        title: t('common.error'),
+        description: t('marketplace.selectToyAndPrice'),
         variant: "destructive"
       });
       return;

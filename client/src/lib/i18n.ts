@@ -1159,6 +1159,36 @@ export const translations: Translations = {
     zh: '500分 + 300奖励',
     id: '500 Poin + 300 Bonus'
   },
+  'achievements.resetSuccessful': {
+    en: 'Reset Successful',
+    zh: '重置成功',
+    id: 'Reset Berhasil'
+  },
+  'achievements.trackingReset': {
+    en: 'Achievement tracking has been reset',
+    zh: '成就跟踪已重置',
+    id: 'Tracking pencapaian telah direset'
+  },
+  'toys.activationSuccess': {
+    en: 'Success!',
+    zh: '成功！',
+    id: 'Berhasil!'
+  },
+  'toys.activationSuccessMessage': {
+    en: 'Doluruu toy successfully activated and added to collection!',
+    zh: 'Doluruu玩具成功激活并添加到收藏！',
+    id: 'Mainan Doluruu berhasil diaktifkan dan ditambahkan ke koleksi!'
+  },
+  'toys.activationError': {
+    en: 'Failed to activate toy',
+    zh: '激活玩具失败',
+    id: 'Gagal mengaktifkan mainan'
+  },
+  'common.error': {
+    en: 'Error',
+    zh: '错误',
+    id: 'Error'
+  },
   'loyalty.currentLevel': {
     en: 'Current Level',
     zh: '当前等级',
