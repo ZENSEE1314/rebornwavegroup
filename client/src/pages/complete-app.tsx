@@ -4550,8 +4550,8 @@ export default function CompleteApp() {
   const initiateRedemption = (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
-        title: language === "id" ? "Poin Tidak Cukup" : "Insufficient Points",
-        description: language === "id" ? `Butuh ${reward.pointsCost - loyaltyPoints} poin lagi` : `You need ${reward.pointsCost - loyaltyPoints} more points`,
+        title: t('rewards.insufficientPoints'),
+        description: t('rewards.needMorePoints', { points: reward.pointsCost - loyaltyPoints }),
         variant: "destructive"
       });
       return;
@@ -4560,8 +4560,8 @@ export default function CompleteApp() {
     // Check stock availability
     if (reward.stockQuantity && reward.stockQuantity <= 0) {
       toast({
-        title: language === "id" ? "Stok Habis" : "Out of Stock",
-        description: language === "id" ? "Reward ini sedang tidak tersedia" : "This reward is currently unavailable",
+        title: t('rewards.outOfStock'),
+        description: t('rewards.unavailable'),
         variant: "destructive"
       });
       return;
@@ -4596,10 +4596,10 @@ export default function CompleteApp() {
       queryClient.invalidateQueries({ queryKey: ['/api/rewards'] });
 
       toast({
-        title: language === "id" ? "Reward Ditukar!" : "Reward Redeemed!",
+        title: t('rewards.redeemed'),
         description: result.creditAdded 
-          ? (language === "id" ? `${selectedReward.name} berhasil ditukar! +RP ${result.creditAdded} ditambahkan` : `${selectedReward.name} successfully redeemed! +RP ${result.creditAdded} added`)
-          : (language === "id" ? `${selectedReward.name} berhasil ditukar` : `${selectedReward.name} successfully redeemed`)
+          ? t('rewards.redeemedWithCredit', { name: selectedReward.name, credit: result.creditAdded })
+          : t('rewards.redeemedSuccess', { name: selectedReward.name })
       });
       
       setShowRedeemConfirmation(false);

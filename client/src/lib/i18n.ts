@@ -1189,6 +1189,31 @@ export const translations: Translations = {
     zh: '错误',
     id: 'Error'
   },
+  'marketplace.selectToyAndPrice': {
+    en: 'Please select toy and enter price',
+    zh: '请选择玩具并输入价格',
+    id: 'Harap pilih mainan dan masukkan harga'
+  },
+  'rewards.insufficientPoints': {
+    en: 'Insufficient Points',
+    zh: '积分不足',
+    id: 'Poin Tidak Cukup'
+  },
+  'rewards.needMorePoints': {
+    en: 'You need {{points}} more points',
+    zh: '您还需要{{points}}积分',
+    id: 'Butuh {{points}} poin lagi'
+  },
+  'rewards.outOfStock': {
+    en: 'Out of Stock',
+    zh: '库存不足',
+    id: 'Stok Habis'
+  },
+  'rewards.unavailable': {
+    en: 'This reward is currently unavailable',
+    zh: '此奖励目前不可用',
+    id: 'Reward ini sedang tidak tersedia'
+  },
   'loyalty.currentLevel': {
     en: 'Current Level',
     zh: '当前等级',
