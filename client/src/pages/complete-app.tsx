@@ -511,8 +511,8 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
         {gameStarted && (
           <div className="space-y-4">
             <div className="flex justify-between">
-              <span>{language === "id" ? "Skor" : "Score"}: {score}</span>
-              <span>{language === "id" ? "Waktu" : "Time"}: {timeLeft}s</span>
+              <span>{t('game.score')}: {score}</span>
+              <span>{t('game.time')}: {timeLeft}s</span>
             </div>
             
             <div className="relative h-64 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden border-2">
@@ -543,7 +543,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-lg font-semibold">
-                {language === "id" ? "Papan Peringkat" : "Leaderboard"}
+                {t('game.leaderboard')}
               </h4>
               <Button 
                 onClick={() => setShowLeaderboard(false)} 
@@ -551,7 +551,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                 size="sm"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                {language === "id" ? "Kembali" : "Back"}
+                {t('game.back')}
               </Button>
             </div>
             
@@ -569,23 +569,21 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                           {entry.user?.firstName || entry.user?.email || 'Anonymous'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {language === "id" ? "Pet:" : "Pet:"} {entry.pet?.name || 'Unknown'}
+                          {t('game.pet')} {entry.pet?.name || 'Unknown'}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-lg">{entry.score}</div>
                       <div className="text-sm text-gray-500">
-                        {entry.tokensEarned} {language === "id" ? "token" : "tokens"}
+                        {entry.tokensEarned} {t('game.tokens')}
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  {language === "id" 
-                    ? "Belum ada skor yang tercatat. Jadilah yang pertama!"
-                    : "No scores recorded yet. Be the first!"}
+                  {t('game.noScores')}
                 </div>
               )}
             </div>

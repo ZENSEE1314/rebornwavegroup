@@ -2540,6 +2540,51 @@ export const translations: Translations = {
     en: 'tokens',
     zh: '代币',
     id: 'token'
+  },
+  'game.noScores': {
+    en: 'No scores recorded yet. Be the first!',
+    zh: '还没有记录分数。成为第一个！',
+    id: 'Belum ada skor yang tercatat. Jadilah yang pertama!'
+  },
+  'game.gameOver': {
+    en: 'Game Over!',
+    zh: '游戏结束！',
+    id: 'Permainan Selesai!'
+  },
+  'game.finalScore': {
+    en: 'Final Score: {score}',
+    zh: '最终分数：{score}',
+    id: 'Skor Akhir: {score}'
+  },
+  'game.playAgain': {
+    en: 'Play Again',
+    zh: '再次游戏',
+    id: 'Main Lagi'
+  },
+  'game.done': {
+    en: 'Done',
+    zh: '完成',
+    id: 'Selesai'
+  },
+  'game.viewLeaderboard': {
+    en: 'View Leaderboard',
+    zh: '查看排行榜',
+    id: 'Lihat Peringkat'
+  },
+  'pet.autoWoke': {
+    en: 'Pet Auto-Woke!',
+    zh: '宠物自动醒来！',
+    id: 'Pet Bangun Otomatis!'
+  },
+  'pet.energyFull': {
+    en: "Pet's energy is now full (100%)!",
+    zh: '宠物的能量现在已满（100%）！',
+    id: 'Energi pet sudah penuh (100%)!'
+  },
+  'pet.nameUpdateSuccess': {
+    en: 'Pet name updated successfully! (-5 tokens)',
+    zh: '宠物名称更新成功！（-5代币）',
+    id: 'Nama pet berhasil diubah! (-5 token)'
   }
 };
 
