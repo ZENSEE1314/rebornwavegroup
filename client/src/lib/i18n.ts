@@ -194,6 +194,46 @@ export const translations: Translations = {
     zh: '提交验证失败',
     id: 'Gagal mengirim verifikasi'
   },
+  'purchase.pointsEarned': {
+    en: 'Points earned: ',
+    zh: '获得积分：',
+    id: 'Poin diperoleh: '
+  },
+  'purchase.adminNotes': {
+    en: 'Admin notes: ',
+    zh: '管理员备注：',
+    id: 'Catatan admin: '
+  },
+  'pagination.previous': {
+    en: 'Previous',
+    zh: '上一页',
+    id: 'Sebelumnya'
+  },
+  'pagination.next': {
+    en: 'Next',
+    zh: '下一页',
+    id: 'Selanjutnya'
+  },
+  'pagination.showing': {
+    en: 'Showing',
+    zh: '显示',
+    id: 'Menampilkan'
+  },
+  'pagination.to': {
+    en: ' to ',
+    zh: ' 至 ',
+    id: ' sampai '
+  },
+  'pagination.of': {
+    en: ' of ',
+    zh: ' 共 ',
+    id: ' dari '
+  },
+  'pagination.verifications': {
+    en: ' verifications',
+    zh: ' 验证',
+    id: ' verifikasi'
+  },
   // Loyalty Program
   'loyalty.redeemPoints': {
     en: 'Redeem Points',

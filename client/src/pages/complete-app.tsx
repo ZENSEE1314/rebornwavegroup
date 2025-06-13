@@ -2915,9 +2915,9 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'approved': return language === "id" ? "Disetujui" : "Approved";
-      case 'rejected': return language === "id" ? "Ditolak" : "Rejected";
-      default: return language === "id" ? "Menunggu" : "Pending";
+      case 'approved': return t('purchase.status.approved');
+      case 'rejected': return t('purchase.status.rejected');
+      default: return t('purchase.status.pending');
     }
   };
 
@@ -3109,7 +3109,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                         <div className="bg-green-50 rounded p-2 mt-2">
                           <p className="text-sm text-green-800">
                             <Star className="w-4 h-4 inline mr-1" />
-                            {language === "id" ? "Poin diperoleh: " : "Points earned: "}
+                            {t('purchase.pointsEarned')}
                             <span className="font-bold">{verification.pointsAwarded}</span>
                           </p>
                         </div>
@@ -3119,7 +3119,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                         <div className="bg-blue-50 rounded p-2 mt-2">
                           <p className="text-sm text-blue-800">
                             <AlertTriangle className="w-4 h-4 inline mr-1" />
-                            {language === "id" ? "Catatan admin: " : "Admin notes: "}
+                            {t('purchase.adminNotes')}
                             {verification.adminNotes}
                           </p>
                         </div>
@@ -3137,7 +3137,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                       onClick={() => setVerificationPage(Math.max(1, verificationPage - 1))}
                       disabled={verificationPage === 1}
                     >
-                      {language === "id" ? "Sebelumnya" : "Previous"}
+                      {t('pagination.previous')}
                     </Button>
                     
                     <div className="flex space-x-1">
