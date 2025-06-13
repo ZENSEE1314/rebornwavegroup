@@ -558,6 +558,21 @@ export const translations: Translations = {
   },
 
   // Pet Care
+  'pet.care.title': {
+    en: 'Pet Care',
+    zh: '宠物护理',
+    id: 'Perawatan Hewan'
+  },
+  'pet.care.noToys': {
+    en: "You don't have any toys to turn into pets yet. Purchase toys first!",
+    zh: '您还没有任何玩具可以变成宠物。请先购买玩具！',
+    id: 'Anda belum memiliki mainan untuk dijadikan hewan peliharaan. Beli mainan terlebih dahulu!'
+  },
+  'pet.care.activate': {
+    en: 'Activate your toys to become virtual pets',
+    zh: '激活您的玩具成为虚拟宠物',
+    id: 'Aktifkan mainan Anda untuk menjadi hewan peliharaan virtual'
+  },
   'pet.care.feed': {
     en: 'Feed',
     zh: '喂食',

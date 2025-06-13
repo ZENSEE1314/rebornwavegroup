@@ -2050,13 +2050,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       <div className="space-y-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            {language === "id" ? "Perawatan Hewan Peliharaan" : "Pet Care"}
+            {t('pet.care.title')}
           </h2>
           <p className="text-slate-600">
-            {language === "id" 
-              ? "Anda belum memiliki mainan untuk dijadikan hewan peliharaan. Beli mainan terlebih dahulu!"
-              : "You don't have any toys to turn into pets yet. Purchase toys first!"
-            }
+            {t('pet.care.noToys')}
           </p>
         </div>
       </div>
@@ -2067,13 +2064,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     <div className="space-y-8">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-slate-900 mb-2">
-          {language === "id" ? "Perawatan Hewan Peliharaan" : "Pet Care"}
+          {t('pet.care.title')}
         </h2>
         <p className="text-slate-600">
-          {language === "id" 
-            ? "Aktifkan mainan Anda untuk menjadi hewan peliharaan virtual"
-            : "Activate your toys to become virtual pets"
-          }
+          {t('pet.care.activate')}
         </p>
       </div>
 
@@ -5493,12 +5487,12 @@ export default function CompleteApp() {
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>{language === "id" ? "Reservasi Cepat" : "Quick Booking"}</CardTitle>
+                    <CardTitle>{t('dashboard.quickBooking')}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <Select onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
                       <SelectTrigger>
-                        <SelectValue placeholder={language === "id" ? "Pilih Kategori" : "Select Category"} />
+                        <SelectValue placeholder={t('dashboard.selectCategory')} />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(serviceCategories).map(([key, category]) => (
@@ -5532,7 +5526,7 @@ export default function CompleteApp() {
 
                     <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
                       <SelectTrigger>
-                        <SelectValue placeholder={language === "id" ? "Pilih Waktu" : "Select Time"} />
+                        <SelectValue placeholder={t('dashboard.selectTime')} />
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({length: 24}, (_, i) => i).map(hour => (
@@ -5557,7 +5551,7 @@ export default function CompleteApp() {
 
                     <Button onClick={bookAppointment} className="w-full">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Buat Reservasi" : "Book Appointment"}
+                      {t('dashboard.bookAppointment')}
                     </Button>
                   </CardContent>
                 </Card>
