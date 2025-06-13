@@ -5573,7 +5573,7 @@ export default function CompleteApp() {
                       className="w-full bg-white/20 hover:bg-white/30 text-white mb-4"
                     >
                       <Copy className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Salin Kode" : "Copy Code"}
+                      {t('referral.copyCode')}
                     </Button>
                     <div className="text-center">
                       <QrCode className="w-16 h-16 mx-auto text-white/80 mb-2" />

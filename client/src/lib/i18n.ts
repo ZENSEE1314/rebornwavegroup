@@ -2051,6 +2051,183 @@ export const translations: Translations = {
     en: 'Referral Earnings',
     zh: '推荐收入',
     id: 'Penghasilan Rujukan'
+  },
+
+  // Additional translations for screenshots
+  'rewards.serviceCredits5000': {
+    en: 'RP 5,000 Service Credits',
+    zh: 'RP 5,000 服务积分',
+    id: 'RP 5,000 Kredit Layanan'
+  },
+  'rewards.add5000Credits': {
+    en: 'add 5,000 credits',
+    zh: '添加5,000积分',
+    id: 'tambah 5,000 kredit'
+  },
+  'history.dateFormat': {
+    en: 'dd/mm/yyyy',
+    zh: 'dd/mm/yyyy',
+    id: 'dd/mm/yyyy'
+  },
+  'loyalty.progressToSilver': {
+    en: 'Progress to Silver',
+    zh: '进度到银牌',
+    id: 'Kemajuan ke Perak'
+  },
+  'toyActivation.enterQRCode': {
+    en: 'Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)',
+    zh: '输入玩具二维码（例如 QR-87b4a03b003a-07377ac9-53d8fd）',
+    id: 'Masukkan kode QR mainan (misal QR-87b4a03b003a-07377ac9-53d8fd)'
+  },
+  'commission.structure': {
+    en: 'Commission Structure',
+    zh: '佣金结构',
+    id: 'Struktur Komisi'
+  },
+  'commission.totalReferrals': {
+    en: 'Total Referrals:',
+    zh: '总推荐数：',
+    id: 'Total Rujukan:'
+  },
+  'commission.noReferralNetwork': {
+    en: 'No Referral Network Yet',
+    zh: '暂无推荐网络',
+    id: 'Belum Ada Jaringan Rujukan'
+  },
+  'commission.shareReferralLink': {
+    en: 'Share your referral link to start building your network and earning commissions.',
+    zh: '分享您的推荐链接开始建立您的网络并赚取佣金。',
+    id: 'Bagikan tautan rujukan Anda untuk mulai membangun jaringan dan mendapatkan komisi.'
+  },
+  'profile.yourProfile': {
+    en: 'Your Profile',
+    zh: '您的个人资料',
+    id: 'Profil Anda'
+  },
+  'profile.manageAccount': {
+    en: 'Manage your account settings and preferences',
+    zh: '管理您的账户设置和偏好',
+    id: 'Kelola pengaturan dan preferensi akun Anda'
+  },
+  'profile.bronzeExplorer': {
+    en: 'Bronze Explorer',
+    zh: '青铜探险家',
+    id: 'Penjelajah Perunggu'
+  },
+  'profile.memberSince': {
+    en: 'Member Since:',
+    zh: '会员自：',
+    id: 'Anggota Sejak:'
+  },
+  'account.settings': {
+    en: 'Account Settings',
+    zh: '账户设置',
+    id: 'Pengaturan Akun'
+  },
+  'account.personalInformation': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'account.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'account.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'account.email': {
+    en: 'Email',
+    zh: '电子邮件',
+    id: 'Email'
+  },
+  'account.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
+  },
+  'account.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'account.male': {
+    en: 'Male',
+    zh: '男性',
+    id: 'Laki-laki'
+  },
+  'account.female': {
+    en: 'Female',
+    zh: '女性',
+    id: 'Perempuan'
+  },
+  'account.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'account.preferences': {
+    en: 'Preferences',
+    zh: '偏好设置',
+    id: 'Preferensi'
+  },
+  'account.emailNotifications': {
+    en: 'Email Notifications',
+    zh: '电子邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'account.receiveUpdates': {
+    en: 'Receive updates about appointments and promotions',
+    zh: '接收关于预约和促销的更新',
+    id: 'Terima pembaruan tentang janji temu dan promosi'
+  },
+  'account.manage': {
+    en: 'Manage',
+    zh: '管理',
+    id: 'Kelola'
+  },
+  'account.actions': {
+    en: 'Account Actions',
+    zh: '账户操作',
+    id: 'Tindakan Akun'
+  },
+  'account.editProfile': {
+    en: 'Edit Profile',
+    zh: '编辑个人资料',
+    id: 'Edit Profil'
+  },
+  'account.changePassword': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Kata Sandi'
+  },
+  'stats.accountStatistics': {
+    en: 'Account Statistics',
+    zh: '账户统计',
+    id: 'Statistik Akun'
+  },
+  'stats.currentCredits': {
+    en: 'Current Credits',
+    zh: '当前积分',
+    id: 'Kredit Saat Ini'
+  },
+  'stats.loyaltyPoints': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'stats.totalBookings': {
+    en: 'Total Bookings',
+    zh: '总预订数',
+    id: 'Total Pemesanan'
+  },
+  'stats.referralEarnings': {
+    en: 'Referral Earnings',
+    zh: '推荐收益',
+    id: 'Pendapatan Rujukan'
   }
 };
 
