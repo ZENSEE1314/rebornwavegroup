@@ -1316,7 +1316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/users/genealogy-tree', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User ID not found" });
+      }
       console.log(`*** GENEALOGY DEBUG: Building tree for user ${userId}`);
       const genealogyTree = await storage.buildReferralGenealogyTree(userId);
       console.log(`*** GENEALOGY DEBUG: Result for ${userId}:`, JSON.stringify(genealogyTree, null, 2));
@@ -1600,7 +1603,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Toy routes
   app.get('/api/toys', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User ID not found" });
+      }
       const toys = await storage.getToysByOwnerId(userId);
       console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
       if (toys.length > 0) {
