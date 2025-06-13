@@ -5597,10 +5597,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Program Loyalitas" : "Loyalty Program"}
+                {t('loyalty.title')}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Kumpulkan poin dan tukar reward menarik" : "Earn points and claim amazing rewards"}
+                {t('loyalty.description')}
               </p>
             </div>
 
@@ -5622,7 +5622,7 @@ export default function CompleteApp() {
                   </div>
                   <div className="text-right">
                     <p className="text-3xl font-bold text-slate-900">{loyaltyPoints}</p>
-                    <p className="text-slate-600">{language === "id" ? "Poin Tersedia" : "Available Points"}</p>
+                    <p className="text-slate-600">{t('loyalty.availablePoints')}</p>
                   </div>
                 </div>
 

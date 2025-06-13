@@ -669,6 +669,16 @@ export const translations: Translations = {
   },
   'loyalty.progressTo': {
     en: 'Progress to',
+    zh: '进度到',
+    id: 'Progress ke'
+  },
+  'loyalty.pointsToNext': {
+    en: 'points to next level',
+    zh: '积分到下一级',
+    id: 'poin ke level berikutnya'
+  },
+  'loyalty.progressTo': {
+    en: 'Progress to',
     zh: '进度至',
     id: 'Progress ke'
   },
