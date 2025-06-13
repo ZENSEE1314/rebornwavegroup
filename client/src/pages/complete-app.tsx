@@ -368,6 +368,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
 }
 
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
+  const { t } = useTranslation();
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -480,7 +481,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold">
-            {language === "id" ? "Permainan Coin Catching" : "Coin Catching Game"}
+            {t('game.coinCatching')}
           </h3>
           <Button variant="ghost" onClick={onClose}>✕</Button>
         </div>
@@ -489,13 +490,11 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           <div className="text-center space-y-4">
             <div className="text-4xl">🪙</div>
             <p className="text-gray-600">
-              {language === "id" 
-                ? "Tangkap koin yang jatuh untuk mendapatkan poin! Klik koin untuk menangkapnya."
-                : "Catch falling coins to earn points! Click coins to catch them."}
+              {t('game.instructions')}
             </p>
             <div className="space-y-2">
               <Button onClick={startGame} className="w-full">
-                {language === "id" ? "Mulai Permainan" : "Start Game"}
+                {t('game.startGame')}
               </Button>
               <Button 
                 onClick={() => setShowLeaderboard(true)} 
@@ -503,7 +502,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                 className="w-full"
               >
                 <Trophy className="h-4 w-4 mr-2" />
-                {language === "id" ? "Papan Peringkat" : "Leaderboard"}
+                {t('game.leaderboard')}
               </Button>
             </div>
           </div>

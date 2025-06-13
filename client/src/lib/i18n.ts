@@ -2505,6 +2505,41 @@ export const translations: Translations = {
     en: 'Score: {score}. Score saved to leaderboard!',
     zh: '分数：{score}。分数已保存到排行榜！',
     id: 'Skor: {score}. Skor tersimpan di papan peringkat!'
+  },
+  'game.instructions': {
+    en: 'Catch falling coins to earn points! Click coins to catch them.',
+    zh: '抓住下落的硬币来赚取分数！点击硬币来抓住它们。',
+    id: 'Tangkap koin yang jatuh untuk mendapatkan poin! Klik koin untuk menangkapnya.'
+  },
+  'game.leaderboard': {
+    en: 'Leaderboard',
+    zh: '排行榜',
+    id: 'Papan Peringkat'
+  },
+  'game.score': {
+    en: 'Score',
+    zh: '分数',
+    id: 'Skor'
+  },
+  'game.time': {
+    en: 'Time',
+    zh: '时间',
+    id: 'Waktu'
+  },
+  'game.back': {
+    en: 'Back',
+    zh: '返回',
+    id: 'Kembali'
+  },
+  'game.pet': {
+    en: 'Pet:',
+    zh: '宠物：',
+    id: 'Pet:'
+  },
+  'game.tokens': {
+    en: 'tokens',
+    zh: '代币',
+    id: 'token'
   }
 };
 
