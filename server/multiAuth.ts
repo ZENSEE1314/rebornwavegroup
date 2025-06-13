@@ -420,7 +420,7 @@ If you didn't request this password reset, please ignore this email.
     }
   });
 
-  // Logout
+  // Logout (POST version for API calls)
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.logout((err) => {
       if (err) {
@@ -432,6 +432,24 @@ If you didn't request this password reset, please ignore this email.
         }
         res.clearCookie('connect.sid');
         res.json({ message: 'Logged out successfully' });
+      });
+    });
+  });
+
+  // Logout (GET version for direct navigation)
+  app.get('/api/logout', (req: Request, res: Response) => {
+    req.logout((err) => {
+      if (err) {
+        console.error('Logout error:', err);
+        return res.redirect('/');
+      }
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destruction error:', err);
+          return res.redirect('/');
+        }
+        res.clearCookie('connect.sid');
+        res.redirect('/');
       });
     });
   });
