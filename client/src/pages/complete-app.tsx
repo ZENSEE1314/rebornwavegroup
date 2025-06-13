@@ -3178,7 +3178,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                       onClick={() => setVerificationPage(Math.min(verificationPagination.totalPages, verificationPage + 1))}
                       disabled={verificationPage === verificationPagination.totalPages}
                     >
-                      {language === "id" ? "Selanjutnya" : "Next"}
+                      {t('pagination.next')}
                     </Button>
                   </div>
                 )}
@@ -3186,10 +3186,10 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 {/* Pagination Info */}
                 {verificationPagination && (
                   <div className="mt-2 text-center text-sm text-gray-500">
-                    {language === "id" ? "Menampilkan" : "Showing"} {((verificationPage - 1) * 10) + 1} 
-                    {language === "id" ? " sampai " : " to "} {Math.min(verificationPage * 10, verificationPagination.total || 0)} 
-                    {language === "id" ? " dari " : " of "} {verificationPagination.total || 0} 
-                    {language === "id" ? " verifikasi" : " verifications"}
+                    {t('pagination.showing')} {((verificationPage - 1) * 10) + 1}
+                    {t('pagination.to')} {Math.min(verificationPage * 10, verificationPagination.total || 0)}
+                    {t('pagination.of')} {verificationPagination.total || 0}
+                    {t('pagination.verifications')}
                   </div>
                 )}
               </>
