@@ -5046,16 +5046,16 @@ export default function CompleteApp() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide pb-2">
             {[
-              { id: "dashboard", label: language === "id" ? "Beranda" : "Dashboard", icon: Home },
-              { id: "petcare", label: language === "id" ? "Perawatan Hewan" : "Pet Care", icon: Heart },
-              { id: "purchase", label: language === "id" ? "Verifikasi Pembelian" : "Purchase Verification", icon: Camera },
-              { id: "loyalty", label: language === "id" ? "Loyalitas" : "Loyalty", icon: Star },
-              { id: "bookings", label: language === "id" ? "Reservasi" : "Bookings", icon: Calendar },
-              { id: "marketplace", label: language === "id" ? "Pasar" : "Marketplace", icon: ShoppingBag },
-              { id: "inventory", label: language === "id" ? "Koleksi" : "Collections", icon: Package },
-              ...(user?.role === 'admin' ? [{ id: "admin", label: language === "id" ? "Admin" : "Admin", icon: Settings }] : []),
-              { id: "referrals", label: language === "id" ? "Rujukan" : "Referrals", icon: Users },
-              { id: "profile", label: language === "id" ? "Profil" : "Profile", icon: User }
+              { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
+              { id: "petcare", label: t('petcare.title'), icon: Heart },
+              { id: "purchase", label: t('purchase.verification'), icon: Camera },
+              { id: "loyalty", label: t('loyalty.title'), icon: Star },
+              { id: "bookings", label: t('bookings.title'), icon: Calendar },
+              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
+              { id: "inventory", label: t('inventory.title'), icon: Package },
+              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
+              { id: "referrals", label: t('tabs.referrals'), icon: Users },
+              { id: "profile", label: t('tabs.profile'), icon: User }
             ].map((tab) => (
               <button
                 key={tab.id}

@@ -291,6 +291,58 @@ export const translations: Translations = {
     en: 'Welcome Back',
     zh: '欢迎回来'
   },
+  'tabs.dashboard': {
+    en: 'Dashboard',
+    zh: '仪表板'
+  },
+  'tabs.pets': {
+    en: 'My Pets',
+    zh: '我的宠物'
+  },
+  'tabs.profile': {
+    en: 'Profile',
+    zh: '个人资料'
+  },
+  'tabs.shop': {
+    en: 'Shop',
+    zh: '商店'
+  },
+  'tabs.rewards': {
+    en: 'Rewards',
+    zh: '奖励'
+  },
+  'tabs.referrals': {
+    en: 'Referrals',
+    zh: '推荐'
+  },
+  'tabs.admin': {
+    en: 'Admin',
+    zh: '管理员'
+  },
+  'petcare.title': {
+    en: 'Pet Care',
+    zh: '宠物护理'
+  },
+  'purchase.verification': {
+    en: 'Purchase Verification',
+    zh: '购买验证'
+  },
+  'loyalty.title': {
+    en: 'Loyalty',
+    zh: '忠诚度'
+  },
+  'bookings.title': {
+    en: 'Bookings',
+    zh: '预约'
+  },
+  'marketplace.title': {
+    en: 'Marketplace',
+    zh: '市场'
+  },
+  'inventory.title': {
+    en: 'Collections',
+    zh: '收藏'
+  },
   'dashboard.myPets': {
     en: 'My Pets',
     zh: '我的宠物'
