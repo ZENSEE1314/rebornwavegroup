@@ -5,6 +5,11 @@ import { Strategy as FacebookStrategy } from 'passport-facebook';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
 import type { Express, Request, Response } from 'express';
+
+// Helper function to extract user ID from different auth formats
+function getUserId(req: any): string | null {
+  return req.user?.claims?.sub || req.user?.id || null;
+}
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
 
@@ -403,13 +408,14 @@ If you didn't request this password reset, please ignore this email.
   });
 
   // Get current user
-  app.get('/api/auth/user', async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    
+  app.get('/api/auth/user', requireAuth, async (req: Request, res: Response) => {
     try {
-      const user = await storage.getUser((req.user as any).id);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
       }
