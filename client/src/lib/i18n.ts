@@ -2890,6 +2890,11 @@ export const translations: Translations = {
     en: 'Not Enough Energy!',
     zh: '能量不足！',
     id: 'Energi Tidak Cukup!'
+  },
+  'energyNotEnough.description': {
+    en: 'Pet needs to rest or sleep to gain energy.',
+    zh: '宠物需要休息或睡觉来获得能量。',
+    id: 'Pet perlu istirahat atau tidur untuk mendapatkan energi.'
   }
 };
 

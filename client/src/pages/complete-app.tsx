@@ -1746,8 +1746,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         
                         <div className="text-xs text-purple-600 text-center mt-2">
                           {isDead ? 
-                            (language === "id" ? "Pet telah mencapai akhir hidupnya dengan penuh kasih." : "Pet has reached the end of its loving life.") :
-                            (language === "id" ? "Rawat pet Anda untuk mempercepat perkembangan!" : "Care for your pet to accelerate development!")
+                            t('petEvolution.endOfLife') :
+                            t('petEvolution.careToAccelerate')
                           }
                         </div>
                       </div>
@@ -1756,7 +1756,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   {/* Daily Care Activities */}
                   <div className="space-y-3">
                     <h4 className="font-semibold text-gray-900">
-                      {language === "id" ? "Aktivitas Harian" : "Daily Activities"}
+                      {t('dailyActivities.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                       <Button
