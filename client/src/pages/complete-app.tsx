@@ -3332,9 +3332,9 @@ export default function CompleteApp() {
       borderColor: "border-gray-200",
       icon: Medal,
       benefits: [
-        language === "id" ? "Diskon 2% semua layanan" : "2% discount on all services",
-        language === "id" ? "Prioritas booking" : "Priority booking",
-        language === "id" ? "Bonus poin referral" : "Bonus referral points"
+        t('loyalty.discount2Percent'),
+        t('loyalty.priorityBooking'),
+        t('loyalty.bonusReferralPoints')
       ]
     },
     { 
@@ -3342,7 +3342,7 @@ export default function CompleteApp() {
       minPoints: 25000, 
       maxPoints: 249999, 
       discount: 4, 
-      name: language === "id" ? "Emas" : "Gold",
+      name: t('loyalty.gold'),
       color: "from-yellow-500 to-yellow-600",
       bgColor: "bg-yellow-50",
       borderColor: "border-yellow-200",

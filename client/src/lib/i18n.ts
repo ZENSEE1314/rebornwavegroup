@@ -1001,6 +1001,31 @@ export const translations: Translations = {
     zh: '基础推荐计划',
     id: 'Program referral dasar'
   },
+  'loyalty.silver': {
+    en: 'Silver',
+    zh: '银牌',
+    id: 'Perak'
+  },
+  'loyalty.discount2Percent': {
+    en: '2% discount on all services',
+    zh: '所有服务2%折扣',
+    id: 'Diskon 2% semua layanan'
+  },
+  'loyalty.priorityBooking': {
+    en: 'Priority booking',
+    zh: '优先预订',
+    id: 'Prioritas booking'
+  },
+  'loyalty.bonusReferralPoints': {
+    en: 'Bonus referral points',
+    zh: '奖励推荐积分',
+    id: 'Bonus poin referral'
+  },
+  'loyalty.gold': {
+    en: 'Gold',
+    zh: '金牌',
+    id: 'Emas'
+  },
 
   'loyalty.pointsLeft': {
     en: 'points left',
