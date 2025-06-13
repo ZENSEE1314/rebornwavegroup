@@ -2441,11 +2441,6 @@ export const translations: Translations = {
     zh: '只宠物都很健康！✓',
     id: 'hewan sehat! ✓'
   },
-  'common.all': {
-    en: 'All',
-    zh: '所有',
-    id: 'Semua'
-  },
   'petHealth.needCare': {
     en: 'Some pets need care',
     zh: '一些宠物需要照顾',
@@ -2505,6 +2500,11 @@ export const translations: Translations = {
     en: 'Start Game',
     zh: '开始游戏',
     id: 'Mulai Permainan'
+  },
+  'game.scoreMessage': {
+    en: 'Score: {score}. Score saved to leaderboard!',
+    zh: '分数：{score}。分数已保存到排行榜！',
+    id: 'Skor: {score}. Skor tersimpan di papan peringkat!'
   }
 };
 

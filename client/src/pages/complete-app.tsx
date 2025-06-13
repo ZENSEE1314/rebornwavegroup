@@ -332,19 +332,19 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
             {claimDailyRewardMutation.isPending ? (
               <>
                 <Clock className="w-4 h-4 mr-2 animate-spin" />
-                {language === "id" ? "Mengklaim..." : "Claiming..."}
+                {t('dailyReward.claiming')}
               </>
             ) : (
               <>
                 <Coins className="w-4 h-4 mr-2" />
-                {language === "id" ? "Klaim 1 Token" : "Claim 1 Token"}
+                {t('dailyReward.claimToken')}
               </>
             )}
           </Button>
         ) : (
           <div className="text-center py-3">
             <p className="text-sm text-gray-500 mb-1">
-              {language === "id" ? "Hadiah berikutnya tersedia dalam:" : "Next reward available in:"}
+              {t('dailyReward.nextAvailable')}
             </p>
             <p className="font-mono text-lg font-semibold text-gray-700">
               {timeUntilNext}
@@ -356,11 +356,11 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
       {/* Requirements */}
       <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
         <h5 className="font-medium text-blue-900 mb-2">
-          {language === "id" ? "Persyaratan:" : "Requirements:"}
+          {t('dailyReward.requirements')}
         </h5>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• {language === "id" ? "Tunggu 24 jam sejak klaim terakhir" : "Wait 24 hours since last claim"}</li>
-          <li>• {language === "id" ? "Semua hewan harus sehat (tidak ada stat 0%)" : "All pets must be healthy (no 0% stats)"}</li>
+          <li>• {t('dailyReward.wait24Hours')}</li>
+          <li>• {t('dailyReward.allPetsHealthy')}</li>
         </ul>
       </div>
     </div>
@@ -450,16 +450,14 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
         await useQueryClient().invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
         
         toast({
-          title: language === "id" ? "Permainan Selesai!" : "Game Over!",
-          description: language === "id" 
-            ? `Skor: ${score}. Skor tersimpan di papan peringkat!` 
-            : `Score: ${score}. Score saved to leaderboard!`,
+          title: t('game.over'),
+          description: t('game.scoreMessage').replace('{score}', score.toString()),
         });
       } catch (error) {
         console.error('Error submitting game score:', error);
         toast({
-          title: language === "id" ? "Error" : "Error",
-          description: language === "id" ? "Gagal menyimpan skor" : "Failed to save score",
+          title: t('game.error'),
+          description: t('game.failedToSave'),
           variant: "destructive"
         });
       }
