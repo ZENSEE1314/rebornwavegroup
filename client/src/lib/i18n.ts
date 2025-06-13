@@ -2835,6 +2835,61 @@ export const translations: Translations = {
     en: 'Pet Age:',
     zh: '宠物年龄：',
     id: 'Umur Pet:'
+  },
+  'timeUnits.years': {
+    en: 'years',
+    zh: '年',
+    id: 'tahun'
+  },
+  'petEvolution.nextEvolution': {
+    en: 'Next Evolution:',
+    zh: '下一次进化：',
+    id: 'Evolusi Berikutnya:'
+  },
+  'petStages.child': {
+    en: 'Child',
+    zh: '儿童',
+    id: 'Anak'
+  },
+  'petStages.teen': {
+    en: 'Teen',
+    zh: '青少年',
+    id: 'Remaja'
+  },
+  'petStages.adult': {
+    en: 'Adult',
+    zh: '成人',
+    id: 'Dewasa'
+  },
+  'petStages.elder': {
+    en: 'Elder',
+    zh: '长者',
+    id: 'Lansia'
+  },
+  'petStages.maximum': {
+    en: 'Maximum',
+    zh: '最大',
+    id: 'Maksimal'
+  },
+  'petEvolution.endOfLife': {
+    en: 'Pet has reached the end of its loving life.',
+    zh: '宠物已经到达了充满爱的生命终点。',
+    id: 'Pet telah mencapai akhir hidupnya dengan penuh kasih.'
+  },
+  'petEvolution.careToAccelerate': {
+    en: 'Care for your pet to accelerate development!',
+    zh: '照顾您的宠物以加速发展！',
+    id: 'Rawat pet Anda untuk mempercepat perkembangan!'
+  },
+  'dailyActivities.title': {
+    en: 'Daily Activities',
+    zh: '日常活动',
+    id: 'Aktivitas Harian'
+  },
+  'energyNotEnough.title': {
+    en: 'Not Enough Energy!',
+    zh: '能量不足！',
+    id: 'Energi Tidak Cukup!'
   }
 };
 

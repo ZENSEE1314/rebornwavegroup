@@ -1698,7 +1698,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-semibold text-purple-800">
-                          {language === "id" ? "Perkembangan Evolusi" : "Evolution Progress"}
+                          {t('petEvolution.progress')}
                         </h3>
                         <div className="text-2xl">🌟</div>
                       </div>
@@ -1706,7 +1706,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-purple-700">
-                            {language === "id" ? "Tahap Saat Ini:" : "Current Stage:"}
+                            {t('petEvolution.currentStage')}
                           </span>
                           <span className="font-semibold text-purple-800 capitalize">
                             {growthStage}
@@ -1715,23 +1715,23 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-purple-700">
-                            {language === "id" ? "Umur Pet:" : "Pet Age:"}
+                            {t('petEvolution.petAge')}
                           </span>
                           <span className="font-semibold text-purple-800">
-                            {ageInYears} {language === "id" ? "tahun" : "years"}
+                            {ageInYears} {t('timeUnits.years')}
                           </span>
                         </div>
                         
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-purple-700">
-                            {language === "id" ? "Evolusi Berikutnya:" : "Next Evolution:"}
+                            {t('petEvolution.nextEvolution')}
                           </span>
                           <span className="font-semibold text-purple-800">
-                            {ageInYears >= 80 ? (language === "id" ? "Maksimal" : "Maximum") : 
-                             ageInYears >= 60 ? (language === "id" ? "Lansia" : "Elder") :
-                             ageInYears >= 40 ? (language === "id" ? "Dewasa" : "Adult") :
-                             ageInYears >= 20 ? (language === "id" ? "Remaja" : "Teen") :
-                             (language === "id" ? "Anak" : "Child")}
+                            {ageInYears >= 80 ? t('petStages.maximum') : 
+                             ageInYears >= 60 ? t('petStages.elder') :
+                             ageInYears >= 40 ? t('petStages.adult') :
+                             ageInYears >= 20 ? t('petStages.teen') :
+                             t('petStages.child')}
                           </span>
                         </div>
                         
