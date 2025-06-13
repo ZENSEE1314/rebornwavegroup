@@ -175,10 +175,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/auth/register', async (req, res) => {
     try {
-      const { email, password, firstName, lastName, referralCode } = req.body;
+      const { email, password, firstName, lastName, phoneNumber, dateOfBirth, gender, referralCode } = req.body;
       
-      if (!email || !password || !firstName || !lastName) {
-        return res.status(400).json({ message: 'All fields are required' });
+      if (!email || !password || !firstName || !lastName || !phoneNumber || !dateOfBirth || !gender) {
+        return res.status(400).json({ message: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)' });
+      }
+
+      // Validate gender field
+      if (gender !== 'male' && gender !== 'female') {
+        return res.status(400).json({ message: 'Gender must be either male or female' });
       }
       
       // Check if user already exists
@@ -187,12 +192,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'User already exists with this email' });
       }
       
-      // Create new user
-      const user = await storage.createUser({
+      // Create new user with enhanced fields
+      const user = await storage.createEmailUser({
         email,
         password,
         firstName,
         lastName,
+        phoneNumber,
+        dateOfBirth: new Date(dateOfBirth),
+        gender,
         authProvider: 'email',
         referralCode: referralCode || null,
       });
@@ -202,7 +210,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (err) {
           return res.status(500).json({ message: 'Registration failed' });
         }
-        res.json({ user });
+        res.json({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phoneNumber: user.phoneNumber,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
+          authProvider: user.authProvider
+        });
       });
     } catch (error) {
       console.error('Registration error:', error);

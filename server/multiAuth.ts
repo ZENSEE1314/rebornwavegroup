@@ -175,6 +175,11 @@ export function setupAuthRoutes(app: Express) {
         return res.status(400).json({ message: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)' });
       }
 
+      // Validate gender field
+      if (gender !== 'male' && gender !== 'female') {
+        return res.status(400).json({ message: 'Gender must be either male or female' });
+      }
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
