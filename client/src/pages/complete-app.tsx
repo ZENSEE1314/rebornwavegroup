@@ -2979,7 +2979,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Upload Bukti Pembayaran" : "Upload Receipt Image"}
+                  {t('payment.uploadReceipt')}
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   {imagePreview ? (
@@ -3005,9 +3005,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                     <div>
                       <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                       <p className="text-gray-600 mb-4">
-                        {language === "id" 
-                          ? "Klik untuk upload bukti pembayaran" 
-                          : "Click to upload receipt image"}
+                        {t('payment.clickToUpload')}
                       </p>
                       <input
                         type="file"
@@ -3020,15 +3018,13 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                         htmlFor="receipt-upload"
                         className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                       >
-                        {language === "id" ? "Pilih File" : "Choose File"}
+                        {t('payment.chooseFile')}
                       </label>
                     </div>
                   )}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  {language === "id" 
-                    ? "Format: JPG, PNG, maksimal 10MB" 
-                    : "Supported: JPG, PNG, max 10MB"}
+                  {t('payment.supported')}
                 </p>
               </div>
 
@@ -3042,12 +3038,12 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    {language === "id" ? "Mengirim..." : "Submitting..."}
+                    {t('common.submitting')}
                   </div>
                 ) : (
                   <>
                     <Camera className="w-4 h-4 mr-2" />
-                    {language === "id" ? "Kirim Verifikasi" : "Submit Verification"}
+                    {t('payment.submitVerification')}
                   </>
                 )}
               </Button>
@@ -3060,7 +3056,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              {language === "id" ? "Riwayat Verifikasi" : "Verification History"}
+              {t('payment.verificationHistory')}
             </CardTitle>
           </CardHeader>
           <CardContent>

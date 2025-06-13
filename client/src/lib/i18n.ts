@@ -774,6 +774,214 @@ export const translations: Translations = {
     id: 'Total Rujukan'
   },
 
+  // Payment Verification
+  'payment.uploadReceipt': {
+    en: 'Upload Receipt Image',
+    zh: '上传收据图片',
+    id: 'Unggah Gambar Struk'
+  },
+  'payment.clickToUpload': {
+    en: 'Click to upload receipt image',
+    zh: '点击上传收据图片',
+    id: 'Klik untuk mengunggah gambar struk'
+  },
+  'payment.chooseFile': {
+    en: 'Choose File',
+    zh: '选择文件',
+    id: 'Pilih File'
+  },
+  'payment.supported': {
+    en: 'Supported: JPG, PNG, max 10MB',
+    zh: '支持格式：JPG，PNG，最大10MB',
+    id: 'Didukung: JPG, PNG, maks 10MB'
+  },
+  'payment.submitVerification': {
+    en: 'Submit Verification',
+    zh: '提交验证',
+    id: 'Kirim Verifikasi'
+  },
+  'payment.verificationHistory': {
+    en: 'Verification History',
+    zh: '验证历史',
+    id: 'Riwayat Verifikasi'
+  },
+
+  // Loyalty Levels
+  'loyalty.allLevels': {
+    en: 'All Loyalty Levels',
+    zh: '所有忠诚度等级',
+    id: 'Semua Level Loyalitas'
+  },
+  'loyalty.bronze': {
+    en: 'Bronze',
+    zh: '青铜',
+    id: 'Perunggu'
+  },
+  'loyalty.silver': {
+    en: 'Silver',
+    zh: '银牌',
+    id: 'Perak'
+  },
+  'loyalty.gold': {
+    en: 'Gold',
+    zh: '金牌',
+    id: 'Emas'
+  },
+  'loyalty.platinum': {
+    en: 'Platinum',
+    zh: '白金',
+    id: 'Platinum'
+  },
+  'loyalty.diamond': {
+    en: 'Diamond',
+    zh: '钻石',
+    id: 'Berlian'
+  },
+  'loyalty.level': {
+    en: 'Level',
+    zh: '等级',
+    id: 'Level'
+  },
+  'loyalty.discount': {
+    en: 'discount',
+    zh: '折扣',
+    id: 'diskon'
+  },
+  'loyalty.discountOnServices': {
+    en: 'discount on all services',
+    zh: '所有服务折扣',
+    id: 'diskon untuk semua layanan'
+  },
+  'loyalty.platformAccess': {
+    en: 'Platform access',
+    zh: '平台访问',
+    id: 'Akses platform'
+  },
+  'loyalty.basicReferral': {
+    en: 'Basic referral program',
+    zh: '基础推荐计划',
+    id: 'Program rujukan dasar'
+  },
+  'loyalty.priorityBooking': {
+    en: 'Priority booking',
+    zh: '优先预订',
+    id: 'Pemesanan prioritas'
+  },
+  'loyalty.exclusiveAccess': {
+    en: 'Exclusive service access',
+    zh: '独家服务访问',
+    id: 'Akses layanan eksklusif'
+  },
+  'loyalty.vipAccess': {
+    en: 'VIP room access',
+    zh: 'VIP房间访问',
+    id: 'Akses ruang VIP'
+  },
+  'loyalty.personalConcierge': {
+    en: 'Personal concierge service',
+    zh: '个人礼宾服务',
+    id: 'Layanan concierge pribadi'
+  },
+  'loyalty.more': {
+    en: 'more',
+    zh: '更多',
+    id: 'lainnya'
+  },
+
+  // Rewards
+  'rewards.available': {
+    en: 'Available Rewards',
+    zh: '可用奖励',
+    id: 'Hadiah Tersedia'
+  },
+  'rewards.pointsOnly': {
+    en: 'Points can only be added by admin',
+    zh: '积分只能由管理员添加',
+    id: 'Poin hanya dapat ditambahkan oleh admin'
+  },
+  'rewards.clawToken': {
+    en: '1 Claw Machine Token',
+    zh: '1个抓娃娃机代币',
+    id: '1 Token Mesin Cakar'
+  },
+  'rewards.item': {
+    en: 'item',
+    zh: '物品',
+    id: 'item'
+  },
+  'rewards.serviceCredits': {
+    en: 'RP 5,000 Service Credits',
+    zh: 'RP 5,000 服务积分',
+    id: 'RP 5,000 Kredit Layanan'
+  },
+  'rewards.credit': {
+    en: 'credit',
+    zh: '积分',
+    id: 'kredit'
+  },
+  'rewards.addCredits': {
+    en: 'add 5,000 credits',
+    zh: '添加5,000积分',
+    id: 'tambah 5,000 kredit'
+  },
+  'rewards.needMorePoints': {
+    en: 'Need more points',
+    zh: '需要更多积分',
+    id: 'Butuh lebih banyak poin'
+  },
+
+  // History and Benefits
+  'history.point': {
+    en: 'Point History',
+    zh: '积分历史',
+    id: 'Riwayat Poin'
+  },
+  'benefits.your': {
+    en: 'Your Level Benefits',
+    zh: '您的等级福利',
+    id: 'Manfaat Level Anda'
+  },
+  'benefits.bonusPoints': {
+    en: '5% bonus points',
+    zh: '5%奖励积分',
+    id: '5% poin bonus'
+  },
+  'benefits.birthdayDiscount': {
+    en: 'Birthday discount 10%',
+    zh: '生日折扣10%',
+    id: 'Diskon ulang tahun 10%'
+  },
+  'benefits.freeShipping': {
+    en: 'Free shipping',
+    zh: '免费送货',
+    id: 'Gratis ongkir'
+  },
+  'history.redemption': {
+    en: 'Redemption History',
+    zh: '兑换历史',
+    id: 'Riwayat Penukaran'
+  },
+  'history.noRedemption': {
+    en: 'No redemption history yet',
+    zh: '暂无兑换历史',
+    id: 'Belum ada riwayat penukaran'
+  },
+  'history.rewardAppear': {
+    en: 'Your reward redemptions will appear here',
+    zh: '您的奖励兑换将显示在这里',
+    id: 'Penukaran hadiah Anda akan muncul di sini'
+  },
+  'common.all': {
+    en: 'All',
+    zh: '全部',
+    id: 'Semua'
+  },
+  'common.submitting': {
+    en: 'Submitting...',
+    zh: '提交中...',
+    id: 'Mengirim...'
+  },
+
   'loyalty.pointsLeft': {
     en: 'points left',
     zh: '积分剩余',
