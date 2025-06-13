@@ -7458,7 +7458,6 @@ export default function CompleteApp() {
                           <option value="">{language === "id" ? "Pilih jenis kelamin" : "Select gender"}</option>
                           <option value="male">{language === "id" ? "Laki-laki" : "Male"}</option>
                           <option value="female">{language === "id" ? "Perempuan" : "Female"}</option>
-                          <option value="other">{language === "id" ? "Lainnya" : "Other"}</option>
                         </select>
                       </div>
                       <div>

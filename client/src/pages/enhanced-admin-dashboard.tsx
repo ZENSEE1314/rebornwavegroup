@@ -1277,7 +1277,6 @@ function EnhancedAdminDashboard() {
                               <option value="">Select</option>
                               <option value="male">Male</option>
                               <option value="female">Female</option>
-                              <option value="other">Other</option>
                             </select>
                           ) : (
                             user.gender ? (user.gender.charAt(0).toUpperCase() + user.gender.slice(1)) : 'Not set'

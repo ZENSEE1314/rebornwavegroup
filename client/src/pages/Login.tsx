@@ -27,9 +27,8 @@ const registerSchema = z.object({
   countryCode: z.string().min(1, "Please select a country code"),
   phoneNumber: z.string().min(7, "Please enter a valid phone number"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.enum(["male", "female"], {
-    required_error: "Please select a gender",
-    invalid_type_error: "Gender must be male or female"
+  gender: z.string().refine((val) => val === "male" || val === "female", {
+    message: "Please select a gender"
   }),
   referralCode: z.string().optional(),
 });
