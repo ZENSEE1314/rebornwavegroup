@@ -1261,6 +1261,26 @@ export const translations: Translations = {
     zh: '在玩具包装上找到唯一的二维码',
     id: 'Temukan QR code unik di kemasan mainan'
   },
+  'activation.step3': {
+    en: 'Enter secure QR code above to activate',
+    zh: '在上方输入安全二维码以激活',
+    id: 'Masukkan kode QR yang aman di atas untuk mengaktifkan'
+  },
+  'activation.step4': {
+    en: 'Toy will be added to your digital collection!',
+    zh: '玩具将被添加到您的数字收藏中！',
+    id: 'Mainan akan ditambahkan ke koleksi digital Anda!'
+  },
+  'activation.securitySystem': {
+    en: '🔒 Security System:',
+    zh: '🔒 安全系统：',
+    id: '🔒 Sistem Keamanan:'
+  },
+  'activation.encryptionProtection': {
+    en: 'Each QR code is unique and unpredictable to prevent unauthorized toy additions.',
+    zh: '每个二维码都是独特且不可预测的，以防止未授权的玩具添加。',
+    id: 'Setiap QR code adalah unik dan tidak dapat ditebak untuk mencegah penambahan mainan tanpa izin.'
+  },
   'pet.active': {
     en: 'Pet Active',
     zh: '宠物活跃',

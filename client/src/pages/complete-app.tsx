@@ -6947,9 +6947,9 @@ export default function CompleteApp() {
                     </ol>
                     <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
                       <span className="font-semibold">
-                        {language === "id" ? "🔒 Sistem Keamanan:" : "🔒 Security System:"}
+                        {t("activation.securitySystem")}
                       </span>
-                      {language === "id" ? " Setiap QR code adalah unik dan tidak dapat ditebak untuk mencegah penambahan mainan tanpa izin." : " Each QR code is unique and unpredictable to prevent unauthorized toy additions."}
+                      {" " + t("activation.encryptionProtection")}
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-2 mt-4">
