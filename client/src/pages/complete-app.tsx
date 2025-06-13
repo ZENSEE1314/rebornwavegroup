@@ -192,7 +192,7 @@ function DailyTokenChecker({ petId, petName, currentStats }: {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          setTokenStatus(prev => ({ ...prev, canClaim: false, lastTokenClaim: new Date() }));
+          setTokenStatus((prev: any) => ({ ...prev, canClaim: false, lastTokenClaim: new Date() }));
           // Refresh user data to show new token count
           window.location.reload();
         }
@@ -258,6 +258,8 @@ function DailyTokenChecker({ petId, petName, currentStats }: {
 
 // Daily Token Reward Component
 function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyRewardMutation }: any) {
+  const { t } = useTranslation();
+  
   if (!dailyRewardStatus) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -2284,7 +2286,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
         <CardContent>
           <DailyTokenReward 
             language={language}
-            userTokens={userStats?.tokens || 0}
+            userTokens={userTokens}
             dailyRewardStatus={dailyRewardStatus}
             claimDailyRewardMutation={claimDailyRewardMutation}
           />
