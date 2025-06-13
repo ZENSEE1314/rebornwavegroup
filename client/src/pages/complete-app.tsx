@@ -5391,17 +5391,17 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
                   <p className="text-sm text-green-600 font-medium">
-                    {language === "id" ? "Kredit" : "Credits"}
+                    {t('dashboard.credits')}
                   </p>
                   <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                   <div className="space-y-1 mt-2">
                     <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700">
                       <Plus className="w-3 h-3 mr-1" />
-                      {language === "id" ? "Top Up Kredit" : "Add Credits"}
+                      {t('dashboard.addCredits')}
                     </Button>
                     <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700">
                       <DollarSign className="w-3 h-3 mr-1" />
-                      {language === "id" ? "Tarik ke Bank" : "Cash Out to Bank"}
+                      {t('dashboard.cashOut')}
                     </Button>
                     <Button 
                       size="sm" 
@@ -5410,7 +5410,7 @@ export default function CompleteApp() {
                       className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      {language === "id" ? "Lihat Riwayat" : "View Credits"}
+                      {t('dashboard.viewCredits')}
                     </Button>
                   </div>
                 </CardContent>
@@ -5420,12 +5420,12 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
                   <p className="text-sm text-purple-600 font-medium">
-                    {language === "id" ? "Poin Loyalitas" : "Loyalty Points"}
+                    {t('dashboard.loyaltyPoints')}
                   </p>
                   <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
                   <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700">
                     <Star className="w-4 h-4 mr-1" />
-                    {language === "id" ? "Lihat Reward" : "View Rewards"}
+                    {t('dashboard.viewRewards')}
                   </Button>
                 </CardContent>
               </Card>
@@ -5434,13 +5434,13 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
                   <p className="text-sm text-orange-600 font-medium">
-                    {language === "id" ? "Token" : "Tokens"}
+                    {t('dashboard.tokens')}
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
                   <div className="space-y-2 mt-2">
                     <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700">
                       <Star className="w-4 h-4 mr-1" />
-                      {language === "id" ? "Klaim Token" : "Claim Tokens"}
+                      {t('dashboard.claimTokens')}
                     </Button>
                     <Button 
                       size="sm" 
@@ -5453,7 +5453,7 @@ export default function CompleteApp() {
                       className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      {language === "id" ? "Riwayat Klaim" : "Claim History"}
+                      {t('dashboard.viewHistory')}
                     </Button>
                   </div>
                 </CardContent>
@@ -5481,7 +5481,7 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
                   <p className="text-sm text-yellow-600 font-medium">
-                    {language === "id" ? "Pendapatan" : "Earnings"}
+                    {t('dashboard.referralEarnings')}
                   </p>
                   <p className="text-2xl font-bold text-yellow-800">RP {formatRupiah(referralEarnings)}</p>
                 </CardContent>

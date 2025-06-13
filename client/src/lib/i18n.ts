@@ -57,6 +57,66 @@ export const translations: Translations = {
     zh: '退出登录',
     id: 'Keluar'
   },
+  'dashboard.welcome': {
+    en: 'Welcome back',
+    zh: '欢迎回来',
+    id: 'Selamat datang kembali'
+  },
+  'dashboard.points': {
+    en: 'points',
+    zh: '积分',
+    id: 'poin'
+  },
+  'dashboard.credits': {
+    en: 'Credits',
+    zh: '积分',
+    id: 'Kredit'
+  },
+  'dashboard.loyaltyPoints': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'dashboard.tokens': {
+    en: 'Tokens',
+    zh: '代币',
+    id: 'Token'
+  },
+  'dashboard.referralEarnings': {
+    en: 'Referral Earnings',
+    zh: '推荐收益',
+    id: 'Pendapatan Rujukan'
+  },
+  'dashboard.addCredits': {
+    en: 'Add Credits',
+    zh: '添加积分',
+    id: 'Top Up Kredit'
+  },
+  'dashboard.cashOut': {
+    en: 'Cash Out to Bank',
+    zh: '提现到银行',
+    id: 'Tarik ke Bank'
+  },
+  'dashboard.viewCredits': {
+    en: 'View Credits',
+    zh: '查看积分',
+    id: 'Lihat Riwayat'
+  },
+  'dashboard.viewRewards': {
+    en: 'View Rewards',
+    zh: '查看奖励',
+    id: 'Lihat Reward'
+  },
+  'dashboard.claimTokens': {
+    en: 'Claim Tokens',
+    zh: '领取代币',
+    id: 'Klaim Token'
+  },
+  'dashboard.viewHistory': {
+    en: 'View History',
+    zh: '查看历史',
+    id: 'Lihat Riwayat'
+  },
   'common.save': {
     en: 'Save',
     zh: '保存',
