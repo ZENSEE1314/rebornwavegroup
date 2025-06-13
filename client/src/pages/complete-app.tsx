@@ -775,7 +775,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    refetchInterval: 5000, // Update every 5 seconds instead of every second
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);
@@ -995,7 +994,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const { data: dailyRewardStatus, refetch: refetchDailyReward } = useQuery({
     queryKey: ['/api/daily-token-reward/status'],
     enabled: !!user?.id,
-    refetchInterval: 60000, // Check every minute
   });
 
   // Daily token reward claim mutation
@@ -3252,12 +3250,11 @@ export default function CompleteApp() {
 
   // Real-time data updates via frequent polling for stable performance
   
-  // User data - fetch from database with reduced polling
+  // User data - fetch from database
   const { data: userStats, refetch: refetchUserStats } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
-    refetchInterval: 30000, // Update every 30 seconds to reduce refresh frequency
-    refetchOnWindowFocus: false, // Disable auto-refresh on window focus
+    refetchOnWindowFocus: false,
   });
 
   // Genealogy tree data
