@@ -4606,8 +4606,8 @@ export default function CompleteApp() {
       setSelectedReward(null);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to redeem reward",
+        title: t('common.error'),
+        description: t('rewards.redeemError'),
         variant: "destructive"
       });
     } finally {
@@ -5685,7 +5685,7 @@ export default function CompleteApp() {
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{language === "id" ? "Reward Tersedia" : "Available Rewards"}</CardTitle>
+                    <CardTitle>{t('rewards.availableRewards')}</CardTitle>
                     <div className="text-sm text-gray-500">
                       {language === "id" ? "Poin hanya dapat ditambahkan oleh admin" : "Points can only be added by admin"}
                     </div>
@@ -5729,7 +5729,7 @@ export default function CompleteApp() {
                             >
                               {loyaltyPoints >= reward.pointsCost ? 
                                 (language === "id" ? "Tukar" : "Redeem") : 
-                                (language === "id" ? "Poin Kurang" : "Need more points")
+                                t('rewards.needMorePoints')
                               }
                             </Button>
                           </div>
@@ -5850,7 +5850,7 @@ export default function CompleteApp() {
               <div>
                 <Card>
                   <CardHeader>
-                    <CardTitle>{language === "id" ? "Benefit Level Anda" : "Your Level Benefits"}</CardTitle>
+                    <CardTitle>{t('loyalty.yourLevelBenefits')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">

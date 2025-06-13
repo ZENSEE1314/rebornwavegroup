@@ -1214,6 +1214,36 @@ export const translations: Translations = {
     zh: '此奖励目前不可用',
     id: 'Reward ini sedang tidak tersedia'
   },
+  'rewards.redeemed': {
+    en: 'Reward Redeemed!',
+    zh: '奖励已兑换！',
+    id: 'Reward Ditukar!'
+  },
+  'rewards.redeemedWithCredit': {
+    en: '{{name}} successfully redeemed! +RP {{credit}} added',
+    zh: '{{name}}兑换成功！+RP {{credit}}已添加',
+    id: '{{name}} berhasil ditukar! +RP {{credit}} ditambahkan'
+  },
+  'rewards.redeemedSuccess': {
+    en: '{{name}} successfully redeemed',
+    zh: '{{name}}兑换成功',
+    id: '{{name}} berhasil ditukar'
+  },
+  'rewards.redeemError': {
+    en: 'Failed to redeem reward',
+    zh: '兑换奖励失败',
+    id: 'Gagal menukar reward'
+  },
+  'rewards.availableRewards': {
+    en: 'Available Rewards',
+    zh: '可用奖励',
+    id: 'Reward Tersedia'
+  },
+  'loyalty.yourLevelBenefits': {
+    en: 'Your Level Benefits',
+    zh: '您的等级福利',
+    id: 'Benefit Level Anda'
+  },
   'loyalty.currentLevel': {
     en: 'Current Level',
     zh: '当前等级',
