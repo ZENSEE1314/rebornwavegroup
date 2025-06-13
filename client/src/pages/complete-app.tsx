@@ -2101,11 +2101,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <div className="mb-4">
                   {toy.isActivated ? (
                     <Badge className="bg-purple-100 text-purple-800">
-                      {language === "id" ? "Hewan Peliharaan Aktif" : "Pet Active"}
+                      {t('pet.active')}
                     </Badge>
                   ) : (
                     <Badge variant="secondary">
-                      {language === "id" ? "Belum Diaktifkan" : "Not Activated"}
+                      {t('pet.notActivated')}
                     </Badge>
                   )}
                 </div>
@@ -2277,10 +2277,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Coins className="w-5 h-5 text-yellow-600" />
-            {language === "id" ? "Hadiah Token Harian" : "Daily Token Reward"}
+            {t('daily.tokenReward')}
           </CardTitle>
           <p className="text-sm text-gray-600">
-            {language === "id" ? "Dapatkan 1 token setiap 24 jam jika semua hewan sehat!" : "Earn 1 token every 24 hours if all pets are healthy!"}
+            {t('daily.earnTokens')}
           </p>
         </CardHeader>
         <CardContent>

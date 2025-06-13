@@ -1234,6 +1234,38 @@ export const translations: Translations = {
     zh: '加载奖励状态...',
     id: 'Memuat status hadiah...'
   },
+  'daily.tokenReward': {
+    en: 'Daily Token Reward',
+    zh: '每日代币奖励',
+    id: 'Hadiah Token Harian'
+  },
+  'daily.earnTokens': {
+    en: 'Earn 1 token every 24 hours if all pets are healthy!',
+    zh: '如果所有宠物都健康，每24小时获得1个代币！',
+    id: 'Dapatkan 1 token setiap 24 jam jika semua hewan sehat!'
+  },
+
+  // Pet Activation States
+  'pet.active': {
+    en: 'Pet Active',
+    zh: '宠物活跃',
+    id: 'Hewan Peliharaan Aktif'
+  },
+  'pet.notActivated': {
+    en: 'Not Activated',
+    zh: '未激活',
+    id: 'Belum Diaktifkan'
+  },
+  'pet.activateToy': {
+    en: 'Activate Toy',
+    zh: '激活玩具',
+    id: 'Aktifkan Mainan'
+  },
+  'pet.processing': {
+    en: 'Processing...',
+    zh: '处理中...',
+    id: 'Memproses...'
+  },
 
   // Points and History Section
   'points.history': {
