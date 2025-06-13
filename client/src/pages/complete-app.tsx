@@ -23,6 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 import CreditTopUpModal from "@/components/CreditTopUpModal";
+import { useTranslation } from "@/lib/i18n";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 // Helper function to format sleep timer as MM:SS
 function formatSleepTime(timeRemaining: number): string {

@@ -1,8 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap, ChevronRight, TrendingUp, Award, DollarSign, ArrowRight, Check, Globe, Shield, Rocket } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function Landing() {
+  const { t } = useTranslation();
+  
   const handleLogin = () => {
     window.location.href = "/login";
   };
@@ -51,14 +55,17 @@ export default function Landing() {
                 </span>
               </div>
             </div>
-            <Button 
-              onClick={handleLogin} 
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Access Platform</span>
-              <span className="sm:hidden">Login</span>
-            </Button>
+            <div className="flex items-center space-x-3">
+              <LanguageSelector />
+              <Button 
+                onClick={handleLogin} 
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">{t('landing.getStarted')}</span>
+                <span className="sm:hidden">{t('landing.login')}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -75,17 +82,12 @@ export default function Landing() {
           
           <h1 className="text-4xl sm:text-6xl lg:text-8xl xl:text-9xl font-bold mb-8 leading-tight tracking-tight">
             <span className="bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent drop-shadow-2xl">
-              Reborn Wave
-            </span>
-            <br />
-            <span className="text-white/95 drop-shadow-lg">
-              Group
+              {t('landing.title')}
             </span>
           </h1>
           
           <p className="text-lg sm:text-xl lg:text-2xl text-white/80 mb-12 max-w-5xl mx-auto leading-relaxed font-light">
-            Experience the next generation of premium services across three revolutionary sectors. 
-            Join our exclusive platform and unlock infinite possibilities in the digital age.
+            {t('landing.description')}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
