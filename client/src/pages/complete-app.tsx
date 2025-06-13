@@ -1908,10 +1908,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
                         >
                           <span className="text-2xl">💤</span>
-                          <span className="text-sm">{language === "id" ? "Tidurkan" : "Sleep"}</span>
+                          <span className="text-sm">{t('careButtons.sleep')}</span>
                           {(pet.energy || 50) >= 100 && (
                             <span className="text-xs text-gray-500">
-                              {language === "id" ? "Penuh Energi" : "Full Energy"}
+                              {t('petStates.fullEnergy')}
                             </span>
                           )}
                         </Button>
@@ -1924,7 +1924,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
                       >
                         <span className="text-2xl">⚡</span>
-                        <span className="text-sm">{language === "id" ? "Energi" : "Energy"}</span>
+                        <span className="text-sm">{t('careButtons.energy')}</span>
                         <span className="text-xs">2 tokens</span>
                       </Button>
 
