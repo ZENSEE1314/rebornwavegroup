@@ -1246,6 +1246,21 @@ export const translations: Translations = {
   },
 
   // Pet Activation States
+  'activation.howToActivateToys': {
+    en: 'How to Activate Toys:',
+    zh: '如何激活玩具：',
+    id: 'Cara Mengaktifkan Mainan:'
+  },
+  'activation.step1': {
+    en: 'Purchase Doluruu toy from physical store',
+    zh: '从实体店购买多鲁鲁玩具',
+    id: 'Beli mainan Doluruu dari toko fisik'
+  },
+  'activation.step2': {
+    en: 'Find unique QR code on toy packaging',
+    zh: '在玩具包装上找到唯一的二维码',
+    id: 'Temukan QR code unik di kemasan mainan'
+  },
   'pet.active': {
     en: 'Pet Active',
     zh: '宠物活跃',

@@ -6937,13 +6937,13 @@ export default function CompleteApp() {
                   </div>
                   <div className="bg-purple-100 p-4 rounded-lg">
                     <h4 className="font-semibold text-purple-800 mb-2">
-                      {language === "id" ? "Cara Mengaktifkan Mainan:" : "How to Activate Toys:"}
+                      {t("activation.howToActivateToys")}
                     </h4>
                     <ol className="text-sm text-purple-700 space-y-1">
-                      <li>1. {language === "id" ? "Beli mainan Doluruu dari toko fisik" : "Purchase Doluruu toy from physical store"}</li>
-                      <li>2. {language === "id" ? "Temukan QR code unik di kemasan mainan" : "Find unique QR code on toy packaging"}</li>
-                      <li>3. {language === "id" ? "Masukkan kode QR yang aman di atas untuk mengaktifkan" : "Enter secure QR code above to activate"}</li>
-                      <li>4. {language === "id" ? "Mainan akan ditambahkan ke koleksi digital Anda!" : "Toy will be added to your digital collection!"}</li>
+                      <li>1. {t("activation.step1")}</li>
+                      <li>2. {t("activation.step2")}</li>
+                      <li>3. {t("activation.step3")}</li>
+                      <li>4. {t("activation.step4")}</li>
                     </ol>
                     <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
                       <span className="font-semibold">
