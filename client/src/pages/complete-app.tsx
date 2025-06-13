@@ -630,6 +630,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 // Pet Care Component
 function PetCareSection({ language, user, queryClient, userTokens }: { language: string; user: any; queryClient: any; userTokens: number }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   // State for real-time timer updates
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -2527,7 +2528,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           {/* Daily Care Activities */}
           <Card>
             <CardHeader>
-              <CardTitle>{language === "id" ? "Aktivitas Perawatan Harian" : "Daily Care Activities"}</CardTitle>
+              <CardTitle>{t('petCare.title')}</CardTitle>
               <p className="text-sm text-gray-600">
                 {language === "id" ? "Selesaikan semua aktivitas untuk mendapatkan 1 token hari ini!" : "Complete all activities to earn 1 token today!"}
               </p>
@@ -2544,7 +2545,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🍎</span>
-                  <span className="text-sm">Feed</span>
+                  <span className="text-sm">{t('petCare.feeding')}</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
@@ -2557,7 +2558,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <span className="text-2xl">🛁</span>
-                  <span className="text-sm">Bath</span>
+                  <span className="text-sm">{t('petCare.bathing')}</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
@@ -2570,7 +2571,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
                   <Sparkles className="w-6 h-6" />
-                  <span className="text-sm">Play</span>
+                  <span className="text-sm">{t('petCare.playing')}</span>
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button

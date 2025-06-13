@@ -117,6 +117,164 @@ export const translations: Translations = {
     zh: '查看历史',
     id: 'Lihat Riwayat'
   },
+  // Pet Care Section
+  'petCare.title': {
+    en: 'Pet Care',
+    zh: '宠物护理',
+    id: 'Perawatan Hewan'
+  },
+  'petCare.feeding': {
+    en: 'Feed Pet',
+    zh: '喂养宠物',
+    id: 'Beri Makan'
+  },
+  'petCare.bathing': {
+    en: 'Bathe Pet',
+    zh: '给宠物洗澡',
+    id: 'Mandikan Hewan'
+  },
+  'petCare.playing': {
+    en: 'Play with Pet',
+    zh: '和宠物玩耍',
+    id: 'Bermain'
+  },
+  'petCare.exercising': {
+    en: 'Exercise Pet',
+    zh: '锻炼宠物',
+    id: 'Olahraga'
+  },
+  'petCare.sleeping': {
+    en: 'Put to Sleep',
+    zh: '让宠物睡觉',
+    id: 'Tidur'
+  },
+  'petCare.cleaning': {
+    en: 'Clean Pet',
+    zh: '清洁宠物',
+    id: 'Bersihkan'
+  },
+  // Purchase Verification
+  'purchase.title': {
+    en: 'Purchase Verification',
+    zh: '购买验证',
+    id: 'Verifikasi Pembelian'
+  },
+  'purchase.uploadReceipt': {
+    en: 'Upload Receipt',
+    zh: '上传收据',
+    id: 'Upload Struk'
+  },
+  'purchase.pendingVerification': {
+    en: 'Pending Verification',
+    zh: '等待验证',
+    id: 'Menunggu Verifikasi'
+  },
+  // Loyalty Program
+  'loyalty.title': {
+    en: 'Loyalty Program',
+    zh: '忠诚度计划',
+    id: 'Program Loyalitas'
+  },
+  'loyalty.redeemPoints': {
+    en: 'Redeem Points',
+    zh: '兑换积分',
+    id: 'Tukar Poin'
+  },
+  'loyalty.availableRewards': {
+    en: 'Available Rewards',
+    zh: '可用奖励',
+    id: 'Reward Tersedia'
+  },
+  // Booking Management
+  'booking.title': {
+    en: 'Booking Management',
+    zh: '预订管理',
+    id: 'Manajemen Booking'
+  },
+  'booking.quickBooking': {
+    en: 'Quick Booking',
+    zh: '快速预订',
+    id: 'Reservasi Cepat'
+  },
+  'booking.selectCategory': {
+    en: 'Select Category',
+    zh: '选择类别',
+    id: 'Pilih Kategori'
+  },
+  'booking.selectService': {
+    en: 'Select Service',
+    zh: '选择服务',
+    id: 'Pilih Layanan'
+  },
+  'booking.bookNow': {
+    en: 'Book Now',
+    zh: '立即预订',
+    id: 'Booking Sekarang'
+  },
+  // Toy Marketplace
+  'marketplace.title': {
+    en: 'Toy Marketplace',
+    zh: '玩具市场',
+    id: 'Marketplace Mainan'
+  },
+  'marketplace.buyToys': {
+    en: 'Buy Toys',
+    zh: '购买玩具',
+    id: 'Beli Mainan'
+  },
+  'marketplace.noToysAvailable': {
+    en: 'No toys available',
+    zh: '暂无玩具',
+    id: 'Tidak ada mainan tersedia'
+  },
+  // My Toy Collection
+  'collection.title': {
+    en: 'My Toy Collection',
+    zh: '我的玩具收藏',
+    id: 'Koleksi Mainan Saya'
+  },
+  'collection.noToys': {
+    en: 'No toys in your collection',
+    zh: '您的收藏中没有玩具',
+    id: 'Tidak ada mainan di koleksi Anda'
+  },
+  // Referral Program
+  'referral.title': {
+    en: 'Referral Program',
+    zh: '推荐计划',
+    id: 'Program Rujukan'
+  },
+  'referral.yourCode': {
+    en: 'Your Referral Code',
+    zh: '您的推荐码',
+    id: 'Kode Rujukan Anda'
+  },
+  'referral.shareCode': {
+    en: 'Share Code',
+    zh: '分享代码',
+    id: 'Bagikan Kode'
+  },
+  'referral.totalReferrals': {
+    en: 'Total Referrals',
+    zh: '总推荐数',
+    id: 'Total Rujukan'
+  },
+  // Profile
+  'profile.title': {
+    en: 'Your Profile',
+    zh: '您的资料',
+    id: 'Profil Anda'
+  },
+  'profile.personalInfo': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'profile.updateProfile': {
+    en: 'Update Profile',
+    zh: '更新资料',
+    id: 'Update Profil'
+  },
   'common.save': {
     en: 'Save',
     zh: '保存',
@@ -495,26 +653,7 @@ export const translations: Translations = {
     zh: '您的统计',
     id: 'Statistik Anda'
   },
-  'dashboard.credits': {
-    en: 'Credits',
-    zh: '信用点',
-    id: 'Kredit'
-  },
-  'dashboard.loyaltyPoints': {
-    en: 'Loyalty Points',
-    zh: '忠诚度积分',
-    id: 'Poin Loyalitas'
-  },
-  'dashboard.tokens': {
-    en: 'Tokens',
-    zh: '代币',
-    id: 'Token'
-  },
-  'dashboard.referralEarnings': {
-    en: 'Referral Earnings',
-    zh: '推荐收入',
-    id: 'Pendapatan Rujukan'
-  },
+
   'dashboard.dailyReward': {
     en: 'Daily Reward',
     zh: '每日奖励',
