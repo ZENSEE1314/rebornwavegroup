@@ -742,6 +742,38 @@ export const translations: Translations = {
     id: 'Beli Sekarang'
   },
 
+  // Referral Program
+  'referrals.title': {
+    en: 'Referral Program',
+    zh: '推荐计划',
+    id: 'Program Rujukan'
+  },
+  'referrals.description': {
+    en: 'Earn 10% commission on verified purchases',
+    zh: '从验证购买中赚取10%佣金',
+    id: 'Dapatkan komisi 10% dari pembelian terverifikasi'
+  },
+  'referrals.yourCode': {
+    en: 'Your Referral Code',
+    zh: '您的推荐码',
+    id: 'Kode Rujukan Anda'
+  },
+  'referrals.shareCode': {
+    en: 'Share this code with friends to earn 10% commission on their purchases',
+    zh: '与朋友分享此代码，从他们的购买中赚取10%的佣金',
+    id: 'Bagikan kode ini dengan teman untuk mendapatkan komisi 10% dari pembelian mereka'
+  },
+  'referrals.totalEarnings': {
+    en: 'Total Earnings',
+    zh: '总收入',
+    id: 'Total Pendapatan'
+  },
+  'referrals.totalReferrals': {
+    en: 'Total Referrals',
+    zh: '总推荐数',
+    id: 'Total Rujukan'
+  },
+
   'loyalty.pointsLeft': {
     en: 'points left',
     zh: '积分剩余',
@@ -969,32 +1001,7 @@ export const translations: Translations = {
     id: 'Poin yang Diperlukan'
   },
 
-  // Referrals
-  'referrals.title': {
-    en: 'Referral Program',
-    zh: '推荐计划',
-    id: 'Program Rujukan'
-  },
-  'referrals.yourCode': {
-    en: 'Your Referral Code',
-    zh: '您的推荐码',
-    id: 'Kode Rujukan Anda'
-  },
-  'referrals.shareCode': {
-    en: 'Share this code with friends to earn 10% commission on their purchases',
-    zh: '与朋友分享此代码，从他们的购买中赚取10%的佣金',
-    id: 'Bagikan kode ini dengan teman untuk mendapatkan komisi 10% dari pembelian mereka'
-  },
-  'referrals.earnings': {
-    en: 'Total Earnings',
-    zh: '总收入',
-    id: 'Total Pendapatan'
-  },
-  'referrals.totalReferrals': {
-    en: 'Total Referrals',
-    zh: '总推荐数',
-    id: 'Total Rujukan'
-  },
+
 
   // Admin
   'admin.title': {

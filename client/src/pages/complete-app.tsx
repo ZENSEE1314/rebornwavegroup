@@ -6417,10 +6417,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Pasar Mainan" : "Toy Marketplace"}
+                {t('toys.marketplace')}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Beli mainan lucu dengan kredit Anda" : "Buy cute toys with your credits"}
+                {t('toys.browseAndBuy')}
               </p>
               <Button 
                 onClick={() => setShowCreateListingModal(true)} 
@@ -6904,10 +6904,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Koleksi Mainan Saya" : "My Toy Collection"}
+                {t('toys.myCollection')}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Lihat semua mainan yang Anda miliki" : "View all your owned toys"}
+                {t('toys.viewCollection')}
               </p>
             </div>
 
