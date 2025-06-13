@@ -1042,6 +1042,26 @@ export const translations: Translations = {
     zh: '所有服务6%折扣',
     id: 'Diskon 6% semua layanan'
   },
+  'loyalty.vipRoomAccess': {
+    en: 'VIP room access',
+    zh: 'VIP房间访问',
+    id: 'Akses VIP room'
+  },
+  'loyalty.personalAccountManager': {
+    en: 'Personal account manager',
+    zh: '专属客户经理',
+    id: 'Personal account manager'
+  },
+  'loyalty.freeUpgrades': {
+    en: 'Free upgrades',
+    zh: '免费升级',
+    id: 'Upgrade gratis'
+  },
+  'loyalty.exclusiveEvents': {
+    en: 'Exclusive events',
+    zh: '专属活动',
+    id: 'Event eksklusif'
+  },
 
   'loyalty.diamond': {
     en: 'Diamond',
@@ -1151,11 +1171,6 @@ export const translations: Translations = {
     zh: '激活玩具失败',
     id: 'Gagal mengaktifkan mainan'
   },
-  'common.error': {
-    en: 'Error',
-    zh: '错误',
-    id: 'Error'
-  },
   'marketplace.selectToyAndPrice': {
     en: 'Please select toy and enter price',
     zh: '请选择玩具并输入价格',
@@ -1165,11 +1180,6 @@ export const translations: Translations = {
     en: 'Insufficient Points',
     zh: '积分不足',
     id: 'Poin Tidak Cukup'
-  },
-  'rewards.needMorePoints': {
-    en: 'You need {{points}} more points',
-    zh: '您还需要{{points}}积分',
-    id: 'Butuh {{points}} poin lagi'
   },
   'rewards.outOfStock': {
     en: 'Out of Stock',
@@ -1374,16 +1384,6 @@ export const translations: Translations = {
   },
 
   // Profile
-  'profile.title': {
-    en: 'Profile Settings',
-    zh: '个人资料设置',
-    id: 'Pengaturan Profil'
-  },
-  'profile.personalInfo': {
-    en: 'Personal Information',
-    zh: '个人信息',
-    id: 'Informasi Pribadi'
-  },
   'profile.accountSettings': {
     en: 'Account Settings',
     zh: '账户设置',
