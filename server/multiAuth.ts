@@ -152,10 +152,13 @@ export function setupLocalAuth() {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
+      console.log('Deserializing user with ID:', id);
       const user = await storage.getUser(id);
       if (!user) {
+        console.log('User not found during deserialization:', id);
         return done(null, false);
       }
+      console.log('User deserialized successfully:', user.email);
       done(null, user);
     } catch (error) {
       console.error('Deserialization error:', error);
