@@ -743,11 +743,6 @@ export const translations: Translations = {
   },
 
   // Referral Program
-  'referrals.title': {
-    en: 'Referral Program',
-    zh: '推荐计划',
-    id: 'Program Rujukan'
-  },
   'referrals.description': {
     en: 'Earn 10% commission on verified purchases',
     zh: '从验证购买中赚取10%佣金',
@@ -996,16 +991,7 @@ export const translations: Translations = {
     zh: '平台访问',
     id: 'Akses ke platform'
   },
-  'loyalty.basicReferral': {
-    en: 'Basic referral program',
-    zh: '基础推荐计划',
-    id: 'Program referral dasar'
-  },
-  'loyalty.silver': {
-    en: 'Silver',
-    zh: '银牌',
-    id: 'Perak'
-  },
+
   'loyalty.discount2Percent': {
     en: '2% discount on all services',
     zh: '所有服务2%折扣',
@@ -1014,7 +1000,7 @@ export const translations: Translations = {
   'loyalty.priorityBooking': {
     en: 'Priority booking',
     zh: '优先预订',
-    id: 'Prioritas booking'
+    id: 'Booking prioritas'
   },
   'loyalty.bonusReferralPoints': {
     en: 'Bonus referral points',
@@ -1056,26 +1042,7 @@ export const translations: Translations = {
     zh: '所有服务6%折扣',
     id: 'Diskon 6% semua layanan'
   },
-  'loyalty.vipRoomAccess': {
-    en: 'VIP room access',
-    zh: 'VIP房间访问',
-    id: 'Akses VIP room'
-  },
-  'loyalty.personalAccountManager': {
-    en: 'Personal account manager',
-    zh: '专属客户经理',
-    id: 'Personal account manager'
-  },
-  'loyalty.freeUpgrades': {
-    en: 'Free upgrades',
-    zh: '免费升级',
-    id: 'Upgrade gratis'
-  },
-  'loyalty.exclusiveEvents': {
-    en: 'Exclusive events',
-    zh: '专属活动',
-    id: 'Event eksklusif'
-  },
+
   'loyalty.diamond': {
     en: 'Diamond',
     zh: '钻石',
