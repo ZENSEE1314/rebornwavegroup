@@ -2785,8 +2785,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       }
       
       toast({
-        title: language === "id" ? "Gagal" : "Error",
-        description: error.message || (language === "id" ? "Gagal mengirim verifikasi" : "Failed to submit verification"),
+        title: t('common.error'),
+        description: error.message || t('verification.failed'),
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -2798,8 +2798,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     if (file) {
       if (file.size > 10 * 1024 * 1024) { // 10MB limit
         toast({
-          title: language === "id" ? "File Terlalu Besar" : "File Too Large",
-          description: language === "id" ? "Ukuran maksimal 10MB" : "Maximum file size is 10MB",
+          title: t('file.tooLarge'),
+          description: t('file.maxSize'),
           variant: "destructive",
         });
         return;
@@ -4244,8 +4244,8 @@ export default function CompleteApp() {
     const referralLink = `${window.location.origin}?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     toast({
-      title: language === "id" ? "Disalin!" : "Copied!",
-      description: language === "id" ? "Link rujukan disalin" : "Referral link copied",
+      title: t('referral.copied'),
+      description: t('referral.linkCopied'),
     });
   };
 

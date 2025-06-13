@@ -2625,6 +2625,41 @@ export const translations: Translations = {
     en: 'Please log in again',
     zh: '请重新登录',
     id: 'Silakan login ulang'
+  },
+  'verification.failed': {
+    en: 'Failed to submit verification',
+    zh: '提交验证失败',
+    id: 'Gagal mengirim verifikasi'
+  },
+  'file.tooLarge': {
+    en: 'File Too Large',
+    zh: '文件过大',
+    id: 'File Terlalu Besar'
+  },
+  'file.maxSize': {
+    en: 'Maximum file size is 10MB',
+    zh: '最大文件大小为10MB',
+    id: 'Ukuran maksimal 10MB'
+  },
+  'referral.copied': {
+    en: 'Copied!',
+    zh: '已复制！',
+    id: 'Disalin!'
+  },
+  'referral.linkCopied': {
+    en: 'Referral link copied',
+    zh: '推荐链接已复制',
+    id: 'Link rujukan disalin'
+  },
+  'appointments.fillAllFields': {
+    en: 'Please fill in all fields',
+    zh: '请填写所有字段',
+    id: 'Harap isi semua field'
+  },
+  'appointments.twoHourNotice': {
+    en: 'Appointments must be booked at least 2 hours in advance',
+    zh: '预约必须至少提前2小时',
+    id: 'Janji temu harus dipesan setidaknya 2 jam sebelumnya'
   }
 };
 
