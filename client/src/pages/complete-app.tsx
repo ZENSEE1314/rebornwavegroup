@@ -1767,8 +1767,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         onClick={async () => {
                           if (energy < 5) {
                             toast({
-                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
-                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              title: t('energyNotEnough.title'),
+                              description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
                             playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
@@ -1804,8 +1804,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         onClick={async () => {
                           if (energy < 5) {
                             toast({
-                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
-                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              title: t('energyNotEnough.title'),
+                              description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
                             playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
@@ -1843,8 +1843,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         onClick={async () => {
                           if (energy < 5) {
                             toast({
-                              title: language === "id" ? "Energi Tidak Cukup!" : "Not Enough Energy!",
-                              description: language === "id" ? "Pet perlu istirahat atau tidur untuk mendapatkan energi." : "Pet needs to rest or sleep to gain energy.",
+                              title: t('energyNotEnough.title'),
+                              description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
                             playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
