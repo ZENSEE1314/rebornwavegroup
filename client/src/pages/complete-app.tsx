@@ -2118,8 +2118,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   >
                     <Heart className="w-4 h-4 mr-2" />
                     {activateToyMutation.isPending 
-                      ? (language === "id" ? "Memproses..." : "Processing...") 
-                      : (language === "id" ? "Aktifkan Mainan" : "Activate Toy")
+                      ? t('pet.processing')
+                      : t('pet.activateToy')
                     }
                   </Button>
                 )}
@@ -7128,8 +7128,8 @@ export default function CompleteApp() {
                           }>
                             <Heart className="w-3 h-3 mr-1" />
                             {toy.isActivated 
-                              ? (language === "id" ? "Pet Aktif" : "Pet Active")
-                              : (language === "id" ? "Belum Aktif" : "Not Activated")
+                              ? t('pet.active')
+                              : t('pet.notActivated')
                             }
                           </Badge>
                         </div>
@@ -8099,8 +8099,8 @@ export default function CompleteApp() {
                 className="flex-1 bg-orange-600 hover:bg-orange-700"
               >
                 {claimTokensMutation.isPending 
-                  ? (language === "id" ? "Memproses..." : "Processing...") 
-                  : (language === "id" ? "Ajukan Klaim" : "Submit Claim")
+                  ? t('pet.processing')
+                  : t('pet.submitClaim')
                 }
               </Button>
               <Button 

@@ -1266,6 +1266,11 @@ export const translations: Translations = {
     zh: '处理中...',
     id: 'Memproses...'
   },
+  'pet.submitClaim': {
+    en: 'Submit Claim',
+    zh: '提交申请',
+    id: 'Ajukan Klaim'
+  },
 
   // Points and History Section
   'points.history': {
