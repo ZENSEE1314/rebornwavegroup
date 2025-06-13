@@ -2074,10 +2074,45 @@ export const translations: Translations = {
     zh: '进度到银牌',
     id: 'Kemajuan ke Perak'
   },
+  'loyalty.allLoyaltyLevels': {
+    en: 'All Loyalty Levels',
+    zh: '所有忠诚度等级',
+    id: 'Semua Level Loyalitas'
+  },
+  'history.pointHistory': {
+    en: 'Point History',
+    zh: '积分历史',
+    id: 'Riwayat Poin'
+  },
+  'booking.selectCategory': {
+    en: 'Select Category',
+    zh: '选择类别',
+    id: 'Pilih Kategori'
+  },
   'toyActivation.enterQRCode': {
     en: 'Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)',
     zh: '输入玩具二维码（例如 QR-87b4a03b003a-07377ac9-53d8fd）',
     id: 'Masukkan kode QR mainan (misal QR-87b4a03b003a-07377ac9-53d8fd)'
+  },
+  'booking.selectTime': {
+    en: 'Select Time',
+    zh: '选择时间',
+    id: 'Pilih Waktu'
+  },
+  'booking.bookAppointment': {
+    en: 'Book Appointment',
+    zh: '预约',
+    id: 'Buat Janji Temu'
+  },
+  'booking.yourAppointments': {
+    en: 'Your Appointments',
+    zh: '您的预约',
+    id: 'Janji Temu Anda'
+  },
+  'toyActivation.camera': {
+    en: 'Camera',
+    zh: '相机',
+    id: 'Kamera'
   },
   'commission.structure': {
     en: 'Commission Structure',

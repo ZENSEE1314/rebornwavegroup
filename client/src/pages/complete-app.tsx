@@ -5641,7 +5641,7 @@ export default function CompleteApp() {
             {/* All Loyalty Levels Overview */}
             <div className="mb-8">
               <h3 className="text-xl font-bold text-slate-900 mb-4">
-                {language === "id" ? "Semua Level Loyalitas" : "All Loyalty Levels"}
+                {t('loyalty.allLoyaltyLevels')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {loyaltyLevels.map((level) => (
@@ -5744,7 +5744,7 @@ export default function CompleteApp() {
                 {/* Point History */}
                 <Card className="mt-6">
                   <CardHeader>
-                    <CardTitle>{language === "id" ? "Riwayat Poin" : "Point History"}</CardTitle>
+                    <CardTitle>{t('history.pointHistory')}</CardTitle>
                     <div className="flex flex-col sm:flex-row gap-3 mt-4">
                       <select
                         value={pointsFilter}
@@ -6175,13 +6175,13 @@ export default function CompleteApp() {
             {/* New Booking Form */}
             <Card>
               <CardHeader>
-                <CardTitle>{language === "id" ? "Buat Reservasi Baru" : "Create New Booking"}</CardTitle>
+                <CardTitle>{t('booking.createNewBooking')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Select onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
                     <SelectTrigger>
-                      <SelectValue placeholder={language === "id" ? "Pilih Kategori" : "Select Category"} />
+                      <SelectValue placeholder={t('booking.selectCategory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(serviceCategories).map(([key, category]) => (
@@ -6217,7 +6217,7 @@ export default function CompleteApp() {
 
                   <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder={language === "id" ? "Pilih Waktu" : "Select Time"} />
+                      <SelectValue placeholder={t('booking.selectTime')} />
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from({length: 24}, (_, i) => i).map(hour => (
@@ -6233,7 +6233,7 @@ export default function CompleteApp() {
 
                 <Button onClick={bookAppointment} className="w-full">
                   <Calendar className="w-4 h-4 mr-2" />
-                  {language === "id" ? "Buat Reservasi" : "Book Appointment"}
+                  {t('booking.bookAppointment')}
                 </Button>
               </CardContent>
             </Card>
