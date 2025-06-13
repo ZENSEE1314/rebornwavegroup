@@ -2810,6 +2810,31 @@ export const translations: Translations = {
     en: 'Hunger',
     zh: '饥饿度',
     id: 'Lapar'
+  },
+  'petStats.cleanliness': {
+    en: 'Cleanliness',
+    zh: '清洁度',
+    id: 'Kebersihan'
+  },
+  'petStats.energy': {
+    en: 'Energy',
+    zh: '能量',
+    id: 'Energi'
+  },
+  'petEvolution.progress': {
+    en: 'Evolution Progress',
+    zh: '进化进度',
+    id: 'Perkembangan Evolusi'
+  },
+  'petEvolution.currentStage': {
+    en: 'Current Stage:',
+    zh: '当前阶段：',
+    id: 'Tahap Saat Ini:'
+  },
+  'petEvolution.petAge': {
+    en: 'Pet Age:',
+    zh: '宠物年龄：',
+    id: 'Umur Pet:'
   }
 };
 

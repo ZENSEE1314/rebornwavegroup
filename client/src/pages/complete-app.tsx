@@ -1624,16 +1624,16 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       
                       {/* Growth Stage Indicator */}
                       <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                        {language === "id" ? `Tahap: ${growthStage}` : `Stage: ${growthStage}`}
+                        {t('petStatus.stage')} {growthStage}
                       </div>
                       {hunger === 0 && (
                         <div className="absolute top-2 right-2 text-red-500 font-bold">
-                          💀 {language === "id" ? "Lapar" : "Starving"}
+                          💀 {t('petStatus.starving')}
                         </div>
                       )}
                       {!canEarnTokens && days < 1 && !isDead && (
                         <div className="absolute bottom-2 left-2 text-yellow-600 text-xs">
-                          🕒 {language === "id" ? "Terlalu muda untuk token" : "Too young for tokens"}
+                          🕒 {t('petStatus.tooYoung')}
                         </div>
                       )}
                     </div>
@@ -1643,7 +1643,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">😊</div>
                         <div className="text-sm font-medium text-gray-700">
-                          {language === "id" ? "Kebahagiaan" : "Happiness"}
+                          {t('petStats.happiness')}
                         </div>
                         <div className={`text-2xl font-bold ${
                           happiness >= 75 ? 'text-green-600' :
@@ -1656,7 +1656,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">🍎</div>
                         <div className="text-sm font-medium text-gray-700">
-                          {language === "id" ? "Lapar" : "Hunger"}
+                          {t('petStats.hunger')}
                         </div>
                         <div className={`text-2xl font-bold ${
                           hunger >= 75 ? 'text-green-600' :
@@ -1669,7 +1669,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">🛁</div>
                         <div className="text-sm font-medium text-gray-700">
-                          {language === "id" ? "Kebersihan" : "Cleanliness"}
+                          {t('petStats.cleanliness')}
                         </div>
                         <div className={`text-2xl font-bold ${
                           cleanliness >= 75 ? 'text-green-600' :
@@ -1682,7 +1682,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">⚡</div>
                         <div className="text-sm font-medium text-gray-700">
-                          {language === "id" ? "Energi" : "Energy"}
+                          {t('petStats.energy')}
                         </div>
                         <div className={`text-2xl font-bold ${
                           energy >= 75 ? 'text-green-600' :
