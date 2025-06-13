@@ -169,10 +169,10 @@ export function setupAuthRoutes(app: Express) {
   // Email/Password Registration
   app.post('/api/auth/register', async (req: Request, res: Response) => {
     try {
-      const { email, password, firstName, lastName, referralCode } = req.body;
+      const { email, password, firstName, lastName, phoneNumber, dateOfBirth, gender, referralCode } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
+      if (!email || !password || !firstName || !lastName || !phoneNumber || !dateOfBirth || !gender) {
+        return res.status(400).json({ message: 'All fields are required (email, password, firstName, lastName, phoneNumber, dateOfBirth, gender)' });
       }
 
       // Check if user already exists
@@ -192,6 +192,9 @@ export function setupAuthRoutes(app: Express) {
         authProvider: 'email',
         firstName: firstName || '',
         lastName: lastName || '',
+        phoneNumber: phoneNumber || '',
+        dateOfBirth: new Date(dateOfBirth),
+        gender: gender || '',
         referralCode: await storage.createReferralCode(),
       });
 
@@ -210,6 +213,9 @@ export function setupAuthRoutes(app: Express) {
           email: newUser.email,
           firstName: newUser.firstName,
           lastName: newUser.lastName,
+          phoneNumber: newUser.phoneNumber,
+          dateOfBirth: newUser.dateOfBirth,
+          gender: newUser.gender,
           authProvider: newUser.authProvider
         });
       });

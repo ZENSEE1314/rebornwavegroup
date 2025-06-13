@@ -504,6 +504,67 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="phoneNumber"
+                      placeholder="Enter your phone number"
+                      className="pl-10"
+                      {...registerForm.register("phoneNumber")}
+                    />
+                  </div>
+                  {registerForm.formState.errors.phoneNumber && (
+                    <p className="text-sm text-red-500">
+                      {registerForm.formState.errors.phoneNumber.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="dateOfBirth"
+                        type="date"
+                        className="pl-10"
+                        {...registerForm.register("dateOfBirth")}
+                      />
+                    </div>
+                    {registerForm.formState.errors.dateOfBirth && (
+                      <p className="text-sm text-red-500">
+                        {registerForm.formState.errors.dateOfBirth.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <select
+                        id="gender"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        {...registerForm.register("gender")}
+                      >
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer-not-to-say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    {registerForm.formState.errors.gender && (
+                      <p className="text-sm text-red-500">
+                        {registerForm.formState.errors.gender.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="referralCode" className="text-sm font-medium">
                     Referral Code (Optional)
                   </Label>
