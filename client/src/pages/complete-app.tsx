@@ -1030,14 +1030,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       queryClient.refetchQueries({ queryKey: ["/api/user-stats"] });
       toast({
-        title: language === "id" ? "Ramuan Energi Berhasil!" : "Energy Potion Success!",
-        description: language === "id" ? `Energi pet dipulihkan ke 100%! Token: ${data.newTokenBalance}` : `Pet energy restored to 100%! Tokens: ${data.newTokenBalance}`,
+        title: t('energyPotion.success'),
+        description: t('energyPotion.restored') + data.newTokenBalance,
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === "id" ? "Gagal Menggunakan Ramuan" : "Failed to Use Potion",
-        description: error.message || (language === "id" ? "Gagal menggunakan ramuan energi" : "Failed to use energy potion"),
+        title: t('energyPotion.failed'),
+        description: error.message || t('energyPotion.error'),
         variant: "destructive"
       });
     }
@@ -2757,8 +2757,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     },
     onSuccess: () => {
       toast({
-        title: language === "id" ? "Berhasil" : "Success",
-        description: language === "id" ? "Verifikasi pembelian berhasil dikirim" : "Purchase verification submitted successfully",
+        title: t('common.success'),
+        description: t('verification.submitted'),
       });
       setAmount("");
       setDescription("");
@@ -2773,8 +2773,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       // Check for authentication error
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         toast({
-          title: language === "id" ? "Sesi Berakhir" : "Session Expired",
-          description: language === "id" ? "Silakan login ulang" : "Please log in again",
+          title: t('session.expired'),
+          description: t('session.loginAgain'),
           variant: "destructive",
         });
         // Redirect to login after a delay

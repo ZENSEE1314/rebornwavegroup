@@ -2602,9 +2602,9 @@ export const translations: Translations = {
     id: 'Ramuan Energi Berhasil!'
   },
   'energyPotion.restored': {
-    en: 'Pet energy restored to 100%! Tokens: {tokens}',
-    zh: '宠物能量恢复到100%！代币：{tokens}',
-    id: 'Energi pet dipulihkan ke 100%! Token: {tokens}'
+    en: 'Pet energy restored to 100%! Tokens: ',
+    zh: '宠物能量恢复到100%！代币：',
+    id: 'Energi pet dipulihkan ke 100%! Token: '
   },
   'energyPotion.failed': {
     en: 'Failed to Use Potion',
@@ -2615,6 +2615,16 @@ export const translations: Translations = {
     en: 'Failed to use energy potion',
     zh: '使用能量药水失败',
     id: 'Gagal menggunakan ramuan energi'
+  },
+  'session.expired': {
+    en: 'Session Expired',
+    zh: '会话已过期',
+    id: 'Sesi Berakhir'
+  },
+  'session.loginAgain': {
+    en: 'Please log in again',
+    zh: '请重新登录',
+    id: 'Silakan login ulang'
   }
 };
 
