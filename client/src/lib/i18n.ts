@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 
-export type Language = 'en' | 'zh';
+export type Language = 'en' | 'zh' | 'id';
 
 interface Translations {
   [key: string]: {
     en: string;
     zh: string;
+    id: string;
   };
 }
 
@@ -13,39 +14,48 @@ export const translations: Translations = {
   // Navigation & Common
   'nav.home': {
     en: 'Home',
-    zh: '首页'
+    zh: '首页',
+    id: 'Beranda'
   },
   'nav.pets': {
     en: 'My Pets',
-    zh: '我的宠物'
+    zh: '我的宠物',
+    id: 'Hewan Peliharaan Saya'
   },
   'nav.profile': {
     en: 'Profile',
-    zh: '个人资料'
+    zh: '个人资料',
+    id: 'Profil'
   },
   'nav.shop': {
     en: 'Shop',
-    zh: '商店'
+    zh: '商店',
+    id: 'Toko'
   },
   'nav.rewards': {
     en: 'Rewards',
-    zh: '奖励'
+    zh: '奖励',
+    id: 'Hadiah'
   },
   'nav.referrals': {
     en: 'Referrals',
-    zh: '推荐'
+    zh: '推荐',
+    id: 'Rujukan'
   },
   'nav.admin': {
     en: 'Admin',
-    zh: '管理员'
+    zh: '管理员',
+    id: 'Admin'
   },
   'nav.logout': {
     en: 'Logout',
-    zh: '退出登录'
+    zh: '退出登录',
+    id: 'Keluar'
   },
   'dashboard.logout': {
     en: 'Logout',
-    zh: '退出登录'
+    zh: '退出登录',
+    id: 'Keluar'
   },
   'common.save': {
     en: 'Save',
@@ -289,59 +299,73 @@ export const translations: Translations = {
   // Dashboard
   'dashboard.welcome': {
     en: 'Welcome Back',
-    zh: '欢迎回来'
+    zh: '欢迎回来',
+    id: 'Selamat Datang Kembali'
   },
   'tabs.dashboard': {
     en: 'Dashboard',
-    zh: '仪表板'
+    zh: '仪表板',
+    id: 'Dasbor'
   },
   'tabs.pets': {
     en: 'My Pets',
-    zh: '我的宠物'
+    zh: '我的宠物',
+    id: 'Hewan Peliharaan'
   },
   'tabs.profile': {
     en: 'Profile',
-    zh: '个人资料'
+    zh: '个人资料',
+    id: 'Profil'
   },
   'tabs.shop': {
     en: 'Shop',
-    zh: '商店'
+    zh: '商店',
+    id: 'Toko'
   },
   'tabs.rewards': {
     en: 'Rewards',
-    zh: '奖励'
+    zh: '奖励',
+    id: 'Hadiah'
   },
   'tabs.referrals': {
     en: 'Referrals',
-    zh: '推荐'
+    zh: '推荐',
+    id: 'Rujukan'
   },
   'tabs.admin': {
     en: 'Admin',
-    zh: '管理员'
+    zh: '管理员',
+    id: 'Admin'
   },
   'petcare.title': {
     en: 'Pet Care',
-    zh: '宠物护理'
+    zh: '宠物护理',
+    id: 'Perawatan Hewan'
   },
   'purchase.verification': {
     en: 'Purchase Verification',
-    zh: '购买验证'
+    zh: '购买验证',
+    id: 'Verifikasi Pembelian'
   },
   'loyalty.title': {
     en: 'Loyalty',
-    zh: '忠诚度'
+    zh: '忠诚度',
+    id: 'Loyalitas'
   },
   'bookings.title': {
     en: 'Bookings',
-    zh: '预约'
+    zh: '预约',
+    id: 'Reservasi'
   },
   'marketplace.title': {
     en: 'Marketplace',
-    zh: '市场'
+    zh: '市场',
+    id: 'Pasar'
   },
   'inventory.title': {
     en: 'Collections',
-    zh: '收藏'
+    zh: '收藏',
+    id: 'Koleksi'
   },
   'dashboard.myPets': {
     en: 'My Pets',

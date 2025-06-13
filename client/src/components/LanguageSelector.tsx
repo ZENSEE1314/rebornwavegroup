@@ -34,6 +34,13 @@ export function LanguageSelector() {
           <span className="mr-2">🇨🇳</span>
           中文
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => changeLanguage('id')}
+          className={`cursor-pointer ${language === 'id' ? 'bg-accent' : ''}`}
+        >
+          <span className="mr-2">🇮🇩</span>
+          Bahasa Indonesia
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
