@@ -1244,10 +1244,25 @@ export const translations: Translations = {
     zh: '您的等级福利',
     id: 'Benefit Level Anda'
   },
+  'rewards.redeem': {
+    en: 'Redeem',
+    zh: '兑换',
+    id: 'Tukar'
+  },
+  'loyalty.adminOnlyPoints': {
+    en: 'Points can only be added by admin',
+    zh: '积分只能由管理员添加',
+    id: 'Poin hanya dapat ditambahkan oleh admin'
+  },
   'loyalty.currentLevel': {
     en: 'Current Level',
     zh: '当前等级',
     id: 'Level Saat Ini'
+  },
+  'loyalty.totalPoints': {
+    en: 'Total Points',
+    zh: '总积分',
+    id: 'Total Poin'
   },
   'pet.stats.happiness': {
     en: 'Happiness',

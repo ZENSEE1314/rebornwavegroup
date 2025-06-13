@@ -5687,7 +5687,7 @@ export default function CompleteApp() {
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>{t('rewards.availableRewards')}</CardTitle>
                     <div className="text-sm text-gray-500">
-                      {language === "id" ? "Poin hanya dapat ditambahkan oleh admin" : "Points can only be added by admin"}
+                      {t('loyalty.adminOnlyPoints')}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -5728,7 +5728,7 @@ export default function CompleteApp() {
                               }
                             >
                               {loyaltyPoints >= reward.pointsCost ? 
-                                (language === "id" ? "Tukar" : "Redeem") : 
+                                t('rewards.redeem') : 
                                 t('rewards.needMorePoints')
                               }
                             </Button>
@@ -7378,7 +7378,7 @@ export default function CompleteApp() {
                       <span className="font-medium">{lifetimePoints}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>{language === "id" ? "Level Saat Ini:" : "Current Level:"}</span>
+                      <span>{t('loyalty.currentLevel')}:</span>
                       <span className="font-medium">Level {currentLevelInfo.level}</span>
                     </div>
                   </div>
