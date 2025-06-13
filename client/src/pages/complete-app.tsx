@@ -3696,11 +3696,11 @@ export default function CompleteApp() {
         if (!categories[event.category]) {
           categories[event.category] = {
             name: event.category === 'beauty' 
-              ? (language === "id" ? "Layanan Kecantikan" : "Beauty Services")
+              ? t('booking.beautyServices')
               : event.category === 'entertainment'
-              ? (language === "id" ? "Hiburan" : "Entertainment") 
+              ? t('booking.entertainment') 
               : event.category === 'restaurant'
-              ? (language === "id" ? "Kafe & Restoran" : "Cafe & Restaurant")
+              ? t('booking.cafeRestaurant')
               : event.category.charAt(0).toUpperCase() + event.category.slice(1), // Use custom category name as-is
             options: [],
             startingPrice: "0"
@@ -4128,7 +4128,7 @@ export default function CompleteApp() {
       icon: Medal,
       color: "from-amber-600 to-amber-800",
       bgColor: "bg-amber-50",
-      benefits: ["5% bonus points", "Birthday discount 10%", "Free shipping"]
+      benefits: [t('loyalty.bonusPoints'), t('loyalty.birthdayDiscount'), t('loyalty.freeShipping')]
     },
     {
       level: 2,
@@ -5867,7 +5867,7 @@ export default function CompleteApp() {
                 {/* Redemption History */}
                 <Card className="mt-6">
                   <CardHeader>
-                    <CardTitle>{language === "id" ? "Riwayat Penukaran" : "Redemption History"}</CardTitle>
+                    <CardTitle>{t('redemption.history')}</CardTitle>
                     <div className="flex flex-col sm:flex-row gap-3 mt-4">
                       <select
                         value={redemptionFilter}
@@ -5911,8 +5911,8 @@ export default function CompleteApp() {
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <Gift className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>No redemption history yet</p>
-                            <p className="text-sm mt-2">Your reward redemptions will appear here</p>
+                            <p>{t('redemption.noHistoryYet')}</p>
+                            <p className="text-sm mt-2">{t('redemption.rewardsWillAppear')}</p>
                           </div>
                         );
                       }
@@ -6567,10 +6567,10 @@ export default function CompleteApp() {
                 <div className="col-span-full text-center py-12 text-slate-500">
                   <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                   <h3 className="text-lg font-medium mb-2">
-                    {language === "id" ? "Belum ada mainan dijual" : "No toys for sale yet"}
+                    {t('marketplace.noToysForSale')}
                   </h3>
                   <p className="text-sm">
-                    {language === "id" ? "Jadilah yang pertama menjual mainan!" : "Be the first to sell a toy!"}
+                    {t('marketplace.beFirstToSell')}
                   </p>
                 </div>
               )}
