@@ -677,11 +677,71 @@ export const translations: Translations = {
     zh: '积分到下一级',
     id: 'poin ke level berikutnya'
   },
-  'loyalty.progressTo': {
-    en: 'Progress to',
-    zh: '进度至',
-    id: 'Progress ke'
+  'loyalty.pointsNeeded': {
+    en: 'points needed',
+    zh: '积分需要',
+    id: 'poin dibutuhkan'
   },
+
+  // Booking Management
+  'booking.title': {
+    en: 'Booking Management',
+    zh: '预约管理',
+    id: 'Manajemen Booking'
+  },
+  'booking.viewAppointments': {
+    en: 'View and manage your service appointments',
+    zh: '查看和管理您的服务预约',
+    id: 'Lihat dan kelola janji layanan Anda'
+  },
+  'booking.pastAppointments': {
+    en: 'Past Appointments',
+    zh: '过往预约',
+    id: 'Janji Masa Lalu'
+  },
+  'booking.upcomingAppointments': {
+    en: 'Upcoming Appointments',
+    zh: '即将到来的预约',
+    id: 'Janji Mendatang'
+  },
+  'booking.noAppointments': {
+    en: 'No appointments found',
+    zh: '未找到预约',
+    id: 'Tidak ada janji yang ditemukan'
+  },
+
+  // Toy Marketplace
+  'toys.marketplace': {
+    en: 'Toy Marketplace',
+    zh: '玩具市场',
+    id: 'Pasar Mainan'
+  },
+  'toys.browseAndBuy': {
+    en: 'Browse and buy toys for your pets',
+    zh: '浏览并购买宠物玩具',
+    id: 'Jelajahi dan beli mainan untuk hewan peliharaan Anda'
+  },
+  'toys.myCollection': {
+    en: 'My Toy Collection',
+    zh: '我的玩具收藏',
+    id: 'Koleksi Mainan Saya'
+  },
+  'toys.viewCollection': {
+    en: 'View and manage your purchased toys',
+    zh: '查看和管理您购买的玩具',
+    id: 'Lihat dan kelola mainan yang telah dibeli'
+  },
+  'toys.noToys': {
+    en: 'No toys found',
+    zh: '未找到玩具',
+    id: 'Tidak ada mainan yang ditemukan'
+  },
+  'toys.buyNow': {
+    en: 'Buy Now',
+    zh: '立即购买',
+    id: 'Beli Sekarang'
+  },
+
   'loyalty.pointsLeft': {
     en: 'points left',
     zh: '积分剩余',

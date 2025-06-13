@@ -5630,10 +5630,10 @@ export default function CompleteApp() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-slate-700">
-                        {language === "id" ? `Progress ke ${nextLoyaltyLevel.name}` : `Progress to ${nextLoyaltyLevel.name}`}
+                        {t('loyalty.progressTo')} {nextLoyaltyLevel.name}
                       </span>
                       <span className="text-sm text-slate-600">
-                        {loyaltyPointsToNext} {language === "id" ? "poin dibutuhkan" : "points needed"}
+                        {loyaltyPointsToNext} {t('loyalty.pointsNeeded')}
                       </span>
                     </div>
                     <Progress value={loyaltyProgress} className="h-3" />
@@ -6126,10 +6126,10 @@ export default function CompleteApp() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-bold text-slate-900">
-                  {language === "id" ? "Manajemen Reservasi" : "Booking Management"}
+                  {t('booking.title')}
                 </h2>
                 <p className="text-slate-600">
-                  {language === "id" ? "Kelola reservasi kecantikan, hiburan, dan restoran" : "Manage your beauty, entertainment, and restaurant bookings"}
+                  {t('booking.viewAppointments')}
                 </p>
               </div>
             </div>
