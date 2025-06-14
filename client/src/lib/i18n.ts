@@ -561,7 +561,7 @@ export const translations: Translations = {
     id: 'Pertama Global'
   },
   'landing.globalFirstDescription': {
-    en: "World's first integrated lifestyle destination",
+    en: 'World\'s first integrated lifestyle destination',
     zh: '世界首个综合生活方式目的地',
     id: 'Destinasi gaya hidup terintegrasi pertama di dunia'
   },

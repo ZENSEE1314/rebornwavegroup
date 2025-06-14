@@ -162,13 +162,13 @@ export default function Landing() {
                 </div>
                 
                 <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
-                  <h4 className="text-xl font-bold text-white mb-4">Visit Us</h4>
+                  <h4 className="text-xl font-bold text-white mb-4">{t('landing.visitUs')}</h4>
                   <div className="flex items-start space-x-3">
                     <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
                       <span className="text-sm">📍</span>
                     </div>
                     <div>
-                      <h5 className="text-white font-semibold">Our Location</h5>
+                      <h5 className="text-white font-semibold">{t('landing.ourLocation')}</h5>
                       <p className="text-white/70 text-sm">42RX+GWX, Jl. Gajah Mada, Sadai</p>
                       <p className="text-white/70 text-sm">Kec. Bengkong, Kota Batam</p>
                       <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
@@ -210,15 +210,15 @@ export default function Landing() {
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>Advanced Skincare Treatments</span>
+                    <span>{t('landing.beautyFeature1')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>Luxury Spa Experiences</span>
+                    <span>{t('landing.beautyFeature2')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>Personal Beauty Consultations</span>
+                    <span>{t('landing.beautyFeature3')}</span>
                   </div>
                 </div>
               </div>
@@ -238,15 +238,15 @@ export default function Landing() {
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Gourmet Dining Experiences</span>
+                    <span>{t('landing.foodFeature1')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Artisan Coffee & Beverages</span>
+                    <span>{t('landing.foodFeature2')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>Catering & Event Services</span>
+                    <span>{t('landing.foodFeature3')}</span>
                   </div>
                 </div>
               </div>
@@ -266,15 +266,15 @@ export default function Landing() {
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>Gaming Lounge Access</span>
+                    <span>{t('landing.entertainmentFeature1')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>Collectible Trading Platform</span>
+                    <span>{t('landing.entertainmentFeature2')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>Exclusive Entertainment Events</span>
+                    <span>{t('landing.entertainmentFeature3')}</span>
                   </div>
                 </div>
               </div>
@@ -294,15 +294,15 @@ export default function Landing() {
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>Business Conferences</span>
+                    <span>{t('landing.corporateFeature1')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>Team Building Events</span>
+                    <span>{t('landing.corporateFeature2')}</span>
                   </div>
                   <div className="flex items-center space-x-3 text-white/80">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>Corporate Retreats</span>
+                    <span>{t('landing.corporateFeature3')}</span>
                   </div>
                 </div>
               </div>
