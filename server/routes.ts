@@ -2725,9 +2725,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -3433,9 +3436,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/cash-outs', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const currentUser = await storage.getUser(userId);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -3468,9 +3474,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/transactions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const currentUser = await storage.getUser(userId);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -3539,9 +3548,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Get all appointments
   app.get('/api/admin/appointments', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(adminUserId);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
