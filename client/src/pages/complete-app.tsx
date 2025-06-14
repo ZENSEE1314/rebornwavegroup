@@ -5442,23 +5442,7 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-6 text-center">
-                  <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                  <p className="text-sm text-blue-600 font-medium">
-                    {t("navigation.referrals")}
-                  </p>
-                  <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
-                  <Button 
-                    size="sm" 
-                    onClick={toggleAchievementRules}
-                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                  >
-                    <Trophy className="w-4 h-4 mr-1" />
-                    {t("navigation.achievement")}
-                  </Button>
-                </CardContent>
-              </Card>
+
 
               <Card className="bg-yellow-50 border-yellow-200">
                 <CardContent className="p-6 text-center">

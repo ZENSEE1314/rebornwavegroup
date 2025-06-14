@@ -82,6 +82,11 @@ export const translations: Translations = {
     zh: '推荐',
     id: 'Rujukan'
   },
+  'dashboard.achievements': {
+    en: 'Achievements',
+    zh: '成就',
+    id: 'Pencapaian'
+  },
   'dashboard.tokens': {
     en: 'Tokens',
     zh: '代币',
