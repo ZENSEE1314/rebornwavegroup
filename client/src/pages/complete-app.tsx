@@ -4359,8 +4359,8 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Berhasil!" : "Success!",
-          description: language === "id" ? "Reservasi berhasil dihapus" : "Appointment deleted successfully",
+          title: t('common.success'),
+          description: t('appointments.deleteSuccess'),
         });
         queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       } else {
@@ -4389,8 +4389,8 @@ export default function CompleteApp() {
     setShowTopUpModal(false);
     setTopUpAmount("");
     toast({
-      title: language === "id" ? "Berhasil!" : "Success!",
-      description: language === "id" ? `RP ${formatRupiah(amount)} berhasil ditambahkan` : `RP ${formatRupiah(amount)} added successfully`,
+      title: t('common.success'),
+      description: t('credits.addSuccess', { amount: formatRupiah(amount) }),
     });
   };
 
@@ -4406,8 +4406,8 @@ export default function CompleteApp() {
   const processCashOut = async () => {
     if (!cashOutAmount || !bankName || !accountNumber || !accountHolderName) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Harap isi semua field" : "Please fill all fields",
+        title: t('common.error'),
+        description: t('form.fillAllFields'),
         variant: "destructive"
       });
       return;
@@ -4416,8 +4416,8 @@ export default function CompleteApp() {
     const amount = parseFloat(cashOutAmount);
     if (amount < 50000) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Minimal penarikan RP 50,000" : "Minimum cash-out RP 50,000",
+        title: t('common.error'),
+        description: t('cashout.minimumAmount'),
         variant: "destructive"
       });
       return;

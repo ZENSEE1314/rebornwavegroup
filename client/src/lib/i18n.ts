@@ -3371,16 +3371,6 @@ export const translations: Translations = {
     zh: '自动二维码检测即将推出。请使用手动输入。',
     id: 'Deteksi QR code otomatis akan segera tersedia. Silakan gunakan input manual.'
   },
-  'common.success': {
-    en: 'Success!',
-    zh: '成功！',
-    id: 'Berhasil!'
-  },
-  'common.error': {
-    en: 'Error',
-    zh: '错误',
-    id: 'Error'
-  },
   'tokens.claimSubmittedSuccess': {
     en: 'Token claim request submitted successfully!',
     zh: '代币申请提交成功！',
@@ -3400,6 +3390,26 @@ export const translations: Translations = {
     en: 'Appointment rescheduled successfully',
     zh: '预约重新安排成功',
     id: 'Jadwal berhasil diubah'
+  },
+  'appointments.deleteSuccess': {
+    en: 'Appointment deleted successfully',
+    zh: '预约删除成功',
+    id: 'Reservasi berhasil dihapus'
+  },
+  'credits.addSuccess': {
+    en: 'RP {{amount}} added successfully',
+    zh: 'RP {{amount}} 添加成功',
+    id: 'RP {{amount}} berhasil ditambahkan'
+  },
+  'cashout.minimumAmount': {
+    en: 'Minimum cash-out RP 50,000',
+    zh: '最低提现 RP 50,000',
+    id: 'Minimal penarikan RP 50,000'
+  },
+  'credits.insufficient': {
+    en: 'Insufficient credits',
+    zh: '积分不足',
+    id: 'Kredit tidak mencukupi'
   }
 };
 
