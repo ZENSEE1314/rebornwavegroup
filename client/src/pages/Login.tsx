@@ -284,19 +284,19 @@ export default function Login() {
             <LanguageSelector />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">
-            Reborn Wave Pet Care
+            {t('auth.title')}
           </CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-300">
-            Your digital pet adventure awaits
+            {t('auth.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className={`grid w-full ${activeTab === "forgot-password" || activeTab === "reset-password" ? "grid-cols-3" : "grid-cols-2"}`}>
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Sign Up</TabsTrigger>
+              <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
+              <TabsTrigger value="register">{t('auth.signUp')}</TabsTrigger>
               {(activeTab === "forgot-password" || activeTab === "reset-password") && (
-                <TabsTrigger value="forgot-password">Reset</TabsTrigger>
+                <TabsTrigger value="forgot-password">{t('auth.reset')}</TabsTrigger>
               )}
             </TabsList>
             

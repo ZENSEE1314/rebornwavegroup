@@ -778,6 +778,66 @@ export const translations: Translations = {
     zh: '或继续使用',
     id: 'Atau lanjutkan dengan'
   },
+  'auth.title': {
+    en: 'Reborn Wave Pet Care',
+    zh: '重生波浪宠物护理',
+    id: 'Perawatan Hewan Reborn Wave'
+  },
+  'auth.subtitle': {
+    en: 'Your digital pet adventure awaits',
+    zh: '您的数字宠物冒险等待着您',
+    id: 'Petualangan hewan digital Anda menanti'
+  },
+  'auth.reset': {
+    en: 'Reset',
+    zh: '重置',
+    id: 'Reset'
+  },
+  'auth.enterEmail': {
+    en: 'Enter your email',
+    zh: '输入您的电子邮件',
+    id: 'Masukkan email Anda'
+  },
+  'auth.enterPassword': {
+    en: 'Enter your password',
+    zh: '输入您的密码',
+    id: 'Masukkan kata sandi Anda'
+  },
+  'auth.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'auth.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'auth.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
+  },
+  'auth.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'auth.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'auth.male': {
+    en: 'Male',
+    zh: '男性',
+    id: 'Laki-laki'
+  },
+  'auth.female': {
+    en: 'Female',
+    zh: '女性',
+    id: 'Perempuan'
+  },
   'auth.welcomeTitle': {
     en: 'Reborn Wave Pet Care',
     zh: '重生浪潮宠物护理',
@@ -792,56 +852,6 @@ export const translations: Translations = {
     en: 'Have a referral code? Enter it in the form below before choosing your sign-up method',
     zh: '有推荐码？在选择注册方式之前在下面的表格中输入',
     id: 'Punya kode referral? Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
-  },
-  'auth.enterEmail': {
-    en: 'Enter your email',
-    zh: '输入您的电子邮件',
-    id: 'Masukkan email Anda'
-  },
-  'auth.enterPassword': {
-    en: 'Enter your password',
-    zh: '输入您的密码',
-    id: 'Masukkan kata sandi Anda'
-  },
-  'auth.firstName': {
-    en: 'First Name',
-    zh: '名',
-    id: 'Nama Depan'
-  },
-  'auth.lastName': {
-    en: 'Last Name',
-    zh: '姓',
-    id: 'Nama Belakang'
-  },
-  'auth.phoneNumber': {
-    en: 'Phone Number',
-    zh: '电话号码',
-    id: 'Nomor Telepon'
-  },
-  'auth.gender': {
-    en: 'Gender',
-    zh: '性别',
-    id: 'Jenis Kelamin'
-  },
-  'auth.gender.male': {
-    en: 'Male',
-    zh: '男',
-    id: 'Laki-laki'
-  },
-  'auth.gender.female': {
-    en: 'Female',
-    zh: '女',
-    id: 'Perempuan'
-  },
-  'auth.dateOfBirth': {
-    en: 'Date of Birth',
-    zh: '出生日期',
-    id: 'Tanggal Lahir'
-  },
-  'auth.referralCode': {
-    en: 'Referral Code (Optional)',
-    zh: '推荐码（可选）',
-    id: 'Kode Referral (Opsional)'
   },
   'auth.alreadyAccount': {
     en: 'Already have an account?',
