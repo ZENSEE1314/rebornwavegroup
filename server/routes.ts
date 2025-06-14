@@ -5212,5 +5212,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin season management endpoints
+  app.get('/api/admin/seasons', requireAuth, async (req: any, res) => {
+    try {
+      const seasons = await db.select().from(schema.seasons).orderBy(schema.seasons.displayOrder);
+      res.json(seasons);
+    } catch (error) {
+      console.error("Error fetching seasons:", error);
+      res.status(500).json({ message: "Failed to fetch seasons" });
+    }
+  });
+
+  app.post('/api/admin/seasons', requireAuth, async (req: any, res) => {
+    try {
+      const { name, displayName, description, backgroundColor, iconUrl } = req.body;
+      
+      if (!name || !displayName) {
+        return res.status(400).json({ message: "Name and display name are required" });
+      }
+
+      const [season] = await db.insert(schema.seasons).values({
+        name,
+        displayName,
+        description: description || '',
+        iconUrl: iconUrl || '/images/default-season.png',
+        backgroundColor: backgroundColor || '#3B82F6',
+        isActive: true,
+        displayOrder: 0,
+        startDate: new Date(),
+        endDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      res.json(season);
+    } catch (error) {
+      console.error("Error creating season:", error);
+      res.status(500).json({ message: "Failed to create season" });
+    }
+  });
+
+  app.put('/api/admin/seasons/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { name, displayName, description, backgroundColor, iconUrl, isActive } = req.body;
+
+      await db.update(schema.seasons).set({
+        name,
+        displayName,
+        description,
+        backgroundColor,
+        iconUrl,
+        isActive,
+        updatedAt: new Date()
+      }).where(eq(schema.seasons.id, parseInt(id)));
+
+      res.json({ message: "Season updated successfully" });
+    } catch (error) {
+      console.error("Error updating season:", error);
+      res.status(500).json({ message: "Failed to update season" });
+    }
+  });
+
+  app.delete('/api/admin/seasons/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // First check if there are any toys using this season
+      const toysInSeason = await db.select().from(schema.toys).where(eq(schema.toys.seasonId, parseInt(id)));
+      
+      if (toysInSeason.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete season. ${toysInSeason.length} toys are using this season.` 
+        });
+      }
+
+      // Delete associated sectors first
+      await db.delete(schema.collectionSectors).where(eq(schema.collectionSectors.seasonId, parseInt(id)));
+      
+      // Then delete the season
+      await db.delete(schema.seasons).where(eq(schema.seasons.id, parseInt(id)));
+
+      res.json({ message: "Season deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting season:", error);
+      res.status(500).json({ message: "Failed to delete season" });
+    }
+  });
+
+  // Admin sector management endpoints
+  app.get('/api/admin/sectors', requireAuth, async (req: any, res) => {
+    try {
+      const sectors = await db.select({
+        id: schema.collectionSectors.id,
+        seasonId: schema.collectionSectors.seasonId,
+        name: schema.collectionSectors.name,
+        displayName: schema.collectionSectors.displayName,
+        description: schema.collectionSectors.description,
+        iconSymbol: schema.collectionSectors.iconSymbol,
+        backgroundColor: schema.collectionSectors.backgroundColor,
+        unlockCondition: schema.collectionSectors.unlockCondition,
+        isUnlocked: schema.collectionSectors.isUnlocked,
+        displayOrder: schema.collectionSectors.displayOrder,
+        seasonName: schema.seasons.displayName
+      })
+      .from(schema.collectionSectors)
+      .leftJoin(schema.seasons, eq(schema.collectionSectors.seasonId, schema.seasons.id))
+      .orderBy(schema.collectionSectors.seasonId, schema.collectionSectors.displayOrder);
+      
+      res.json(sectors);
+    } catch (error) {
+      console.error("Error fetching sectors:", error);
+      res.status(500).json({ message: "Failed to fetch sectors" });
+    }
+  });
+
+  app.post('/api/admin/sectors', requireAuth, async (req: any, res) => {
+    try {
+      const { seasonId, name, displayName, description, backgroundColor, iconSymbol, unlockCondition } = req.body;
+      
+      if (!seasonId || !name || !displayName) {
+        return res.status(400).json({ message: "Season ID, name and display name are required" });
+      }
+
+      const [sector] = await db.insert(schema.collectionSectors).values({
+        seasonId: parseInt(seasonId),
+        name,
+        displayName,
+        description: description || '',
+        iconSymbol: iconSymbol || '🎯',
+        backgroundColor: backgroundColor || '#F3F4F6',
+        unlockCondition: unlockCondition || 'none',
+        isUnlocked: true,
+        displayOrder: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      res.json(sector);
+    } catch (error) {
+      console.error("Error creating sector:", error);
+      res.status(500).json({ message: "Failed to create sector" });
+    }
+  });
+
+  app.put('/api/admin/sectors/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { seasonId, name, displayName, description, backgroundColor, iconSymbol, unlockCondition, isUnlocked } = req.body;
+
+      await db.update(schema.collectionSectors).set({
+        seasonId: parseInt(seasonId),
+        name,
+        displayName,
+        description,
+        backgroundColor,
+        iconSymbol,
+        unlockCondition,
+        isUnlocked,
+        updatedAt: new Date()
+      }).where(eq(schema.collectionSectors.id, parseInt(id)));
+
+      res.json({ message: "Sector updated successfully" });
+    } catch (error) {
+      console.error("Error updating sector:", error);
+      res.status(500).json({ message: "Failed to update sector" });
+    }
+  });
+
+  app.delete('/api/admin/sectors/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // First check if there are any toys using this sector
+      const toysInSector = await db.select().from(schema.toys).where(eq(schema.toys.sectorId, parseInt(id)));
+      
+      if (toysInSector.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete sector. ${toysInSector.length} toys are using this sector.` 
+        });
+      }
+
+      await db.delete(schema.collectionSectors).where(eq(schema.collectionSectors.id, parseInt(id)));
+
+      res.json({ message: "Sector deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting sector:", error);
+      res.status(500).json({ message: "Failed to delete sector" });
+    }
+  });
+
   return httpServer;
 }
