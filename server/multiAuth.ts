@@ -194,14 +194,13 @@ export function setupAuthRoutes(app: Express) {
         return res.status(400).json({ message: 'User already exists with this email' });
       }
 
-      // Hash password and create user
-      const hashedPassword = await bcrypt.hash(password, 12);
+      // Create user with plain password (storage will handle hashing)
       const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       const newUser = await storage.createEmailUser({
         id: userId,
         email,
-        password: hashedPassword,
+        password, // Pass plain password, let storage handle hashing
         authProvider: 'email',
         firstName: firstName || '',
         lastName: lastName || '',
