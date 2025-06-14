@@ -636,36 +636,6 @@ export const translations: Translations = {
     zh: '推荐码（可选）',
     id: 'Kode Referral (Opsional)'
   },
-  'auth.login': {
-    en: 'Login',
-    zh: '登录',
-    id: 'Masuk'
-  },
-  'auth.register': {
-    en: 'Register',
-    zh: '注册',
-    id: 'Daftar'
-  },
-  'auth.forgotPassword': {
-    en: 'Forgot Password?',
-    zh: '忘记密码？',
-    id: 'Lupa Kata Sandi?'
-  },
-  'auth.resetPassword': {
-    en: 'Reset Password',
-    zh: '重置密码',
-    id: 'Reset Kata Sandi'
-  },
-  'auth.loginWith': {
-    en: 'Login with',
-    zh: '使用以下方式登录',
-    id: 'Masuk dengan'
-  },
-  'auth.orContinueWith': {
-    en: 'Or continue with',
-    zh: '或继续使用',
-    id: 'Atau lanjutkan dengan'
-  },
   'auth.alreadyAccount': {
     en: 'Already have an account?',
     zh: '已有账户？',
