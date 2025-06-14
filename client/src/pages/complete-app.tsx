@@ -4832,6 +4832,21 @@ export default function CompleteApp() {
     }
   };
 
+  // Onboarding handlers
+  const handleOnboardingClose = () => {
+    setShowOnboarding(false);
+    localStorage.setItem('onboarding-completed', 'true');
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    localStorage.setItem('onboarding-completed', 'true');
+    toast({
+      title: t('onboarding.complete.title'),
+      description: t('onboarding.complete.description'),
+    });
+  };
+
   const changePassword = async () => {
     if (newPassword !== confirmPassword) {
       toast({
@@ -5379,8 +5394,8 @@ export default function CompleteApp() {
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <Card className="bg-green-50 border-green-200">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 stats-grid">
+              <Card className="bg-green-50 border-green-200 credits-card">
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
                   <p className="text-sm text-green-600 font-medium">
@@ -5409,7 +5424,7 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-purple-50 border-purple-200">
+              <Card className="bg-purple-50 border-purple-200 loyalty-card">
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
                   <p className="text-sm text-purple-600 font-medium">
@@ -5423,7 +5438,7 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-orange-50 border-orange-200">
+              <Card className="bg-orange-50 border-orange-200 tokens-card">
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
                   <p className="text-sm text-orange-600 font-medium">
