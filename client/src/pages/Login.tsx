@@ -303,7 +303,7 @@ export default function Login() {
             {activeTab === "register" && (
               <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
-                  <strong>Have a referral code?</strong> Enter it in the form below before choosing your sign-up method
+                  <strong>{t('auth.haveReferralCode')}</strong> {t('auth.enterBeforeSignup')}
                 </p>
               </div>
             )}
@@ -670,7 +670,7 @@ export default function Login() {
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-background px-2 text-muted-foreground">
-                      Or sign up with (referral code above will be applied)
+                      {t('auth.orSignUpWith')}
                     </span>
                   </div>
                 </div>

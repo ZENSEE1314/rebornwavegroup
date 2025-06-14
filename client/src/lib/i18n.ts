@@ -853,6 +853,21 @@ export const translations: Translations = {
     zh: '正在创建账户...',
     id: 'Membuat akun...'
   },
+  'auth.orSignUpWith': {
+    en: 'Or sign up with (referral code above will be applied)',
+    zh: '或者注册（上面的推荐码将被应用）',
+    id: 'Atau daftar dengan (kode referral di atas akan diterapkan)'
+  },
+  'auth.haveReferralCode': {
+    en: 'Have a referral code?',
+    zh: '有推荐码吗？',
+    id: 'Punya kode referral?'
+  },
+  'auth.enterBeforeSignup': {
+    en: 'Enter it in the form below before choosing your sign-up method',
+    zh: '在选择注册方式之前在下面的表格中输入',
+    id: 'Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
+  },
   'auth.welcomeTitle': {
     en: 'Reborn Wave Pet Care',
     zh: '重生浪潮宠物护理',
