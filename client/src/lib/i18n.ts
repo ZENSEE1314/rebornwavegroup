@@ -4848,6 +4848,11 @@ export const translations: Translations = {
     zh: '推荐收益',
     id: 'Pendapatan Rujukan'
   },
+  'petCare.loading': {
+    en: 'Loading pet care...',
+    zh: '正在加载宠物护理...',
+    id: 'Memuat perawatan hewan peliharaan...'
+  },
   'common.receive': {
     en: 'Receive',
     zh: '接收',

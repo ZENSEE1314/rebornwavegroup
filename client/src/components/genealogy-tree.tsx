@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, TrendingUp, Calendar, Crown } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useLanguage } from '@/lib/i18n';
 
 interface GenealogyNode {
   id: number;
@@ -22,6 +23,7 @@ interface GenealogyTreeData {
 }
 
 export default function GenealogyTree() {
+  const { t } = useLanguage();
   const { data: genealogyData, isLoading } = useQuery<GenealogyTreeData>({
     queryKey: ['/api/users/genealogy-tree'],
     retry: false,
@@ -40,10 +42,10 @@ export default function GenealogyTree() {
       <div className="text-center py-12">
         <Users className="mx-auto h-16 w-16 text-gray-400 mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          No Referral Network Yet
+          {t('referralProgram.noNetwork')}
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Share your referral link to start building your network and earning commissions.
+          {t('referralProgram.shareLink')}
         </p>
       </div>
     );
