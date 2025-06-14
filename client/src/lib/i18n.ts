@@ -3345,6 +3345,21 @@ export const translations: Translations = {
     en: 'Activate',
     zh: '激活',
     id: 'Aktifkan'
+  },
+  'pet.nextEnergyBoost': {
+    en: 'Time until next energy boost',
+    zh: '距离下次能量提升时间',
+    id: 'Waktu hingga energi berikutnya'
+  },
+  'pet.lifeRemaining': {
+    en: 'Life remaining: {{days}} days ({{years}} years)',
+    zh: '剩余生命：{{days}}天（{{years}}年）',
+    id: 'Sisa hidup: {{days}} hari ({{years}} tahun)'
+  },
+  'pet.sleepingFor': {
+    en: 'Sleeping for {{time}}',
+    zh: '已睡眠{{time}}',
+    id: 'Telah tidur selama {{time}}'
   }
 };
 

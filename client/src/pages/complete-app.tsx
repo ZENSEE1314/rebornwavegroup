@@ -1947,10 +1947,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             </div>
                             
                             <div className="text-sm text-blue-600 mb-2">
-                              {language === "id" 
-                                ? "Waktu hingga energi berikutnya"
-                                : "Time until next energy boost"
-                              }
+                              {t('pet.nextEnergyBoost')}
                             </div>
                             
                             <div className="text-sm text-blue-600">
@@ -2020,9 +2017,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     </div>
                     {!isDead && (
                       <div className="text-center text-xs text-gray-500">
-                        {language === "id" ? 
-                          `Sisa hidup: ${100 - days} hari (${100 - ageInYears} tahun)` : 
-                          `Life remaining: ${100 - days} days (${100 - ageInYears} years)`}
+                        {t('pet.lifeRemaining', { days: 100 - days, years: 100 - ageInYears })}
                       </div>
                     )}
                   </div>
@@ -2617,17 +2612,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-2">
-                      {language === "id" 
-                        ? "Waktu hingga energi berikutnya"
-                        : "Time until next energy boost"
-                      }
+                      {t('pet.nextEnergyBoost')}
                     </div>
                     
                     <div className="text-sm text-blue-600">
-                      {language === "id" 
-                        ? `Telah tidur selama ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
-                        : `Sleeping for ${formatSleepTime(sleepProgress.totalSleepTime || 0)}`
-                      }
+                      {t('pet.sleepingFor', { time: formatSleepTime(sleepProgress.totalSleepTime || 0) })}
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-3">
