@@ -3489,7 +3489,7 @@ export default function CompleteApp() {
       type: "referral",
       count: 50,
       title: language === "id" ? "Duta Legendaris" : "Legendary Ambassador",
-      description: language === "id" ? "Status legendaris dengan 50 rujukan!" : "Legendary status with 50 referrals!",
+      description: t('achievements.legendaryStatus'),
       reward: language === "id" ? "2,500 Poin + 1,500 Bonus" : "2,500 Points + 1,500 Bonus",
       icon: Medal,
       color: "from-purple-600 to-pink-600",
@@ -3502,7 +3502,7 @@ export default function CompleteApp() {
       type: "spending",
       count: 5,
       title: language === "id" ? "Mentor Belanja" : "Shopping Mentor",
-      description: language === "id" ? "5 referral Anda menghabiskan 10,000,000 RP masing-masing" : "5 of your referrals spend 10,000,000 RP each",
+      description: t('achievements.spendRequirement'),
       reward: language === "id" ? "100 Poin Bonus" : "100 Bonus Points",
       icon: DollarSign,
       color: "from-emerald-500 to-emerald-600",
@@ -6003,13 +6003,13 @@ export default function CompleteApp() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
-                        {language === "id" ? "Setiap rujukan berhasil:" : "Each successful referral:"}
+                        t('referral.eachSuccessful')
                       </span>
                       <span className="font-bold text-blue-600">+50 {language === "id" ? "poin" : "points"}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
-                        {language === "id" ? "Bonus setiap 5 rujukan:" : "Bonus every 5 referrals:"}
+                        t('referral.bonusEvery5')
                       </span>
                       <span className="font-bold text-purple-600">+150 {language === "id" ? "poin" : "points"}</span>
                     </div>
@@ -6025,7 +6025,7 @@ export default function CompleteApp() {
                   <div className="grid grid-cols-2 gap-3">
                     {allAchievements.filter(a => a.type === 'referral').map((achievement, index) => (
                       <div key={index} className="flex justify-between items-center bg-white rounded p-3 shadow-sm">
-                        <span className="text-gray-700 font-medium">{achievement.count} {language === "id" ? "rujukan" : "referrals"}</span>
+                        <span className="text-gray-700 font-medium">{achievement.count} {t('common.referrals')}</span>
                         <span className="font-bold text-green-600">
                           {achievement.count === 1 ? '50' : 
                            achievement.count === 5 ? '400' :
@@ -6100,8 +6100,8 @@ export default function CompleteApp() {
                     {language === "id" ? "Cara Kerja Poin" : "How Points Work"}
                   </h4>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p>• {language === "id" ? "Poin diperoleh otomatis saat rujukan berhasil" : "Points are earned automatically when referrals are successful"}</p>
-                    <p>• {language === "id" ? "Bonus milestone diberikan setiap kelipatan 5 rujukan" : "Milestone bonuses are given every 5 referrals"}</p>
+                    <p>• {t('referral.autoPoints')}</p>
+                    <p>• {t('referral.milestoneBonus')}</p>
                     <p>• {language === "id" ? "Poin dapat ditukar dengan kredit atau hadiah" : "Points can be exchanged for credits or rewards"}</p>
                     <p>• {language === "id" ? "Tidak ada batas waktu untuk menggunakan poin" : "No time limit for using points"}</p>
                   </div>
@@ -7041,7 +7041,7 @@ export default function CompleteApp() {
                             confirmPurchaseMutation.mutate(purchase.id);
                             toast({
                               title: language === "id" ? "Transaksi Selesai!" : "Transaction Complete!",
-                              description: language === "id" ? "Mainan telah ditambahkan ke koleksi Anda" : "Toy has been added to your collection",
+                              description: t('collection.toyAdded'),
                             });
                           }}
                           className="w-full bg-blue-600 hover:bg-blue-700"

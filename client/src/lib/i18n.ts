@@ -3200,6 +3200,56 @@ export const translations: Translations = {
     en: 'Bronze',
     zh: '青铜',
     id: 'Perunggu'
+  },
+  'achievements.legendaryStatus': {
+    en: 'Legendary status with 50 referrals!',
+    zh: '50个推荐的传奇地位！',
+    id: 'Status legendaris dengan 50 rujukan!'
+  },
+  'achievements.spendRequirement': {
+    en: '5 of your referrals spend 10,000,000 RP each',
+    zh: '您的5个推荐人每人消费10,000,000 RP',
+    id: '5 referral Anda menghabiskan 10,000,000 RP masing-masing'
+  },
+  'referral.eachSuccessful': {
+    en: 'Each successful referral:',
+    zh: '每个成功推荐：',
+    id: 'Setiap rujukan berhasil:'
+  },
+  'referral.bonusEvery5': {
+    en: 'Bonus every 5 referrals:',
+    zh: '每5个推荐的奖励：',
+    id: 'Bonus setiap 5 rujukan:'
+  },
+  'common.referrals': {
+    en: 'referrals',
+    zh: '推荐',
+    id: 'rujukan'
+  },
+  'referral.autoPoints': {
+    en: 'Points are earned automatically when referrals are successful',
+    zh: '推荐成功时自动获得积分',
+    id: 'Poin diperoleh otomatis saat rujukan berhasil'
+  },
+  'referral.milestoneBonus': {
+    en: 'Milestone bonuses are given every 5 referrals',
+    zh: '每5个推荐给予里程碑奖励',
+    id: 'Bonus milestone diberikan setiap kelipatan 5 rujukan'
+  },
+  'collection.toyAdded': {
+    en: 'Toy has been added to your collection',
+    zh: '玩具已添加到您的收藏',
+    id: 'Mainan telah ditambahkan ke koleksi Anda'
+  },
+  'qr.scanForReferral': {
+    en: 'Scan QR Code for referral',
+    zh: '扫描二维码进行推荐',
+    id: 'Pindai QR Code untuk rujukan'
+  },
+  'profile.manageSettings': {
+    en: 'Manage your account settings and preferences',
+    zh: '管理您的账户设置和偏好',
+    id: 'Kelola pengaturan akun dan preferensi'
   }
 };
 
