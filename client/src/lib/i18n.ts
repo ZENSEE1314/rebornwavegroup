@@ -3121,11 +3121,6 @@ export const translations: Translations = {
     zh: '请填写所有字段，选择服务类别，并上传收据图片',
     id: 'Mohon isi semua field dan upload bukti pembayaran'
   },
-  'common.remove': {
-    en: 'Remove',
-    zh: '移除',
-    id: 'Hapus'
-  },
   'profile.notificationSettings': {
     en: 'Notification Settings',
     zh: '通知设置',
@@ -4442,15 +4437,46 @@ export const translations: Translations = {
     zh: '返回',
     id: 'Kembali'
   },
-  'common.next': {
-    en: 'Next',
-    zh: '下一步',
-    id: 'Berikutnya'
-  },
+
   'common.previous': {
     en: 'Previous',
     zh: '上一步',
     id: 'Sebelumnya'
+  },
+  'common.enable': {
+    en: 'Enable',
+    zh: '启用',
+    id: 'Aktifkan'
+  },
+  'common.disable': {
+    en: 'Disable',
+    zh: '禁用',
+    id: 'Nonaktifkan'
+  },
+  'common.refresh': {
+    en: 'Refresh',
+    zh: '刷新',
+    id: 'Refresh'
+  },
+  'common.loadMore': {
+    en: 'Load More',
+    zh: '加载更多',
+    id: 'Muat Lebih Banyak'
+  },
+  'search.results': {
+    en: 'Search Results',
+    zh: '搜索结果',
+    id: 'Hasil Pencarian'
+  },
+  'search.noResults': {
+    en: 'No Results',
+    zh: '没有结果',
+    id: 'Tidak Ada Hasil'
+  },
+  'search.placeholder': {
+    en: 'Search...',
+    zh: '搜索...',
+    id: 'Cari...'
   },
 
 
