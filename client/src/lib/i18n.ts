@@ -3552,11 +3552,6 @@ export const translations: Translations = {
     zh: '提交请求',
     id: 'Kirim Permintaan'
   },
-  'cashout.minimumAmount': {
-    en: 'Min. RP 50,000',
-    zh: '最低 RP 50,000',
-    id: 'Min. RP 50,000'
-  },
   'cashout.selectBank': {
     en: 'Select bank or e-wallet',
     zh: '选择银行或电子钱包',
@@ -3571,6 +3566,21 @@ export const translations: Translations = {
     en: 'Select bank first',
     zh: '请先选择银行',
     id: 'Pilih bank terlebih dahulu'
+  },
+  'cashout.accountHolderName': {
+    en: 'Account Holder Name',
+    zh: '账户持有人姓名',
+    id: 'Nama Pemilik Rekening'
+  },
+  'cashout.nameAsPerBank': {
+    en: 'Name as per bank account',
+    zh: '银行账户姓名',
+    id: 'Nama sesuai rekening bank'
+  },
+  'cashout.submitWithdrawal': {
+    en: 'Submit Withdrawal',
+    zh: '提交提现',
+    id: 'Ajukan Penarikan'
   }
 };
 

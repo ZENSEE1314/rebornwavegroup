@@ -5197,10 +5197,10 @@ export default function CompleteApp() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Pemilik Rekening" : "Account Holder Name"}
+                  {t("cashout.accountHolderName")}
                 </label>
                 <Input
-                  placeholder={language === "id" ? "Nama sesuai rekening bank" : "Name as per bank account"}
+                  placeholder={t("cashout.nameAsPerBank")}
                   value={accountHolderName}
                   onChange={(e) => setAccountHolderName(e.target.value)}
                 />
@@ -5216,7 +5216,7 @@ export default function CompleteApp() {
 
               <div className="flex space-x-2">
                 <Button onClick={processCashOut} className="flex-1 bg-green-600 hover:bg-green-700">
-                  {language === "id" ? "Ajukan Penarikan" : "Submit Withdrawal"}
+                  {t("cashout.submitWithdrawal")}
                 </Button>
                 <Button variant="outline" onClick={() => setShowCashOutModal(false)} className="flex-1">
                   {t('common.cancel')}
@@ -5237,11 +5237,11 @@ export default function CompleteApp() {
             className="bg-white rounded-lg p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold mb-4">{language === "id" ? "Jual Mainan Saya" : "Sell My Toy"}</h3>
+            <h3 className="text-lg font-bold mb-4">{t("marketplace.sellMyToy")}</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Pilih Mainan" : "Select Toy"}
+                  {t("marketplace.selectToy")}
                 </label>
                 <Select onValueChange={(value) => setSelectedToyForSale(toyInventory.find(toy => toy.id.toString() === value))}>
                   <SelectTrigger>
@@ -6411,7 +6411,7 @@ export default function CompleteApp() {
                 className="mt-4 bg-green-600 hover:bg-green-700"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {language === "id" ? "Jual Mainan Saya" : "Sell My Toy"}
+                {t("marketplace.sellMyToy")}
               </Button>
             </div>
 
