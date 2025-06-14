@@ -1075,7 +1075,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/users/:userId/change-password', isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1103,7 +1108,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Promotion banner management routes
   app.get('/api/admin/banners', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1118,7 +1128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/banners', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1133,7 +1148,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1148,7 +1168,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1197,7 +1222,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1212,7 +1242,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1227,7 +1262,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1263,7 +1303,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1278,7 +1323,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -1293,7 +1343,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -2746,7 +2801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allUsers = await storage.getAllUsers();
@@ -3419,7 +3474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allUsers = await storage.getAllUsers();
@@ -3457,7 +3512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allCashOuts = await storage.getAllCashOuts();
@@ -3495,7 +3550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allTransactions = await storage.getAllTransactions();
@@ -3530,7 +3585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allToys = await storage.getAllToysWithOwners();
@@ -3569,7 +3624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allAppointments = await storage.getAllAppointments();
@@ -4451,7 +4506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allActivatedPets = await storage.getAllActivatedPetsWithDetails();
@@ -4567,7 +4622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
       const allClaims = await storage.getTokenClaims();
