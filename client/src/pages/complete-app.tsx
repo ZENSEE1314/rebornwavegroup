@@ -7464,20 +7464,20 @@ export default function CompleteApp() {
                   {/* Preferences */}
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-4">
-                      {language === "id" ? "Preferensi" : "Preferences"}
+                      {t('preferences.title')}
                     </h4>
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">
-                            {language === "id" ? "Notifikasi Email" : "Email Notifications"}
+                            {t('preferences.emailNotifications')}
                           </p>
                           <p className="text-sm text-slate-600">
-                            {language === "id" ? "Terima update tentang janji dan promosi" : "Receive updates about appointments and promotions"}
+                            {t('preferences.emailDescription')}
                           </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => setShowEmailModal(true)}>
-                          {language === "id" ? "Kelola" : "Manage"}
+                          {t('common.manage')}
                         </Button>
                       </div>
 
@@ -7487,7 +7487,7 @@ export default function CompleteApp() {
                   {/* Account Actions */}
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-4">
-                      {language === "id" ? "Aksi Akun" : "Account Actions"}
+                      {t('account.actions')}
                     </h4>
                     <div className="space-y-3">
                       {editingProfile ? (
@@ -7508,11 +7508,11 @@ export default function CompleteApp() {
                           onClick={() => setEditingProfile(true)}
                           className="w-full bg-blue-600 hover:bg-blue-700"
                         >
-                          {language === "id" ? "Edit Profil" : "Edit Profile"}
+                          {t('account.editProfile')}
                         </Button>
                       )}
                       <Button variant="outline" className="w-full" onClick={() => setShowPasswordModal(true)}>
-                        {language === "id" ? "Ubah Password" : "Change Password"}
+                        {t('account.changePassword')}
                       </Button>
                     </div>
                   </div>
@@ -7523,32 +7523,32 @@ export default function CompleteApp() {
             {/* Account Statistics */}
             <Card>
               <CardHeader>
-                <CardTitle>{language === "id" ? "Statistik Akun" : "Account Statistics"}</CardTitle>
+                <CardTitle>{t('account.statistics')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(userCredits)}</p>
                     <p className="text-sm text-slate-600">
-                      {language === "id" ? "Kredit Saat Ini" : "Current Credits"}
+                      {t('account.currentCredits')}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">{loyaltyPoints}</p>
                     <p className="text-sm text-slate-600">
-                      {language === "id" ? "Poin Loyalitas" : "Loyalty Points"}
+                      {t('account.loyaltyPoints')}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">{userAppointments.length}</p>
                     <p className="text-sm text-slate-600">
-                      {language === "id" ? "Total Reservasi" : "Total Bookings"}
+                      {t('account.totalBookings')}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
                     <p className="text-sm text-slate-600">
-                      {language === "id" ? "Pendapatan Rujukan" : "Referral Earnings"}
+                      {t('account.referralEarnings')}
                     </p>
                   </div>
                 </div>
