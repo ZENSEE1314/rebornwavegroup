@@ -3155,6 +3155,51 @@ export const translations: Translations = {
     en: 'Receive updates via SMS',
     zh: '通过短信接收更新',
     id: 'Terima update melalui SMS'
+  },
+  'achievements.activeAgent': {
+    en: 'Active Agent',
+    zh: '活跃代理',
+    id: 'Agen Aktif'
+  },
+  'achievements.activeAgentDesc': {
+    en: 'Reach 15 active referrals!',
+    zh: '达到15个活跃推荐！',
+    id: 'Capai 15 referral aktif!'
+  },
+  'achievements.activeAgentReward': {
+    en: '750 Points + 450 Bonus',
+    zh: '750积分 + 450奖励',
+    id: '750 Poin + 450 Bonus'
+  },
+  'achievements.referralChampion': {
+    en: 'Referral Champion',
+    zh: '推荐冠军',
+    id: 'Juara Rujukan'
+  },
+  'achievements.referralChampionDesc': {
+    en: 'Achieve 20 successful invites!',
+    zh: '完成20个成功邀请！',
+    id: 'Mencapai 20 undangan sukses!'
+  },
+  'achievements.referralChampionReward': {
+    en: '1,000 Points + 600 Bonus',
+    zh: '1,000积分 + 600奖励',
+    id: '1,000 Poin + 600 Bonus'
+  },
+  'achievements.masterNetworker': {
+    en: 'Master Networker',
+    zh: '网络大师',
+    id: 'Master Networker'
+  },
+  'achievements.masterNetworkerDesc': {
+    en: 'Invitation king with 25 referrals!',
+    zh: '邀请之王，拥有25个推荐！',
+    id: 'Raja undangan dengan 25 rujukan!'
+  },
+  'loyaltyTier.bronze': {
+    en: 'Bronze',
+    zh: '青铜',
+    id: 'Perunggu'
   }
 };
 

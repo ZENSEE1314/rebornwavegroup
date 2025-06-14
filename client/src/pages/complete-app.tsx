@@ -2521,7 +2521,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
             <CardHeader>
               <CardTitle>{t('petCare.title')}</CardTitle>
               <p className="text-sm text-gray-600">
-                {language === "id" ? "Selesaikan semua aktivitas untuk mendapatkan 1 token hari ini!" : "Complete all activities to earn 1 token today!"}
+                {t('dailyActivities.completeAll')}
               </p>
             </CardHeader>
             <CardContent>
@@ -2633,7 +2633,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     </div>
                     
                     <div className="text-sm text-gray-600 mb-3">
-                      {language === "id" ? "Energi saat ini: " : "Current energy: "}
+                      {t('energy.currentEnergy')}
                       <span className="font-semibold text-blue-700">
                         {sleepProgress.currentEnergy || safePets[currentPetIndex]?.energy || 0}%
                       </span>
@@ -2641,7 +2641,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     
                     {(sleepProgress.currentEnergy || safePets[currentPetIndex]?.energy || 0) >= 100 && (
                       <div className="text-green-600 font-semibold text-sm mb-2">
-                        ✨ {language === "id" ? "Energi penuh! Bisa bangun sekarang" : "Energy full! Can wake up now"}
+                        ✨ {t('energy.fullCanWake')}
                       </div>
                     )}
                     
@@ -2652,7 +2652,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       onClick={() => wakeMutation.mutate(safePets[currentPetIndex].id)}
                       disabled={wakeMutation.isPending}
                     >
-                      {language === "id" ? "Bangunkan Pet" : "Wake Pet"}
+                      {t('wakeUp.button')}
                     </Button>
                   </div>
                 </div>
@@ -3308,7 +3308,7 @@ export default function CompleteApp() {
       minPoints: 0, 
       maxPoints: 499, 
       discount: 0, 
-      name: language === "id" ? "Perunggu" : "Bronze",
+      name: t('loyaltyTier.bronze'),
       color: "from-orange-600 to-amber-600",
       bgColor: "bg-orange-50",
       borderColor: "border-orange-200",
@@ -3452,9 +3452,9 @@ export default function CompleteApp() {
       id: "referral_15",
       type: "referral",
       count: 15,
-      title: language === "id" ? "Agen Aktif" : "Active Agent",
-      description: language === "id" ? "Capai 15 referral aktif!" : "Reach 15 active referrals!",
-      reward: language === "id" ? "750 Poin + 450 Bonus" : "750 Points + 450 Bonus",
+      title: t('achievements.activeAgent'),
+      description: t('achievements.activeAgentDesc'),
+      reward: t('achievements.activeAgentReward'),
       icon: UserCheck,
       color: "from-indigo-500 to-indigo-600",
       bgColor: "bg-indigo-50",
