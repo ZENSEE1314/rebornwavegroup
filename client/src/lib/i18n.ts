@@ -4264,6 +4264,36 @@ export const translations: Translations = {
     zh: '上一个',
     id: 'Sebelumnya'
   },
+  'common.select': {
+    en: 'Select',
+    zh: '选择',
+    id: 'Pilih'
+  },
+  'common.search': {
+    en: 'Search',
+    zh: '搜索',
+    id: 'Cari'
+  },
+  'common.filter': {
+    en: 'Filter',
+    zh: '过滤',
+    id: 'Filter'
+  },
+  'common.apply': {
+    en: 'Apply',
+    zh: '应用',
+    id: 'Terapkan'
+  },
+  'common.reset': {
+    en: 'Reset',
+    zh: '重置',
+    id: 'Reset'
+  },
+  'common.delete': {
+    en: 'Delete',
+    zh: '删除',
+    id: 'Hapus'
+  },
   'date.format': {
     en: 'en-US',
     zh: 'zh-CN',
