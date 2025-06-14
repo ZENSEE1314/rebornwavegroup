@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Star, Calendar, Trophy, Lock, CheckCircle2 } from "lucide-react";
+import { Sparkles, Star, Calendar, Trophy, Lock, CheckCircle2, ArrowLeft } from "lucide-react";
 
 interface Season {
   id: number;
@@ -161,14 +162,23 @@ export default function SeasonalCollections() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Seasonal Collections
-        </h1>
-        <p className="text-gray-600">
-          Discover and collect exclusive seasonal treasures throughout the year
-        </p>
+      {/* Header with Back Button */}
+      <div className="flex items-center justify-between mb-6">
+        <Link href="/">
+          <Button variant="outline" className="flex items-center space-x-2">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </Button>
+        </Link>
+        <div className="text-center space-y-2 flex-1">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Seasonal Collections
+          </h1>
+          <p className="text-gray-600">
+            Discover and collect exclusive seasonal treasures throughout the year
+          </p>
+        </div>
+        <div className="w-32"></div> {/* Spacer for center alignment */}
       </div>
 
       {/* Season Selection */}
