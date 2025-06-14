@@ -4108,6 +4108,76 @@ export const translations: Translations = {
     en: 'Status:',
     zh: '状态：',
     id: 'Status:'
+  },
+  'transaction.inProgress': {
+    en: 'Transaction in progress',
+    zh: '交易进行中',
+    id: 'Transaksi sedang berlangsung'
+  },
+  'marketplace.listed': {
+    en: 'Listed in marketplace',
+    zh: '在市场中列出',
+    id: 'Sedang dijual di marketplace'
+  },
+  'toy.acquired': {
+    en: 'Acquired',
+    zh: '获得',
+    id: 'Diperoleh'
+  },
+  'referral.program': {
+    en: 'Referral Program',
+    zh: '推荐计划',
+    id: 'Program Rujukan'
+  },
+  'referral.inviteEarn': {
+    en: 'Invite friends and earn commissions',
+    zh: '邀请朋友并赚取佣金',
+    id: 'Undang teman dan dapatkan komisi'
+  },
+  'price.label': {
+    en: 'Price:',
+    zh: '价格：',
+    id: 'Harga:'
+  },
+  'loyalty.bronze': {
+    en: 'Bronze Member',
+    zh: '铜牌会员',
+    id: 'Anggota Perunggu'
+  },
+  'loyalty.silver': {
+    en: 'Silver Member',
+    zh: '银牌会员',
+    id: 'Anggota Perak'
+  },
+  'loyalty.gold': {
+    en: 'Gold Member',
+    zh: '金牌会员',
+    id: 'Anggota Emas'
+  },
+  'loyalty.platinum': {
+    en: 'Platinum Member',
+    zh: '白金会员',
+    id: 'Anggota Platinum'
+  },
+  'loyalty.diamond': {
+    en: 'Diamond Member',
+    zh: '钻石会员',
+    id: 'Anggota Berlian'
+  },
+  'admin.dashboard': {
+    en: 'Admin Dashboard',
+    zh: '管理仪表板',
+    id: 'Dashboard Admin'
+  },
+  'user.management': {
+    en: 'User Management',
+    zh: '用户管理',
+    id: 'Manajemen Pengguna'
+  },
+  'admin.actions': {
+    en: 'Admin Actions',
+    zh: '管理操作',
+    id: 'Aksi Admin'
   }
 };
 

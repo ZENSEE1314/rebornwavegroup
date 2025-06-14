@@ -7080,7 +7080,7 @@ export default function CompleteApp() {
                               }
                             </div>
                             <p className="text-xs text-yellow-700 mt-1">
-                              {language === "id" ? "Transaksi sedang berlangsung" : "Transaction in progress"}
+                              {t("transaction.inProgress")}
                             </p>
                           </div>
                         )}
@@ -7090,10 +7090,10 @@ export default function CompleteApp() {
                           <div className="mb-4 p-2 bg-green-100 border border-green-300 rounded-lg">
                             <div className="flex items-center justify-center text-green-800 text-sm font-medium">
                               <ShoppingBag className="w-4 h-4 mr-2" />
-                              {language === "id" ? "Sedang dijual di marketplace" : "Listed in marketplace"}
+                              {t("marketplace.listed")}
                             </div>
                             <p className="text-xs text-green-700 mt-1">
-                              {language === "id" ? `Harga: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}` : `Price: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}`}
+                              {language === "id" ? `t("price.label") Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}` : `Price: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}`}
                             </p>
                           </div>
                         )}
@@ -7124,7 +7124,7 @@ export default function CompleteApp() {
                         </div>
                         <div className="mt-4 space-y-2">
                           <p className="text-sm text-slate-600">
-                            {language === "id" ? "Diperoleh" : "Acquired"}: {toy.createdAt ? new Date(toy.createdAt).toLocaleString() : toy.acquiredDate}
+                            {t("toy.acquired")}: {toy.createdAt ? new Date(toy.createdAt).toLocaleString() : toy.acquiredDate}
                           </p>
                           <div className="bg-gray-100 p-2 rounded">
                             <p className="text-xs text-gray-600">QR Code: {toy.qrCode}</p>
@@ -7178,10 +7178,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Program Rujukan" : "Referral Program"}
+                {t("referral.program")}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Undang teman dan dapatkan komisi" : "Invite friends and earn commissions"}
+                {t("referral.inviteEarn")}
               </p>
             </div>
 
