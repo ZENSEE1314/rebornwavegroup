@@ -3464,9 +3464,9 @@ export default function CompleteApp() {
       id: "referral_20",
       type: "referral",
       count: 20,
-      title: language === "id" ? "Juara Rujukan" : "Referral Champion",
-      description: language === "id" ? "Mencapai 20 undangan sukses!" : "Achieve 20 successful invites!",
-      reward: language === "id" ? "1,000 Poin + 600 Bonus" : "1,000 Points + 600 Bonus",
+      title: t('achievements.referralChampion'),
+      description: t('achievements.referralChampionDesc'),
+      reward: t('achievements.referralChampionReward'),
       icon: Crown,
       color: "from-yellow-500 to-yellow-600",
       bgColor: "bg-yellow-50",
@@ -3476,8 +3476,8 @@ export default function CompleteApp() {
       id: "referral_25",
       type: "referral",
       count: 25,
-      title: language === "id" ? "Master Networker" : "Master Networker",
-      description: language === "id" ? "Raja undangan dengan 25 rujukan!" : "Invitation king with 25 referrals!",
+      title: t('achievements.masterNetworker'),
+      description: t('achievements.masterNetworkerDesc'),
       reward: language === "id" ? "1,250 Poin + 750 Bonus" : "1,250 Points + 750 Bonus",
       icon: Award,
       color: "from-pink-500 to-pink-600",
@@ -7903,7 +7903,7 @@ export default function CompleteApp() {
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 disabled={!currentPassword || !newPassword || !confirmPassword}
               >
-                {language === "id" ? "Ubah Password" : "Change Password"}
+                {t('profile.changePassword')}
               </Button>
               <Button
                 variant="outline"
