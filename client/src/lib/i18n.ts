@@ -961,11 +961,6 @@ export const translations: Translations = {
     zh: '您的奖励兑换将显示在这里',
     id: 'Penukaran hadiah Anda akan muncul di sini'
   },
-  'common.all': {
-    en: 'All',
-    zh: '全部',
-    id: 'Semua'
-  },
   'common.submitting': {
     en: 'Submitting...',
     zh: '提交中...',
@@ -4752,6 +4747,36 @@ export const translations: Translations = {
     en: 'Continue',
     zh: '继续',
     id: 'Lanjut'
+  },
+  'common.restart': {
+    en: 'Restart',
+    zh: '重新开始',
+    id: 'Mulai Ulang'
+  },
+  'common.exit': {
+    en: 'Exit',
+    zh: '退出',
+    id: 'Keluar'
+  },
+  'common.play': {
+    en: 'Play',
+    zh: '播放',
+    id: 'Putar'
+  },
+  'common.game': {
+    en: 'Game',
+    zh: '游戏',
+    id: 'Game'
+  },
+  'common.music': {
+    en: 'Music',
+    zh: '音乐',
+    id: 'Musik'
+  },
+  'common.video': {
+    en: 'Video',
+    zh: '视频',
+    id: 'Video'
   },
 
 
