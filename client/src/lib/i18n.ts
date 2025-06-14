@@ -4236,30 +4236,10 @@ export const translations: Translations = {
     zh: '选择',
     id: 'Pilih'
   },
-  'common.search': {
-    en: 'Search',
-    zh: '搜索',
-    id: 'Cari'
-  },
-  'common.filter': {
-    en: 'Filter',
-    zh: '过滤',
-    id: 'Filter'
-  },
-  'common.apply': {
-    en: 'Apply',
-    zh: '应用',
-    id: 'Terapkan'
-  },
-  'common.reset': {
-    en: 'Reset',
-    zh: '重置',
-    id: 'Reset'
-  },
-  'common.delete': {
-    en: 'Delete',
-    zh: '删除',
-    id: 'Hapus'
+  'common.open': {
+    en: 'Open',
+    zh: '打开',
+    id: 'Buka'
   },
   'date.format': {
     en: 'en-US',
@@ -4271,7 +4251,6 @@ export const translations: Translations = {
     zh: '价格：Rp ',
     id: 'Harga: Rp '
   },
-
   'profile.memberSince': {
     en: 'Member Since:',
     zh: '注册时间：',
@@ -4282,11 +4261,7 @@ export const translations: Translations = {
     zh: '账户设置',
     id: 'Pengaturan Akun'
   },
-  'personal.information': {
-    en: 'Personal Information',
-    zh: '个人信息',
-    id: 'Informasi Pribadi'
-  },
+
 
 };
 
