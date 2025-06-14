@@ -3798,11 +3798,6 @@ export const translations: Translations = {
     zh: '起价',
     id: 'Mulai dari'
   },
-  'common.save': {
-    en: 'Save',
-    zh: '保存',
-    id: 'Simpan'
-  },
   'appointment.reschedule': {
     en: 'Reschedule',
     zh: '重新安排',
@@ -3864,11 +3859,7 @@ export const translations: Translations = {
     zh: '购买',
     id: 'Beli'
   },
-  'credits.insufficient': {
-    en: 'Not enough credits',
-    zh: '积分不足',
-    id: 'Kredit Kurang'
-  },
+
   'history.complete': {
     en: 'Complete History',
     zh: '完整历史记录',
@@ -3879,11 +3870,7 @@ export const translations: Translations = {
     zh: '管理您的所有活动历史记录',
     id: 'Kelola semua riwayat aktivitas Anda'
   },
-  'common.points': {
-    en: 'Points',
-    zh: '积分',
-    id: 'Poin'
-  },
+
   'common.credits': {
     en: 'Credits',
     zh: '积分',
@@ -4139,45 +4126,50 @@ export const translations: Translations = {
     zh: '价格：',
     id: 'Harga:'
   },
-  'loyalty.bronze': {
-    en: 'Bronze Member',
-    zh: '铜牌会员',
-    id: 'Anggota Perunggu'
+  'referral.direct': {
+    en: 'Direct Referrals',
+    zh: '直接推荐',
+    id: 'Rujukan Langsung'
   },
-  'loyalty.silver': {
-    en: 'Silver Member',
-    zh: '银牌会员',
-    id: 'Anggota Perak'
+  'referral.totalEarnings': {
+    en: 'Total Earnings',
+    zh: '总收入',
+    id: 'Total Pendapatan'
   },
-  'loyalty.gold': {
-    en: 'Gold Member',
-    zh: '金牌会员',
-    id: 'Anggota Emas'
+  'referral.level': {
+    en: 'Referrer Level',
+    zh: '推荐等级',
+    id: 'Level Rujukan'
   },
-  'loyalty.platinum': {
-    en: 'Platinum Member',
-    zh: '白金会员',
-    id: 'Anggota Platinum'
+  'commission.rate': {
+    en: 'Commission Rate',
+    zh: '佣金率',
+    id: 'Tingkat Komisi'
   },
-  'loyalty.diamond': {
-    en: 'Diamond Member',
-    zh: '钻石会员',
-    id: 'Anggota Berlian'
+  'referral.shareCode': {
+    en: 'Share Your Referral Code',
+    zh: '分享您的推荐码',
+    id: 'Bagikan Kode Rujukan'
   },
-  'admin.dashboard': {
-    en: 'Admin Dashboard',
-    zh: '管理仪表板',
-    id: 'Dashboard Admin'
+  'common.copyCode': {
+    en: 'Copy Code',
+    zh: '复制代码',
+    id: 'Salin Kode'
   },
-  'user.management': {
-    en: 'User Management',
-    zh: '用户管理',
-    id: 'Manajemen Pengguna'
+  'commission.structure': {
+    en: 'Commission Structure',
+    zh: '佣金结构',
+    id: 'Struktur Komisi'
   },
-  'admin.actions': {
-    en: 'Admin Actions',
-    zh: '管理操作',
-    id: 'Aksi Admin'
+  'referral.totalReferrals': {
+    en: 'Total Referrals:',
+    zh: '推荐总数：',
+    id: 'Total Rujukan:'
+  },
+  'referral.totalEarningsLabel': {
+    en: 'Total Earnings:',
+    zh: '总收入：',
+    id: 'Total Pendapatan:'
   }
 };
 

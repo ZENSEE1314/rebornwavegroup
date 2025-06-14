@@ -7192,7 +7192,7 @@ export default function CompleteApp() {
                   <Users className="h-8 w-8 mx-auto text-green-600 mb-2" />
                   <p className="text-2xl font-bold text-green-800">{genealogyData?.totalDirectReferrals || 0}</p>
                   <p className="text-sm text-green-600">
-                    {language === "id" ? "Rujukan Langsung" : "Direct Referrals"}
+                    {t("referral.direct")}
                   </p>
                 </CardContent>
               </Card>
@@ -7201,7 +7201,7 @@ export default function CompleteApp() {
                   <DollarSign className="h-8 w-8 mx-auto text-blue-600 mb-2" />
                   <p className="text-2xl font-bold text-blue-800">RP {formatRupiah(referralEarnings)}</p>
                   <p className="text-sm text-blue-600">
-                    {language === "id" ? "Total Pendapatan" : "Total Earnings"}
+                    {t("referral.totalEarnings")}
                   </p>
                 </CardContent>
               </Card>
@@ -7271,7 +7271,7 @@ export default function CompleteApp() {
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
                       <span className="font-medium">
-                        {language === "id" ? "Rujukan Langsung" : "Direct Referrals"}
+                        {t("referral.direct")}
                       </span>
                     </div>
                     <span className="font-bold text-green-600 text-xl">10%</span>
