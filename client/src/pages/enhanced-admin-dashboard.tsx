@@ -346,7 +346,6 @@ function EnhancedAdminDashboard() {
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
-  const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
@@ -2471,7 +2470,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-white">All Toys</CardTitle>
                     <Button 
-                      onClick={() => downloadCSV(allToys, 'toys')}
+                      onClick={() => downloadCSV(toysResponse?.data || [], 'toys')}
                       variant="outline" 
                       size="sm"
                       className="bg-white/10 text-white border-white/20"
