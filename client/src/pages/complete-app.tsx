@@ -2598,7 +2598,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="text-center">
                     <div className="text-lg font-bold text-blue-700 mb-2">
-                      💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
+                      💤 {t('pet.sleeping')}
                     </div>
                     
                     {/* Real-time countdown timer */}
@@ -2629,7 +2629,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     </div>
                     
                     <div className="text-sm text-blue-600 mb-3">
-                      {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
+                      {t('pet.energyRestore')}
                     </div>
                     
                     <div className="text-sm text-gray-600 mb-3">
@@ -2844,8 +2844,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     if (!amount || !description || !receiptImage) {
       console.log('Validation failed:', { amount: !!amount, description: !!description, receiptImage: !!receiptImage });
       toast({
-        title: language === "id" ? "Data Tidak Lengkap" : "Incomplete Data",
-        description: language === "id" ? "Mohon isi semua field dan upload bukti pembayaran" : "Please fill all fields, select service category, and upload receipt image",
+        title: t('form.incompleteData'),
+        description: t('form.fillAllFields'),
         variant: "destructive",
       });
       return;
@@ -7256,7 +7256,7 @@ export default function CompleteApp() {
                   <div className="bg-white/20 rounded-lg p-4 text-center">
                     <QrCode className="w-24 h-24 mx-auto text-white/80 mb-2" />
                     <p className="text-sm text-white/80">
-                      {language === "id" ? "Pindai QR Code untuk rujukan" : "Scan QR Code for referral"}
+                      {t('qr.scanForReferral')}
                     </p>
                     <p className="text-xs text-white/60 mt-1">
                       Code: {referralCode}
@@ -7317,7 +7317,7 @@ export default function CompleteApp() {
                 {language === "id" ? "Profil Anda" : "Your Profile"}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Kelola pengaturan akun dan preferensi" : "Manage your account settings and preferences"}
+                {t('profile.manageSettings')}
               </p>
             </div>
 

@@ -3250,6 +3250,41 @@ export const translations: Translations = {
     en: 'Manage your account settings and preferences',
     zh: '管理您的账户设置和偏好',
     id: 'Kelola pengaturan akun dan preferensi'
+  },
+  'pet.sleeping': {
+    en: 'Pet is Sleeping',
+    zh: '宠物正在睡觉',
+    id: 'Pet Sedang Tidur'
+  },
+  'pet.energyRestore': {
+    en: 'Energy restores automatically every 5 minutes',
+    zh: '能量每5分钟自动恢复',
+    id: 'Energi akan pulih secara otomatis setiap 5 menit'
+  },
+  'form.incompleteData': {
+    en: 'Incomplete Data',
+    zh: '数据不完整',
+    id: 'Data Tidak Lengkap'
+  },
+  'form.fillAllFields': {
+    en: 'Please fill all fields, select service category, and upload receipt image',
+    zh: '请填写所有字段，选择服务类别，并上传收据图片',
+    id: 'Mohon isi semua field dan upload bukti pembayaran'
+  },
+  'achievements.legendaryReward': {
+    en: '2,500 Points + 1,500 Bonus',
+    zh: '2,500积分 + 1,500奖励',
+    id: '2,500 Poin + 1,500 Bonus'
+  },
+  'achievements.legendaryAmbassador': {
+    en: 'Legendary Ambassador',
+    zh: '传奇大使',
+    id: 'Duta Legendaris'
+  },
+  'achievements.shoppingMentor': {
+    en: 'Shopping Mentor',
+    zh: '购物导师',
+    id: 'Mentor Belanja'
   }
 };
 
