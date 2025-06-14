@@ -2995,7 +2995,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                         }}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        {language === "id" ? "Hapus" : "Remove"}
+                        {t('common.remove')}
                       </Button>
                     </div>
                   ) : (
@@ -3478,7 +3478,7 @@ export default function CompleteApp() {
       count: 25,
       title: t('achievements.masterNetworker'),
       description: t('achievements.masterNetworkerDesc'),
-      reward: language === "id" ? "1,250 Poin + 750 Bonus" : "1,250 Points + 750 Bonus",
+      reward: t('achievements.firstReward'),
       icon: Award,
       color: "from-pink-500 to-pink-600",
       bgColor: "bg-pink-50",
@@ -3488,9 +3488,9 @@ export default function CompleteApp() {
       id: "referral_50",
       type: "referral",
       count: 50,
-      title: language === "id" ? "Duta Legendaris" : "Legendary Ambassador",
+      title: t('achievements.legendaryAmbassador'),
       description: t('achievements.legendaryStatus'),
-      reward: language === "id" ? "2,500 Poin + 1,500 Bonus" : "2,500 Points + 1,500 Bonus",
+      reward: t('achievements.legendaryReward'),
       icon: Medal,
       color: "from-purple-600 to-pink-600",
       bgColor: "bg-gradient-to-r from-purple-50 to-pink-50",
@@ -3501,9 +3501,9 @@ export default function CompleteApp() {
       id: "spending_milestone",
       type: "spending",
       count: 5,
-      title: language === "id" ? "Mentor Belanja" : "Shopping Mentor",
+      title: t('achievements.shoppingMentor'),
       description: t('achievements.spendRequirement'),
-      reward: language === "id" ? "100 Poin Bonus" : "100 Bonus Points",
+      reward: t('achievements.bonusPoints'),
       icon: DollarSign,
       color: "from-emerald-500 to-emerald-600",
       bgColor: "bg-emerald-50",
@@ -3522,7 +3522,7 @@ export default function CompleteApp() {
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
-        title: language === "id" ? "Kamera Tidak Tersedia" : "Camera Not Available",
+        title: t('camera.notAvailable'),
         description: language === "id" ? "Tidak dapat mengakses kamera. Gunakan input manual." : "Cannot access camera. Please use manual input.",
         variant: "destructive",
       });

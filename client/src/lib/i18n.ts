@@ -3285,6 +3285,26 @@ export const translations: Translations = {
     en: 'Shopping Mentor',
     zh: '购物导师',
     id: 'Mentor Belanja'
+  },
+  'achievements.firstReward': {
+    en: '1,250 Points + 750 Bonus',
+    zh: '1,250积分 + 750奖励',
+    id: '1,250 Poin + 750 Bonus'
+  },
+  'achievements.bonusPoints': {
+    en: '100 Bonus Points',
+    zh: '100奖励积分',
+    id: '100 Poin Bonus'
+  },
+  'camera.notAvailable': {
+    en: 'Camera Not Available',
+    zh: '摄像头不可用',
+    id: 'Kamera Tidak Tersedia'
+  },
+  'camera.useManual': {
+    en: 'Cannot access camera. Please use manual input.',
+    zh: '无法访问摄像头。请使用手动输入。',
+    id: 'Tidak dapat mengakses kamera. Gunakan input manual.'
   }
 };
 
