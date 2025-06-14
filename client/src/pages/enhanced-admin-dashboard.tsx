@@ -308,7 +308,7 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
-  const filteredToys = React.useMemo(() => {
+  const filteredToys = (() => {
     try {
       const toys = (allToys || []) as any[];
       console.log('*** FILTERING TOYS DEBUG:', { allToys: toys.length, toySearch, rarityFilter, ownerFilter });
@@ -329,7 +329,7 @@ function EnhancedAdminDashboard() {
       console.error('*** TOY FILTERING ERROR:', error);
       return [];
     }
-  }, [allToys, toySearch, rarityFilter, ownerFilter]);
+  })();
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
