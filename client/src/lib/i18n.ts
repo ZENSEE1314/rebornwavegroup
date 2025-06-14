@@ -4174,11 +4174,6 @@ export const translations: Translations = {
     zh: '名字',
     id: 'Nama Depan'
   },
-  'form.email': {
-    en: 'Email',
-    zh: '邮箱',
-    id: 'Email'
-  },
   'gender.male': {
     en: 'Male',
     zh: '男',
@@ -4316,11 +4311,6 @@ export const translations: Translations = {
     zh: '姓名',
     id: 'Nama'
   },
-  'form.email': {
-    en: 'Email',
-    zh: '邮箱',
-    id: 'Email'
-  },
   'form.phone': {
     en: 'Phone',
     zh: '电话',
@@ -4350,6 +4340,36 @@ export const translations: Translations = {
     en: 'Price',
     zh: '价格',
     id: 'Harga'
+  },
+  'form.status': {
+    en: 'Status',
+    zh: '状态',
+    id: 'Status'
+  },
+  'form.date': {
+    en: 'Date',
+    zh: '日期',
+    id: 'Tanggal'
+  },
+  'form.time': {
+    en: 'Time',
+    zh: '时间',
+    id: 'Waktu'
+  },
+  'form.type': {
+    en: 'Type',
+    zh: '类型',
+    id: 'Tipe'
+  },
+  'form.city': {
+    en: 'City',
+    zh: '城市',
+    id: 'Kota'
+  },
+  'form.country': {
+    en: 'Country',
+    zh: '国家',
+    id: 'Negara'
   },
 
 
