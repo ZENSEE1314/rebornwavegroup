@@ -4794,7 +4794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminTokenTransactions = await db
         .select({
           id: tokenTransactions.id,
-          adminUserId: tokenTransactions.adminUserId,
+          userId: tokenTransactions.userId,
           tokens: tokenTransactions.tokens,
           type: tokenTransactions.type,
           description: tokenTransactions.description,
@@ -4808,7 +4808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .offset(offset);
 
       // Get user information for each transaction
-      const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.adminUserId)));
+      const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.userId)));
       const users = await Promise.all(
         userIds.map(async (adminUserId) => {
           const user = await storage.getUser(adminUserId);
@@ -4824,7 +4824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add user information to transactions
       const enrichedTransactions = adminTokenTransactions.map(transaction => ({
         ...transaction,
-        user: usersMap[transaction.adminUserId]
+        user: usersMap[transaction.userId]
       }));
 
       res.json({ 

@@ -1278,6 +1278,23 @@ export class DatabaseStorage implements IStorage {
       console.log(`Awarded RP ${commissionAmount} commission to user ${buyer.referredById} for referral of ${purchase.buyerId}'s marketplace purchase`);
     }
 
+    // Record 10% admin fee in transactions table for dashboard tracking
+    await db.insert(transactions).values({
+      userId: 'ADMIN_FEE',
+      amount: adminFee.toFixed(2),
+      description: `Admin fee (10%) from marketplace sale - Purchase ID: ${purchaseId}`,
+      paymentMethod: 'marketplace_fee',
+      status: 'completed',
+      currency: 'RP',
+      metadata: {
+        purchaseId: purchaseId,
+        sellerId: purchase.sellerId,
+        buyerId: purchase.buyerId,
+        originalAmount: totalAmount.toFixed(2),
+        feePercentage: '10%'
+      }
+    });
+
     // Add points to buyer's account
     if (purchase.pointsEarned && purchase.pointsEarned > 0) {
       const [buyer] = await db.select().from(users).where(eq(users.id, purchase.buyerId));
