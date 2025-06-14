@@ -2543,6 +2543,37 @@ export class DatabaseStorage implements IStorage {
     }).returning();
     return series;
   }
+
+  // Additional storage methods for enhanced admin functionality
+  async getAllSeasons(): Promise<any[]> {
+    return await db.select().from(seasons).orderBy(seasons.displayOrder, seasons.createdAt);
+  }
+
+  async getAllCollectionSeries(): Promise<any[]> {
+    return await db.select().from(collectionSeries).orderBy(collectionSeries.displayOrder, collectionSeries.createdAt);
+  }
+
+  async getAllToys(): Promise<any[]> {
+    return await db.select().from(toys).orderBy(toys.createdAt);
+  }
+
+  async createToy(toyData: any): Promise<any> {
+    const [toy] = await db.insert(toys).values({
+      name: toyData.name,
+      series: toyData.series,
+      seasonId: toyData.seasonId,
+      seriesId: toyData.seriesId,
+      rarity: toyData.rarity,
+      color: toyData.color,
+      qrCode: toyData.qrCode,
+      imageUrl: toyData.imageUrl,
+      originalPrice: toyData.originalPrice,
+      isActivated: toyData.isActivated || false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return toy;
+  }
 }
 
 export const storage = new DatabaseStorage();
