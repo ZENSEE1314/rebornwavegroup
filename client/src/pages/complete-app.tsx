@@ -8269,7 +8269,7 @@ export default function CompleteApp() {
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    {language === "id" ? "Buka Dashboard Admin" : "Open Admin Dashboard"}
+                    {t('admin.openDashboard')}
                   </Button>
                 </div>
               </div>
@@ -8324,7 +8324,7 @@ export default function CompleteApp() {
                   <div className="text-center">
                     <Camera className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                     <p className="text-gray-500">
-                      {language === "id" ? "Mengakses kamera..." : "Accessing camera..."}
+                      {t('camera.accessing')}
                     </p>
                   </div>
                 </div>
@@ -8333,10 +8333,7 @@ export default function CompleteApp() {
 
             <div className="text-center mb-4">
               <p className="text-sm text-gray-600">
-                {language === "id" 
-                  ? "Arahkan kamera ke QR code pada kemasan mainan Doluruu"
-                  : "Point camera at QR code on Doluruu toy packaging"
-                }
+                {t('qr.instructions')}
               </p>
             </div>
 
@@ -8347,7 +8344,7 @@ export default function CompleteApp() {
                 disabled={!cameraStream}
               >
                 <QrCode className="w-4 h-4 mr-2" />
-                {language === "id" ? "Deteksi QR" : "Detect QR"}
+                {t('qr.detect')}
               </Button>
               <Button
                 variant="outline"
@@ -8361,12 +8358,9 @@ export default function CompleteApp() {
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-xs text-blue-700">
                 <span className="font-semibold">
-                  {language === "id" ? "💡 Tips:" : "💡 Tips:"}
+                  {t('qr.tips')}
                 </span>
-                {language === "id" 
-                  ? " Pastikan QR code terlihat jelas dan tidak terpotong dalam bingkai putih"
-                  : " Ensure QR code is clearly visible and not cut off within the white frame"
-                }
+                {t('qr.tipsMessage')}
               </p>
             </div>
           </div>

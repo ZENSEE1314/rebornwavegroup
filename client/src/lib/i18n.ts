@@ -4986,6 +4986,36 @@ export const translations: Translations = {
     zh: '访问系统管理功能',
     id: 'Akses ke fitur administrasi sistem'
   },
+  'admin.openDashboard': {
+    en: 'Open Admin Dashboard',
+    zh: '打开管理员仪表板',
+    id: 'Buka Dashboard Admin'
+  },
+  'camera.accessing': {
+    en: 'Accessing camera...',
+    zh: '正在访问摄像头...',
+    id: 'Mengakses kamera...'
+  },
+  'qr.instructions': {
+    en: 'Point your camera at the QR code on the Doluruu toy packaging',
+    zh: '将摄像头对准 Doluruu 玩具包装上的二维码',
+    id: 'Arahkan kamera ke QR code pada kemasan mainan Doluruu'
+  },
+  'qr.detect': {
+    en: 'Detect QR',
+    zh: '检测二维码',
+    id: 'Deteksi QR'
+  },
+  'qr.tips': {
+    en: '💡 Tips:',
+    zh: '💡 提示：',
+    id: '💡 Tips:'
+  },
+  'qr.tipsMessage': {
+    en: ' Ensure QR code is clearly visible and not cut off within the white frame',
+    zh: ' 确保二维码在白色框内清晰可见且不被截断',
+    id: ' Pastikan QR code terlihat jelas dan tidak terpotong dalam bingkai putih'
+  },
 
   'common.receive': {
     en: 'Receive',
