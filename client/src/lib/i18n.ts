@@ -4798,6 +4798,11 @@ export const translations: Translations = {
     zh: '联系',
     id: 'Kontak'
   },
+  'common.settings': {
+    en: 'Settings',
+    zh: '设置',
+    id: 'Pengaturan'
+  },
 
 
 };
