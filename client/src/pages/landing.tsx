@@ -421,14 +421,14 @@ export default function Landing() {
                   className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Access the Platform
+                  {t('landing.accessPlatform')}
                 </Button>
                 <Button 
                   variant="outline" 
                   size="lg" 
                   className="border-white/30 bg-white/10 hover:bg-white/20 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-sm transition-all duration-300"
                 >
-                  Learn More
+                  {t('landing.learnMore')}
                 </Button>
               </div>
             </div>
@@ -451,10 +451,10 @@ export default function Landing() {
             
             <div className="text-center md:text-right">
               <p className="text-white/60 text-sm">
-                © 2025 Reborn Wave Group. All rights reserved.
+                {t('landing.allRightsReserved')}
               </p>
               <p className="text-white/40 text-xs mt-1">
-                The future of beauty, food & beverage, entertainment & corporate events
+                {t('landing.footerTagline')}
               </p>
             </div>
           </div>
