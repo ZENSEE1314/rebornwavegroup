@@ -1143,7 +1143,7 @@ function EnhancedAdminDashboard() {
         }
       });
       
-      bulkCreateToysMutation.mutate(toys);
+      createToyMutation.mutate(toys[0]); // Create only first toy for now
     } catch (error) {
       toast({ title: "Invalid format. Use: name,series,rarity,imageUrl OR name,series,rarity,seasonId,sectorId,imageUrl per line", variant: "destructive" });
     }
@@ -2414,12 +2414,12 @@ function EnhancedAdminDashboard() {
                   
                   <div className="mt-6 flex gap-4">
                     <Button 
-                      onClick={handleBulkGeneration}
+                      onClick={() => toast({ title: "Feature temporarily disabled for stability" })}
                       className="bg-purple-600 hover:bg-purple-700"
-                      disabled={!customSeason || !baseToyName || !totalToysToGenerate || parseInt(totalToysToGenerate) < 1}
+                      disabled
                     >
                       <Zap className="h-4 w-4 mr-2" />
-                      Generate {totalToysToGenerate} Toys
+                      Generate Toys (Disabled)
                     </Button>
                     <Button 
                       onClick={() => {
@@ -2453,12 +2453,12 @@ function EnhancedAdminDashboard() {
                       className="bg-white/10 border-white/20 text-white min-h-24"
                     />
                     <Button 
-                      onClick={handleBulkUpload}
+                      onClick={() => toast({ title: "Bulk upload temporarily disabled for stability" })}
                       className="bg-green-600 hover:bg-green-700"
-                      disabled={!bulkToyData.trim()}
+                      disabled
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload Manually
+                      Upload (Disabled)
                     </Button>
                   </div>
                 </CardContent>
