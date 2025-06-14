@@ -3072,8 +3072,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                           <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
                           <p className="text-sm text-gray-600">{verification.description}</p>
                           <p className="text-xs text-gray-500">
-                            {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
-                            {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(verification.createdAt).toLocaleDateString(getCurrentLanguage() === "id" ? "id-ID" : "en-US")}
+                            {" "} {new Date(verification.createdAt).toLocaleTimeString(getCurrentLanguage() === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                         <Badge className={getStatusColor(verification.status)}>
@@ -4868,7 +4868,7 @@ export default function CompleteApp() {
     } catch (error) {
       toast({
         title: "Error",
-        description: language === "id" ? "Terjadi kesalahan" : "An error occurred",
+        description: t('common.errorOccurred'),
         variant: "destructive"
       });
     }
@@ -4904,7 +4904,7 @@ export default function CompleteApp() {
     } catch (error) {
       toast({
         title: "Error",
-        description: language === "id" ? "Terjadi kesalahan" : "An error occurred",
+        description: t('common.errorOccurred'),
         variant: "destructive"
       });
     }
@@ -5068,7 +5068,7 @@ export default function CompleteApp() {
             className="bg-white rounded-lg p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold mb-4">{language === "id" ? "Top Up Kredit" : "Top Up Credits"}</h3>
+            <h3 className="text-lg font-bold mb-4">{t('credits.topUp')}</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 {["100000", "500000", "1000000", "2000000", "5000000", "10000000"].map(amount => (
@@ -5083,7 +5083,7 @@ export default function CompleteApp() {
                 ))}
               </div>
               <Input
-                placeholder={language === "id" ? "Jumlah custom" : "Custom amount"}
+                placeholder={t('credits.customAmount')}
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
               />
@@ -5104,7 +5104,7 @@ export default function CompleteApp() {
                 </Button>
               </div>
               <Button variant="outline" onClick={() => setShowTopUpModal(false)} className="w-full">
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -5122,12 +5122,12 @@ export default function CompleteApp() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold mb-4 text-green-600">
-              {language === "id" ? "💰 Tarik Kredit ke Bank" : "💰 Cash Out to Bank"}
+              {t('cashout.withdrawToBank')}
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Jumlah Penarikan" : "Withdrawal Amount"}
+                  {t('cashout.withdrawalAmount')}
                 </label>
                 <Input
                   placeholder={language === "id" ? "Min. RP 50,000" : "Min. RP 50,000"}
@@ -5219,7 +5219,7 @@ export default function CompleteApp() {
                   {language === "id" ? "Ajukan Penarikan" : "Submit Withdrawal"}
                 </Button>
                 <Button variant="outline" onClick={() => setShowCashOutModal(false)} className="flex-1">
-                  {language === "id" ? "Batal" : "Cancel"}
+                  {t('common.cancel')}
                 </Button>
               </div>
             </div>
@@ -5293,7 +5293,7 @@ export default function CompleteApp() {
                   {language === "id" ? "Buat Listing" : "Create Listing"}
                 </Button>
                 <Button variant="outline" onClick={() => setShowCreateListingModal(false)} className="flex-1">
-                  {language === "id" ? "Batal" : "Cancel"}
+                  {t('common.cancel')}
                 </Button>
               </div>
             </div>
@@ -6335,7 +6335,7 @@ export default function CompleteApp() {
                                     {language === "id" ? "Simpan" : "Save"}
                                   </Button>
                                   <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
-                                    {language === "id" ? "Batal" : "Cancel"}
+                                    {t('common.cancel')}
                                   </Button>
                                 </div>
                               ) : (
@@ -6349,7 +6349,7 @@ export default function CompleteApp() {
                                   {apt.status !== 'cancelled' && (
                                     <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
                                       <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                                      <span className="hidden sm:inline ml-1">{language === "id" ? "Batal" : "Cancel"}</span>
+                                      <span className="hidden sm:inline ml-1">{t('common.cancel')}</span>
                                     </Button>
                                   )}
                                 </div>
@@ -7501,7 +7501,7 @@ export default function CompleteApp() {
                             onClick={() => setEditingProfile(false)}
                             className="flex-1"
                           >
-                            {language === "id" ? "Batal" : "Cancel"}
+                            {t('common.cancel')}
                           </Button>
                         </div>
                       ) : (
@@ -7613,7 +7613,7 @@ export default function CompleteApp() {
                 className="flex-1"
               >
                 <X className="w-4 h-4 mr-2" />
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
               <Button 
                 onClick={confirmPurchaseDialog}
