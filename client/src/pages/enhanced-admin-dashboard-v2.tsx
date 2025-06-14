@@ -67,9 +67,9 @@ function EnhancedAdminDashboardV2() {
   });
 
   // Safe data access
-  const usersData = usersResponse?.data || [];
+  const usersData = Array.isArray(usersResponse?.data) ? usersResponse.data : [];
   const toysData = Array.isArray(toysResponse?.data) ? toysResponse.data : [];
-  const transactionsData = transactionsResponse?.data || [];
+  const transactionsData = Array.isArray(transactionsResponse?.data) ? transactionsResponse.data : [];
   const seasonsData = Array.isArray(seasonsResponse) ? seasonsResponse : [];
   const sectorsData = Array.isArray(sectorsResponse) ? sectorsResponse : [];
 
@@ -181,10 +181,12 @@ function EnhancedAdminDashboardV2() {
 
   const bulkCreateToysMutation = useMutation({
     mutationFn: async (toyData: any) => {
-      return await apiRequest('/api/admin/bulk-create-toys', {
+      const response = await fetch('/api/admin/bulk-create-toys', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(toyData)
       });
+      return response.json();
     },
     onSuccess: (response: any) => {
       toast({ 
@@ -416,7 +418,7 @@ function EnhancedAdminDashboardV2() {
                         <Input
                           id="baseName"
                           value={bulkToyData.baseName}
-                          onChange={(e) => setBulkToyData(prev => ({ ...prev, baseName: e.target.value }))}
+                          onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, baseName: e.target.value }))}
                           placeholder="e.g., Dragon Plushie"
                           className="bg-white/10 border-white/20 text-white"
                         />
@@ -427,7 +429,7 @@ function EnhancedAdminDashboardV2() {
                           id="quantity"
                           type="number"
                           value={bulkToyData.quantity}
-                          onChange={(e) => setBulkToyData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                          onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
                           min="1"
                           max="100"
                           className="bg-white/10 border-white/20 text-white"
@@ -435,7 +437,7 @@ function EnhancedAdminDashboardV2() {
                       </div>
                       <div>
                         <Label htmlFor="rarity" className="text-gray-300">Rarity</Label>
-                        <Select value={bulkToyData.rarity} onValueChange={(value) => setBulkToyData(prev => ({ ...prev, rarity: value }))}>
+                        <Select value={bulkToyData.rarity} onValueChange={(value) => setBulkToyData((prev: any) => ({ ...prev, rarity: value }))}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">
                             <SelectValue />
                           </SelectTrigger>
@@ -450,7 +452,7 @@ function EnhancedAdminDashboardV2() {
                       </div>
                       <div>
                         <Label htmlFor="color" className="text-gray-300">Color</Label>
-                        <Select value={bulkToyData.color} onValueChange={(value) => setBulkToyData(prev => ({ ...prev, color: value }))}>
+                        <Select value={bulkToyData.color} onValueChange={(value) => setBulkToyData((prev: any) => ({ ...prev, color: value }))}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">
                             <SelectValue />
                           </SelectTrigger>
@@ -471,7 +473,7 @@ function EnhancedAdminDashboardV2() {
                       </div>
                       <div>
                         <Label htmlFor="season" className="text-gray-300">Season (Optional)</Label>
-                        <Select value={bulkToyData.seasonId?.toString() || ""} onValueChange={(value) => setBulkToyData(prev => ({ ...prev, seasonId: value ? parseInt(value) : null }))}>
+                        <Select value={bulkToyData.seasonId?.toString() || ""} onValueChange={(value) => setBulkToyData((prev: any) => ({ ...prev, seasonId: value ? parseInt(value) : null }))}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Select season" />
                           </SelectTrigger>
@@ -487,7 +489,7 @@ function EnhancedAdminDashboardV2() {
                       </div>
                       <div>
                         <Label htmlFor="sector" className="text-gray-300">Sector (Optional)</Label>
-                        <Select value={bulkToyData.sectorId?.toString() || ""} onValueChange={(value) => setBulkToyData(prev => ({ ...prev, sectorId: value ? parseInt(value) : null }))}>
+                        <Select value={bulkToyData.sectorId?.toString() || ""} onValueChange={(value) => setBulkToyData((prev: any) => ({ ...prev, sectorId: value ? parseInt(value) : null }))}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Select sector" />
                           </SelectTrigger>
@@ -507,7 +509,7 @@ function EnhancedAdminDashboardV2() {
                           id="pointsCost"
                           type="number"
                           value={bulkToyData.basePointsCost}
-                          onChange={(e) => setBulkToyData(prev => ({ ...prev, basePointsCost: parseInt(e.target.value) || 0 }))}
+                          onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, basePointsCost: parseInt(e.target.value) || 0 }))}
                           min="0"
                           className="bg-white/10 border-white/20 text-white"
                         />
@@ -518,7 +520,7 @@ function EnhancedAdminDashboardV2() {
                           id="creditsCost"
                           type="number"
                           value={bulkToyData.baseCreditsCost}
-                          onChange={(e) => setBulkToyData(prev => ({ ...prev, baseCreditsCost: parseInt(e.target.value) || 0 }))}
+                          onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, baseCreditsCost: parseInt(e.target.value) || 0 }))}
                           min="0"
                           className="bg-white/10 border-white/20 text-white"
                         />
@@ -527,7 +529,7 @@ function EnhancedAdminDashboardV2() {
                         <Switch
                           id="seasonal"
                           checked={bulkToyData.isSeasonalExclusive}
-                          onCheckedChange={(checked) => setBulkToyData(prev => ({ ...prev, isSeasonalExclusive: checked }))}
+                          onCheckedChange={(checked) => setBulkToyData((prev: any) => ({ ...prev, isSeasonalExclusive: checked }))}
                         />
                         <Label htmlFor="seasonal" className="text-gray-300">Seasonal Exclusive</Label>
                       </div>
@@ -537,7 +539,7 @@ function EnhancedAdminDashboardV2() {
                       <Input
                         id="imageUrl"
                         value={bulkToyData.imageUrl}
-                        onChange={(e) => setBulkToyData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                        onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, imageUrl: e.target.value }))}
                         placeholder="https://example.com/toy-image.png"
                         className="bg-white/10 border-white/20 text-white"
                       />
@@ -547,7 +549,7 @@ function EnhancedAdminDashboardV2() {
                       <Textarea
                         id="toyNames"
                         value={bulkToyData.toyNames}
-                        onChange={(e) => setBulkToyData(prev => ({ ...prev, toyNames: e.target.value }))}
+                        onChange={(e) => setBulkToyData((prev: any) => ({ ...prev, toyNames: e.target.value }))}
                         placeholder="Enter custom names separated by commas (optional)"
                         className="bg-white/10 border-white/20 text-white"
                         rows={3}
