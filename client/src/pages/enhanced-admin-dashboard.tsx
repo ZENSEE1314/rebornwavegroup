@@ -2309,11 +2309,11 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Advanced Bulk Toy Generator */}
+              {/* Toy Management Status */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Advanced Bulk Toy Generator</CardTitle>
-                  <p className="text-gray-300 text-sm">Auto-generate multiple toys with custom seasons and QR codes</p>
+                  <CardTitle className="text-white">Toy Management Overview</CardTitle>
+                  <p className="text-gray-300 text-sm">Current toy inventory and management tools</p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
