@@ -4793,6 +4793,321 @@ export const translations: Translations = {
     zh: '联系',
     id: 'Kontak'
   },
+  'common.create': {
+    en: 'Create',
+    zh: '创建',
+    id: 'Buat'
+  },
+  'common.add': {
+    en: 'Add',
+    zh: '添加',
+    id: 'Tambah'
+  },
+  'common.remove': {
+    en: 'Remove',
+    zh: '移除',
+    id: 'Hapus'
+  },
+  'common.modify': {
+    en: 'Modify',
+    zh: '修改',
+    id: 'Ubah'
+  },
+  'common.save': {
+    en: 'Save',
+    zh: '保存',
+    id: 'Simpan'
+  },
+  'common.cancel': {
+    en: 'Cancel',
+    zh: '取消',
+    id: 'Batal'
+  },
+  'common.loading': {
+    en: 'Loading',
+    zh: '加载',
+    id: 'Memuat'
+  },
+  'common.submit': {
+    en: 'Submit',
+    zh: '提交',
+    id: 'Kirim'
+  },
+  'common.send': {
+    en: 'Send',
+    zh: '发送',
+    id: 'Kirim'
+  },
+  'common.receive': {
+    en: 'Receive',
+    zh: '接收',
+    id: 'Terima'
+  },
+  'common.view': {
+    en: 'View',
+    zh: '查看',
+    id: 'Lihat'
+  },
+  'common.hide': {
+    en: 'Hide',
+    zh: '隐藏',
+    id: 'Sembunyikan'
+  },
+  'common.show': {
+    en: 'Show',
+    zh: '显示',
+    id: 'Tampilkan'
+  },
+  'common.toggle': {
+    en: 'Toggle',
+    zh: '切换',
+    id: 'Ganti'
+  },
+  'common.select': {
+    en: 'Select',
+    zh: '选中',
+    id: 'Pilih'
+  },
+  'common.deselect': {
+    en: 'Deselect',
+    zh: '取消选中',
+    id: 'Batal Pilih'
+  },
+  'common.enable': {
+    en: 'Enable',
+    zh: '启用',
+    id: 'Aktifkan'
+  },
+  'common.disable': {
+    en: 'Disable',
+    zh: '禁用',
+    id: 'Nonaktifkan'
+  },
+  'common.enabled': {
+    en: 'Enabled',
+    zh: '已启用',
+    id: 'Diaktifkan'
+  },
+  'common.disabled': {
+    en: 'Disabled',
+    zh: '已禁用',
+    id: 'Dinonaktifkan'
+  },
+  'common.filter': {
+    en: 'Filter',
+    zh: '过滤',
+    id: 'Filter'
+  },
+  'common.sort': {
+    en: 'Sort',
+    zh: '排序',
+    id: 'Urutkan'
+  },
+  'common.ascending': {
+    en: 'Ascending',
+    zh: '升序',
+    id: 'Naik'
+  },
+  'common.descending': {
+    en: 'Descending',
+    zh: '降序',
+    id: 'Turun'
+  },
+  'common.date': {
+    en: 'Date',
+    zh: '日期',
+    id: 'Tanggal'
+  },
+  'common.time': {
+    en: 'Time',
+    zh: '时间',
+    id: 'Waktu'
+  },
+  'common.user': {
+    en: 'User',
+    zh: '用户',
+    id: 'Pengguna'
+  },
+  'common.admin': {
+    en: 'Admin',
+    zh: '管理员',
+    id: 'Admin'
+  },
+  'common.system': {
+    en: 'System',
+    zh: '系统',
+    id: 'Sistem'
+  },
+  'common.configuration': {
+    en: 'Configuration',
+    zh: '配置',
+    id: 'Konfigurasi'
+  },
+  'common.version': {
+    en: 'Version',
+    zh: '版本',
+    id: 'Versi'
+  },
+  'common.permission': {
+    en: 'Permission',
+    zh: '权限',
+    id: 'Izin'
+  },
+  'common.role': {
+    en: 'Role',
+    zh: '角色',
+    id: 'Peran'
+  },
+  'common.organization': {
+    en: 'Organization',
+    zh: '组织',
+    id: 'Organisasi'
+  },
+  'common.project': {
+    en: 'Project',
+    zh: '项目',
+    id: 'Proyek'
+  },
+  'common.task': {
+    en: 'Task',
+    zh: '任务',
+    id: 'Tugas'
+  },
+  'common.event': {
+    en: 'Event',
+    zh: '事件',
+    id: 'Acara'
+  },
+  'common.log': {
+    en: 'Log',
+    zh: '日志',
+    id: 'Log'
+  },
+  'common.report': {
+    en: 'Report',
+    zh: '报告',
+    id: 'Laporan'
+  },
+  'common.statistics': {
+    en: 'Statistics',
+    zh: '统计',
+    id: 'Statistik'
+  },
+  'common.analytics': {
+    en: 'Analytics',
+    zh: '分析',
+    id: 'Analisis'
+  },
+  'common.dashboard': {
+    en: 'Dashboard',
+    zh: '仪表板',
+    id: 'Dashboard'
+  },
+  'common.profile': {
+    en: 'Profile',
+    zh: '个人资料',
+    id: 'Profil'
+  },
+  'common.account': {
+    en: 'Account',
+    zh: '账户',
+    id: 'Akun'
+  },
+  'common.success': {
+    en: 'Success',
+    zh: '成功',
+    id: 'Berhasil'
+  },
+  'common.failed': {
+    en: 'Failed',
+    zh: '失败',
+    id: 'Gagal'
+  },
+  'common.error': {
+    en: 'Error',
+    zh: '错误',
+    id: 'Error'
+  },
+  'common.warning': {
+    en: 'Warning',
+    zh: '警告',
+    id: 'Peringatan'
+  },
+  'common.info': {
+    en: 'Info',
+    zh: '信息',
+    id: 'Informasi'
+  },
+  'common.result': {
+    en: 'Result',
+    zh: '结果',
+    id: 'Hasil'
+  },
+  'common.status': {
+    en: 'Status',
+    zh: '状态',
+    id: 'Status'
+  },
+  'common.type': {
+    en: 'Type',
+    zh: '类型',
+    id: 'Jenis'
+  },
+  'common.search': {
+    en: 'Search',
+    zh: '搜索',
+    id: 'Cari'
+  },
+  'common.active': {
+    en: 'Active',
+    zh: '活动',
+    id: 'Aktif'
+  },
+  'common.inactive': {
+    en: 'Inactive',
+    zh: '非活动',
+    id: 'Tidak Aktif'
+  },
+  'common.online': {
+    en: 'Online',
+    zh: '在线',
+    id: 'Online'
+  },
+  'common.offline': {
+    en: 'Offline',
+    zh: '离线',
+    id: 'Offline'
+  },
+  'common.available': {
+    en: 'Available',
+    zh: '可用',
+    id: 'Tersedia'
+  },
+  'common.unavailable': {
+    en: 'Unavailable',
+    zh: '不可用',
+    id: 'Tidak Tersedia'
+  },
+  'common.connect': {
+    en: 'Connect',
+    zh: '连接',
+    id: 'Hubungkan'
+  },
+  'common.disconnect': {
+    en: 'Disconnect',
+    zh: '断开',
+    id: 'Putuskan'
+  },
+  'common.connected': {
+    en: 'Connected',
+    zh: '已连接',
+    id: 'Terhubung'
+  },
+  'common.disconnected': {
+    en: 'Disconnected',
+    zh: '已断开',
+    id: 'Terputus'
+  },
   'common.settings': {
     en: 'Settings',
     zh: '设置',
