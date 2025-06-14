@@ -540,7 +540,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin commission stats endpoint
   app.get("/api/admin/commission-stats", isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -625,9 +630,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`*** APPROVAL DEBUG: Starting approval for verification ${req.params.id}`);
       console.log(`*** APPROVAL DEBUG: Request body:`, req.body);
       
-      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
-        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${req.user.claims.sub}`);
+        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${userId}`);
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3067,7 +3077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       console.log("*** ROUTE DEBUG: API called for user:", userId);
       if (!userId) {
         console.log("*** ROUTE DEBUG: No userId found");
