@@ -524,6 +524,21 @@ export const translations: Translations = {
     zh: '专业活动策划、企业度假、团队建设活动和商务会议。创造难忘的企业体验，加强关系并推动成功。',
     id: 'Perencanaan acara profesional, corporate retreat, kegiatan team building, dan konferensi bisnis. Ciptakan pengalaman korporat berkesan yang memperkuat hubungan dan mendorong kesuksesan.'
   },
+  'landing.inviteFriends': {
+    en: 'Invite Friends & Gain More Rewards',
+    zh: '邀请朋友获得更多奖励',
+    id: 'Undang Teman & Dapatkan Lebih Banyak Hadiah'
+  },
+  'landing.shareWithFriends': {
+    en: 'Share with Friends',
+    zh: '与朋友分享',
+    id: 'Bagikan dengan Teman'
+  },
+  'landing.referralDescription': {
+    en: 'Invite your friends and earn 10% commission every time they spend on our platform.',
+    zh: '邀请您的朋友，每次他们在我们平台消费时获得10%佣金。',
+    id: 'Undang teman Anda dan dapatkan komisi 10% setiap kali mereka berbelanja di platform kami.'
+  },
 
   // Authentication
   'auth.email': {

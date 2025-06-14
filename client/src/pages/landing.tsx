@@ -323,16 +323,16 @@ export default function Landing() {
           <div className="text-center mb-20">
             <div className="mb-6">
               <span className="px-4 py-2 bg-gradient-to-r from-emerald-600/20 to-blue-600/20 border border-emerald-500/30 rounded-full text-sm font-medium text-white">
-                💎 Invite Friends & Gain More Rewards
+                💎 {t('landing.inviteFriends')}
               </span>
             </div>
             <h2 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                Share with Friends
+                {t('landing.shareWithFriends')}
               </span>
             </h2>
             <p className="text-xl text-white/70 max-w-4xl mx-auto">
-              Invite your friends and earn 10% commission every time they spend on our platform.
+              {t('landing.referralDescription')}
             </p>
           </div>
           
