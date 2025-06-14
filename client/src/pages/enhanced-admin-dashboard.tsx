@@ -308,17 +308,28 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
-  const filteredToys = (allToys as any[]).filter((toy: any) => {
-    const searchMatch = !toySearch || 
-      toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
-      toy.series?.toLowerCase().includes(toySearch.toLowerCase()) ||
-      toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
-    const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
-    const ownerMatch = ownerFilter === "all" || 
-      (ownerFilter === "owned" && toy.owner) ||
-      (ownerFilter === "unowned" && !toy.owner);
-    return searchMatch && rarityMatch && ownerMatch;
-  });
+  const filteredToys = React.useMemo(() => {
+    try {
+      const toys = (allToys || []) as any[];
+      console.log('*** FILTERING TOYS DEBUG:', { allToys: toys.length, toySearch, rarityFilter, ownerFilter });
+      
+      return toys.filter((toy: any) => {
+        if (!toy) return false;
+        const searchMatch = !toySearch || 
+          toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
+          toy.series?.toLowerCase().includes(toySearch.toLowerCase()) ||
+          toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
+        const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
+        const ownerMatch = ownerFilter === "all" || 
+          (ownerFilter === "owned" && toy.owner) ||
+          (ownerFilter === "unowned" && !toy.owner);
+        return searchMatch && rarityMatch && ownerMatch;
+      });
+    } catch (error) {
+      console.error('*** TOY FILTERING ERROR:', error);
+      return [];
+    }
+  }, [allToys, toySearch, rarityFilter, ownerFilter]);
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
