@@ -5417,42 +5417,27 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
                   <p className="text-sm text-purple-600 font-medium">
-                    {t('dashboard.loyaltyPoints')}
+                    {t('dashboard.tokens')}
                   </p>
-                  <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
-                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700">
-                    <Star className="w-4 h-4 mr-1" />
-                    {t('dashboard.viewRewards')}
+                  <p className="text-2xl font-bold text-purple-800">{userTokens}</p>
+                  <Button size="sm" onClick={() => setShowClaimTokenModal(true)} className="mt-2 bg-orange-600 hover:bg-orange-700">
+                    <Gift className="w-4 h-4 mr-1" />
+                    {t('dashboard.claimTokens')}
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="bg-orange-50 border-orange-200">
+              <Card className="bg-rose-50 border-rose-200">
                 <CardContent className="p-6 text-center">
-                  <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
-                  <p className="text-sm text-orange-600 font-medium">
-                    {t('dashboard.tokens')}
+                  <Users className="h-8 w-8 mx-auto text-rose-600 mb-2" />
+                  <p className="text-sm text-rose-600 font-medium">
+                    {t('dashboard.referrals')}
                   </p>
-                  <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
-                  <div className="space-y-2 mt-2">
-                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700">
-                      <Star className="w-4 h-4 mr-1" />
-                      {t('dashboard.claimTokens')}
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => {
-                        setModalHistoryFilter("tokens");
-                        setModalHistoryPage(1);
-                        setShowHistoryModal(true);
-                      }}
-                      className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      {t('dashboard.viewHistory')}
-                    </Button>
-                  </div>
+                  <p className="text-lg font-bold text-rose-800">{referralCount}</p>
+                  <Button size="sm" onClick={() => setActiveTab("referral")} className="mt-2 bg-rose-600 hover:bg-rose-700">
+                    <Trophy className="w-4 h-4 mr-1" />
+                    {t('dashboard.achievements')}
+                  </Button>
                 </CardContent>
               </Card>
 
