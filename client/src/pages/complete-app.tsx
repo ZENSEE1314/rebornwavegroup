@@ -1158,7 +1158,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading pet care...</p>
+          <p className="text-muted-foreground">{t('petCare.loading')}</p>
         </div>
       </div>
     );
@@ -2164,7 +2164,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading pet care...</p>
+          <p className="text-muted-foreground">{t('petCare.loading')}</p>
         </div>
       </div>
     );
@@ -6045,9 +6045,7 @@ export default function CompleteApp() {
                           {t("shopping.mentor")}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {language === "id" 
-                            ? "5 rujukan yang masing-masing belanja RP 10,000,000" 
-                            : "5 referrals each spending RP 10,000,000"}
+                          {t('loyaltyProgram.diamondRequirement')}
                         </p>
                       </div>
                       <span className="font-bold text-orange-600">+100 {t("common.points")}</span>
@@ -7441,9 +7439,9 @@ export default function CompleteApp() {
                           disabled={!editingProfile}
                           className={`w-full px-3 py-2 border border-gray-300 rounded-md ${editingProfile ? "" : "bg-gray-50"}`}
                         >
-                          <option value="">{language === "id" ? "Pilih jenis kelamin" : "Select gender"}</option>
-                          <option value="male">{language === "id" ? "Laki-laki" : "Male"}</option>
-                          <option value="female">{language === "id" ? "Perempuan" : "Female"}</option>
+                          <option value="">{t('profile.selectGender')}</option>
+                          <option value="male">{t('profile.male')}</option>
+                          <option value="female">{t('profile.female')}</option>
                         </select>
                       </div>
                       <div>
@@ -7493,7 +7491,7 @@ export default function CompleteApp() {
                       {editingProfile ? (
                         <div className="flex space-x-3">
                           <Button onClick={saveProfile} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                            {language === "id" ? "Simpan Perubahan" : "Save Changes"}
+                            {t('common.saveChanges')}
                           </Button>
                           <Button 
                             variant="outline" 

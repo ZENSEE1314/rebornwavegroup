@@ -4834,6 +4834,31 @@ export const translations: Translations = {
     zh: '正在加载宠物护理...',
     id: 'Memuat perawatan hewan peliharaan...'
   },
+  'loyaltyProgram.diamondRequirement': {
+    en: '5 referrals each spending RP 10,000,000',
+    zh: '5个推荐人，每人消费RP 10,000,000',
+    id: '5 rujukan yang masing-masing belanja RP 10,000,000'
+  },
+  'profile.selectGender': {
+    en: 'Select gender',
+    zh: '选择性别',
+    id: 'Pilih jenis kelamin'
+  },
+  'profile.male': {
+    en: 'Male',
+    zh: '男性',
+    id: 'Laki-laki'
+  },
+  'profile.female': {
+    en: 'Female',
+    zh: '女性',
+    id: 'Perempuan'
+  },
+  'common.saveChanges': {
+    en: 'Save Changes',
+    zh: '保存更改',
+    id: 'Simpan Perubahan'
+  },
   'common.receive': {
     en: 'Receive',
     zh: '接收',
