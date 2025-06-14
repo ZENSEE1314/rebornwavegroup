@@ -843,40 +843,15 @@ export const translations: Translations = {
     zh: '推荐码（可选）',
     id: 'Kode Referral (Opsional)'
   },
-  'auth.firstName': {
-    en: 'First Name',
-    zh: '名字',
-    id: 'Nama Depan'
+  'auth.createAccount': {
+    en: 'Create Account',
+    zh: '创建账户',
+    id: 'Buat Akun'
   },
-  'auth.lastName': {
-    en: 'Last Name',
-    zh: '姓氏',
-    id: 'Nama Belakang'
-  },
-  'auth.phoneNumber': {
-    en: 'Phone Number',
-    zh: '电话号码',
-    id: 'Nomor Telepon'
-  },
-  'auth.dateOfBirth': {
-    en: 'Date of Birth',
-    zh: '出生日期',
-    id: 'Tanggal Lahir'
-  },
-  'auth.gender': {
-    en: 'Gender',
-    zh: '性别',
-    id: 'Jenis Kelamin'
-  },
-  'auth.male': {
-    en: 'Male',
-    zh: '男性',
-    id: 'Laki-laki'
-  },
-  'auth.female': {
-    en: 'Female',
-    zh: '女性',
-    id: 'Perempuan'
+  'auth.creatingAccount': {
+    en: 'Creating account...',
+    zh: '正在创建账户...',
+    id: 'Membuat akun...'
   },
   'auth.welcomeTitle': {
     en: 'Reborn Wave Pet Care',

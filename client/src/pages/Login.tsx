@@ -586,7 +586,7 @@ export default function Login() {
                       <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         id="phoneNumber"
-                        placeholder="Enter phone number"
+                        placeholder={t('auth.phoneNumber')}
                         className="pl-10"
                         {...registerForm.register("phoneNumber")}
                       />
@@ -601,7 +601,7 @@ export default function Login() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Label htmlFor="dateOfBirth">{t('auth.dateOfBirth')}</Label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
@@ -619,7 +619,7 @@ export default function Login() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
+                    <Label htmlFor="gender">{t('auth.gender')}</Label>
                     <div className="relative">
                       <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <select
@@ -627,9 +627,9 @@ export default function Login() {
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         {...registerForm.register("gender")}
                       >
-                        <option value="">Select gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
+                        <option value="">{t('auth.gender')}</option>
+                        <option value="male">{t('auth.male')}</option>
+                        <option value="female">{t('auth.female')}</option>
                       </select>
                     </div>
                     {registerForm.formState.errors.gender && (
@@ -642,15 +642,15 @@ export default function Login() {
 
                 <div className="space-y-2">
                   <Label htmlFor="referralCode" className="text-sm font-medium">
-                    Referral Code (Optional)
+                    {t('auth.referralCodeOptional')}
                   </Label>
                   <Input
                     id="referralCode"
-                    placeholder="Enter referral code"
+                    placeholder={t('auth.referralCodeOptional')}
                     {...registerForm.register("referralCode")}
                   />
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    💡 Enter your referral code here before signing up with email or Google/Facebook
+                    {t('auth.referralCodeInfo')}
                   </p>
                 </div>
 
@@ -659,7 +659,7 @@ export default function Login() {
                   className="w-full"
                   disabled={registerMutation.isPending}
                 >
-                  {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                  {registerMutation.isPending ? t('auth.creatingAccount') : t('auth.createAccount')}
                 </Button>
               </form>
 
