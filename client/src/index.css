@@ -98,6 +98,81 @@
 
   .gradient-border {
     position: relative;
+  }
+
+  /* Onboarding Walkthrough Styles */
+  .onboarding-highlight {
+    position: relative;
+    z-index: 45;
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 0 8px rgba(59, 130, 246, 0.2);
+    animation: onboarding-glow 2s ease-in-out infinite alternate;
+  }
+
+  .onboarding-tab-highlight {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border: 2px solid rgba(59, 130, 246, 0.6);
+    transform: scale(1.05);
+    transition: all 0.3s ease;
+  }
+
+  @keyframes onboarding-glow {
+    0% {
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 0 8px rgba(59, 130, 246, 0.2);
+    }
+    100% {
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.7), 0 0 0 12px rgba(59, 130, 246, 0.1);
+    }
+  }
+
+  /* Enhanced animations for walkthrough */
+  .animate-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .fade-in-0 {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .zoom-in-95 {
+    animation: zoomIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes zoomIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: linear-gradient(45deg, #667eea, #764ba2);
     padding: 2px;
     border-radius: 12px;

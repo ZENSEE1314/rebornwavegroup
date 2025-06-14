@@ -5068,6 +5068,7 @@ export default function CompleteApp() {
             ].map((tab) => (
               <button
                 key={tab.id}
+                data-tab={tab.id}
                 onClick={() => {
                   // Play Doluruu sound when pet care tab is clicked
                   if (tab.id === "petcare") {

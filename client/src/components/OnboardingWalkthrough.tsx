@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, Star, Gift, DollarSign, Heart, Sparkles } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Star, Gift, DollarSign, Heart, Sparkles, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/lib/i18n';
@@ -72,13 +72,31 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       petAnimation: 'excited'
     },
     {
-      id: 'navigation',
-      title: t('onboarding.navigation.title'),
-      description: t('onboarding.navigation.description'),
-      targetElement: '.navigation-tabs',
+      id: 'pets-tab',
+      title: 'Pet Care Tab',
+      description: 'Access your pet care features here. Feed, clean, and play with your digital pets!',
+      targetElement: '[data-tab="pets"]',
       position: 'bottom',
-      petMessage: t('onboarding.navigation.petMessage'),
+      petMessage: 'This tab is where all the magic happens - your pets are waiting for you!',
       petAnimation: 'pointing'
+    },
+    {
+      id: 'shop-tab',
+      title: 'Shop & Marketplace',
+      description: 'Browse toys, activate new pets, and explore the marketplace!',
+      targetElement: '[data-tab="shop"]',
+      position: 'bottom',
+      petMessage: 'Find amazing toys and expand your collection here!',
+      petAnimation: 'excited'
+    },
+    {
+      id: 'rewards-tab',
+      title: 'Rewards Center',
+      description: 'Claim daily rewards and redeem loyalty points for amazing prizes!',
+      targetElement: '[data-tab="rewards"]',
+      position: 'bottom',
+      petMessage: 'Don\'t forget to claim your daily rewards - every day brings new surprises!',
+      petAnimation: 'celebrating'
     },
     {
       id: 'complete',
@@ -99,10 +117,56 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // Add highlight effect
         element.classList.add('onboarding-highlight');
-        return () => element.classList.remove('onboarding-highlight');
+        // Add pulsing animation
+        element.classList.add('animate-pulse');
+        // Add special glow for tab elements
+        if (currentStepData.targetElement.includes('data-tab')) {
+          element.classList.add('onboarding-tab-highlight');
+        }
+        return () => {
+          element.classList.remove('onboarding-highlight');
+          element.classList.remove('animate-pulse');
+          element.classList.remove('onboarding-tab-highlight');
+        };
       }
     }
   }, [currentStep, isOpen, currentStepData.targetElement]);
+
+  // Function to get arrow direction based on position
+  const getArrowIcon = (position: string) => {
+    switch (position) {
+      case 'top':
+        return <ChevronUp className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'bottom':
+        return <ChevronDown className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'left':
+        return <ChevronLeft className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'right':
+        return <ChevronRight className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      default:
+        return null;
+    }
+  };
+
+  // Function to get modal position
+  const getModalPosition = () => {
+    if (currentStepData.position === 'center') {
+      return 'items-center justify-center';
+    }
+    if (currentStepData.position === 'top') {
+      return 'items-start justify-center pt-4';
+    }
+    if (currentStepData.position === 'bottom') {
+      return 'items-end justify-center pb-4';
+    }
+    if (currentStepData.position === 'left') {
+      return 'items-center justify-start pl-4';
+    }
+    if (currentStepData.position === 'right') {
+      return 'items-center justify-end pr-4';
+    }
+    return 'items-center justify-center';
+  };
 
   const nextStep = () => {
     if (currentStep < onboardingSteps.length - 1) {
@@ -167,13 +231,23 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
         </div>
       )}
 
+      {/* Animated Arrow Pointer */}
+      {currentStepData.targetElement && currentStepData.position !== 'center' && (
+        <div className="fixed inset-0 flex items-center justify-center z-45 pointer-events-none">
+          <div className="relative">
+            {getArrowIcon(currentStepData.position)}
+            <div className="absolute -inset-2 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
+          </div>
+        </div>
+      )}
+
       {/* Onboarding Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <Card className="bg-white shadow-2xl max-w-lg w-full">
+      <div className={`fixed inset-0 flex ${getModalPosition()} z-50 p-4`}>
+        <Card className="bg-white shadow-2xl max-w-lg w-full animate-in fade-in-0 zoom-in-95 duration-300">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center animate-pulse">
                   <Star className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">{currentStepData.title}</h2>
@@ -200,7 +274,7 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
-                  className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${((currentStep + 1) / onboardingSteps.length) * 100}%` }}
                 />
               </div>
@@ -228,15 +302,19 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
                 </Button>
                 <Button
                   onClick={nextStep}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 flex items-center space-x-2"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 flex items-center space-x-2 transition-all duration-200"
                 >
                   <span>
                     {currentStep === onboardingSteps.length - 1 
-                      ? t('onboarding.finish') 
+                      ? 'Complete Tour'
                       : t('onboarding.next')
                     }
                   </span>
-                  <ArrowRight className="w-4 h-4" />
+                  {currentStep === onboardingSteps.length - 1 ? (
+                    <Sparkles className="w-4 h-4" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
