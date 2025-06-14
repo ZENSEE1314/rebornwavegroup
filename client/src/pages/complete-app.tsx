@@ -5467,7 +5467,7 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-blue-50 border-blue-200 referrals-card">
                 <CardContent className="p-6 text-center">
                   <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
                   <p className="text-sm text-blue-600 font-medium">
@@ -5485,7 +5485,7 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-yellow-50 border-yellow-200">
+              <Card className="bg-yellow-50 border-yellow-200 earnings-card">
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
                   <p className="text-sm text-yellow-600 font-medium">
@@ -8397,6 +8397,13 @@ export default function CompleteApp() {
           </div>
         </div>
       )}
+
+      {/* Interactive Onboarding Walkthrough */}
+      <OnboardingWalkthrough
+        isOpen={showOnboarding}
+        onClose={handleOnboardingClose}
+        onComplete={handleOnboardingComplete}
+      />
     </div>
   );
 }
