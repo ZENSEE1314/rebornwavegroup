@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { Link } from "wouter";
-import { Home, Calendar, Store, Users, User } from "lucide-react";
+import { Home, Calendar, Store, Users, User, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function MobileNav() {
@@ -10,7 +10,7 @@ export default function MobileNav() {
     { name: "Home", href: "/", icon: Home },
     { name: "Bookings", href: "/bookings", icon: Calendar },
     { name: "Market", href: "/marketplace", icon: Store },
-    { name: "Referrals", href: "/referrals", icon: Users },
+    { name: "Collections", href: "/seasonal-collections", icon: Sparkles },
     { name: "Profile", href: "/profile", icon: User },
   ];
 
