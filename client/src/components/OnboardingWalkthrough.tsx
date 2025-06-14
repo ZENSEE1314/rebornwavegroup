@@ -3,6 +3,7 @@ import { X, ArrowRight, ArrowLeft, Star, Gift, DollarSign, Heart, Sparkles } fro
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/lib/i18n';
+import petGuideImage from '@assets/Doluruu Grandpa_1749903476706.png';
 
 interface OnboardingStep {
   id: string;
@@ -134,16 +135,16 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
           <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-purple-200 shadow-lg max-w-xs">
             <CardContent className="p-4">
               <div className="flex items-start space-x-3">
-                <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center ${
+                <div className={`w-16 h-16 flex items-center justify-center ${
                   currentStepData.petAnimation === 'excited' ? 'animate-bounce' :
                   currentStepData.petAnimation === 'pointing' ? 'animate-pulse' :
                   currentStepData.petAnimation === 'celebrating' ? 'animate-spin' : ''
                 }`}>
-                  {currentStepData.petAnimation === 'celebrating' ? (
-                    <Sparkles className="w-6 h-6 text-white" />
-                  ) : (
-                    <Heart className="w-6 h-6 text-white" />
-                  )}
+                  <img 
+                    src={petGuideImage} 
+                    alt="Doluruu Grandpa Guide" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div className="flex-1">
                   <div className="bg-white rounded-lg p-2 shadow-sm">

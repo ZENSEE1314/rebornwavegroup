@@ -26,6 +26,14 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Interactive Onboarding Walkthrough Implementation (June 14, 2025)
+- **MAJOR FEATURE**: ✅ COMPLETE INTERACTIVE ONBOARDING WALKTHROUGH WITH VIRTUAL PET GUIDE
+- **Virtual Pet Guide**: ✅ Integrated "Doluruu Grandpa" character as wise virtual companion for new user guidance
+- **Multi-step Walkthrough**: ✅ 6-step guided tour covering dashboard overview, credits system, loyalty points, tokens, navigation, and completion
+- **Translation Support**: ✅ Complete multilingual implementation (English, Chinese, Indonesian) for all onboarding content
+- **User Experience**: ✅ Automatic onboarding for first-time users with skip/complete options and localStorage persistence
+- **Element Targeting**: ✅ Dashboard elements highlighted with CSS class targeting for guided tour experience
+
 ### Translation Implementation Completion (June 14, 2025)
 - **MAJOR MILESTONE**: ✅ COMPLETE SIGN-UP FORM TRANSLATION ACHIEVED - systematic replacement of ALL hardcoded English text with proper i18n function calls
 - **Final Achievement**: Complete sign-up/register form with all field labels, placeholders, and UI elements fully translated
