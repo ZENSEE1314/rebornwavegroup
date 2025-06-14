@@ -5403,16 +5403,6 @@ export default function CompleteApp() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-6 text-center">
-                  <Star className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                  <p className="text-sm text-blue-600 font-medium">
-                    {t('dashboard.loyaltyPoints')}
-                  </p>
-                  <p className="text-lg font-bold text-blue-800">{loyaltyPoints}</p>
-                </CardContent>
-              </Card>
-
               <Card className="bg-purple-50 border-purple-200">
                 <CardContent className="p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
