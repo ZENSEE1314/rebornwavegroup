@@ -2216,18 +2216,40 @@ function EnhancedAdminDashboard() {
                       </Select>
                     </div>
                     <div>
+                      <Label className="text-gray-300">Toy Color</Label>
+                      <Select value={newToy.color || ""} onValueChange={(value) => setNewToy({ ...newToy, color: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="red">Red</SelectItem>
+                          <SelectItem value="blue">Blue</SelectItem>
+                          <SelectItem value="green">Green</SelectItem>
+                          <SelectItem value="purple">Purple</SelectItem>
+                          <SelectItem value="orange">Orange</SelectItem>
+                          <SelectItem value="pink">Pink</SelectItem>
+                          <SelectItem value="yellow">Yellow</SelectItem>
+                          <SelectItem value="black">Black</SelectItem>
+                          <SelectItem value="white">White</SelectItem>
+                          <SelectItem value="brown">Brown</SelectItem>
+                          <SelectItem value="gray">Gray</SelectItem>
+                          <SelectItem value="rainbow">Rainbow</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <Label className="text-gray-300">Season</Label>
                       <Select value={newToy.seasonId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, seasonId: value ? parseInt(value) : null })}>
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
                           <SelectValue placeholder="Select Season" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No Season</SelectItem>
-                          <SelectItem value="1">Spring Collection</SelectItem>
-                          <SelectItem value="2">Summer Collection</SelectItem>
-                          <SelectItem value="3">Autumn Collection</SelectItem>
-                          <SelectItem value="4">Winter Collection</SelectItem>
-                          <SelectItem value="5">Limited Edition</SelectItem>
+                          <SelectItem value="">No Season</SelectItem>
+                          {(seasonsResponse?.data || []).map((season: any) => (
+                            <SelectItem key={season.id} value={season.id.toString()}>
+                              {season.displayName}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2238,12 +2260,14 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No Sector</SelectItem>
-                          <SelectItem value="1">Rare Finds</SelectItem>
-                          <SelectItem value="2">Daily Discoveries</SelectItem>
-                          <SelectItem value="3">Event Exclusives</SelectItem>
-                          <SelectItem value="4">Community Favorites</SelectItem>
-                          <SelectItem value="5">Mystery Box</SelectItem>
+                          <SelectItem value="">No Sector</SelectItem>
+                          {(sectorsResponse?.data || [])
+                            .filter((sector: any) => !newToy.seasonId || sector.seasonId === newToy.seasonId)
+                            .map((sector: any) => (
+                              <SelectItem key={sector.id} value={sector.id.toString()}>
+                                {sector.displayName}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -5375,7 +5399,7 @@ function EnhancedAdminDashboard() {
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Season</option>
-                  {seasons.map((season: any) => (
+                  {(seasonsResponse?.data || []).map((season: any) => (
                     <option key={season.id} value={season.id}>
                       {season.displayName}
                     </option>
@@ -5390,13 +5414,35 @@ function EnhancedAdminDashboard() {
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Sector</option>
-                  {sectors
-                    .filter((sector: any) => sector.seasonId === parseInt(bulkToyForm.seasonId))
+                  {(sectorsResponse?.data || [])
+                    .filter((sector: any) => !bulkToyForm.seasonId || sector.seasonId === parseInt(bulkToyForm.seasonId))
                     .map((sector: any) => (
                       <option key={sector.id} value={sector.id}>
                         {sector.displayName}
                       </option>
                     ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Base Toy Color</label>
+                <select
+                  value={bulkToyForm.color || ""}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, color: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
+                >
+                  <option value="">Select Color</option>
+                  <option value="red">Red</option>
+                  <option value="blue">Blue</option>
+                  <option value="green">Green</option>
+                  <option value="purple">Purple</option>
+                  <option value="orange">Orange</option>
+                  <option value="pink">Pink</option>
+                  <option value="yellow">Yellow</option>
+                  <option value="black">Black</option>
+                  <option value="white">White</option>
+                  <option value="brown">Brown</option>
+                  <option value="gray">Gray</option>
+                  <option value="rainbow">Rainbow</option>
                 </select>
               </div>
               <div>
