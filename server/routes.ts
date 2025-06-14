@@ -10,7 +10,15 @@ import { setupMultiAuth, requireAuth } from "./multiAuth";
 
 // Helper function to extract user ID from different auth formats
 function getUserId(req: any): string | null {
-  return req.user?.claims?.sub || req.user?.id || null;
+  // For session-based authentication (passport)
+  if (req.user?.id) {
+    return req.user.id;
+  }
+  // For JWT-based authentication (Replit Auth)
+  if (req.user?.claims?.sub) {
+    return req.user.claims.sub;
+  }
+  return null;
 }
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
@@ -4243,8 +4251,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user dashboard stats from database - OPTIMIZED for performance
   app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      console.log('*** USER-STATS DEBUG: req.user:', req.user);
+      console.log('*** USER-STATS DEBUG: req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'no isAuthenticated method');
+      
+      const userId = getUserId(req);
+      console.log('*** USER-STATS DEBUG: extracted userId:', userId);
+      
       if (!userId) {
+        console.log('*** USER-STATS DEBUG: No userId found, returning 401');
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
@@ -4287,7 +4301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // OPTIMIZATION: Enable caching for better performance (30 seconds)
       res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
-      res.set('ETag', `W/"user-stats-${adminUserId}-${Date.now()}"`) ;
+      res.set('ETag', `W/"user-stats-${userId}-${Date.now()}"`) ;
       
       res.json(stats);
     } catch (error) {
