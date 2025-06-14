@@ -4859,6 +4859,22 @@ export const translations: Translations = {
     zh: '保存更改',
     id: 'Simpan Perubahan'
   },
+
+  'marketplace.confirmPurchase': {
+    en: 'Confirm Purchase',
+    zh: '确认购买',
+    id: 'Konfirmasi Pembelian'
+  },
+  'marketplace.confirmPurchaseQuestion': {
+    en: 'Are you sure you want to buy',
+    zh: '您确定要购买吗',
+    id: 'Apakah Anda yakin ingin membeli'
+  },
+  'common.note': {
+    en: 'Note',
+    zh: '注意',
+    id: 'Catatan'
+  },
   'common.receive': {
     en: 'Receive',
     zh: '接收',

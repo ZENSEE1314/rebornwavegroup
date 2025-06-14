@@ -7091,7 +7091,7 @@ export default function CompleteApp() {
                               {t("marketplace.listed")}
                             </div>
                             <p className="text-xs text-green-700 mt-1">
-                              {language === "id" ? `t("price.label") Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}` : `Price: Rp ${parseInt(activeListing.price).toLocaleString('id-ID')}`}
+                              {t('price.label')}: Rp {parseInt(activeListing.price).toLocaleString('id-ID')}
                             </p>
                           </div>
                         )}
@@ -7564,10 +7564,10 @@ export default function CompleteApp() {
             <div className="text-center mb-6">
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
               <h3 className="text-lg font-bold text-slate-900 mb-2">
-                {language === "id" ? "Konfirmasi Pembelian" : "Confirm Purchase"}
+                {t('marketplace.confirmPurchase')}
               </h3>
               <p className="text-slate-600 mb-4">
-                {language === "id" ? "Apakah Anda yakin ingin membeli" : "Are you sure you want to buy"}
+                {t('marketplace.confirmPurchaseQuestion')}
               </p>
               <div className="bg-slate-50 rounded-lg p-4 mb-4">
                 <div className="mb-2">
@@ -7582,11 +7582,11 @@ export default function CompleteApp() {
                   RP {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
-                  +{Math.floor(parseFloat(selectedPurchaseListing.price || '0') / 10000)} {language === "id" ? "poin loyalitas" : "loyalty points"}
+                  +{Math.floor(parseFloat(selectedPurchaseListing.price || '0') / 10000)} {t('loyaltyProgram.points')}
                 </p>
                 <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
                   <p className="text-xs text-blue-600">
-                    <strong>{language === "id" ? "Catatan:" : "Note:"}</strong> {language === "id" 
+                    <strong>{t('common.note')}:</strong> {language === "id" 
                       ? "Termasuk biaya admin 10%. Penjual menerima 90% dari harga jual."
                       : "Includes 10% admin fee. Seller receives 90% of the sale price."
                     }
