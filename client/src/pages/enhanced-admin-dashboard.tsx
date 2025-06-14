@@ -2521,7 +2521,8 @@ function EnhancedAdminDashboard() {
                       <div className="text-red-400">Error loading toys</div>
                     </div>
                   ) : (
-                    <Table>
+                    <>
+                      <Table>
                       <TableHeader>
                         <TableRow className="border-white/20">
                           <TableHead className="text-blue-200">Name</TableHead>
@@ -2678,7 +2679,8 @@ function EnhancedAdminDashboard() {
                       </div>
                     </div>
                   )}
-                )
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
