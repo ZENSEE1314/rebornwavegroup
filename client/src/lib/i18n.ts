@@ -4170,6 +4170,16 @@ export const translations: Translations = {
     en: 'Total Earnings:',
     zh: '总收入：',
     id: 'Total Pendapatan:'
+  },
+  'date.format': {
+    en: 'en-US',
+    zh: 'zh-CN',
+    id: 'id-ID'
+  },
+  'price.format': {
+    en: 'Price: Rp ',
+    zh: '价格：Rp ',
+    id: 'Harga: Rp '
   }
 };
 

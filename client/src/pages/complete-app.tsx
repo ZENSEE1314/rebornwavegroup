@@ -3072,8 +3072,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                           <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
                           <p className="text-sm text-gray-600">{verification.description}</p>
                           <p className="text-xs text-gray-500">
-                            {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
-                            {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(verification.createdAt).toLocaleDateString(t("date.format"))}
+                            {" "} {new Date(verification.createdAt).toLocaleTimeString(t("date.format"), { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                         <Badge className={getStatusColor(verification.status)}>
@@ -6807,7 +6807,7 @@ export default function CompleteApp() {
                                 </div>
                                 
                                 <p className="text-sm text-gray-600 mb-1">
-                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(language === "id" ? "id-ID" : "en-US")} at {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleDateString(t("date.format"))} at {new Date(item.createdAt || item.requestedAt || item.appointmentDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                                 
                                 {item.adminNotes && (
@@ -7210,7 +7210,7 @@ export default function CompleteApp() {
                   <Trophy className="h-8 w-8 mx-auto text-purple-600 mb-2" />
                   <p className="text-2xl font-bold text-purple-800">Level 1</p>
                   <p className="text-sm text-purple-600">
-                    {language === "id" ? "Level Rujukan" : "Referrer Level"}
+                    {t("referral.level")}
                   </p>
                 </CardContent>
               </Card>
@@ -7219,7 +7219,7 @@ export default function CompleteApp() {
                   <Gift className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
                   <p className="text-2xl font-bold text-yellow-800">10%</p>
                   <p className="text-sm text-yellow-600">
-                    {language === "id" ? "Tingkat Komisi" : "Commission Rate"}
+                    {t("commission.rate")}
                   </p>
                 </CardContent>
               </Card>
@@ -7230,7 +7230,7 @@ export default function CompleteApp() {
               <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 <CardHeader>
                   <CardTitle className="text-white">
-                    {language === "id" ? "Bagikan Kode Rujukan" : "Share Your Referral Code"}
+                    {t("referral.shareCode")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -7245,7 +7245,7 @@ export default function CompleteApp() {
                     className="w-full bg-white/20 hover:bg-white/30 text-white mb-4"
                   >
                     <Copy className="w-4 h-4 mr-2" />
-                    {language === "id" ? "Salin Kode" : "Copy Code"}
+                    {t("common.copyCode")}
                   </Button>
                   <div className="bg-white/20 rounded-lg p-4 text-center">
                     <QrCode className="w-24 h-24 mx-auto text-white/80 mb-2" />
@@ -7263,7 +7263,7 @@ export default function CompleteApp() {
               <Card>
                 <CardHeader>
                   <CardTitle>
-                    {language === "id" ? "Struktur Komisi" : "Commission Structure"}
+                    {t("commission.structure")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -7279,11 +7279,11 @@ export default function CompleteApp() {
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
                     <div className="space-y-2">
                       <p className="text-lg font-semibold text-slate-700">
-                        {language === "id" ? "Total Rujukan: " : "Total Referrals: "}
+                        {t("referral.totalReferrals")}
                         <span className="text-green-600">{userStats?.referrals?.length || 0}</span>
                       </p>
                       <p className="text-sm text-slate-600">
-                        {language === "id" ? "Total Pendapatan: " : "Total Earnings: "}
+                        {t("referral.totalEarningsLabel")}
                         <span className="font-bold text-green-600">RP {formatRupiah(userStats?.referralEarnings || 0)}</span>
                       </p>
                     </div>
@@ -8189,7 +8189,7 @@ export default function CompleteApp() {
                                  (transaction.type === 'token_claim' ? `Token claim: ${transaction.tokensAwarded} tokens` : 'Token transaction')}
                               </p>
                               <p className="text-sm text-gray-600 mb-1">
-                                {new Date(transaction.createdAt || transaction.requestedAt).toLocaleString(language === "id" ? "id-ID" : "en-US", {
+                                {new Date(transaction.createdAt || transaction.requestedAt).toLocaleString(t("date.format"), {
                                   year: 'numeric',
                                   month: 'short',
                                   day: 'numeric',
