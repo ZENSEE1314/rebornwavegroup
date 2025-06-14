@@ -25,6 +25,7 @@ import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 import CreditTopUpModal from "@/components/CreditTopUpModal";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 
 // Helper function to format sleep timer as MM:SS
 function formatSleepTime(timeRemaining: number): string {
@@ -3187,6 +3188,11 @@ export default function CompleteApp() {
   useWebSocket(true);
   
   const [activeTab, setActiveTab] = useState("dashboard");
+  
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('onboarding-completed');
+  });
   
   // State for pending purchases and confirmations
   const [pendingPurchases, setPendingPurchases] = useState([]);
