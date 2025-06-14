@@ -971,29 +971,7 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // Missing state variables for Collections Management
-  const [showSeasonDialog, setShowSeasonDialog] = useState(false);
-  const [showSectorDialog, setShowSectorDialog] = useState(false);
-  const [editingSeason, setEditingSeason] = useState<any>(null);
-  const [editingSector, setEditingSector] = useState<any>(null);
-  const [seasonForm, setSeasonForm] = useState({
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#3B82F6",
-    iconUrl: "/images/default-season.png",
-    isActive: true
-  });
-  const [sectorForm, setSectorForm] = useState({
-    seasonId: "",
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#F3F4F6",
-    iconSymbol: "🎯",
-    unlockCondition: "none",
-    isUnlocked: true
-  });
+  // Collections Management state variables are already declared above
 
 
 
@@ -4978,8 +4956,8 @@ function EnhancedAdminDashboard() {
           </DialogContent>
         </Dialog>
 
-        {/* Collections Management Tab */}
-        <TabsContent value="collections">
+          {/* Collections Management Tab */}
+          <TabsContent value="collections">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Seasons Management */}
             <Card className="bg-white/10 backdrop-blur border-white/20">
