@@ -643,7 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const { status, adminNotes, pointsAwarded } = req.body;
-      const adminId = req.user.claims.sub;
+      const adminId = userId;
 
       console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status}`);
 
