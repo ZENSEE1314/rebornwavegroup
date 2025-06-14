@@ -8125,7 +8125,7 @@ export default function CompleteApp() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">
-                {language === "id" ? "Riwayat Token" : "Token History"}
+                {t('tokens.history')}
               </h3>
               <Button variant="ghost" onClick={() => setShowHistoryModal(false)}>✕</Button>
             </div>
@@ -8154,7 +8154,7 @@ export default function CompleteApp() {
                     <div className="text-center py-8">
                       <div className="text-gray-500 mb-4 text-4xl">🪙</div>
                       <p className="text-gray-500">
-                        {language === "id" ? "Tidak ada riwayat token" : "No token history"}
+                        {t('tokens.noHistory')}
                       </p>
                     </div>
                   );
@@ -8187,7 +8187,7 @@ export default function CompleteApp() {
                                   {transaction.tokens !== undefined ? 
                                     `${transaction.tokens > 0 ? '+' : ''}${transaction.tokens}` : 
                                     `${transaction.tokensRequested || transaction.tokensAwarded || 0 > 0 ? '+' : ''}${transaction.tokensRequested || transaction.tokensAwarded || 0}`
-                                  } {language === "id" ? "Token" : "Tokens"}
+                                  } {t('common.tokens')}
                                 </span>
                               </div>
                               <p className="text-sm text-gray-800 mb-1">
@@ -8205,7 +8205,7 @@ export default function CompleteApp() {
                               </p>
                               {(transaction.adminNotes || transaction.notes) && (
                                 <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
-                                  {language === "id" ? "Catatan: " : "Notes: "}{transaction.adminNotes || transaction.notes}
+                                  {t('common.notes')}{transaction.adminNotes || transaction.notes}
                                 </p>
                               )}
                             </div>
@@ -8215,9 +8215,9 @@ export default function CompleteApp() {
                                 transaction.status === 'rejected' ? 'bg-red-100 text-red-800' :
                                 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {transaction.status === 'approved' || transaction.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
-                                 transaction.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
-                                 (language === "id" ? "Menunggu" : "Pending")}
+                                {transaction.status === 'approved' || transaction.status === 'completed' ? t('status.completed') :
+                                 transaction.status === 'rejected' ? t('status.rejected') :
+                                 t('status.pending')}
                               </div>
                             </div>
                           </div>
@@ -8229,7 +8229,7 @@ export default function CompleteApp() {
                     {totalPages > 1 && (
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, claims.length)} {language === "id" ? "dari" : "of"} {claims.length} {language === "id" ? "item" : "items"}
+                          t('pagination.showing') {startIndex + 1}-{Math.min(endIndex, claims.length)} t('pagination.of') {claims.length} {language === "id" ? "item" : "items"}
                         </div>
                         <div className="flex gap-2">
                           <Button
