@@ -4783,21 +4783,7 @@ export const translations: Translations = {
     zh: '联系',
     id: 'Kontak'
   },
-  'common.create': {
-    en: 'Create',
-    zh: '创建',
-    id: 'Buat'
-  },
-  'common.add': {
-    en: 'Add',
-    zh: '添加',
-    id: 'Tambah'
-  },
-  'common.remove': {
-    en: 'Remove',
-    zh: '移除',
-    id: 'Hapus'
-  },
+
   'common.modify': {
     en: 'Modify',
     zh: '修改',
