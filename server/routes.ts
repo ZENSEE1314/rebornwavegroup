@@ -4772,7 +4772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint to get all token transactions with pagination
   app.get('/api/admin/token-transactions', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = req.user?.claims?.sub || req.user?.id;
       const admin = await storage.getUser(adminUserId);
       
       if (admin?.role !== 'admin') {
