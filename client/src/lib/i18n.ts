@@ -4783,32 +4783,6 @@ export const translations: Translations = {
     zh: '联系',
     id: 'Kontak'
   },
-
-  'common.modify': {
-    en: 'Modify',
-    zh: '修改',
-    id: 'Ubah'
-  },
-  'common.save': {
-    en: 'Save',
-    zh: '保存',
-    id: 'Simpan'
-  },
-  'common.cancel': {
-    en: 'Cancel',
-    zh: '取消',
-    id: 'Batal'
-  },
-  'common.loading': {
-    en: 'Loading',
-    zh: '加载',
-    id: 'Memuat'
-  },
-  'common.submit': {
-    en: 'Submit',
-    zh: '提交',
-    id: 'Kirim'
-  },
   'common.send': {
     en: 'Send',
     zh: '发送',
