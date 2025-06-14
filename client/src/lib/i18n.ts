@@ -4513,6 +4513,56 @@ export const translations: Translations = {
     zh: '链接已复制',
     id: 'Link Disalin'
   },
+  'common.viewMore': {
+    en: 'View More',
+    zh: '查看更多',
+    id: 'Lihat Lebih'
+  },
+  'common.showLess': {
+    en: 'Show Less',
+    zh: '显示较少',
+    id: 'Tampilkan Lebih Sedikit'
+  },
+  'rewards.redeemNow': {
+    en: 'Redeem Now',
+    zh: '立即兑换',
+    id: 'Tukar Sekarang'
+  },
+  'rewards.confirmRedemption': {
+    en: 'Confirm Redemption',
+    zh: '确认兑换',
+    id: 'Konfirmasi Penukaran'
+  },
+  'rewards.redemptionSuccessful': {
+    en: 'Redemption Successful',
+    zh: '兑换成功',
+    id: 'Penukaran Berhasil'
+  },
+  'rewards.redemptionFailed': {
+    en: 'Redemption Failed',
+    zh: '兑换失败',
+    id: 'Penukaran Gagal'
+  },
+  'rewards.insufficientPoints': {
+    en: 'Insufficient Points',
+    zh: '积分不足',
+    id: 'Poin Tidak Cukup'
+  },
+  'payment.selectBank': {
+    en: 'Select Bank',
+    zh: '选择银行',
+    id: 'Pilih Bank'
+  },
+  'payment.accountNumber': {
+    en: 'Account Number',
+    zh: '账户号码',
+    id: 'Nomor Rekening'
+  },
+  'payment.withdraw': {
+    en: 'Withdraw',
+    zh: '提现',
+    id: 'Tarik Tunai'
+  },
 
 
 };
