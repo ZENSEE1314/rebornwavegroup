@@ -4698,6 +4698,61 @@ export const translations: Translations = {
     zh: '无',
     id: 'Tidak Ada'
   },
+  'common.select': {
+    en: 'Select',
+    zh: '选择',
+    id: 'Pilih'
+  },
+  'common.clear': {
+    en: 'Clear',
+    zh: '清除',
+    id: 'Hapus'
+  },
+  'common.reset': {
+    en: 'Reset',
+    zh: '重置',
+    id: 'Reset'
+  },
+  'common.apply': {
+    en: 'Apply',
+    zh: '申请',
+    id: 'Terapkan'
+  },
+  'common.ok': {
+    en: 'OK',
+    zh: '确定',
+    id: 'OK'
+  },
+  'common.close': {
+    en: 'Close',
+    zh: '关闭',
+    id: 'Tutup'
+  },
+  'common.done': {
+    en: 'Done',
+    zh: '完成',
+    id: 'Selesai'
+  },
+  'common.start': {
+    en: 'Start',
+    zh: '开始',
+    id: 'Mulai'
+  },
+  'common.stop': {
+    en: 'Stop',
+    zh: '停止',
+    id: 'Berhenti'
+  },
+  'common.pause': {
+    en: 'Pause',
+    zh: '暂停',
+    id: 'Jeda'
+  },
+  'common.continue': {
+    en: 'Continue',
+    zh: '继续',
+    id: 'Lanjut'
+  },
 
 
 };
