@@ -2945,6 +2945,46 @@ export const translations: Translations = {
     en: 'Pet is already very happy!',
     zh: '宠物已经很开心了！',
     id: 'Pet sudah sangat bahagia!'
+  },
+  'petInfo.sleeping': {
+    en: 'Pet is Sleeping',
+    zh: '宠物正在睡觉',
+    id: 'Pet Sedang Tidur'
+  },
+  'petInfo.energyRestore': {
+    en: 'Energy restores automatically every 5 minutes',
+    zh: '能量每5分钟自动恢复',
+    id: 'Energi akan pulih secara otomatis setiap 5 menit'
+  },
+  'games.feedingTime': {
+    en: '🎮 Mini Game: Feeding Time',
+    zh: '🎮 小游戏：喂食时间',
+    id: '🎮 Mini Game: Feeding Time'
+  },
+  'games.coinCatching': {
+    en: 'Start Coin Catching Game',
+    zh: '开始接金币游戏',
+    id: 'Mulai Coin Catching Game'
+  },
+  'petInfo.title': {
+    en: 'Pet Information',
+    zh: '宠物信息',
+    id: 'Informasi Hewan Peliharaan'
+  },
+  'petInfo.born': {
+    en: 'Born:',
+    zh: '出生：',
+    id: 'Lahir:'
+  },
+  'petInfo.age': {
+    en: 'Age:',
+    zh: '年龄：',
+    id: 'Umur:'
+  },
+  'petInfo.status': {
+    en: 'Status:',
+    zh: '状态：',
+    id: 'Status:'
   }
 };
 

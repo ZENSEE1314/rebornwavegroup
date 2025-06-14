@@ -1933,7 +1933,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         <div className="col-span-full mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                           <div className="text-center">
                             <div className="text-lg font-bold text-blue-700 mb-2">
-                              💤 {language === "id" ? "Pet Sedang Tidur" : "Pet is Sleeping"}
+                              💤 {t('petInfo.sleeping')}
                             </div>
                             
                             <div className="text-3xl font-mono text-blue-600 mb-2">
@@ -1952,7 +1952,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             </div>
                             
                             <div className="text-sm text-blue-600">
-                              {language === "id" ? "Energi akan pulih secara otomatis setiap 5 menit" : "Energy restores automatically every 5 minutes"}
+                              {t('petInfo.energyRestore')}
                             </div>
                           </div>
                         </div>
@@ -1963,7 +1963,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   {/* Feeding Game */}
                   <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
                     <h5 className="font-semibold text-gray-900 mb-3">
-                      {language === "id" ? "🎮 Mini Game: Feeding Time" : "🎮 Mini Game: Feeding Time"}
+                      {t('games.feedingTime')}
                     </h5>
                     <Button 
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
@@ -1973,22 +1973,22 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       }}
                       disabled={isDead}
                     >
-                      🪙 {language === "id" ? "Mulai Coin Catching Game" : "Start Coin Catching Game"}
+                      🪙 {t('games.coinCatching')}
                     </Button>
                   </div>
 
                   {/* Comprehensive Pet Info */}
                   <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-semibold text-gray-900 text-center">
-                      {language === "id" ? "Informasi Hewan Peliharaan" : "Pet Information"}
+                      {t('petInfo.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <span className="text-gray-600">{language === "id" ? "Lahir:" : "Born:"}</span>
+                        <span className="text-gray-600">{t('petInfo.born')}</span>
                         <p className="font-medium">{new Date(pet.birthDate || pet.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <span className="text-gray-600">{language === "id" ? "Umur:" : "Age:"}</span>
+                        <span className="text-gray-600">{t('petInfo.age')}</span>
                         <p className="font-medium">{ageInYears} {language === "id" ? "tahun" : "years"}</p>
                       </div>
                       <div>
