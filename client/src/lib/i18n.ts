@@ -4391,11 +4391,7 @@ export const translations: Translations = {
     zh: '关于我们',
     id: 'Tentang Kami'
   },
-  'common.more': {
-    en: 'More',
-    zh: '更多',
-    id: 'Lebih Banyak'
-  },
+
   'common.less': {
     en: 'Less',
     zh: '较少',
@@ -4415,6 +4411,46 @@ export const translations: Translations = {
     en: 'Add',
     zh: '添加',
     id: 'Tambah'
+  },
+  'common.remove': {
+    en: 'Remove',
+    zh: '移除',
+    id: 'Hapus'
+  },
+  'common.create': {
+    en: 'Create',
+    zh: '创建',
+    id: 'Buat'
+  },
+  'common.update': {
+    en: 'Update',
+    zh: '更新',
+    id: 'Perbarui'
+  },
+  'common.continue': {
+    en: 'Continue',
+    zh: '继续',
+    id: 'Lanjutkan'
+  },
+  'common.complete': {
+    en: 'Complete',
+    zh: '完成',
+    id: 'Selesai'
+  },
+  'common.back': {
+    en: 'Back',
+    zh: '返回',
+    id: 'Kembali'
+  },
+  'common.next': {
+    en: 'Next',
+    zh: '下一步',
+    id: 'Berikutnya'
+  },
+  'common.previous': {
+    en: 'Previous',
+    zh: '上一步',
+    id: 'Sebelumnya'
   },
 
 
