@@ -3953,7 +3953,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { adminUserId, amount } = req.body;
+      const { userId: targetUserId, amount } = req.body;
       await storage.updateUserCredits(adminUserId, amount);
       
       // Create transaction record
@@ -3981,7 +3981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { adminUserId, points } = req.body;
+      const { userId: targetUserId, points } = req.body;
       await storage.updateUserPoints(adminUserId, points);
 
       res.json({ message: "Points updated successfully" });
