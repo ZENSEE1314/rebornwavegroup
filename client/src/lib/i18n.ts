@@ -2344,11 +2344,6 @@ export const translations: Translations = {
     zh: '1,000个神秘稀有度 • 6,000个普通稀有度',
     id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
   },
-  'commission.structure': {
-    en: 'Commission Structure',
-    zh: '佣金结构',
-    id: 'Struktur Komisi'
-  },
   'commission.totalReferrals': {
     en: 'Total Referrals:',
     zh: '总推荐数：',
@@ -4173,6 +4168,31 @@ export const translations: Translations = {
     en: 'Phone Number',
     zh: '电话号码',
     id: 'Nomor Telepon'
+  },
+  'form.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'form.email': {
+    en: 'Email',
+    zh: '邮箱',
+    id: 'Email'
+  },
+  'gender.male': {
+    en: 'Male',
+    zh: '男',
+    id: 'Laki-laki'
+  },
+  'gender.female': {
+    en: 'Female',
+    zh: '女',
+    id: 'Perempuan'
+  },
+  'form.selectDate': {
+    en: 'Select Date',
+    zh: '选择日期',
+    id: 'Pilih Tanggal'
   },
   'date.format': {
     en: 'en-US',
