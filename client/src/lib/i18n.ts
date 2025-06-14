@@ -3435,6 +3435,61 @@ export const translations: Translations = {
     en: 'Toy returned to your inventory',
     zh: '玩具已返回您的库存',
     id: 'Mainan dikembalikan ke inventori Anda'
+  },
+  'marketplace.saleCancelled': {
+    en: 'Sale Cancelled',
+    zh: '销售已取消',
+    id: 'Penjualan Dibatalkan'
+  },
+  'marketplace.itemReturnedWithRefund': {
+    en: 'Item returned to marketplace and credits refunded',
+    zh: '商品已退回市场并退还积分',
+    id: 'Item dikembalikan ke marketplace dan kredit dikembalikan'
+  },
+  'marketplace.purchaseCancelled': {
+    en: 'Purchase Cancelled',
+    zh: '购买已取消',
+    id: 'Pembelian Dibatalkan'
+  },
+  'marketplace.cannotBuyOwnItem': {
+    en: 'Cannot buy your own item',
+    zh: '不能购买自己的商品',
+    id: 'Tidak bisa membeli item sendiri'
+  },
+  'marketplace.purchaseSuccessful': {
+    en: 'Purchase Successful!',
+    zh: '购买成功！',
+    id: 'Pembelian Berhasil!'
+  },
+  'marketplace.creditsDeductedWaitingConfirmation': {
+    en: 'Credits deducted. Waiting for seller confirmation to earn {{points}} points.',
+    zh: '积分已扣除。等待卖家确认以获得 {{points}} 积分。',
+    id: 'Kredit telah dipotong. Menunggu penjual konfirmasi untuk mendapat {{points}} poin.'
+  },
+  'marketplace.confirmationSuccessful': {
+    en: 'Confirmation Successful!',
+    zh: '确认成功！',
+    id: 'Konfirmasi Berhasil!'
+  },
+  'marketplace.saleConfirmedWaitingBuyer': {
+    en: 'Sale confirmed, waiting for buyer confirmation',
+    zh: '销售已确认，等待买家确认',
+    id: 'Penjualan dikonfirmasi, menunggu konfirmasi penerima'
+  },
+  'marketplace.saleConfirmed': {
+    en: 'Sale Confirmed!',
+    zh: '销售确认！',
+    id: 'Penjualan Dikonfirmasi!'
+  },
+  'profile.passwordMismatch': {
+    en: "New passwords don't match",
+    zh: '新密码不匹配',
+    id: 'Password baru tidak cocok'
+  },
+  'profile.passwordMinLength': {
+    en: 'Password must be at least 6 characters',
+    zh: '密码至少需要6个字符',
+    id: 'Password minimal 6 karakter'
   }
 };
 

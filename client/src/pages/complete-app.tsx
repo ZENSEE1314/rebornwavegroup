@@ -4748,8 +4748,8 @@ export default function CompleteApp() {
     setSelectedPurchaseListing(null);
 
     toast({
-      title: language === "id" ? "Pembelian Berhasil!" : "Purchase Successful!",
-      description: language === "id" ? `Kredit telah dipotong. Menunggu penjual konfirmasi untuk mendapat ${pointsEarned} poin.` : `Credits deducted. Waiting for seller confirmation to earn ${pointsEarned} points.`,
+      title: t('marketplace.purchaseSuccessful'),
+      description: t('marketplace.creditsDeductedWaitingConfirmation', { points: pointsEarned }),
     });
   };
 
@@ -4764,8 +4764,8 @@ export default function CompleteApp() {
       
       if (response.ok) {
         toast({
-          title: language === "id" ? "Konfirmasi Berhasil!" : "Confirmation Successful!",
-          description: language === "id" ? "Penjualan dikonfirmasi, menunggu konfirmasi penerima" : "Sale confirmed, waiting for buyer confirmation",
+          title: t('marketplace.confirmationSuccessful'),
+          description: t('marketplace.saleConfirmedWaitingBuyer'),
         });
         queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
         queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
@@ -4795,7 +4795,7 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Penjualan Dikonfirmasi!" : "Sale Confirmed!",
+          title: t('marketplace.saleConfirmed'),
           description: t('account.creditsAdded')
         });
         
@@ -4818,7 +4818,7 @@ export default function CompleteApp() {
     if (newPassword !== confirmPassword) {
       toast({
         title: "Error",
-        description: language === "id" ? "Password baru tidak cocok" : "New passwords don't match",
+        description: t('profile.passwordMismatch'),
         variant: "destructive"
       });
       return;
@@ -4827,7 +4827,7 @@ export default function CompleteApp() {
     if (newPassword.length < 6) {
       toast({
         title: "Error", 
-        description: language === "id" ? "Password minimal 6 karakter" : "Password must be at least 6 characters",
+        description: t('profile.passwordMinLength'),
         variant: "destructive"
       });
       return;
