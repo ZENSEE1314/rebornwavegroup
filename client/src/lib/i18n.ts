@@ -4798,8 +4798,111 @@ export const translations: Translations = {
     zh: '设置',
     id: 'Pengaturan'
   },
-
-
+  'common.preferences': {
+    en: 'Preferences',
+    zh: '偏好',
+    id: 'Preferensi'
+  },
+  'common.order': {
+    en: 'Order',
+    zh: '订单',
+    id: 'Pesanan'
+  },
+  'common.product': {
+    en: 'Product',
+    zh: '产品',
+    id: 'Produk'
+  },
+  'common.service': {
+    en: 'Service',
+    zh: '服务',
+    id: 'Layanan'
+  },
+  'common.customer': {
+    en: 'Customer',
+    zh: '客户',
+    id: 'Pelanggan'
+  },
+  'common.supplier': {
+    en: 'Supplier',
+    zh: '供应商',
+    id: 'Pemasok'
+  },
+  'common.stock': {
+    en: 'Stock',
+    zh: '库存',
+    id: 'Stok'
+  },
+  'common.sales': {
+    en: 'Sales',
+    zh: '销售',
+    id: 'Penjualan'
+  },
+  'common.revenue': {
+    en: 'Revenue',
+    zh: '收入',
+    id: 'Pendapatan'
+  },
+  'common.expense': {
+    en: 'Expense',
+    zh: '支出',
+    id: 'Pengeluaran'
+  },
+  'common.profit': {
+    en: 'Profit',
+    zh: '利润',
+    id: 'Keuntungan'
+  },
+  'common.loss': {
+    en: 'Loss',
+    zh: '损失',
+    id: 'Kerugian'
+  },
+  'common.balance': {
+    en: 'Balance',
+    zh: '余额',
+    id: 'Saldo'
+  },
+  'common.budget': {
+    en: 'Budget',
+    zh: '预算',
+    id: 'Anggaran'
+  },
+  'common.cost': {
+    en: 'Cost',
+    zh: '成本',
+    id: 'Biaya'
+  },
+  'common.investment': {
+    en: 'Investment',
+    zh: '投资',
+    id: 'Investasi'
+  },
+  'common.return': {
+    en: 'Return',
+    zh: '回报',
+    id: 'Hasil'
+  },
+  'common.risk': {
+    en: 'Risk',
+    zh: '风险',
+    id: 'Risiko'
+  },
+  'common.opportunity': {
+    en: 'Opportunity',
+    zh: '机会',
+    id: 'Peluang'
+  },
+  'common.target': {
+    en: 'Target',
+    zh: '目标',
+    id: 'Target'
+  },
+  'common.goal': {
+    en: 'Goal',
+    zh: '目标',
+    id: 'Tujuan'
+  },
   'common.quantity': {
     en: 'Quantity',
     zh: '数量',
