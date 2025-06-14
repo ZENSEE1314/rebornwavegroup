@@ -1243,7 +1243,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reward items management routes
   app.get('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -4435,9 +4440,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin route to get all activated pets
   app.get('/api/admin/activated-pets', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
