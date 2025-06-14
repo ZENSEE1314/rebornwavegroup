@@ -3988,6 +3988,76 @@ export const translations: Translations = {
     en: 'Notes: ',
     zh: '备注：',
     id: 'Catatan: '
+  },
+  'history.empty': {
+    en: 'No history available',
+    zh: '没有历史记录',
+    id: 'Tidak ada riwayat tersedia'
+  },
+  'commission.empty': {
+    en: 'No commission history',
+    zh: '没有佣金历史记录',
+    id: 'Tidak ada riwayat komisi'
+  },
+  'commission.noData': {
+    en: 'No commission data available',
+    zh: '没有佣金数据',
+    id: 'Tidak ada data komisi tersedia'
+  },
+  'status.cancelled': {
+    en: 'Cancelled',
+    zh: '已取消',
+    id: 'Dibatalkan'
+  },
+  'status.unknown': {
+    en: 'Unknown',
+    zh: '未知',
+    id: 'Tidak diketahui'
+  },
+  'toy.activate': {
+    en: 'Activate Doluruu Toy',
+    zh: '激活Doluruu玩具',
+    id: 'Aktifkan Mainan Doluruu'
+  },
+  'toy.qrPlaceholder': {
+    en: 'Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)',
+    zh: '输入玩具二维码（例如：QR-87b4a03b003a-07377ac9-53d8fd）',
+    id: 'Masukkan QR Code mainan (contoh: QR-87b4a03b003a-07377ac9-53d8fd)'
+  },
+  'purchase.waitingSeller': {
+    en: 'Waiting for Seller',
+    zh: '等待卖家',
+    id: 'Menunggu Konfirmasi Penjual'
+  },
+  'purchase.purchased': {
+    en: 'Purchased',
+    zh: '已购买',
+    id: 'Dibeli'
+  },
+  'purchase.waitingShipment': {
+    en: 'Waiting for seller to confirm shipment',
+    zh: '等待卖家确认发货',
+    id: 'Menunggu penjual mengkonfirmasi pengiriman'
+  },
+  'transaction.complete': {
+    en: 'Transaction Complete!',
+    zh: '交易完成！',
+    id: 'Transaksi Selesai!'
+  },
+  'purchase.confirmReceived': {
+    en: 'Confirm Received',
+    zh: '确认收货',
+    id: 'Konfirmasi Diterima'
+  },
+  'purchase.waitingBuyer': {
+    en: 'Waiting for buyer confirmation',
+    zh: '等待买家确认',
+    id: 'Menunggu konfirmasi pembeli'
+  },
+  'purchase.waitingSellerConfirm': {
+    en: 'Waiting for seller confirmation',
+    zh: '等待卖家确认',
+    id: 'Menunggu konfirmasi penjual'
   }
 };
 

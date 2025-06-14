@@ -6777,7 +6777,7 @@ export default function CompleteApp() {
                           {historyFilter === 'redemptions' && "🎁"}
                         </div>
                         <p className="text-gray-500">
-                          {language === "id" ? "Tidak ada data ditemukan" : "No data found"}
+                          {t("common.noDataFound")}
                         </p>
                       </div>
                     );
@@ -6812,7 +6812,7 @@ export default function CompleteApp() {
                                 
                                 {item.adminNotes && (
                                   <p className="text-sm text-blue-600 bg-blue-50 rounded px-2 py-1 mt-2">
-                                    {language === "id" ? "Catatan: " : "Notes: "}{item.adminNotes}
+                                    {t("common.notes")}{item.adminNotes}
                                   </p>
                                 )}
                               </div>
@@ -6826,10 +6826,10 @@ export default function CompleteApp() {
                                 }`}>
                                   {item.status === 'completed' ? (t("status.completed")) :
                                    item.status === 'approved' ? (t("status.approved")) :
-                                   item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
+                                   item.status === 'cancelled' ? (t("status.cancelled")) :
                                    item.status === 'rejected' ? (t("status.rejected")) :
                                    item.status === 'pending' ? (t("status.pending")) :
-                                   (item.status || (language === "id" ? "Tidak diketahui" : "Unknown"))}
+                                   (item.status || (t("status.unknown")))}
                                 </div>
                                 
                                 {(historyFilter === 'points' || historyFilter === 'credits') && (
@@ -6899,12 +6899,12 @@ export default function CompleteApp() {
             <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold mb-4 text-purple-900">
-                  {language === "id" ? "Aktifkan Mainan Doluruu" : "Activate Doluruu Toy"}
+                  {t("toy.activate")}
                 </h3>
                 <div className="space-y-4">
                   <div className="flex space-x-2">
                     <Input
-                      placeholder={language === "id" ? "Masukkan QR Code mainan (contoh: QR-87b4a03b003a-07377ac9-53d8fd)" : "Enter toy QR Code (e.g. QR-87b4a03b003a-07377ac9-53d8fd)"}
+                      placeholder={t("toy.qrPlaceholder")}
                       value={newToyCode}
                       onChange={(e) => setNewToyCode(e.target.value)}
                       className="flex-1"
@@ -6985,17 +6985,17 @@ export default function CompleteApp() {
                         {purchase.toy?.rarity}
                       </Badge>
                       <Badge className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-300">
-                        {language === "id" ? "Menunggu Konfirmasi Penjual" : "Waiting for Seller"}
+                        {t("purchase.waitingSeller")}
                       </Badge>
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-slate-600">
-                          {language === "id" ? "Dibeli" : "Purchased"}: {new Date(purchase.createdAt).toLocaleDateString()}
+                          {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
                           RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
                         </p>
                         <div className="w-full bg-gray-100 text-gray-600 p-3 rounded text-sm">
-                          {language === "id" ? "Menunggu penjual mengkonfirmasi pengiriman" : "Waiting for seller to confirm shipment"}
+                          {t("purchase.waitingShipment")}
                         </div>
                       </div>
                     </div>
@@ -7024,7 +7024,7 @@ export default function CompleteApp() {
                       </Badge>
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-slate-600">
-                          {language === "id" ? "Dibeli" : "Purchased"}: {new Date(purchase.createdAt).toLocaleDateString()}
+                          {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
                           RP {parseFloat(purchase.amount || '0').toLocaleString('id-ID')}
@@ -7034,7 +7034,7 @@ export default function CompleteApp() {
                             // Mark as received by buyer - this completes the transaction
                             confirmPurchaseMutation.mutate(purchase.id);
                             toast({
-                              title: language === "id" ? "Transaksi Selesai!" : "Transaction Complete!",
+                              title: t("transaction.complete"),
                               description: t('collection.toyAdded'),
                             });
                           }}
