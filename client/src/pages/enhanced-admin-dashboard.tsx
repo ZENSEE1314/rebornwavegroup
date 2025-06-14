@@ -158,6 +158,24 @@ function EnhancedAdminDashboard() {
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Bulk toy generation dialog states
+  const [showBulkToyDialog, setShowBulkToyDialog] = useState(false);
+  const [bulkToyForm, setBulkToyForm] = useState({
+    baseName: "",
+    quantity: 10,
+    rarity: "common",
+    seasonId: null as number | null,
+    sectorId: null as number | null,
+    imageUrl: ""
+  });
+  
+  // Token management dialog states (using existing declaration at line 71)
+  const [tokenForm, setTokenForm] = useState({
+    type: "daily_reward",
+    pointsCost: 100,
+    creditAmount: 1000
+  });
 
   // Content management dialog states
   const [showBannerDialog, setShowBannerDialog] = useState(false);
@@ -567,7 +585,27 @@ function EnhancedAdminDashboard() {
     }
   });
 
-
+  const bulkToyMutation = useMutation({
+    mutationFn: async (bulkData: any) => {
+      return apiRequest('POST', '/api/admin/toys/bulk', bulkData);
+    },
+    onSuccess: () => {
+      toast({ title: "Bulk toys created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      setShowBulkToyDialog(false);
+      setBulkToyForm({
+        baseName: "",
+        quantity: 10,
+        rarity: "common",
+        seasonId: null,
+        sectorId: null,
+        imageUrl: ""
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to create bulk toys", variant: "destructive" });
+    }
+  });
 
   const updateAppointmentMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
@@ -5308,19 +5346,12 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button
                 onClick={() => {
-                  if (editingSector) {
-                    updateSectorMutation.mutate({
-                      id: editingSector.id,
-                      data: sectorForm
-                    });
-                  } else {
-                    createSectorMutation.mutate(sectorForm);
-                  }
+                  sectorMutation.mutate(sectorForm);
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={createSectorMutation.isPending || updateSectorMutation.isPending}
+                disabled={sectorMutation.isPending}
               >
-                {(createSectorMutation.isPending || updateSectorMutation.isPending) 
+                {sectorMutation.isPending 
                   ? (editingSector ? "Updating..." : "Creating...") 
                   : (editingSector ? "Update Sector" : "Create Sector")
                 }

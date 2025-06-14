@@ -5989,17 +5989,7 @@ export const translations: Translations = {
     id: 'Terima pembaruan tentang janji temu dan promosi'
   },
 
-  // Onboarding Walkthrough
-  'onboarding.welcome.title': {
-    en: 'Welcome to Reborn Wave',
-    zh: '欢迎来到重生波浪',
-    id: 'Selamat Datang di Reborn Wave'
-  },
-  'onboarding.welcome.description': {
-    en: 'Let me guide you through your digital pet care journey!',
-    zh: '让我带您了解数字宠物护理之旅！',
-    id: 'Biarkan saya memandu Anda melalui perjalanan perawatan hewan digital!'
-  },
+  // Onboarding Walkthrough (duplicate keys removed - using earlier definitions)
 
   'onboarding.dashboard.title': {
     en: 'Your Dashboard Overview',
