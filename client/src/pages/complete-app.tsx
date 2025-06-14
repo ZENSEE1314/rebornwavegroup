@@ -641,6 +641,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const [showQRCamera, setShowQRCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [selectedSeason, setSelectedSeason] = useState<string>("season1");
   // Removed local pet stats to prevent conflicts with API data
 
   // Play greeting when entering Pet Care tab
@@ -6949,7 +6951,13 @@ export default function CompleteApp() {
                   </div>
                   <div className="grid grid-cols-7 gap-2 mt-4">
                     {["red", "blue", "orange", "green", "white", "purple", "secret"].map(color => (
-                      <div key={color} className="text-center">
+                      <div 
+                        key={color} 
+                        className={`text-center cursor-pointer p-2 rounded-lg transition-all hover:bg-gray-100 ${
+                          selectedColor === color ? "bg-blue-100 border-2 border-blue-500" : ""
+                        }`}
+                        onClick={() => setSelectedColor(selectedColor === color ? "" : color)}
+                      >
                         <div className={`w-8 h-8 rounded-full mx-auto mb-1 ${
                           color === "red" ? "bg-red-500" :
                           color === "blue" ? "bg-blue-500" :
@@ -6958,14 +6966,31 @@ export default function CompleteApp() {
                           color === "white" ? "bg-gray-200 border border-gray-400" :
                           color === "purple" ? "bg-purple-500" :
                           "bg-gradient-to-r from-purple-600 to-pink-600"
-                        }`}></div>
-                        <p className="text-xs text-gray-600 capitalize">{color}</p>
+                        } ${selectedColor === color ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}></div>
+                        <p className={`text-xs capitalize ${
+                          selectedColor === color ? "text-blue-600 font-semibold" : "text-gray-600"
+                        }`}>
+                          {t(`toyColors.${color}`) || color}
+                        </p>
                       </div>
                     ))}
                   </div>
-                  <div className="text-center text-sm text-purple-600">
-                    <p className="font-medium">Season 1 Collection - 7,000 toys available</p>
-                    <p className="text-xs mt-1">1,000 secret rarity • 6,000 common rarity</p>
+                  <div className="text-center text-sm text-purple-600 mt-4">
+                    <div className={`inline-block cursor-pointer p-3 rounded-lg transition-all hover:bg-purple-50 ${
+                      selectedSeason === "season1" ? "bg-purple-100 border-2 border-purple-500" : "border border-purple-200"
+                    }`}
+                    onClick={() => setSelectedSeason(selectedSeason === "season1" ? "" : "season1")}>
+                      <p className={`font-medium ${
+                        selectedSeason === "season1" ? "text-purple-700" : "text-purple-600"
+                      }`}>
+                        {t('seasonCollection.season1')}
+                      </p>
+                      <p className={`text-xs mt-1 ${
+                        selectedSeason === "season1" ? "text-purple-600" : "text-purple-500"
+                      }`}>
+                        {t('seasonCollection.rarityInfo')}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>

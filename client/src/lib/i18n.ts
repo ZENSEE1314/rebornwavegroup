@@ -3325,6 +3325,16 @@ export const translations: Translations = {
     en: 'Failed to save settings',
     zh: '保存设置失败',
     id: 'Gagal menyimpan pengaturan'
+  },
+  'seasonCollection.season1': {
+    en: 'Season 1 Collection - 7,000 toys available',
+    zh: '第1季收藏 - 7,000个玩具可用',
+    id: 'Koleksi Musim 1 - 7,000 mainan tersedia'
+  },
+  'seasonCollection.rarityInfo': {
+    en: '1,000 secret rarity • 6,000 common rarity',
+    zh: '1,000个秘密稀有度 • 6,000个普通稀有度',
+    id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
   }
 };
 
