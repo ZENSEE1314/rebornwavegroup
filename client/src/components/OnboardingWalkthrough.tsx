@@ -258,8 +258,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
 
   return (
     <>
-      {/* Overlay */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-40" />
+      {/* Lighter Overlay */}
+      <div className="fixed inset-0 bg-black bg-opacity-20 z-40" />
       
       {/* Virtual Pet Guide */}
       {petVisible && (
