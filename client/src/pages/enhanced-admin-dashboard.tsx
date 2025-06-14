@@ -85,6 +85,8 @@ function EnhancedAdminDashboard() {
   const tokenTransactionsPerPage = 10;
   const [paymentVerificationsPage, setPaymentVerificationsPage] = useState(1);
   const paymentVerificationsPerPage = 10;
+  const [usersPage, setUsersPage] = useState(1);
+  const usersPerPage = 10;
   const [openApproveDialog, setOpenApproveDialog] = useState<number | null>(null);
   const [openRejectDialog, setOpenRejectDialog] = useState<number | null>(null);
   
@@ -173,7 +175,7 @@ function EnhancedAdminDashboard() {
 
   // Fetch all data with pagination
   const { data: usersResponse }: any = useQuery({
-    queryKey: ['/api/admin/users'],
+    queryKey: [`/api/admin/users?page=${usersPage}&limit=${usersPerPage}`],
     retry: false,
   });
 
@@ -1466,42 +1468,67 @@ function EnhancedAdminDashboard() {
                 </div>
                 </div>
                 
-                {/* Pagination for Users */}
-                {(usersResponse as any)?.pagination && (
-                  <div className="mt-4 flex justify-center">
-                    <Pagination>
-                      <PaginationContent>
-                        {(usersResponse as any).pagination.hasPrev && (
-                          <PaginationItem>
-                            <PaginationPrevious 
-                              href="#" 
-                              onClick={() => {
-                                // Handle previous page
-                                console.log('Previous page');
-                              }}
-                            />
-                          </PaginationItem>
-                        )}
+                {/* 10-Item Pagination for Users */}
+                {(usersResponse as any)?.pagination && (usersResponse as any).pagination.totalPages > 1 && (
+                  <div className="mt-6 flex justify-center items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
+                      disabled={usersPage === 1}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex space-x-1">
+                      {Array.from({ 
+                        length: Math.min(10, (usersResponse as any).pagination.totalPages)
+                      }, (_, i) => {
+                        const totalPages = (usersResponse as any).pagination.totalPages;
+                        const currentPage = usersPage;
+                        const maxPagesToShow = 10;
                         
-                        <PaginationItem>
-                          <PaginationLink href="#" isActive>
-                            {(usersResponse as any).pagination.page}
-                          </PaginationLink>
-                        </PaginationItem>
+                        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
                         
-                        {(usersResponse as any).pagination.hasNext && (
-                          <PaginationItem>
-                            <PaginationNext 
-                              href="#" 
-                              onClick={() => {
-                                // Handle next page
-                                console.log('Next page');
-                              }}
-                            />
-                          </PaginationItem>
-                        )}
-                      </PaginationContent>
-                    </Pagination>
+                        if (endPage - startPage + 1 < maxPagesToShow) {
+                          startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                        }
+                        
+                        return startPage + i;
+                      }).filter(page => page <= (usersResponse as any).pagination.totalPages).map((page) => (
+                        <Button
+                          key={page}
+                          variant={page === usersPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setUsersPage(page)}
+                          className={`${
+                            page === usersPage 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUsersPage(Math.min((usersResponse as any).pagination.totalPages, usersPage + 1))}
+                      disabled={usersPage === (usersResponse as any).pagination.totalPages}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Next
+                    </Button>
+                    
+                    <div className="ml-4 text-sm text-gray-300">
+                      Showing {((usersPage - 1) * usersPerPage) + 1} to{' '}
+                      {Math.min(usersPage * usersPerPage, (usersResponse as any).pagination.totalCount || 0)} of{' '}
+                      {(usersResponse as any).pagination.totalCount || 0} users
+                    </div>
                   </div>
                 )}
               </CardContent>
