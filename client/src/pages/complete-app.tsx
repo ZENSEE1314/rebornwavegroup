@@ -5648,11 +5648,11 @@ export default function CompleteApp() {
                           level.maxPoints === Infinity ? 
                             `${level.minPoints.toLocaleString()}+` : 
                             `${level.minPoints.toLocaleString()} - ${level.maxPoints.toLocaleString()}`
-                        } {language === "id" ? "poin" : "points"}
+                        } {t("common.points")}
                       </p>
                       {level.discount > 0 && (
                         <div className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full mb-2">
-                          {level.discount}% {language === "id" ? "diskon" : "discount"}
+                          {level.discount}% {t("common.discount")}
                         </div>
                       )}
                       <div className="space-y-1">
@@ -5660,7 +5660,7 @@ export default function CompleteApp() {
                           <p key={index} className="text-xs text-gray-600">{benefit}</p>
                         ))}
                         {level.benefits.length > 2 && (
-                          <p className="text-xs text-gray-500">+{level.benefits.length - 2} {language === "id" ? "lainnya" : "more"}</p>
+                          <p className="text-xs text-gray-500">+{level.benefits.length - 2} {t("common.more")}</p>
                         )}
                       </div>
                     </CardContent>
@@ -5696,7 +5696,7 @@ export default function CompleteApp() {
                                 )}
                                 {reward.stockQuantity && (
                                   <p className="text-xs text-orange-600 mt-1">
-                                    {language === "id" ? "Stok tersisa" : "Stock left"}: {reward.stockQuantity}
+                                    {t("stock.left")}: {reward.stockQuantity}
                                   </p>
                                 )}
                               </div>
@@ -5705,7 +5705,7 @@ export default function CompleteApp() {
                           
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-blue-600">
-                              {reward.pointsCost} {language === "id" ? "poin" : "points"}
+                              {reward.pointsCost} {t("common.points")}
                             </span>
                             <Button
                               size="sm"
@@ -5738,9 +5738,9 @@ export default function CompleteApp() {
                         onChange={(e) => setPointsFilter(e.target.value as 'all' | 'earned' | 'redeemed')}
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="all">{language === "id" ? "Semua" : "All"}</option>
-                        <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
-                        <option value="redeemed">{language === "id" ? "Ditukar" : "Redeemed"}</option>
+                        <option value="all">{t("filters.all")}</option>
+                        <option value="earned">{t("filters.earned")}</option>
+                        <option value="redeemed">{t("filters.redeemed")}</option>
                       </select>
                       <input
                         type="date"
@@ -5792,7 +5792,7 @@ export default function CompleteApp() {
                                 </div>
                                 <div className="text-right">
                                   <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
-                                    {history.type === 'earned' ? '+' : ''}{history.points} {language === "id" ? "poin" : "points"}
+                                    {history.type === 'earned' ? '+' : ''}{history.points} {t("common.points")}
                                   </span>
                                 </div>
                               </div>
@@ -5863,7 +5863,7 @@ export default function CompleteApp() {
                         onChange={(e) => setRedemptionFilter(e.target.value as 'all' | 'completed' | 'used')}
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                        <option value="all">{t("filters.all")}</option>
                         <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
                         <option value="used">{language === "id" ? "Digunakan" : "Used"}</option>
                       </select>
@@ -5997,13 +5997,13 @@ export default function CompleteApp() {
                       <span className="text-gray-700">
                         t('referral.eachSuccessful')
                       </span>
-                      <span className="font-bold text-blue-600">+50 {language === "id" ? "poin" : "points"}</span>
+                      <span className="font-bold text-blue-600">+50 {t("common.points")}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
                         t('referral.bonusEvery5')
                       </span>
-                      <span className="font-bold text-purple-600">+150 {language === "id" ? "poin" : "points"}</span>
+                      <span className="font-bold text-purple-600">+150 {t("common.points")}</span>
                     </div>
                   </div>
                 </div>
@@ -6025,7 +6025,7 @@ export default function CompleteApp() {
                            achievement.count === 15 ? '900' :
                            achievement.count === 20 ? '1150' :
                            achievement.count === 25 ? '1400' :
-                           '2650'} {language === "id" ? "poin" : "points"}
+                           '2650'} {t("common.points")}
                         </span>
                       </div>
                     ))}
@@ -6050,7 +6050,7 @@ export default function CompleteApp() {
                             : "5 referrals each spending RP 10,000,000"}
                         </p>
                       </div>
-                      <span className="font-bold text-orange-600">+100 {language === "id" ? "poin" : "points"}</span>
+                      <span className="font-bold text-orange-600">+100 {t("common.points")}</span>
                     </div>
                   </div>
                 </div>
@@ -6677,7 +6677,7 @@ export default function CompleteApp() {
                       onChange={(e) => setStatusFilter(e.target.value)}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
-                      <option value="all">{language === "id" ? "Semua" : "All"}</option>
+                      <option value="all">{t("filters.all")}</option>
                       <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
                       <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
                       <option value="approved">{language === "id" ? "Disetujui" : "Approved"}</option>
@@ -7662,8 +7662,8 @@ export default function CompleteApp() {
                     onChange={(e) => setCreditFilter(e.target.value as 'all' | 'earned' | 'spent')}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="all">{language === "id" ? "Semua" : "All"}</option>
-                    <option value="earned">{language === "id" ? "Diperoleh" : "Earned"}</option>
+                    <option value="all">{t("filters.all")}</option>
+                    <option value="earned">{t("filters.earned")}</option>
                     <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
                   </select>
                   <input

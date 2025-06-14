@@ -3636,6 +3636,36 @@ export const translations: Translations = {
     en: 'discount active',
     zh: '折扣活跃',
     id: 'diskon aktif'
+  },
+  'security.enterPin': {
+    en: 'Enter PIN Code',
+    zh: '输入密码',
+    id: 'Masukkan Kode Pin'
+  },
+  'common.confirm': {
+    en: 'Confirm',
+    zh: '确认',
+    id: 'Konfirmasi'
+  },
+  'common.points': {
+    en: 'points',
+    zh: '积分',
+    id: 'poin'
+  },
+  'common.discount': {
+    en: 'discount',
+    zh: '折扣',
+    id: 'diskon'
+  },
+  'common.more': {
+    en: 'more',
+    zh: '更多',
+    id: 'lainnya'
+  },
+  'stock.left': {
+    en: 'Stock left',
+    zh: '剩余库存',
+    id: 'Stok tersisa'
   }
 };
 
