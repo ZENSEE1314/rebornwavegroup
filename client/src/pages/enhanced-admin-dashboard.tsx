@@ -38,6 +38,7 @@ import {
   Upload,
   FileText,
   Trash2,
+  Zap,
   Filter,
   Settings,
   Heart,
@@ -112,6 +113,16 @@ function EnhancedAdminDashboard() {
   const [bulkToyData, setBulkToyData] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Advanced bulk generation states
+  const [customSeason, setCustomSeason] = useState("");
+  const [customSector, setCustomSector] = useState("");
+  const [baseToyName, setBaseToyName] = useState("");
+  const [totalToysToGenerate, setTotalToysToGenerate] = useState("");
+  const [rarityDistribution, setRarityDistribution] = useState("mixed");
+  const [defaultImageUrl, setDefaultImageUrl] = useState("");
+  const [generateQRImages, setGenerateQRImages] = useState(true);
+  const [autoNumbering, setAutoNumbering] = useState(true);
   
   // Edit toy owner dialog states
   const [editOwnerDialog, setEditOwnerDialog] = useState(false);
@@ -881,6 +892,67 @@ function EnhancedAdminDashboard() {
     a.download = `${filename}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // Advanced bulk generation function
+  const handleBulkGeneration = async () => {
+    if (!customSeason || !baseToyName || !totalToysToGenerate || parseInt(totalToysToGenerate) < 1) {
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    const totalCount = parseInt(totalToysToGenerate);
+    if (totalCount > 1000) {
+      toast({ title: "Error", description: "Maximum 1000 toys can be generated at once", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      const generationData = {
+        customSeason,
+        customSector: customSector || "General Collection",
+        baseToyName,
+        totalCount,
+        rarityDistribution,
+        defaultImageUrl: defaultImageUrl || "/images/default-toy.png",
+        generateQRImages,
+        autoNumbering
+      };
+
+      const response = await apiRequest('/api/admin/toys/bulk-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generationData)
+      });
+
+      if (response.success) {
+        toast({ 
+          title: "Success", 
+          description: `Successfully generated ${response.toysCreated} toys with QR codes!` 
+        });
+        
+        // Reset form
+        setCustomSeason('');
+        setCustomSector('');
+        setBaseToyName('');
+        setTotalToysToGenerate('');
+        setDefaultImageUrl('');
+        
+        // Refresh toy list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      }
+    } catch (error: any) {
+      console.error('Bulk generation error:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to generate toys",
+        variant: "destructive" 
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleBulkUpload = () => {
@@ -2059,23 +2131,148 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Bulk Seasonal Toy Upload */}
+              {/* Advanced Bulk Toy Generator */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Bulk Seasonal Toy Upload</CardTitle>
-                  <p className="text-gray-300 text-sm">Format: name,series,rarity,seasonId,sectorId,imageUrl (one per line)</p>
-                  <div className="text-xs text-gray-400 space-y-1 mt-2">
-                    <p>Season IDs: 1=Spring, 2=Summer, 3=Autumn, 4=Winter, 5=Limited Edition</p>
-                    <p>Sector IDs: 1=Rare Finds, 2=Daily Discoveries, 3=Event Exclusives, 4=Community Favorites, 5=Mystery Box</p>
+                  <CardTitle className="text-white">Advanced Bulk Toy Generator</CardTitle>
+                  <p className="text-gray-300 text-sm">Auto-generate multiple toys with custom seasons and QR codes</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Season Configuration */}
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300">Custom Season Name</Label>
+                        <Input
+                          placeholder="Enter season name (e.g., Mystic Winter 2025)"
+                          value={customSeason}
+                          onChange={(e) => setCustomSeason(e.target.value)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Custom Sector Name</Label>
+                        <Input
+                          placeholder="Enter sector name (e.g., Legendary Collection)"
+                          value={customSector}
+                          onChange={(e) => setCustomSector(e.target.value)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Base Toy Name</Label>
+                        <Input
+                          placeholder="Enter base name (e.g., Mystic Dragon)"
+                          value={baseToyName}
+                          onChange={(e) => setBaseToyName(e.target.value)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Generation Settings */}
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300">Total Toys to Generate</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          placeholder="Enter total number (1-1000)"
+                          value={totalToysToGenerate}
+                          onChange={(e) => setTotalToysToGenerate(e.target.value)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Rarity Distribution</Label>
+                        <Select value={rarityDistribution} onValueChange={setRarityDistribution}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select rarity distribution" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="common">All Common</SelectItem>
+                            <SelectItem value="rare">All Rare</SelectItem>
+                            <SelectItem value="epic">All Epic</SelectItem>
+                            <SelectItem value="legendary">All Legendary</SelectItem>
+                            <SelectItem value="secret">All Secret</SelectItem>
+                            <SelectItem value="mixed">Mixed Distribution</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Default Image URL</Label>
+                        <Input
+                          placeholder="Enter default image URL"
+                          value={defaultImageUrl}
+                          onChange={(e) => setDefaultImageUrl(e.target.value)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                    </div>
                   </div>
+                  
+                  {/* Generation Options */}
+                  <div className="mt-6 space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={generateQRImages}
+                        onChange={(e) => setGenerateQRImages(e.target.checked)}
+                        className="rounded border-white/20"
+                      />
+                      <Label className="text-gray-300">Generate QR Code Images</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={autoNumbering}
+                        onChange={(e) => setAutoNumbering(e.target.checked)}
+                        className="rounded border-white/20"
+                      />
+                      <Label className="text-gray-300">Auto-number toys (e.g., #001, #002, etc.)</Label>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 flex gap-4">
+                    <Button 
+                      onClick={handleBulkGeneration}
+                      className="bg-purple-600 hover:bg-purple-700"
+                      disabled={!customSeason || !baseToyName || !totalToysToGenerate || parseInt(totalToysToGenerate) < 1}
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      Generate {totalToysToGenerate} Toys
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setCustomSeason('');
+                        setCustomSector('');
+                        setBaseToyName('');
+                        setTotalToysToGenerate('');
+                        setDefaultImageUrl('');
+                      }}
+                      variant="outline"
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      Clear Form
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Manual Bulk Upload (Legacy) */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Manual Bulk Upload</CardTitle>
+                  <p className="text-gray-300 text-sm">Format: name,series,rarity,seasonId,sectorId,imageUrl (one per line)</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <Textarea
-                      placeholder="Spring Dragon #001,Spring 2025,rare,1,1,/images/spring-dragon.png&#10;Summer Phoenix #002,Summer 2025,epic,2,3,/images/summer-phoenix.png&#10;Autumn Wolf #003,Autumn 2025,legendary,3,1,/images/autumn-wolf.png"
+                      placeholder="Spring Dragon #001,Spring 2025,rare,1,1,/images/spring-dragon.png&#10;Summer Phoenix #002,Summer 2025,epic,2,3,/images/summer-phoenix.png"
                       value={bulkToyData}
                       onChange={(e) => setBulkToyData(e.target.value)}
-                      className="bg-white/10 border-white/20 text-white min-h-32"
+                      className="bg-white/10 border-white/20 text-white min-h-24"
                     />
                     <Button 
                       onClick={handleBulkUpload}
@@ -2083,7 +2280,7 @@ function EnhancedAdminDashboard() {
                       disabled={!bulkToyData.trim()}
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload Toys
+                      Upload Manually
                     </Button>
                   </div>
                 </CardContent>

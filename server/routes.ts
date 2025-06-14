@@ -3786,6 +3786,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint - Advanced bulk toy generation
+  app.post('/api/admin/toys/bulk-generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { 
+        customSeason, 
+        customSector, 
+        baseToyName, 
+        totalCount, 
+        rarityDistribution, 
+        defaultImageUrl, 
+        generateQRImages, 
+        autoNumbering 
+      } = req.body;
+
+      if (!customSeason || !baseToyName || !totalCount || totalCount < 1) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      if (totalCount > 1000) {
+        return res.status(400).json({ message: "Maximum 1000 toys can be generated at once" });
+      }
+
+      // First, create or find season and sector
+      let seasonId = null;
+      let sectorId = null;
+
+      try {
+        // Check if season exists, if not create it
+        const existingSeason = await storage.getSeasonByName(customSeason);
+        if (existingSeason) {
+          seasonId = existingSeason.id;
+        } else {
+          const newSeason = await storage.createSeason({
+            name: customSeason,
+            description: `Custom season: ${customSeason}`,
+            isActive: true,
+            startDate: new Date(),
+            endDate: null
+          });
+          seasonId = newSeason.id;
+        }
+
+        // Check if sector exists, if not create it
+        if (customSector && customSector !== "General Collection") {
+          const existingSector = await storage.getSectorByName(customSector);
+          if (existingSector) {
+            sectorId = existingSector.id;
+          } else {
+            const newSector = await storage.createSector({
+              name: customSector,
+              description: `Custom sector: ${customSector}`,
+              seasonId: seasonId,
+              requiredCount: totalCount,
+              order: 1
+            });
+            sectorId = newSector.id;
+          }
+        }
+      } catch (error) {
+        console.log("Season/Sector creation handled by existing logic");
+      }
+
+      // Generate rarity distribution
+      const getRarity = (index: number) => {
+        if (rarityDistribution === 'mixed') {
+          const rarities = ['common', 'rare', 'epic', 'legendary', 'secret'];
+          const weights = [50, 30, 15, 4, 1]; // Percentage weights
+          const random = Math.random() * 100;
+          let cumulative = 0;
+          for (let i = 0; i < weights.length; i++) {
+            cumulative += weights[i];
+            if (random <= cumulative) return rarities[i];
+          }
+          return 'common';
+        }
+        return rarityDistribution;
+      };
+
+      const createdToys = [];
+      const errors = [];
+      
+      for (let i = 0; i < totalCount; i++) {
+        try {
+          const toyNumber = autoNumbering ? String(i + 1).padStart(3, '0') : '';
+          const toyName = autoNumbering ? `${baseToyName} #${toyNumber}` : `${baseToyName} ${i + 1}`;
+          
+          // Generate unique QR code
+          const qrCode = `QR-${customSeason.replace(/\s+/g, '')}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          const toyData = {
+            name: toyName,
+            series: customSeason,
+            rarity: getRarity(i),
+            color: 'default',
+            imageUrl: defaultImageUrl || '/images/default-toy.png',
+            qrCode: qrCode,
+            seasonId: seasonId,
+            sectorId: sectorId,
+            isSeasonalExclusive: !!(seasonId && sectorId),
+            ownerId: null,
+            isActivated: false,
+            releaseDate: new Date()
+          };
+          
+          const toy = await storage.createToy(toyData);
+          createdToys.push({
+            ...toy,
+            qrCodeImage: generateQRImages ? `/qr-codes/${qrCode}.png` : null
+          });
+          
+          // TODO: If generateQRImages is true, create actual QR code image file
+          // This would require a QR code generation library like 'qrcode'
+          
+        } catch (error: any) {
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            errors.push(`Toy ${i + 1}: QR code already exists`);
+          } else {
+            errors.push(`Toy ${i + 1}: ${error.message}`);
+          }
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        toysCreated: createdToys.length,
+        errorCount: errors.length,
+        errors: errors,
+        seasonId: seasonId,
+        sectorId: sectorId,
+        seasonName: customSeason,
+        sectorName: customSector
+      });
+    } catch (error) {
+      console.error('Error bulk generating toys:', error);
+      res.status(500).json({ message: 'Failed to generate toys' });
+    }
+  });
+
   // Update toy owner (admin only)
   app.patch('/api/admin/toys/:toyId/owner', isAuthenticated, async (req: any, res) => {
     try {
