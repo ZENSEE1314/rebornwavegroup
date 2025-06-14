@@ -7844,40 +7844,40 @@ export default function CompleteApp() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Ubah Password" : "Change Password"}
+              {t('password.change')}
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {language === "id" ? "Password Saat Ini" : "Current Password"}
+                  {t('password.current')}
                 </label>
                 <Input
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder={language === "id" ? "Masukkan password saat ini" : "Enter current password"}
+                  placeholder={t('password.currentPlaceholder')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {language === "id" ? "Password Baru" : "New Password"}
+                  {t('password.new')}
                 </label>
                 <Input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder={language === "id" ? "Masukkan password baru" : "Enter new password"}
+                  placeholder={t('password.newPlaceholder')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {language === "id" ? "Konfirmasi Password Baru" : "Confirm New Password"}
+                  {t('password.confirm')}
                 </label>
                 <Input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={language === "id" ? "Konfirmasi password baru" : "Confirm new password"}
+                  placeholder={t('password.confirmPlaceholder')}
                 />
               </div>
             </div>

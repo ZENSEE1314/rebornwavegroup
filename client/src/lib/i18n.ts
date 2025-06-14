@@ -4926,6 +4926,21 @@ export const translations: Translations = {
     zh: '还有 {{count}} 个成就在等待...',
     id: '{{count}} pencapaian lagi menunggu...'
   },
+  'password.change': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Password'
+  },
+  'password.current': {
+    en: 'Current Password',
+    zh: '当前密码',
+    id: 'Password Saat Ini'
+  },
+  'password.currentPlaceholder': {
+    en: 'Enter current password',
+    zh: '输入当前密码',
+    id: 'Masukkan password saat ini'
+  },
 
   'common.receive': {
     en: 'Receive',
