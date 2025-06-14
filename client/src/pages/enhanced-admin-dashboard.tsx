@@ -308,6 +308,18 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
+  const filteredToys = (allToys as any[]).filter((toy: any) => {
+    const searchMatch = !toySearch || 
+      toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
+      toy.series?.toLowerCase().includes(toySearch.toLowerCase()) ||
+      toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
+    const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
+    const ownerMatch = ownerFilter === "all" || 
+      (ownerFilter === "owned" && toy.owner) ||
+      (ownerFilter === "unowned" && !toy.owner);
+    return searchMatch && rarityMatch && ownerMatch;
+  });
+
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
       appointment.user?.firstName?.toLowerCase().includes(appointmentSearch.toLowerCase()) ||
@@ -2129,7 +2141,7 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allToys.map((toy: any) => (
+                      {filteredToys.map((toy: any) => (
                         <TableRow key={toy.id} className="border-white/10">
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-gray-300">{toy.series}</TableCell>
