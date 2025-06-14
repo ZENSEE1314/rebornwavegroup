@@ -2301,6 +2301,138 @@ export const translations: Translations = {
     zh: '个人信息',
     id: 'Informasi Pribadi'
   },
+
+  // Onboarding Walkthrough
+  'onboarding.welcome.title': {
+    en: 'Welcome to Reborn Wave Group!',
+    zh: '欢迎来到重生浪潮集团！',
+    id: 'Selamat datang di Reborn Wave Group!'
+  },
+  'onboarding.welcome.description': {
+    en: 'Let me guide you through our amazing digital pet care platform!',
+    zh: '让我带您了解我们神奇的数字宠物护理平台！',
+    id: 'Mari saya pandu Anda melalui platform perawatan hewan digital yang menakjubkan!'
+  },
+  'onboarding.welcome.petMessage': {
+    en: 'Hello! I\'m Doluruu Grandpa, your wise virtual companion. I\'ll help you discover all the wonderful features here!',
+    zh: '你好！我是多鲁鲁爷爷，您明智的虚拟伙伴。我将帮助您发现这里所有精彩的功能！',
+    id: 'Halo! Saya Doluruu Grandpa, teman virtual yang bijaksana. Saya akan membantu Anda menemukan semua fitur menakjubkan di sini!'
+  },
+  'onboarding.dashboard.title': {
+    en: 'Dashboard Overview',
+    zh: '仪表板概览',
+    id: 'Ikhtisar Dasbor'
+  },
+  'onboarding.dashboard.description': {
+    en: 'This is your main control center where you can see all your stats and quick actions.',
+    zh: '这是您的主要控制中心，您可以在这里查看所有统计数据和快速操作。',
+    id: 'Ini adalah pusat kontrol utama Anda di mana Anda dapat melihat semua statistik dan tindakan cepat.'
+  },
+  'onboarding.dashboard.petMessage': {
+    en: 'Your dashboard shows everything at a glance - perfect for busy pet parents like you!',
+    zh: '您的仪表板一目了然地显示一切 - 非常适合像您这样忙碌的宠物父母！',
+    id: 'Dasbor Anda menampilkan semuanya secara sekilas - sempurna untuk orang tua hewan peliharaan yang sibuk seperti Anda!'
+  },
+  'onboarding.credits.title': {
+    en: 'Credits System',
+    zh: '积分系统',
+    id: 'Sistem Kredit'
+  },
+  'onboarding.credits.description': {
+    en: 'Credits are your main currency for purchases and services. You can top up anytime!',
+    zh: '积分是您购买和服务的主要货币。您可以随时充值！',
+    id: 'Kredit adalah mata uang utama Anda untuk pembelian dan layanan. Anda dapat mengisi ulang kapan saja!'
+  },
+  'onboarding.credits.petMessage': {
+    en: 'Think of credits as your digital wallet - safe, secure, and always available when you need them!',
+    zh: '将积分视为您的数字钱包 - 安全、可靠，并且在您需要时始终可用！',
+    id: 'Anggap kredit sebagai dompet digital Anda - aman, terjamin, dan selalu tersedia saat Anda membutuhkannya!'
+  },
+  'onboarding.loyalty.title': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'onboarding.loyalty.description': {
+    en: 'Earn loyalty points through activities and unlock special rewards and discounts!',
+    zh: '通过活动赚取忠诚积分，解锁特殊奖励和折扣！',
+    id: 'Dapatkan poin loyalitas melalui aktivitas dan buka hadiah khusus serta diskon!'
+  },
+  'onboarding.loyalty.petMessage': {
+    en: 'The more you engage with us, the more rewards you unlock - it\'s like a treasure hunt!',
+    zh: '您与我们互动越多，解锁的奖励就越多 - 就像寻宝游戏一样！',
+    id: 'Semakin Anda berinteraksi dengan kami, semakin banyak hadiah yang Anda buka - seperti berburu harta karun!'
+  },
+  'onboarding.tokens.title': {
+    en: 'Token Rewards',
+    zh: '代币奖励',
+    id: 'Reward Token'
+  },
+  'onboarding.tokens.description': {
+    en: 'Collect daily tokens and use them for special features and premium services.',
+    zh: '收集每日代币，并将其用于特殊功能和优质服务。',
+    id: 'Kumpulkan token harian dan gunakan untuk fitur khusus dan layanan premium.'
+  },
+  'onboarding.tokens.petMessage': {
+    en: 'Daily tokens are like little gifts from us to you - don\'t forget to claim them every day!',
+    zh: '每日代币就像我们给您的小礼物 - 别忘了每天领取它们！',
+    id: 'Token harian seperti hadiah kecil dari kami untuk Anda - jangan lupa untuk mengklaimnya setiap hari!'
+  },
+  'onboarding.navigation.title': {
+    en: 'Navigation & Features',
+    zh: '导航和功能',
+    id: 'Navigasi & Fitur'
+  },
+  'onboarding.navigation.description': {
+    en: 'Use the tabs to explore pet care, marketplace, profile settings, and more!',
+    zh: '使用选项卡探索宠物护理、市场、个人资料设置等！',
+    id: 'Gunakan tab untuk menjelajahi perawatan hewan, pasar, pengaturan profil, dan lainnya!'
+  },
+  'onboarding.navigation.petMessage': {
+    en: 'Each tab opens up a new world of possibilities - take your time to explore them all!',
+    zh: '每个选项卡都打开了新的可能性世界 - 花时间探索它们！',
+    id: 'Setiap tab membuka dunia kemungkinan baru - luangkan waktu untuk menjelajahi semuanya!'
+  },
+  'onboarding.complete.title': {
+    en: 'You\'re Ready to Go!',
+    zh: '您准备好了！',
+    id: 'Anda Siap Berangkat!'
+  },
+  'onboarding.complete.description': {
+    en: 'Congratulations! You now know the basics. Start caring for your digital pets and enjoy the journey!',
+    zh: '恭喜！您现在了解了基础知识。开始照顾您的数字宠物并享受旅程！',
+    id: 'Selamat! Anda sekarang tahu dasar-dasarnya. Mulai merawat hewan peliharaan digital Anda dan nikmati perjalanannya!'
+  },
+  'onboarding.complete.petMessage': {
+    en: 'Welcome to our family! I\'m always here if you need help. Have fun exploring and caring for your pets!',
+    zh: '欢迎加入我们的家庭！如果您需要帮助，我随时在这里。祝您探索和照顾宠物愉快！',
+    id: 'Selamat datang di keluarga kami! Saya selalu di sini jika Anda membutuhkan bantuan. Selamat bersenang-senang menjelajah dan merawat hewan peliharaan Anda!'
+  },
+  'onboarding.step': {
+    en: 'Step',
+    zh: '步骤',
+    id: 'Langkah'
+  },
+  'onboarding.steps': {
+    en: 'of',
+    zh: '的',
+    id: 'dari'
+  },
+  'onboarding.previous': {
+    en: 'Previous',
+    zh: '上一步',
+    id: 'Sebelumnya'
+  },
+  'onboarding.skip': {
+    en: 'Skip Tour',
+    zh: '跳过导览',
+    id: 'Lewati Tur'
+  },
+  'onboarding.next': {
+    en: 'Next',
+    zh: '下一步',
+    id: 'Selanjutnya'
+  },
   'accountSettings.firstName': {
     en: 'First Name',
     zh: '名',
