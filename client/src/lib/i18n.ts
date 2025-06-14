@@ -3833,6 +3833,51 @@ export const translations: Translations = {
     en: 'Sale Cancelled',
     zh: '销售已取消',
     id: 'Penjualan Dibatalkan'
+  },
+  'listing.removed': {
+    en: 'Listing removed from marketplace',
+    zh: '商品已从市场移除',
+    id: 'Listing dihapus dari marketplace'
+  },
+  'sale.cancel': {
+    en: 'Cancel Sale',
+    zh: '取消销售',
+    id: 'Batalkan Penjualan'
+  },
+  'purchase.pendingSeller': {
+    en: 'Pending Seller Confirmation',
+    zh: '等待卖家确认',
+    id: 'Menunggu Konfirmasi Penjual'
+  },
+  'purchase.cancel': {
+    en: 'Cancel Purchase',
+    zh: '取消购买',
+    id: 'Batalkan Pembelian'
+  },
+  'purchase.awaitingDelivery': {
+    en: 'Awaiting Delivery Confirmation',
+    zh: '等待交付确认',
+    id: 'Menunggu Konfirmasi Diterima'
+  },
+  'common.buy': {
+    en: 'Buy',
+    zh: '购买',
+    id: 'Beli'
+  },
+  'credits.insufficient': {
+    en: 'Not enough credits',
+    zh: '积分不足',
+    id: 'Kredit Kurang'
+  },
+  'history.complete': {
+    en: 'Complete History',
+    zh: '完整历史记录',
+    id: 'Riwayat Lengkap'
+  },
+  'history.manage': {
+    en: 'Manage all your activity history',
+    zh: '管理您的所有活动历史记录',
+    id: 'Kelola semua riwayat aktivitas Anda'
   }
 };
 

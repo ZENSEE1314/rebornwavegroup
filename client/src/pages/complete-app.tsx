@@ -6493,7 +6493,7 @@ export default function CompleteApp() {
                                       if (response.ok) {
                                         toast({
                                           title: t("sale.cancelled"),
-                                          description: language === "id" ? "Listing dihapus dari marketplace" : "Listing removed from marketplace"
+                                          description: t("listing.removed")
                                         });
                                         queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
                                       }
@@ -6509,7 +6509,7 @@ export default function CompleteApp() {
                                   className="w-full bg-red-600 hover:bg-red-700"
                                   variant="destructive"
                                 >
-                                  {language === "id" ? "Batalkan Penjualan" : "Cancel Sale"}
+                                  {t("sale.cancel")}
                                 </Button>
                               </div>
                             )}
@@ -6519,7 +6519,7 @@ export default function CompleteApp() {
                             {pendingPurchase.status === 'pending_seller_confirmation' ? (
                               <>
                                 <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
-                                  {language === "id" ? "Menunggu Konfirmasi Penjual" : "Pending Seller Confirmation"}
+                                  {t("purchase.pendingSeller")}
                                 </Badge>
                                 <Button 
                                   onClick={() => cancelPurchase(pendingPurchase.id)}
@@ -6527,12 +6527,12 @@ export default function CompleteApp() {
                                   className="w-full border-red-600 text-red-600 hover:bg-red-50"
                                 >
                                   <X className="w-4 h-4 mr-2" />
-                                  {language === "id" ? "Batalkan Pembelian" : "Cancel Purchase"}
+                                  {t("purchase.cancel")}
                                 </Button>
                               </>
                             ) : (
                               <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
-                                {language === "id" ? "Menunggu Konfirmasi Diterima" : "Awaiting Delivery Confirmation"}
+                                {t("purchase.awaitingDelivery")}
                               </Badge>
                             )}
                           </div>
@@ -6543,8 +6543,8 @@ export default function CompleteApp() {
                             disabled={userCredits < parseFloat(listing.price || '0')}
                           >
                             {userCredits >= parseFloat(listing.price || '0') ? 
-                              (language === "id" ? "Beli" : "Buy") : 
-                              (language === "id" ? "Kredit Kurang" : "Not enough credits")
+                              (t("common.buy")) : 
+                              (t("credits.insufficient"))
                             }
                           </Button>
                         )}
@@ -6605,10 +6605,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Riwayat Lengkap" : "Complete History"}
+                {t("history.complete")}
               </h2>
               <p className="text-slate-600">
-                {language === "id" ? "Kelola semua riwayat aktivitas Anda" : "Manage all your activity history"}
+                {t("history.manage")}
               </p>
             </div>
 
@@ -7020,7 +7020,7 @@ export default function CompleteApp() {
                         {purchase.toy?.rarity}
                       </Badge>
                       <Badge className="mt-2 w-full bg-yellow-100 text-yellow-800 border-yellow-300">
-                        {language === "id" ? "Menunggu Konfirmasi Diterima" : "Awaiting Delivery Confirmation"}
+                        {t("purchase.awaitingDelivery")}
                       </Badge>
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-slate-600">
