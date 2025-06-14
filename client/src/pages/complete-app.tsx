@@ -8006,11 +8006,11 @@ export default function CompleteApp() {
                 )}
                 <div className="bg-blue-50 rounded-lg p-3 mt-3">
                   <p className="text-sm text-gray-700">
-                    {language === "id" ? "Biaya" : "Cost"}: <span className="font-bold text-blue-600">{selectedReward.pointsCost} {language === "id" ? "poin" : "points"}</span>
+                    {t('rewards.cost')}: <span className="font-bold text-blue-600">{selectedReward.pointsCost} {t('common.points')}</span>
                   </p>
                   {selectedReward.type === 'credit' && selectedReward.creditAmount && (
                     <p className="text-sm text-green-700 mt-1">
-                      {language === "id" ? "Anda akan menerima" : "You will receive"}: <span className="font-bold text-green-600">RP {selectedReward.creditAmount}</span>
+                      {t('rewards.youWillReceive')}: <span className="font-bold text-green-600">RP {selectedReward.creditAmount}</span>
                     </p>
                   )}
                 </div>
@@ -8023,8 +8023,8 @@ export default function CompleteApp() {
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
                 {isRedeeming ? 
-                  (language === "id" ? "Menukar..." : "Redeeming...") : 
-                  (language === "id" ? "Ya, Tukar" : "Yes, Redeem")
+                  (t('rewards.redeeming')) : 
+                  (t('rewards.yesRedeem'))
                 }
               </Button>
               <Button
@@ -8036,7 +8036,7 @@ export default function CompleteApp() {
                 disabled={isRedeeming}
                 className="flex-1"
               >
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -8054,7 +8054,7 @@ export default function CompleteApp() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Klaim Token Fisik" : "Claim Physical Tokens"}
+              {t('tokens.claimPhysical')}
             </h3>
             <p className="text-gray-600 mb-4">
               {language === "id" 
@@ -8076,7 +8076,7 @@ export default function CompleteApp() {
               max={userTokens}
               value={tokenClaimAmount}
               onChange={(e) => setTokenClaimAmount(e.target.value)}
-              placeholder={language === "id" ? "Jumlah token" : "Number of tokens"}
+              placeholder={t('tokens.numberPlaceholder')}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
             />
 
@@ -8106,7 +8106,7 @@ export default function CompleteApp() {
                 }}
                 className="flex-1"
               >
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
