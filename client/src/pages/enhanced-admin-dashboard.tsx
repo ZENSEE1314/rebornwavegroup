@@ -502,7 +502,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
+      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
     },
     onError: () => {
       toast({ title: "Failed to create toy", variant: "destructive" });
@@ -5293,7 +5293,7 @@ function EnhancedAdminDashboard() {
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Season</option>
-                  {seasons.map((season: any) => (
+                  {(seasonsResponse?.data || []).map((season: any) => (
                     <option key={season.id} value={season.id}>
                       {season.displayName}
                     </option>
@@ -5403,8 +5403,8 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Season</label>
                 <select
-                  value={bulkToyForm.seasonId}
-                  onChange={(e) => setBulkToyForm({...bulkToyForm, seasonId: e.target.value})}
+                  value={bulkToyForm.seasonId || ""}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, seasonId: e.target.value ? parseInt(e.target.value) : null})}
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Season</option>
@@ -5418,8 +5418,8 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Sector</label>
                 <select
-                  value={bulkToyForm.sectorId}
-                  onChange={(e) => setBulkToyForm({...bulkToyForm, sectorId: e.target.value})}
+                  value={bulkToyForm.sectorId || ""}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, sectorId: e.target.value ? parseInt(e.target.value) : null})}
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Sector</option>
