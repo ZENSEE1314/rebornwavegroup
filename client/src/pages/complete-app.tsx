@@ -8370,7 +8370,7 @@ export default function CompleteApp() {
                 onClick={stopCamera}
                 className="flex-1"
               >
-                {language === "id" ? "Tutup" : "Close"}
+                {t("common.close")}
               </Button>
             </div>
 

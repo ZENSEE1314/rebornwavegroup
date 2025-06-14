@@ -4204,6 +4204,66 @@ export const translations: Translations = {
     zh: '退出',
     id: 'Keluar'
   },
+  'common.save': {
+    en: 'Save',
+    zh: '保存',
+    id: 'Simpan'
+  },
+  'common.cancel': {
+    en: 'Cancel',
+    zh: '取消',
+    id: 'Batal'
+  },
+  'common.yes': {
+    en: 'Yes',
+    zh: '是',
+    id: 'Ya'
+  },
+  'common.no': {
+    en: 'No',
+    zh: '否',
+    id: 'Tidak'
+  },
+  'auth.signUpNow': {
+    en: 'Sign Up Now',
+    zh: '立即注册',
+    id: 'Daftar Sekarang'
+  },
+  'auth.loginNow': {
+    en: 'Login Now',
+    zh: '立即登录',
+    id: 'Masuk Sekarang'
+  },
+  'common.viewDetails': {
+    en: 'View Details',
+    zh: '查看详情',
+    id: 'Lihat Detail'
+  },
+  'common.close': {
+    en: 'Close',
+    zh: '关闭',
+    id: 'Tutup'
+  },
+  'common.confirm': {
+    en: 'Confirm',
+    zh: '确认',
+    id: 'Konfirmasi'
+  },
+  'common.message': {
+    en: 'Message',
+    zh: '消息',
+    id: 'Pesan'
+  },
+  'common.next': {
+    en: 'Next',
+    zh: '下一个',
+    id: 'Berikutnya'
+  },
+  'common.previous': {
+    en: 'Previous',
+    zh: '上一个',
+    id: 'Sebelumnya'
+  },
   'date.format': {
     en: 'en-US',
     zh: 'zh-CN',
