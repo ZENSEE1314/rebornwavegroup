@@ -3642,11 +3642,6 @@ export const translations: Translations = {
     zh: '输入密码',
     id: 'Masukkan Kode Pin'
   },
-  'common.confirm': {
-    en: 'Confirm',
-    zh: '确认',
-    id: 'Konfirmasi'
-  },
   'common.points': {
     en: 'points',
     zh: '积分',
@@ -3666,6 +3661,51 @@ export const translations: Translations = {
     en: 'Stock left',
     zh: '剩余库存',
     id: 'Stok tersisa'
+  },
+  'filters.all': {
+    en: 'All',
+    zh: '全部',
+    id: 'Semua'
+  },
+  'filters.earned': {
+    en: 'Earned',
+    zh: '获得',
+    id: 'Diperoleh'
+  },
+  'filters.redeemed': {
+    en: 'Redeemed',
+    zh: '兑换',
+    id: 'Ditukar'
+  },
+  'filters.filterByDate': {
+    en: 'Filter by date',
+    zh: '按日期筛选',
+    id: 'Filter tanggal'
+  },
+  'filters.clearFilters': {
+    en: 'Clear Filters',
+    zh: '清除筛选',
+    id: 'Hapus Filter'
+  },
+  'pagination.showing': {
+    en: 'Showing',
+    zh: '显示',
+    id: 'Menampilkan'
+  },
+  'pagination.of': {
+    en: 'of',
+    zh: '的',
+    id: 'dari'
+  },
+  'pagination.items': {
+    en: 'items',
+    zh: '项目',
+    id: 'item'
+  },
+  'pagination.previous': {
+    en: 'Previous',
+    zh: '上一页',
+    id: 'Sebelumnya'
   }
 };
 

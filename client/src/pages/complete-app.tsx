@@ -5747,7 +5747,7 @@ export default function CompleteApp() {
                         value={pointsDateFilter}
                         onChange={(e) => setPointsDateFilter(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                        placeholder={t("filters.filterByDate")}
                       />
                       {(pointsFilter !== 'all' || pointsDateFilter) && (
                         <button
@@ -5757,7 +5757,7 @@ export default function CompleteApp() {
                           }}
                           className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
                         >
-                          {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                          {t("filters.clearFilters")}
                         </button>
                       )}
                     </div>
@@ -5803,7 +5803,7 @@ export default function CompleteApp() {
                           {totalPages > 1 && (
                             <div className="flex justify-between items-center pt-4 border-t mt-6">
                               <div className="text-sm text-gray-600">
-                                {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, points.length)} {language === "id" ? "dari" : "of"} {points.length} {language === "id" ? "item" : "items"}
+                                {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, points.length)} {t("pagination.of")} {points.length} {t("pagination.items")}
                               </div>
                               <div className="flex gap-2">
                                 <Button
@@ -5812,7 +5812,7 @@ export default function CompleteApp() {
                                   onClick={() => setPointsHistoryPage(Math.max(1, pointsHistoryPage - 1))}
                                   disabled={pointsHistoryPage === 1}
                                 >
-                                  {language === "id" ? "Sebelumnya" : "Previous"}
+                                  {t("pagination.previous")}
                                 </Button>
                                 <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                                   {pointsHistoryPage} / {totalPages}
@@ -5872,7 +5872,7 @@ export default function CompleteApp() {
                         value={redemptionDateFilter}
                         onChange={(e) => setRedemptionDateFilter(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                        placeholder={t("filters.filterByDate")}
                       />
                       {(redemptionFilter !== 'all' || redemptionDateFilter) && (
                         <button
@@ -5882,7 +5882,7 @@ export default function CompleteApp() {
                           }}
                           className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
                         >
-                          {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                          {t("filters.clearFilters")}
                         </button>
                       )}
                     </div>
@@ -5926,7 +5926,7 @@ export default function CompleteApp() {
                           {totalPages > 1 && (
                             <div className="flex justify-between items-center pt-4 border-t mt-6">
                               <div className="text-sm text-gray-600">
-                                {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, redemptions.length)} {language === "id" ? "dari" : "of"} {redemptions.length} {language === "id" ? "item" : "items"}
+                                {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, redemptions.length)} {t("pagination.of")} {redemptions.length} {t("pagination.items")}
                               </div>
                               <div className="flex gap-2">
                                 <Button
@@ -5935,7 +5935,7 @@ export default function CompleteApp() {
                                   onClick={() => setRedemptionHistoryPage(Math.max(1, redemptionHistoryPage - 1))}
                                   disabled={redemptionHistoryPage === 1}
                                 >
-                                  {language === "id" ? "Sebelumnya" : "Previous"}
+                                  {t("pagination.previous")}
                                 </Button>
                                 <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                                   {redemptionHistoryPage} / {totalPages}
@@ -6361,7 +6361,7 @@ export default function CompleteApp() {
                       {/* Pagination Controls - Always show to indicate 10-per-page structure */}
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {language === "id" ? "dari" : "of"} {appointments.length} {language === "id" ? "item" : "items"} ({language === "id" ? "10 per halaman" : "10 per page"})
+                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {t("pagination.of")} {appointments.length} {t("pagination.items")} ({language === "id" ? "10 per halaman" : "10 per page"})
                         </div>
                         {totalPages > 1 && (
                           <div className="flex gap-2">
@@ -6371,7 +6371,7 @@ export default function CompleteApp() {
                               onClick={() => setAppointmentsPage(Math.max(1, appointmentsPage - 1))}
                               disabled={appointmentsPage === 1}
                             >
-                              {language === "id" ? "Sebelumnya" : "Previous"}
+                              {t("pagination.previous")}
                             </Button>
                             <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                               {appointmentsPage} / {totalPages}
@@ -6569,7 +6569,7 @@ export default function CompleteApp() {
                     {totalPages > 1 && (
                       <div className="flex justify-between items-center pt-6 mt-6">
                         <div className="text-sm text-gray-600">
-                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, listings.length)} {language === "id" ? "dari" : "of"} {listings.length} {language === "id" ? "item" : "items"}
+                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, listings.length)} {t("pagination.of")} {listings.length} {t("pagination.items")}
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -6578,7 +6578,7 @@ export default function CompleteApp() {
                             onClick={() => setMarketplacePage(Math.max(1, marketplacePage - 1))}
                             disabled={marketplacePage === 1}
                           >
-                            {language === "id" ? "Sebelumnya" : "Previous"}
+                            {t("pagination.previous")}
                           </Button>
                           <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                             {marketplacePage} / {totalPages}
@@ -6849,7 +6849,7 @@ export default function CompleteApp() {
                       {totalPages > 1 && (
                         <div className="flex justify-between items-center pt-4 border-t">
                           <div className="text-sm text-gray-600">
-                            {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, data.length)} {language === "id" ? "dari" : "of"} {data.length} {language === "id" ? "item" : "items"}
+                            {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, data.length)} {t("pagination.of")} {data.length} {t("pagination.items")}
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -6858,7 +6858,7 @@ export default function CompleteApp() {
                               onClick={() => setHistoryPage(Math.max(1, historyPage - 1))}
                               disabled={historyPage === 1}
                             >
-                              {language === "id" ? "Sebelumnya" : "Previous"}
+                              {t("pagination.previous")}
                             </Button>
                             <span className="px-3 py-1 text-sm">
                               {historyPage} / {totalPages}
@@ -7146,11 +7146,11 @@ export default function CompleteApp() {
                     disabled={toyInventoryPage === 1}
                   >
                     <ChevronLeft className="w-4 h-4 mr-2" />
-                    {language === "id" ? "Sebelumnya" : "Previous"}
+                    {t("pagination.previous")}
                   </Button>
                   
                   <span className="text-sm text-gray-600">
-                    {language === "id" ? "Halaman" : "Page"} {toyInventoryPage} {language === "id" ? "dari" : "of"} {Math.ceil(toyInventory.length / 10)}
+                    {language === "id" ? "Halaman" : "Page"} {toyInventoryPage} {t("pagination.of")} {Math.ceil(toyInventory.length / 10)}
                   </span>
                   
                   <Button
@@ -7671,7 +7671,7 @@ export default function CompleteApp() {
                     value={creditDateFilter}
                     onChange={(e) => setCreditDateFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder={language === "id" ? "Filter tanggal" : "Filter by date"}
+                    placeholder={t("filters.filterByDate")}
                   />
                   {(creditFilter !== 'all' || creditDateFilter) && (
                     <button
@@ -7681,7 +7681,7 @@ export default function CompleteApp() {
                       }}
                       className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
                     >
-                      {language === "id" ? "Hapus Filter" : "Clear Filters"}
+                      {t("filters.clearFilters")}
                     </button>
                   )}
                 </div>
@@ -7734,7 +7734,7 @@ export default function CompleteApp() {
                     {totalPages > 1 && (
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          {language === "id" ? "Menampilkan" : "Showing"} {startIndex + 1}-{Math.min(endIndex, credits.length)} {language === "id" ? "dari" : "of"} {credits.length} {language === "id" ? "item" : "items"}
+                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, credits.length)} {t("pagination.of")} {credits.length} {t("pagination.items")}
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -7743,7 +7743,7 @@ export default function CompleteApp() {
                             onClick={() => setCreditHistoryPage(Math.max(1, creditHistoryPage - 1))}
                             disabled={creditHistoryPage === 1}
                           >
-                            {language === "id" ? "Sebelumnya" : "Previous"}
+                            {t("pagination.previous")}
                           </Button>
                           <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                             {creditHistoryPage} / {totalPages}
@@ -8223,7 +8223,7 @@ export default function CompleteApp() {
                     {totalPages > 1 && (
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          t('pagination.showing') {startIndex + 1}-{Math.min(endIndex, claims.length)} t('pagination.of') {claims.length} {language === "id" ? "item" : "items"}
+                          t('pagination.showing') {startIndex + 1}-{Math.min(endIndex, claims.length)} t('pagination.of') {claims.length} {t("pagination.items")}
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -8232,7 +8232,7 @@ export default function CompleteApp() {
                             onClick={() => setModalHistoryPage(Math.max(1, modalHistoryPage - 1))}
                             disabled={modalHistoryPage === 1}
                           >
-                            {language === "id" ? "Sebelumnya" : "Previous"}
+                            {t("pagination.previous")}
                           </Button>
                           <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
                             {modalHistoryPage} / {totalPages}
