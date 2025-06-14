@@ -5184,10 +5184,11 @@ export default function CompleteApp() {
                       const isValid = validateAccountNumber(bankName, accountNumber);
                       return bank ? (
                         <span className={isValid ? "text-green-600" : "text-red-500"}>
-                          {language === "id" ? 
-                            `${bank.name}: ${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digit ${isValid ? '✓' : '✗'}` :
-                            `${bank.name}: ${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digits ${isValid ? '✓' : '✗'}`
-                          }
+                          {t("cashout.bankValidation", { 
+                            bankName: bank.name,
+                            digits: bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`,
+                            status: isValid ? '✓' : '✗'
+                          })}
                         </span>
                       ) : null;
                     })()}
@@ -5208,9 +5209,7 @@ export default function CompleteApp() {
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-xs text-yellow-700">
-                  {language === "id" 
-                    ? "⚠️ Proses penarikan membutuhkan 1-3 hari kerja. Pastikan data bank sudah benar." 
-                    : "⚠️ Withdrawal process takes 1-3 business days. Please ensure bank details are correct."}
+                  {t("cashout.withdrawalNotice")}
                 </p>
               </div>
 
@@ -5245,7 +5244,7 @@ export default function CompleteApp() {
                 </label>
                 <Select onValueChange={(value) => setSelectedToyForSale(toyInventory.find(toy => toy.id.toString() === value))}>
                   <SelectTrigger>
-                    <SelectValue placeholder={language === "id" ? "Pilih mainan untuk dijual" : "Select toy to sell"} />
+                    <SelectValue placeholder={t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
                     {toyInventory.filter((toy) => {
@@ -5278,10 +5277,10 @@ export default function CompleteApp() {
               
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Harga Jual (RP)" : "Selling Price (RP)"}
+                  {t("marketplace.sellingPrice")}
                 </label>
                 <Input
-                  placeholder={language === "id" ? "Masukkan harga" : "Enter price"}
+                  placeholder={t("marketplace.enterPrice")}
                   value={newListingPrice}
                   onChange={(e) => setNewListingPrice(e.target.value)}
                   type="number"
@@ -5290,7 +5289,7 @@ export default function CompleteApp() {
 
               <div className="flex space-x-2">
                 <Button onClick={createMarketplaceListing} className="flex-1" disabled={!selectedToyForSale || !newListingPrice}>
-                  {language === "id" ? "Buat Listing" : "Create Listing"}
+                  {t("marketplace.createListing")}
                 </Button>
                 <Button variant="outline" onClick={() => setShowCreateListingModal(false)} className="flex-1">
                   {t('common.cancel')}
@@ -5441,7 +5440,7 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
                   <p className="text-sm text-blue-600 font-medium">
-                    {language === "id" ? "Rujukan" : "Referrals"}
+                    {t("navigation.referrals")}
                   </p>
                   <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
                   <Button 
@@ -5450,7 +5449,7 @@ export default function CompleteApp() {
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                   >
                     <Trophy className="w-4 h-4 mr-1" />
-                    {language === "id" ? "Pencapaian" : "Achievement"}
+                    {t("navigation.achievement")}
                   </Button>
                 </CardContent>
               </Card>
@@ -5488,7 +5487,7 @@ export default function CompleteApp() {
                     {newAppointment.category && (
                       <Select onValueChange={(value) => setNewAppointment({...newAppointment, service: value})}>
                         <SelectTrigger>
-                          <SelectValue placeholder={language === "id" ? "Pilih Layanan" : "Select Service"} />
+                          <SelectValue placeholder={t("booking.selectService")} />
                         </SelectTrigger>
                         <SelectContent>
                           {serviceCategories[newAppointment.category].options.map((option) => (
@@ -5525,7 +5524,7 @@ export default function CompleteApp() {
                                 disabled={isBooked}
                                 className={isBooked ? "text-gray-400 cursor-not-allowed" : ""}
                               >
-                                {timeSlot} {isBooked ? (language === "id" ? "(Tidak Tersedia)" : "(Booked)") : ""}
+                                {timeSlot} {isBooked ? t("booking.notAvailable") : ""}
                               </SelectItem>
                             );
                           })
@@ -5546,7 +5545,7 @@ export default function CompleteApp() {
                 <Card className="bg-gradient-to-br from-emerald-500 to-blue-600 text-white">
                   <CardHeader>
                     <CardTitle className="text-white">
-                      {language === "id" ? "Kode Rujukan Anda" : "Your Referral Code"}
+                      {t("referral.yourCode")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -6181,7 +6180,7 @@ export default function CompleteApp() {
                   {newAppointment.category && (
                     <Select onValueChange={(value) => setNewAppointment({...newAppointment, service: value})}>
                       <SelectTrigger>
-                        <SelectValue placeholder={language === "id" ? "Pilih Layanan" : "Select Service"} />
+                        <SelectValue placeholder={t("booking.selectService")} />
                       </SelectTrigger>
                       <SelectContent>
                         {serviceCategories[newAppointment.category].options.map((option) => (

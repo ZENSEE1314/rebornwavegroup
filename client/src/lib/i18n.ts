@@ -3581,6 +3581,36 @@ export const translations: Translations = {
     en: 'Submit Withdrawal',
     zh: '提交提现',
     id: 'Ajukan Penarikan'
+  },
+  'marketplace.selectToyToSell': {
+    en: 'Select toy to sell',
+    zh: '选择要出售的玩具',
+    id: 'Pilih mainan untuk dijual'
+  },
+  'marketplace.sellingPrice': {
+    en: 'Selling Price (RP)',
+    zh: '售价 (RP)',
+    id: 'Harga Jual (RP)'
+  },
+  'marketplace.enterPrice': {
+    en: 'Enter price',
+    zh: '输入价格',
+    id: 'Masukkan harga'
+  },
+  'marketplace.createListing': {
+    en: 'Create Listing',
+    zh: '创建列表',
+    id: 'Buat Listing'
+  },
+  'navigation.referrals': {
+    en: 'Referrals',
+    zh: '推荐',
+    id: 'Rujukan'
+  },
+  'navigation.achievement': {
+    en: 'Achievement',
+    zh: '成就',
+    id: 'Pencapaian'
   }
 };
 
