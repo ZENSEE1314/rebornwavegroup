@@ -4800,6 +4800,57 @@ export const translations: Translations = {
   },
 
 
+  'common.quantity': {
+    en: 'Quantity',
+    zh: '数量',
+    id: 'Jumlah'
+  },
+  'common.price': {
+    en: 'Price',
+    zh: '价格',
+    id: 'Harga'
+  },
+  'common.total': {
+    en: 'Total',
+    zh: '总计',
+    id: 'Total'
+  },
+  'common.subtotal': {
+    en: 'Subtotal',
+    zh: '小计',
+    id: 'Subtotal'
+  },
+  'common.tax': {
+    en: 'Tax',
+    zh: '税费',
+    id: 'Pajak'
+  },
+  'common.discount': {
+    en: 'Discount',
+    zh: '折扣',
+    id: 'Diskon'
+  },
+  'common.shipping': {
+    en: 'Shipping',
+    zh: '运费',
+    id: 'Ongkir'
+  },
+  'common.payment': {
+    en: 'Payment',
+    zh: '付款',
+    id: 'Pembayaran'
+  },
+  'common.invoice': {
+    en: 'Invoice',
+    zh: '发票',
+    id: 'Invoice'
+  },
+  'common.receipt': {
+    en: 'Receipt',
+    zh: '收据',
+    id: 'Kwitansi'
+  }
+
 };
 
 // Language context and hook
