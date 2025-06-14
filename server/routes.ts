@@ -3246,10 +3246,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/credit-history/:adminUserId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/credit-history/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId: userId } = req.params;
-      const history = await storage.getCreditHistoryByUserId(adminUserId);
+      const { userId } = req.params;
+      const history = await storage.getCreditHistoryByUserId(userId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching credit history:", error);
@@ -3293,11 +3293,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Commission history endpoints
-  app.get('/api/commission-history/:adminUserId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/commission-history/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId: userId } = req.params;
+      const { userId } = req.params;
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 1000;
       const offset = (page - 1) * limit;
 
       const commissions = await db
@@ -3316,7 +3316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(commissionHistory)
         .leftJoin(users, eq(commissionHistory.referredUserId, users.id))
-        .where(eq(commissionHistory.introducerId, adminUserId))
+        .where(eq(commissionHistory.introducerId, userId))
         .orderBy(desc(commissionHistory.createdAt))
         .limit(limit)
         .offset(offset);
@@ -3324,7 +3324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalCount = await db
         .select({ count: sql`count(*)` })
         .from(commissionHistory)
-        .where(eq(commissionHistory.introducerId, adminUserId));
+        .where(eq(commissionHistory.introducerId, userId));
 
       const total = Number(totalCount[0].count);
 
@@ -3344,9 +3344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Total commission earnings for a user
-  app.get('/api/commission-stats/:adminUserId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/commission-stats/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId: userId } = req.params;
+      const { userId } = req.params;
 
       const stats = await db
         .select({
@@ -3354,7 +3354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalTransactions: sql<number>`count(*)`,
         })
         .from(commissionHistory)
-        .where(eq(commissionHistory.introducerId, adminUserId));
+        .where(eq(commissionHistory.introducerId, userId));
 
       res.json({
         totalCommissions: stats[0]?.totalCommissions || 0,
