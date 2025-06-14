@@ -4693,11 +4693,6 @@ export const translations: Translations = {
     zh: '无',
     id: 'Tidak Ada'
   },
-  'common.select': {
-    en: 'Select',
-    zh: '选择',
-    id: 'Pilih'
-  },
   'common.clear': {
     en: 'Clear',
     zh: '清除',
@@ -4718,11 +4713,6 @@ export const translations: Translations = {
     zh: '确定',
     id: 'OK'
   },
-  'common.close': {
-    en: 'Close',
-    zh: '关闭',
-    id: 'Tutup'
-  },
   'common.done': {
     en: 'Done',
     zh: '完成',
@@ -4742,11 +4732,6 @@ export const translations: Translations = {
     en: 'Pause',
     zh: '暂停',
     id: 'Jeda'
-  },
-  'common.continue': {
-    en: 'Continue',
-    zh: '继续',
-    id: 'Lanjut'
   },
   'common.restart': {
     en: 'Restart',
@@ -4777,6 +4762,41 @@ export const translations: Translations = {
     en: 'Video',
     zh: '视频',
     id: 'Video'
+  },
+  'common.data': {
+    en: 'Data',
+    zh: '数据',
+    id: 'Data'
+  },
+  'common.image': {
+    en: 'Image',
+    zh: '图像',
+    id: 'Gambar'
+  },
+  'common.sound': {
+    en: 'Sound',
+    zh: '声音',
+    id: 'Suara'
+  },
+  'common.tools': {
+    en: 'Tools',
+    zh: '工具',
+    id: 'Alat'
+  },
+  'common.help': {
+    en: 'Help',
+    zh: '帮助',
+    id: 'Bantuan'
+  },
+  'common.about': {
+    en: 'About',
+    zh: '关于',
+    id: 'Tentang'
+  },
+  'common.contact': {
+    en: 'Contact',
+    zh: '联系',
+    id: 'Kontak'
   },
 
 
