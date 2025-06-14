@@ -2985,6 +2985,51 @@ export const translations: Translations = {
     en: 'Status:',
     zh: '状态：',
     id: 'Status:'
+  },
+  'common.years': {
+    en: 'years',
+    zh: '年',
+    id: 'tahun'
+  },
+  'petStatus.deceased': {
+    en: 'Deceased',
+    zh: '已故',
+    id: 'Meninggal'
+  },
+  'petStatus.healthy': {
+    en: 'Healthy',
+    zh: '健康',
+    id: 'Sehat'
+  },
+  'petStatus.great': {
+    en: 'Great',
+    zh: '很好',
+    id: 'Bagus'
+  },
+  'petStatus.good': {
+    en: 'Good',
+    zh: '好',
+    id: 'Baik'
+  },
+  'petStatus.bad': {
+    en: 'Bad',
+    zh: '差',
+    id: 'Buruk'
+  },
+  'petInfo.tokens': {
+    en: 'Tokens:',
+    zh: '代币：',
+    id: 'Token:'
+  },
+  'petCareSystem.title': {
+    en: 'Pet Care System',
+    zh: '宠物护理系统',
+    id: 'Sistem Perawatan Hewan'
+  },
+  'petCareSystem.buyToys': {
+    en: 'Buy toys from the marketplace to create pets!',
+    zh: '从市场购买玩具来创建宠物！',
+    id: 'Beli mainan terlebih dahulu untuk membuat hewan peliharaan!'
   }
 };
 

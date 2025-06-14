@@ -1989,10 +1989,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       </div>
                       <div>
                         <span className="text-gray-600">{t('petInfo.age')}</span>
-                        <p className="font-medium">{ageInYears} {language === "id" ? "tahun" : "years"}</p>
+                        <p className="font-medium">{ageInYears} {t('common.years')}</p>
                       </div>
                       <div>
-                        <span className="text-gray-600">{language === "id" ? "Status:" : "Status:"}</span>
+                        <span className="text-gray-600">{t('petInfo.status')}</span>
                         <p className={`font-medium ${(() => {
                           if (isDead) return 'text-red-600';
                           const lowestStat = Math.min(hunger, cleanliness, energy, happiness);
@@ -2002,12 +2002,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           return 'text-red-600';
                         })()}`}>
                           {(() => {
-                            if (isDead) return language === "id" ? "Meninggal" : "Deceased";
+                            if (isDead) return t('petStatus.deceased');
                             const lowestStat = Math.min(hunger, cleanliness, energy, happiness);
-                            if (lowestStat >= 75) return language === "id" ? "Sehat" : "Healthy";
-                            if (lowestStat >= 50) return language === "id" ? "Bagus" : "Great";
-                            if (lowestStat >= 25) return language === "id" ? "Baik" : "Good";
-                            return language === "id" ? "Buruk" : "Bad";
+                            if (lowestStat >= 75) return t('petStatus.healthy');
+                            if (lowestStat >= 50) return t('petStatus.great');
+                            if (lowestStat >= 25) return t('petStatus.good');
+                            return t('petStatus.bad');
                           })()}
                         </p>
                       </div>
