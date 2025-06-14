@@ -20,12 +20,175 @@ import {
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenealogyTree from "@/components/genealogy-tree";
 import { getCategorySymbol, getSymbolById } from "@/lib/rewardSymbols";
 import CreditTopUpModal from "@/components/CreditTopUpModal";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
+
+// Seasonal Collections Component
+function SeasonalCollectionsTab() {
+  const { t } = useTranslation();
+  
+  // Fetch seasonal data
+  const { data: seasons = [] } = useQuery({
+    queryKey: ['/api/seasons'],
+  });
+
+  const { data: userProgress = [] } = useQuery({
+    queryKey: ['/api/user/seasonal-progress'],
+  });
+
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [selectedSector, setSelectedSector] = useState(null);
+
+  const { data: sectors = [] } = useQuery({
+    queryKey: ['/api/seasonal-sectors', selectedSeason?.id],
+    enabled: !!selectedSeason,
+  });
+
+  const { data: seasonalToys = [] } = useQuery({
+    queryKey: ['/api/seasonal-toys', selectedSector?.id],
+    enabled: !!selectedSector,
+  });
+
+  // Set default season when seasons load
+  useEffect(() => {
+    if (seasons.length > 0 && !selectedSeason) {
+      setSelectedSeason(seasons[0]);
+    }
+  }, [seasons, selectedSeason]);
+
+  // Set default sector when sectors load
+  useEffect(() => {
+    if (sectors.length > 0 && !selectedSector) {
+      setSelectedSector(sectors[0]);
+    }
+  }, [sectors, selectedSector]);
+
+  const getUserProgress = (sectorId) => {
+    const progress = userProgress.find(p => p.sectorId === sectorId);
+    return progress ? progress.toysCollected : 0;
+  };
+
+  const getRarityColor = (rarity) => {
+    switch (rarity?.toLowerCase()) {
+      case 'common': return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'uncommon': return 'bg-green-100 text-green-800 border-green-300';
+      case 'rare': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'epic': return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'legendary': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'mythical': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Season Selection */}
+      <div className="text-center">
+        <h3 className="text-2xl font-bold text-slate-900 mb-4">Seasonal Collections</h3>
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
+          {seasons.map((season) => (
+            <Button
+              key={season.id}
+              variant={selectedSeason?.id === season.id ? "default" : "outline"}
+              onClick={() => setSelectedSeason(season)}
+              className="mb-2"
+            >
+              {season.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sector Grid */}
+      {selectedSeason && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {sectors.map((sector) => {
+            const progress = getUserProgress(sector.id);
+            const total = sector.totalToys || 0;
+            const percentage = total > 0 ? (progress / total) * 100 : 0;
+            
+            return (
+              <Card 
+                key={sector.id}
+                className={`cursor-pointer transition-all hover:shadow-lg ${
+                  selectedSector?.id === sector.id ? 'ring-2 ring-blue-500' : ''
+                }`}
+                onClick={() => setSelectedSector(sector)}
+              >
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl mb-2">{sector.icon}</div>
+                  <h4 className="font-semibold text-sm mb-2">{sector.name}</h4>
+                  <div className="space-y-2">
+                    <Progress value={percentage} className="h-2" />
+                    <p className="text-xs text-gray-600">
+                      {progress}/{total} ({Math.round(percentage)}%)
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Seasonal Toys Grid */}
+      {selectedSector && (
+        <div className="space-y-4">
+          <div className="text-center">
+            <h4 className="text-xl font-bold text-slate-900">
+              {selectedSector.name} Collection
+            </h4>
+            <p className="text-gray-600">{selectedSector.description}</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {seasonalToys.map((toy) => (
+              <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <div className="mb-4">
+                      <img 
+                        src={toyImage} 
+                        alt={toy.name} 
+                        className="w-24 h-24 mx-auto object-contain"
+                      />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                    <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                      {toy.rarity}
+                    </Badge>
+                    <p className="text-sm text-gray-600 mt-2">{toy.description}</p>
+                    
+                    {toy.isOwned ? (
+                      <Badge className="mt-3 w-full bg-green-100 text-green-800 border-green-300">
+                        ✓ Collected
+                      </Badge>
+                    ) : (
+                      <Badge className="mt-3 w-full bg-gray-100 text-gray-600 border-gray-300">
+                        Not Collected
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedSeason && sectors.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-500">No sectors available for this season.</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Helper function to format sleep timer as MM:SS
 function formatSleepTime(timeRemaining: number): string {
@@ -6924,6 +7087,15 @@ export default function CompleteApp() {
               </p>
             </div>
 
+            {/* Toy Collection Tabs */}
+            <Tabs defaultValue="my-toys" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="my-toys">My Toys</TabsTrigger>
+                <TabsTrigger value="seasonal-collections">Seasonal Collections</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="my-toys" className="space-y-8">
+
 
             {/* QR Code Scanner Section */}
             <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
@@ -7195,6 +7367,12 @@ export default function CompleteApp() {
                 </div>
               )}
             </div>
+              </TabsContent>
+
+              <TabsContent value="seasonal-collections" className="space-y-6">
+                <SeasonalCollectionsTab />
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
