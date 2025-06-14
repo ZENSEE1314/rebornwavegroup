@@ -838,35 +838,10 @@ export const translations: Translations = {
     zh: '女性',
     id: 'Perempuan'
   },
-  'auth.welcomeTitle': {
-    en: 'Reborn Wave Pet Care',
-    zh: '重生浪潮宠物护理',
-    id: 'Perawatan Hewan Peliharaan Reborn Wave'
-  },
-  'auth.welcomeDescription': {
-    en: 'Your digital pet adventure awaits',
-    zh: '您的数字宠物冒险在等待',
-    id: 'Petualangan hewan peliharaan digital Anda menanti'
-  },
-  'auth.referralCodeInfo': {
-    en: 'Have a referral code? Enter it in the form below before choosing your sign-up method',
-    zh: '有推荐码？在选择注册方式之前在下面的表格中输入',
-    id: 'Punya kode referral? Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
-  },
-  'auth.alreadyAccount': {
-    en: 'Already have an account?',
-    zh: '已有账户？',
-    id: 'Sudah punya akun?'
-  },
-  'auth.enterEmail': {
-    en: 'Enter your email',
-    zh: '输入您的电子邮件',
-    id: 'Masukkan email Anda'
-  },
-  'auth.enterPassword': {
-    en: 'Enter your password',
-    zh: '输入您的密码',
-    id: 'Masukkan kata sandi Anda'
+  'auth.referralCodeOptional': {
+    en: 'Referral Code (Optional)',
+    zh: '推荐码（可选）',
+    id: 'Kode Referral (Opsional)'
   },
   'auth.firstName': {
     en: 'First Name',
@@ -903,10 +878,25 @@ export const translations: Translations = {
     zh: '女性',
     id: 'Perempuan'
   },
-  'auth.referralCode': {
-    en: 'Referral Code (Optional)',
-    zh: '推荐码（可选）',
-    id: 'Kode Referral (Opsional)'
+  'auth.welcomeTitle': {
+    en: 'Reborn Wave Pet Care',
+    zh: '重生浪潮宠物护理',
+    id: 'Perawatan Hewan Peliharaan Reborn Wave'
+  },
+  'auth.welcomeDescription': {
+    en: 'Your digital pet adventure awaits',
+    zh: '您的数字宠物冒险在等待',
+    id: 'Petualangan hewan peliharaan digital Anda menanti'
+  },
+  'auth.referralCodeInfo': {
+    en: 'Have a referral code? Enter it in the form below before choosing your sign-up method',
+    zh: '有推荐码？在选择注册方式之前在下面的表格中输入',
+    id: 'Punya kode referral? Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
+  },
+  'auth.alreadyAccount': {
+    en: 'Already have an account?',
+    zh: '已有账户？',
+    id: 'Sudah punya akun?'
   },
   'auth.noAccount': {
     en: "Don't have an account?",

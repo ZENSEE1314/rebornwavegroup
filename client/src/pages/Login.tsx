@@ -470,12 +470,12 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
+                  <Label htmlFor="register-email">{t('auth.email')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="register-email"
-                      placeholder="Enter your email"
+                      placeholder={t('auth.enterEmail')}
                       className="pl-10"
                       {...registerForm.register("email")}
                     />
@@ -488,13 +488,13 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="register-password">Password</Label>
+                  <Label htmlFor="register-password">{t('auth.password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="register-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
+                      placeholder={t('auth.enterPassword')}
                       className="pl-10 pr-10"
                       {...registerForm.register("password")}
                     />
@@ -520,7 +520,7 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Label htmlFor="phoneNumber">{t('auth.phoneNumber')}</Label>
                   <div className="flex gap-2">
                     <div className="relative w-56">
                       <select
