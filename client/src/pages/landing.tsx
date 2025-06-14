@@ -356,26 +356,26 @@ export default function Landing() {
           {/* Rewards Calculation */}
           <div className="bg-gradient-to-r from-emerald-900/20 to-blue-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
             <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-white mb-4">Simple & Rewarding</h3>
+              <h3 className="text-2xl font-bold text-white mb-4">{t('landing.simpleRewarding')}</h3>
               <p className="text-white/70">
-                Share with friends and earn <span className="text-emerald-400 font-bold">10% commission</span> from every purchase they make
+                {t('landing.shareEarnText')}
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
               <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
                 <DollarSign className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">Passive Income</h4>
-                <p className="text-white/70 text-sm">Earn money while you sleep from your network's activities</p>
+                <h4 className="text-lg font-bold text-white mb-2">{t('landing.passiveIncome')}</h4>
+                <p className="text-white/70 text-sm">{t('landing.passiveIncomeDesc')}</p>
               </div>
               <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
                 <Gift className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">Exclusive Bonuses</h4>
-                <p className="text-white/70 text-sm">Unlock special rewards and VIP benefits as your network grows</p>
+                <h4 className="text-lg font-bold text-white mb-2">{t('landing.exclusiveBonuses')}</h4>
+                <p className="text-white/70 text-sm">{t('landing.exclusiveBonusesDesc')}</p>
               </div>
               <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
                 <Star className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">Loyalty Points</h4>
-                <p className="text-white/70 text-sm">Earn points with every transaction and level up your status</p>
+                <h4 className="text-lg font-bold text-white mb-2">{t('landing.loyaltyPoints')}</h4>
+                <p className="text-white/70 text-sm">{t('landing.loyaltyPointsDesc')}</p>
               </div>
             </div>
           </div>
@@ -396,23 +396,22 @@ export default function Landing() {
             <div className="relative z-10 text-center">
               <div className="mb-8">
                 <span className="px-4 py-2 bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/40 rounded-full text-sm font-medium text-white">
-                  🚀 Join the Revolution
+                  🚀 {t('landing.joinRevolution')}
                 </span>
               </div>
               
               <h2 className="text-4xl md:text-6xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  Ready to Transform
+                  {t('landing.readyTransform')}
                 </span>
                 <br />
                 <span className="text-white">
-                  Your Experience?
+                  {t('landing.yourExperience')}
                 </span>
               </h2>
               
               <p className="text-xl text-white/70 mb-12 max-w-3xl mx-auto">
-                Join thousands of users who are already experiencing the future of beauty, food & beverage, and entertainment. 
-                Start sharing with friends and earning 10% from their spending today.
+                {t('landing.joinThousands')}
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
