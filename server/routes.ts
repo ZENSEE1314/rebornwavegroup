@@ -575,7 +575,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin payment verification routes
   app.get("/api/admin/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await db.select().from(users).where(eq(users.id, req.user.claims.sub)).limit(1);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -955,7 +960,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes for managing top-up requests
   app.get('/api/admin/topup-requests', isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -970,7 +980,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/topup-requests/:requestId', isAuthenticated, async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -981,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateTopUpRequestStatus(
         parseInt(requestId),
         status,
-        req.user.claims.sub,
+        userId,
         adminNotes
       );
 
@@ -3985,9 +4000,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin get all pending purchases
   app.get('/api/admin/all-pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(adminUserId);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -4003,9 +4021,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin approve marketplace purchase (force completion with commission calculation)
   app.post('/api/admin/purchases/:purchaseId/approve', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(adminUserId);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -4494,9 +4515,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/token-claims', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
-      const currentUser = await storage.getUser(adminUserId);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
