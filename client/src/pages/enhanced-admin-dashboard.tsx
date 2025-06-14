@@ -749,106 +749,11 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // Season management mutations
-  const seasonMutation = useMutation({
-    mutationFn: async (seasonData: any) => {
-      if (editingSeason) {
-        return apiRequest('PUT', `/api/admin/seasons/${editingSeason.id}`, seasonData);
-      } else {
-        return apiRequest('POST', '/api/admin/seasons', seasonData);
-      }
-    },
-    onSuccess: () => {
-      toast({ title: editingSeason ? "Season updated successfully" : "Season created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
-      setShowSeasonDialog(false);
-      setEditingSeason(null);
-      setSeasonForm({
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#3B82F6",
-        iconUrl: "/images/default-season.png",
-        isActive: true
-      });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: editingSeason ? "Failed to update season" : "Failed to create season", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
 
-  const deleteSeasonMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest('DELETE', `/api/admin/seasons/${id}`, {});
-    },
-    onSuccess: () => {
-      toast({ title: "Season deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to delete season", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
 
-  // Sector management mutations
-  const sectorMutation = useMutation({
-    mutationFn: async (sectorData: any) => {
-      if (editingSector) {
-        return apiRequest('PUT', `/api/admin/sectors/${editingSector.id}`, sectorData);
-      } else {
-        return apiRequest('POST', '/api/admin/sectors', sectorData);
-      }
-    },
-    onSuccess: () => {
-      toast({ title: editingSector ? "Sector updated successfully" : "Sector created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-      setShowSectorDialog(false);
-      setEditingSector(null);
-      setSectorForm({
-        seasonId: "",
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#F3F4F6",
-        iconSymbol: "🎯",
-        unlockCondition: "none",
-        isUnlocked: true
-      });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: editingSector ? "Failed to update sector" : "Failed to create sector", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
+  // Sector management functions and mutations
 
-  const deleteSectorMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest('DELETE', `/api/admin/sectors/${id}`, {});
-    },
-    onSuccess: () => {
-      toast({ title: "Sector deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to delete sector", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
+
 
   // Reset leaderboard mutation
   const resetLeaderboardMutation = useMutation({
@@ -1065,6 +970,30 @@ function EnhancedAdminDashboard() {
       deleteRewardMutation.mutate(id);
     }
   };
+
+  // Missing state variables for Collections Management
+  const [showSeasonDialog, setShowSeasonDialog] = useState(false);
+  const [showSectorDialog, setShowSectorDialog] = useState(false);
+  const [editingSeason, setEditingSeason] = useState<any>(null);
+  const [editingSector, setEditingSector] = useState<any>(null);
+  const [seasonForm, setSeasonForm] = useState({
+    name: "",
+    displayName: "",
+    description: "",
+    backgroundColor: "#3B82F6",
+    iconUrl: "/images/default-season.png",
+    isActive: true
+  });
+  const [sectorForm, setSectorForm] = useState({
+    seasonId: "",
+    name: "",
+    displayName: "",
+    description: "",
+    backgroundColor: "#F3F4F6",
+    iconSymbol: "🎯",
+    unlockCondition: "none",
+    isUnlocked: true
+  });
 
 
 
