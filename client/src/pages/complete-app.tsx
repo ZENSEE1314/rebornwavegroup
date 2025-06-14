@@ -4003,24 +4003,30 @@ export default function CompleteApp() {
     return statusMatch && dateMatch;
   });
 
-  // Fetch credit history from database
-  const { data: creditHistoryData = [] } = useQuery({
+  // Fetch credit history from database - optimized with caching
+  const { data: creditHistoryData = [], isLoading: creditHistoryLoading } = useQuery({
     queryKey: [`/api/credit-history/${user?.id}`],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !userStatsLoading, // Wait for user stats first
+    staleTime: 2 * 60 * 1000, // 2 minutes stale time
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
     retry: false,
   });
 
-  // Fetch commission history from database
-  const { data: commissionHistoryData } = useQuery({
+  // Fetch commission history from database - optimized with caching
+  const { data: commissionHistoryData, isLoading: commissionHistoryLoading } = useQuery({
     queryKey: [`/api/commission-history/${user?.id}`],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !userStatsLoading, // Wait for user stats first
+    staleTime: 2 * 60 * 1000, // 2 minutes stale time
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
     retry: false,
   });
 
-  // Fetch commission stats
-  const { data: commissionStats } = useQuery({
+  // Fetch commission stats - optimized with caching
+  const { data: commissionStats, isLoading: commissionStatsLoading } = useQuery({
     queryKey: [`/api/commission-stats/${user?.id}`],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !userStatsLoading, // Wait for user stats first
+    staleTime: 2 * 60 * 1000, // 2 minutes stale time
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
     retry: false,
   });
 
@@ -5387,13 +5393,23 @@ export default function CompleteApp() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => setShowCreditHistory(true)}
-                      className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      onClick={() => setShowCreditHistoryModal(true)}
+                      className="w-full text-xs"
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      {t('dashboard.viewCredits')}
+                      {t('dashboard.viewHistory')}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <Star className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <p className="text-sm text-blue-600 font-medium">
+                    {t('dashboard.loyaltyPoints')}
+                  </p>
+                  <p className="text-lg font-bold text-blue-800">{loyaltyPoints}</p>
                 </CardContent>
               </Card>
 
