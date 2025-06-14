@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -383,9 +383,13 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
-  const filteredToys = (() => {
+  const filteredToys = useMemo(() => {
+    if (toysLoading || toysError || !toysResponse?.data) {
+      return [];
+    }
+    
     try {
-      const toys = (allToys || []) as any[];
+      const toys = (toysResponse.data || []) as any[];
       console.log('*** FILTERING TOYS DEBUG:', { allToys: toys.length, toySearch, rarityFilter, ownerFilter });
       
       return toys.filter((toy: any) => {
@@ -404,7 +408,7 @@ function EnhancedAdminDashboard() {
       console.error('*** TOY FILTERING ERROR:', error);
       return [];
     }
-  })();
+  }, [toysResponse?.data, toySearch, rarityFilter, ownerFilter, toysLoading, toysError]);
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
