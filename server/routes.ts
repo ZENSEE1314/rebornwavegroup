@@ -250,13 +250,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Pet ID:', req.params.petId);
 
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const { petId, careType } = req.params;
-      console.log('Processing care action:', { petId, careType, userId });
+      console.log('Processing care action:', { petId, careType, adminUserId });
       
       if (!['fed', 'bathed', 'slept', 'cleaned', 'play'].includes(careType)) {
         console.log('ERROR: Invalid care type:', careType);
@@ -265,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the pet to verify ownership and get current stats
       const pet = await storage.getPetById(parseInt(petId));
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -383,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track care activity for evolution progression
       await storage.createCareActivity({
         petId: parseInt(petId),
-        userId,
+        adminUserId,
         activityType: careType,
         completedAt: new Date(),
         pointsEarned: 5 // Each care activity earns 5 evolution points
@@ -411,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      await storage.updateCareStatus(parseInt(petId), userId, careType as any, true);
+      await storage.updateCareStatus(parseInt(petId), adminUserId, careType as any, true);
       console.log('Care status updated successfully');
       
       const response: any = { 
@@ -472,9 +472,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment verification routes
   app.post("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       console.log("Payment verification request body:", req.body);
-      console.log("User ID:", userId);
+      console.log("User ID:", adminUserId);
       
       const validation = insertPaymentVerificationSchema.safeParse(req.body);
       
@@ -487,7 +487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .insert(paymentVerifications)
         .values({
           ...validation.data,
-          userId,
+          adminUserId,
         })
         .returning();
 
@@ -502,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
@@ -510,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verifications = await db
         .select()
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.userId, userId))
+        .where(eq(paymentVerifications.adminUserId, adminUserId))
         .orderBy(desc(paymentVerifications.createdAt))
         .limit(limit)
         .offset(offset);
@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalCount = await db
         .select({ count: sql`count(*)` })
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.userId, userId));
+        .where(eq(paymentVerifications.adminUserId, adminUserId));
       
       const total = Number(totalCount[0].count);
 
@@ -541,11 +541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/commission-stats", isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const currentUser = await db.select().from(users).where(eq(users.id, adminUserId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -576,11 +576,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const currentUser = await db.select().from(users).where(eq(users.id, adminUserId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -592,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verifications = await db
         .select({
           id: paymentVerifications.id,
-          userId: paymentVerifications.userId,
+          adminUserId: paymentVerifications.adminUserId,
           amount: paymentVerifications.amount,
           description: paymentVerifications.description,
           receiptImageUrl: paymentVerifications.receiptImageUrl,
@@ -607,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userLastName: users.lastName,
         })
         .from(paymentVerifications)
-        .leftJoin(users, eq(paymentVerifications.userId, users.id))
+        .leftJoin(users, eq(paymentVerifications.adminUserId, users.id))
         .orderBy(desc(paymentVerifications.createdAt))
         .limit(limit)
         .offset(offset);
@@ -636,19 +636,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`*** APPROVAL DEBUG: Request body:`, req.body);
       
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const currentUser = await db.select().from(users).where(eq(users.id, adminUserId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
-        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${userId}`);
+        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${adminUserId}`);
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { id } = req.params;
       const { status, adminNotes, pointsAwarded } = req.body;
-      const adminId = userId;
+      const adminId = adminUserId;
 
       console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status}`);
 
@@ -677,23 +677,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`*** APPROVAL DEBUG: Processing approval with ${pointsAwarded} points`);
         
         // Get user information to find introducer
-        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
+        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.adminUserId)).limit(1);
         console.log(`*** APPROVAL DEBUG: User info found:`, userInfo[0]);
         
         // Award points to user
-        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.userId}`);
+        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.adminUserId}`);
         await db
           .update(users)
           .set({
             loyaltyPoints: sql`${users.loyaltyPoints} + ${pointsAwarded}`,
             lifetimePoints: sql`${users.lifetimePoints} + ${pointsAwarded}`,
           })
-          .where(eq(users.id, updatedVerification.userId));
+          .where(eq(users.id, updatedVerification.adminUserId));
 
         // Record points history
         console.log(`*** APPROVAL DEBUG: Recording points history`);
         await db.insert(pointsHistory).values({
-          userId: updatedVerification.userId,
+          adminUserId: updatedVerification.adminUserId,
           points: pointsAwarded,
           type: 'earned',
           description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'}`,
@@ -720,7 +720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Record commission in credit history
           console.log(`*** APPROVAL DEBUG: Creating credit history record`);
           await storage.createCreditHistory({
-            userId: userInfo[0].referredById,
+            adminUserId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
             type: 'referral_commission',
             description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
@@ -731,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`*** APPROVAL DEBUG: Creating commission history record`);
           await db.insert(commissionHistory).values({
             introducerId: userInfo[0].referredById,
-            referredUserId: updatedVerification.userId,
+            referredUserId: updatedVerification.adminUserId,
             transactionAmount: transactionAmount.toString(),
             commissionAmount: commissionAmount.toString(),
             commissionRate: "0.10",
@@ -751,13 +751,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(
               and(
                 eq(referrals.referrerId, userInfo[0].referredById),
-                eq(referrals.referredId, updatedVerification.userId)
+                eq(referrals.referredId, updatedVerification.adminUserId)
               )
             );
 
           console.log(`*** APPROVAL DEBUG: Commission processing completed - awarded RP ${commissionAmount} to user ${userInfo[0].referredById}`);
         } else {
-          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.userId}`);
+          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.adminUserId}`);
         }
       } else {
         console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
@@ -777,11 +777,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cash-out routes
   app.post('/api/cash-out', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount, bankName, accountNumber, accountHolderName } = req.body;
       
       // Get current user to check credits
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -795,10 +795,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Deduct credits immediately when cash-out is created
       const newCredits = (userCredits - cashOutAmount).toString();
-      await storage.updateUserCredits(userId, newCredits);
+      await storage.updateUserCredits(adminUserId, newCredits);
       
       const cashOutRequest = await storage.createCashOutRequest({
-        userId,
+        adminUserId,
         amount,
         bankName,
         accountNumber,
@@ -829,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/topup/paypal', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount, currency = 'IDR' } = req.body;
 
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
@@ -838,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create payment transaction record
       const transaction = await storage.createPaymentTransaction({
-        userId,
+        adminUserId,
         amount: amount.toString(),
         currency,
         paymentMethod: 'paypal',
@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/topup/bank-transfer', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount, bankTransferDetails, paymentProof } = req.body;
 
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
@@ -876,7 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const request = await storage.createTopUpRequest({
-        userId,
+        adminUserId,
         amount: amount.toString(),
         paymentMethod: 'bank_transfer',
         bankTransferDetails: JSON.stringify(bankTransferDetails),
@@ -897,10 +897,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/topup/cash-deposit', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount, paymentProof } = req.body;
 
-      console.log('Cash deposit request:', { userId, amount, paymentProofLength: paymentProof?.length });
+      console.log('Cash deposit request:', { adminUserId, amount, paymentProofLength: paymentProof?.length });
 
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
         return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
@@ -911,7 +911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const requestData = {
-        userId,
+        adminUserId,
         amount: amount.toString(),
         paymentMethod: 'cash_deposit',
         paymentProof,
@@ -936,8 +936,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's top-up requests
   app.get('/api/topup/requests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const requests = await storage.getTopUpRequestsByUserId(userId);
+      const adminUserId = req.user.claims.sub;
+      const requests = await storage.getTopUpRequestsByUserId(adminUserId);
       res.json(requests);
     } catch (error) {
       console.error("Error fetching top-up requests:", error);
@@ -948,8 +948,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's payment transactions
   app.get('/api/payment/transactions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const transactions = await storage.getPaymentTransactionsByUserId(userId);
+      const adminUserId = req.user.claims.sub;
+      const transactions = await storage.getPaymentTransactionsByUserId(adminUserId);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching payment transactions:", error);
@@ -961,11 +961,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/topup-requests', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -981,11 +981,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/topup-requests/:requestId', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -996,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateTopUpRequestStatus(
         parseInt(requestId),
         status,
-        userId,
+        adminUserId,
         adminNotes
       );
 
@@ -1010,8 +1010,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user.claims.sub;
+      const user = await storage.getUser(adminUserId);
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -1020,10 +1020,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Temporary test route to bypass auth issues
-  app.get('/api/test-login/:userId', async (req, res) => {
+  app.get('/api/test-login/:adminUserId', async (req, res) => {
     try {
-      const userId = req.params.userId;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.params.adminUserId;
+      const user = await storage.getUser(adminUserId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -1072,7 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users/:userId/change-password', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/users/:adminUserId/change-password', isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin
       const adminUserId = getUserId(req);
@@ -1081,11 +1081,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { newPassword } = req.body;
       
       if (!newPassword) {
@@ -1109,12 +1109,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/banners', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1129,12 +1129,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/banners', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1149,12 +1149,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1169,12 +1169,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/banners/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1203,12 +1203,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1223,12 +1223,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1243,12 +1243,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1263,12 +1263,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/appointment-events/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1284,12 +1284,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1304,12 +1304,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/reward-items', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1324,12 +1324,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1344,12 +1344,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/reward-items/:id', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1363,10 +1363,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { firstName, lastName, phoneNumber, gender, dateOfBirth } = req.body;
       
-      await storage.updateUserProfile(userId, {
+      await storage.updateUserProfile(adminUserId, {
         firstName,
         lastName,
         phoneNumber,
@@ -1384,8 +1384,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.get('/api/users/referrals', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const referrals = await storage.getReferralsByUserId(userId);
+      const adminUserId = req.user.claims.sub;
+      const referrals = await storage.getReferralsByUserId(adminUserId);
       res.json(referrals);
     } catch (error) {
       console.error("Error fetching referrals:", error);
@@ -1395,8 +1395,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/users/referral-earnings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const earnings = await storage.calculateReferralEarnings(userId);
+      const adminUserId = req.user.claims.sub;
+      const earnings = await storage.calculateReferralEarnings(adminUserId);
       res.json({ earnings });
     } catch (error) {
       console.error("Error calculating referral earnings:", error);
@@ -1406,13 +1406,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/users/genealogy-tree', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User ID not found" });
       }
-      console.log(`*** GENEALOGY DEBUG: Building tree for user ${userId}`);
-      const genealogyTree = await storage.buildReferralGenealogyTree(userId);
-      console.log(`*** GENEALOGY DEBUG: Result for ${userId}:`, JSON.stringify(genealogyTree, null, 2));
+      console.log(`*** GENEALOGY DEBUG: Building tree for user ${adminUserId}`);
+      const genealogyTree = await storage.buildReferralGenealogyTree(adminUserId);
+      console.log(`*** GENEALOGY DEBUG: Result for ${adminUserId}:`, JSON.stringify(genealogyTree, null, 2));
       res.json(genealogyTree);
     } catch (error) {
       console.error("Error building genealogy tree:", error);
@@ -1422,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/users/apply-referral', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { referralCode } = req.body;
       
       // Find referrer by code
@@ -1433,18 +1433,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invalid referral code" });
       }
       
-      if (referrer.id === userId) {
+      if (referrer.id === adminUserId) {
         return res.status(400).json({ message: "Cannot refer yourself" });
       }
       
       // Check if user already has a referrer
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user?.referredById) {
         return res.status(400).json({ message: "You already have a referrer" });
       }
       
       // Create referral relationship
-      await storage.createReferralRelationship(referrer.id, userId);
+      await storage.createReferralRelationship(referrer.id, adminUserId);
       
       res.json({ message: "Referral code applied successfully" });
     } catch (error) {
@@ -1456,10 +1456,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Appointment routes
   app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = {
         ...req.body,
-        userId,
+        adminUserId,
         appointmentDate: new Date(req.body.appointmentDate),
         status: 'pending' // New appointments require admin confirmation
       };
@@ -1467,7 +1467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointment = await storage.createAppointment(validatedData);
       
       // Get user details for email
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
@@ -1498,14 +1498,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/appointments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user.claims.sub;
+      const user = await storage.getUser(adminUserId);
       
       let appointments;
       if (user?.role === 'admin') {
         appointments = await storage.getAllAppointments();
       } else {
-        appointments = await storage.getAppointmentsByUserId(userId);
+        appointments = await storage.getAppointmentsByUserId(adminUserId);
       }
       
       res.json(appointments);
@@ -1556,10 +1556,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const appointmentId = parseInt(req.params.id);
       const { appointmentDate } = req.body;
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       
       // Get appointment details before updating
-      const appointments = await storage.getAppointmentsByUserId(userId);
+      const appointments = await storage.getAppointmentsByUserId(adminUserId);
       const appointment = appointments.find(apt => apt.id === appointmentId);
       
       if (!appointment) {
@@ -1575,7 +1575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(appointmentId, 'pending');
       
       // Send reschedule email
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
@@ -1607,10 +1607,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const appointmentId = parseInt(req.params.id);
       const { status } = req.body;
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       
       // Get appointment details before updating
-      const appointments = await storage.getAppointmentsByUserId(userId);
+      const appointments = await storage.getAppointmentsByUserId(adminUserId);
       const appointment = appointments.find(apt => apt.id === appointmentId);
       
       if (!appointment) {
@@ -1621,7 +1621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send cancellation email if status is cancelled
       if (status === 'cancelled') {
-        const user = await storage.getUser(userId);
+        const user = await storage.getUser(adminUserId);
         if (user && user.email) {
           const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
           
@@ -1650,8 +1650,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Transaction routes
   app.get('/api/transactions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const transactions = await storage.getTransactionsByUserId(userId);
+      const adminUserId = req.user.claims.sub;
+      const transactions = await storage.getTransactionsByUserId(adminUserId);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -1661,7 +1661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/transactions/top-up', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount } = req.body;
       
       // Validate amount
@@ -1669,7 +1669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create transaction record
       await storage.createTransaction({
-        userId,
+        adminUserId,
         type: "credit_purchase",
         amount: validAmount,
         description: "Credit top-up",
@@ -1677,8 +1677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update user credits and points
-      await storage.updateUserCredits(userId, validAmount);
-      await storage.updateUserPoints(userId, Math.floor(Number(validAmount) * 0.05));
+      await storage.updateUserCredits(adminUserId, validAmount);
+      await storage.updateUserPoints(adminUserId, Math.floor(Number(validAmount) * 0.05));
       
       // Broadcast credit update to all connected clients
       // Credits updated successfully
@@ -1693,12 +1693,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Toy routes
   app.get('/api/toys', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User ID not found" });
       }
-      const toys = await storage.getToysByOwnerId(userId);
-      console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
+      const toys = await storage.getToysByOwnerId(adminUserId);
+      console.log("*** TOYS DEBUG: User", adminUserId, "has toys:", toys.length);
       if (toys.length > 0) {
         console.log("*** FIRST TOY:", JSON.stringify(toys[0], null, 2));
       }
@@ -1722,10 +1722,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/toys', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = insertToySchema.parse({
         ...req.body,
-        ownerId: userId,
+        ownerId: adminUserId,
       });
       
       const toy = await storage.createToy(validatedData);
@@ -1770,10 +1770,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/toys/:toyId/owner', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { toyId } = req.params;
       
-      await storage.updateToyOwner(parseInt(toyId), userId);
+      await storage.updateToyOwner(parseInt(toyId), adminUserId);
       res.json({ message: "Toy ownership updated successfully" });
     } catch (error) {
       console.error("Error updating toy owner:", error);
@@ -1794,17 +1794,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/listings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = insertListingSchema.parse({
         ...req.body,
-        sellerId: userId,
+        sellerId: adminUserId,
       });
       
       // Check for existing ACTIVE listing of the same toy by the same seller
       const existingListings = await storage.getAllListings();
       const duplicateListing = existingListings.find((listing: any) => 
         listing.toyId === validatedData.toyId && 
-        listing.sellerId === userId &&
+        listing.sellerId === adminUserId &&
         listing.status === 'active'
       );
 
@@ -1868,7 +1868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Create credit history for refund
             await storage.createCreditHistory({
-              userId: purchase.buyerId,
+              adminUserId: purchase.buyerId,
               amount: refundAmount.toFixed(2),
               type: 'refund',
               description: `Refund for cancelled listing: ${purchase.toy?.name || 'Toy'}`
@@ -1904,9 +1904,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/toys/:toyId/purchase", isAuthenticated, async (req: any, res) => {
     try {
       const toyId = parseInt(req.params.toyId);
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       
-      await storage.purchaseToy(toyId, userId);
+      await storage.purchaseToy(toyId, adminUserId);
       res.json({ message: "Toy purchased successfully" });
     } catch (error) {
       console.error("Error purchasing toy:", error);
@@ -1921,7 +1921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("User:", req.user?.claims?.sub);
     
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { qrCode } = req.body;
       
       if (!qrCode || qrCode.trim() === '') {
@@ -1929,8 +1929,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "QR code is required" });
       }
       
-      console.log("Calling activateToyByQrCode with:", qrCode.trim(), userId);
-      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
+      console.log("Calling activateToyByQrCode with:", qrCode.trim(), adminUserId);
+      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), adminUserId);
       
       if (!activatedToy) {
         console.log("ERROR: No toy returned");
@@ -1960,7 +1960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet creation endpoint for activated toys
   app.post('/api/toys/activate', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { qrCode } = req.body;
       
       if (!qrCode || qrCode.trim() === '') {
@@ -1974,7 +1974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if toy is owned by user and activated
-      if (toy.ownerId !== userId) {
+      if (toy.ownerId !== adminUserId) {
         return res.status(403).json({ message: "You don't own this toy" });
       }
       
@@ -1983,7 +1983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if pet already exists for this toy
-      const existingPets = await storage.getPetsByUserId(userId);
+      const existingPets = await storage.getPetsByUserId(adminUserId);
       if (existingPets.some(pet => pet.toyId === toy.id)) {
         return res.status(409).json({ message: "Pet already exists for this toy" });
       }
@@ -1991,7 +1991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create pet from the toy with proper initialization
       const now = new Date();
       const newPet = await storage.createPet({
-        userId,
+        adminUserId,
         toyId: toy.id,
         name: toy.name,
         species: 'Doluruu',
@@ -2026,11 +2026,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet sleep management
   app.post('/api/pets/:petId/sleep', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2046,7 +2046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.createCareActivity({
           petId,
-          userId,
+          adminUserId,
           activityType: 'sleep',
           completedAt: new Date(),
           pointsEarned: 0
@@ -2065,11 +2065,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Daily token check - award token if all stats stayed above 1% for 24 hours
   app.post('/api/pets/:petId/check-daily-token', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2099,7 +2099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (allStatsAboveThreshold) {
         // TEMPORARILY DISABLED: Award token to prevent race conditions with pet name edits
-        console.log(`Daily token award disabled temporarily for Pet ${petId}, User ${userId}`);
+        console.log(`Daily token award disabled temporarily for Pet ${petId}, User ${adminUserId}`);
         
         res.json({ 
           eligible: true, 
@@ -2129,11 +2129,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet name change - spend 5 tokens to change pet name
   app.patch('/api/pets/:petId/name', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       const { name } = req.body;
       
-      console.log(`Pet name edit request: userId=${userId}, petId=${petId}, newName=${name}`);
+      console.log(`Pet name edit request: adminUserId=${adminUserId}, petId=${petId}, newName=${name}`);
       
       // Validate new name
       if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -2145,7 +2145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get user's current token balance
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2162,7 +2162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2176,11 +2176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Deduct exactly 5 tokens with explicit calculation
           const newTokenCount = currentTokens - 5;
-          await tx.update(users).set({ tokens: newTokenCount }).where(eq(users.id, userId));
+          await tx.update(users).set({ tokens: newTokenCount }).where(eq(users.id, adminUserId));
           
           // Record the token transaction in the dedicated token_transactions table
           await tx.insert(tokenTransactions).values({
-            userId,
+            adminUserId,
             tokens: -5,
             type: 'spent',
             description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
@@ -2209,11 +2209,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Energy potion - spend 2 tokens to restore energy to 100%
   app.post('/api/pets/:petId/energy-potion', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       // Get user's current token balance
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2228,7 +2228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2242,7 +2242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Deduct 2 tokens and restore energy to 100%
-      await storage.deductUserTokens(userId, 2);
+      await storage.deductUserTokens(adminUserId, 2);
       await storage.updatePetStats(petId, { 
         energy: 100,
         isSleeping: false, // Wake up the pet
@@ -2252,7 +2252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create activity record
       await storage.createCareActivity({
         petId,
-        userId,
+        adminUserId,
         activityType: 'energy_potion',
         completedAt: new Date(),
         pointsEarned: 0
@@ -2272,12 +2272,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet evolution routes
   app.get('/api/pets/:petId/evolution-image', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       // Get pet to verify ownership and get current growth stage
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2301,11 +2301,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check if pet can evolve
   app.post('/api/pets/:petId/check-evolution', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2333,11 +2333,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Evolve pet to next stage
   app.post('/api/pets/:petId/evolve', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2365,12 +2365,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Award evolution bonus tokens
-      await storage.addUserTokens(userId, 5);
+      await storage.addUserTokens(adminUserId, 5);
       
       // Create evolution activity record
       await storage.createCareActivity({
         petId,
-        userId,
+        adminUserId,
         activityType: 'evolution',
         completedAt: new Date(),
         pointsEarned: 0
@@ -2390,14 +2390,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get sleep progress - calculates energy gained during sleep
   app.get('/api/pets/:petId/sleep-progress', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2507,11 +2507,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auto decay system - reduce hunger and cleanliness by 1% every 3 minutes, happiness drops when other stats drop
   app.post('/api/pets/:petId/auto-decay', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2572,11 +2572,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wake up pet
   app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2613,11 +2613,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 24-Hour Token System - Check token status
   app.get('/api/pets/:petId/token-status', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2655,11 +2655,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 24-Hour Token System - Claim daily token
   app.post('/api/pets/:petId/claim-daily-token', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.userId !== userId) {
+      if (!pet || pet.adminUserId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2686,15 +2686,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Award token
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       const newTokenCount = (user.loyaltyPoints || 0) + 1;
       
-      await storage.updateUser(userId, { loyaltyPoints: newTokenCount });
+      await storage.updateUser(adminUserId, { loyaltyPoints: newTokenCount });
       await storage.updatePetStats(petId, { lastTokenClaim: now });
 
       // Record token transaction in the dedicated token_transactions table
       await db.insert(tokenTransactions).values({
-        userId,
+        adminUserId,
         tokens: 1,
         type: 'earned',
         description: `Daily token earned from pet ${pet.name}`,
@@ -2731,10 +2731,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/marketplace/listings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = insertListingSchema.parse({
         ...req.body,
-        sellerId: userId,
+        sellerId: adminUserId,
       });
       
       const listing = await storage.createListing(validatedData);
@@ -2750,8 +2750,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/marketplace/my-listings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const listings = await storage.getListingsByUserId(userId);
+      const adminUserId = req.user.claims.sub;
+      const listings = await storage.getListingsByUserId(adminUserId);
       res.json(listings);
     } catch (error) {
       console.error("Error fetching user listings:", error);
@@ -2773,10 +2773,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = insertMessageSchema.parse({
         ...req.body,
-        senderId: userId,
+        senderId: adminUserId,
       });
       
       const message = await storage.createMessage(validatedData);
@@ -2791,11 +2791,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -2828,8 +2828,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/toys', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user.claims.sub;
+      const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -2844,7 +2844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:userId/role', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:adminUserId/role', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user.claims.sub;
       const user = await storage.getUser(adminUserId);
@@ -2853,10 +2853,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { role } = req.body;
       
-      await storage.updateUserRole(userId, role);
+      await storage.updateUserRole(adminUserId, role);
       res.json({ message: "User role updated successfully" });
     } catch (error) {
       console.error("Error updating user role:", error);
@@ -2867,7 +2867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cash-out routes
   app.post("/api/cashout/request", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const adminUserId = req.user?.claims?.sub;
       const { amount, bankName, accountNumber, accountHolderName } = req.body;
 
       // Validate minimum cash-out amount (e.g., 50,000 IDR)
@@ -2879,14 +2879,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user has sufficient credits
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user || parseFloat(user.credits) < parseFloat(amount)) {
         return res.status(400).json({ message: "Insufficient credits" });
       }
 
       // Create cash-out request
       const cashOut = await storage.createCashOutRequest({
-        userId,
+        adminUserId,
         amount,
         bankName,
         accountNumber,
@@ -2896,10 +2896,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Deduct credits from user account
       const newCredits = (parseFloat(user.credits) - parseFloat(amount)).toString();
-      await storage.updateUserCredits(userId, newCredits);
+      await storage.updateUserCredits(adminUserId, newCredits);
 
       // Update user's bank details for future use
-      await storage.updateUserBankDetails(userId, bankName, accountNumber, accountHolderName);
+      await storage.updateUserBankDetails(adminUserId, bankName, accountNumber, accountHolderName);
 
       res.json({ 
         message: "Cash-out request submitted successfully",
@@ -2913,8 +2913,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/cashout/history", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const cashOuts = await storage.getCashOutsByUserId(userId);
+      const adminUserId = req.user?.claims?.sub;
+      const cashOuts = await storage.getCashOutsByUserId(adminUserId);
       res.json(cashOuts);
     } catch (error) {
       console.error("Error fetching cash-out history:", error);
@@ -2925,8 +2925,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin route to update pet details and stats
   app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user?.claims?.sub;
+      const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
@@ -2966,8 +2966,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User top-up history route
   app.get("/api/topup/history", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
-      const history = await storage.getUserTopUpHistory(userId);
+      const adminUserId = (req.user as any).claims.sub;
+      const history = await storage.getUserTopUpHistory(adminUserId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching top-up history:", error);
@@ -3009,14 +3009,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Add credits to user account
-        const currentUser = await storage.getUser(request.userId);
+        const currentUser = await storage.getUser(request.adminUserId);
         if (currentUser) {
           const newCredits = parseFloat(currentUser.credits || '0') + parseFloat(request.amount);
-          await storage.updateUserCredits(request.userId, newCredits.toString());
+          await storage.updateUserCredits(request.adminUserId, newCredits.toString());
 
           // Create transaction record
           await storage.createPaymentTransaction({
-            userId: request.userId,
+            adminUserId: request.adminUserId,
             amount: request.amount,
             paymentMethod: 'credit_topup',
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
@@ -3025,7 +3025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Create credit history record
           await storage.createCreditHistory({
-            userId: request.userId,
+            adminUserId: request.adminUserId,
             amount: request.amount,
             type: 'credit_topup',
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
@@ -3083,16 +3083,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If rejecting, restore credits to user
       if (status === 'rejected') {
-        const requestUser = await storage.getUser(request.userId);
+        const requestUser = await storage.getUser(request.adminUserId);
         if (requestUser) {
           const currentCredits = parseFloat(requestUser.credits);
           const refundAmount = parseFloat(request.amount);
           const newCredits = (currentCredits + refundAmount).toString();
-          await storage.updateUserCredits(request.userId, newCredits);
+          await storage.updateUserCredits(request.adminUserId, newCredits);
           
           // Create credit history record for refund
           await storage.createCreditHistory({
-            userId: request.userId,
+            adminUserId: request.adminUserId,
             amount: request.amount,
             type: 'cash_out_refund',
             description: `Cash-out refund - Admin rejected: ${adminNotes || 'No reason provided'}`,
@@ -3117,7 +3117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Purchase confirmation routes
   app.post('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const { amount, buyerId } = req.body;
       
       // Check if buyer has sufficient credits
@@ -3142,7 +3142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create credit history for the deduction
       await storage.createCreditHistory({
-        userId: buyerId,
+        adminUserId: buyerId,
         amount: purchaseAmount.toFixed(2),
         type: 'debit',
         description: `Purchase pending seller confirmation - Listing ID: ${req.body.listingId}`,
@@ -3161,13 +3161,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      console.log("*** ROUTE DEBUG: API called for user:", userId);
-      if (!userId) {
-        console.log("*** ROUTE DEBUG: No userId found");
+      console.log("*** ROUTE DEBUG: API called for user:", adminUserId);
+      if (!adminUserId) {
+        console.log("*** ROUTE DEBUG: No adminUserId found");
         return res.status(401).json({ message: "User ID not found" });
       }
       
-      const purchases = await storage.getPendingPurchasesByUserId(userId);
+      const purchases = await storage.getPendingPurchasesByUserId(adminUserId);
       console.log("*** ROUTE DEBUG: Returning purchases:", purchases.length);
       res.json(purchases);
     } catch (error) {
@@ -3176,10 +3176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/pending-purchases/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pending-purchases/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId } = req.params;
-      const purchases = await storage.getPendingPurchasesByUserId(userId);
+      const { userId: userId } = req.params;
+      const purchases = await storage.getPendingPurchasesByUserId(adminUserId);
       res.json(purchases);
     } catch (error) {
       console.error("Error fetching pending purchases:", error);
@@ -3246,10 +3246,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/credit-history/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/credit-history/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId } = req.params;
-      const history = await storage.getCreditHistoryByUserId(userId);
+      const { userId: userId } = req.params;
+      const history = await storage.getCreditHistoryByUserId(adminUserId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching credit history:", error);
@@ -3259,20 +3259,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/points-history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const validatedData = {
         ...req.body,
-        userId
+        adminUserId
       };
       
       const points = await storage.createPointsHistory(validatedData);
       
       // Update user's loyalty points using the points difference
-      await storage.updateUserPoints(userId, req.body.points);
+      await storage.updateUserPoints(adminUserId, req.body.points);
       
       res.json(points);
     } catch (error) {
@@ -3281,10 +3281,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points-history/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId } = req.params;
-      const history = await storage.getPointsHistoryByUserId(userId);
+      const { userId: userId } = req.params;
+      const history = await storage.getPointsHistoryByUserId(adminUserId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching points history:", error);
@@ -3293,9 +3293,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Commission history endpoints
-  app.get('/api/commission-history/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/commission-history/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
@@ -3316,7 +3316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(commissionHistory)
         .leftJoin(users, eq(commissionHistory.referredUserId, users.id))
-        .where(eq(commissionHistory.introducerId, userId))
+        .where(eq(commissionHistory.introducerId, adminUserId))
         .orderBy(desc(commissionHistory.createdAt))
         .limit(limit)
         .offset(offset);
@@ -3324,7 +3324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalCount = await db
         .select({ count: sql`count(*)` })
         .from(commissionHistory)
-        .where(eq(commissionHistory.introducerId, userId));
+        .where(eq(commissionHistory.introducerId, adminUserId));
 
       const total = Number(totalCount[0].count);
 
@@ -3344,9 +3344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Total commission earnings for a user
-  app.get('/api/commission-stats/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/commission-stats/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
 
       const stats = await db
         .select({
@@ -3354,7 +3354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalTransactions: sql<number>`count(*)`,
         })
         .from(commissionHistory)
-        .where(eq(commissionHistory.introducerId, userId));
+        .where(eq(commissionHistory.introducerId, adminUserId));
 
       res.json({
         totalCommissions: stats[0]?.totalCommissions || 0,
@@ -3380,14 +3380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pet care routes
   app.post('/api/pets', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const petData = {
         ...req.body,
-        userId
+        adminUserId
       };
       
       const pet = await storage.createPet(petData);
@@ -3400,13 +3400,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/pets', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      console.log(`Fetching pets for user: ${userId}`);
-      const pets = await storage.getPetsByUserId(userId);
+      console.log(`Fetching pets for user: ${adminUserId}`);
+      const pets = await storage.getPetsByUserId(adminUserId);
       console.log(`Found ${pets.length} pets:`, pets.map(p => ({ id: p.id, name: p.name, hunger: p.hunger, cleanliness: p.cleanliness, happiness: p.happiness, energy: p.energy })));
       
       // Disable all forms of caching for real-time updates
@@ -3466,10 +3466,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const currentUser = await storage.getUser(userId);
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3502,12 +3502,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/cash-outs', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3540,12 +3540,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/transactions', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const currentUser = await storage.getUser(userId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      const currentUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3577,10 +3577,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const currentUser = await storage.getUser(userId);
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3619,7 +3619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3659,7 +3659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3678,7 +3678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(parseInt(id), status);
       
       // Send email notification based on status change
-      const user = await storage.getUser(appointment.userId);
+      const user = await storage.getUser(appointment.adminUserId);
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
@@ -3726,7 +3726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3770,7 +3770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3820,7 +3820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3841,7 +3841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3855,19 +3855,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Update user profile (PUT)
-  app.put('/api/admin/users/:userId/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/users/:adminUserId/profile', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { firstName, lastName, email, phoneNumber, role } = req.body;
       
-      await storage.updateUserProfile(userId, {
+      await storage.updateUserProfile(adminUserId, {
         firstName,
         lastName,
         email,
@@ -3883,19 +3883,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Update user profile (PATCH)
-  app.patch('/api/admin/users/:userId', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { firstName, lastName, email, phoneNumber, gender, dateOfBirth, role } = req.body;
       
-      await storage.updateUserProfile(userId, {
+      await storage.updateUserProfile(adminUserId, {
         firstName,
         lastName,
         email,
@@ -3918,7 +3918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3949,16 +3949,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId, amount } = req.body;
-      await storage.updateUserCredits(userId, amount);
+      const { adminUserId, amount } = req.body;
+      await storage.updateUserCredits(adminUserId, amount);
       
       // Create transaction record
       await storage.createTransaction({
-        userId,
+        adminUserId,
         type: 'credit',
         amount,
         description: `Admin credit adjustment by ${currentUser.firstName} ${currentUser.lastName}`,
@@ -3977,12 +3977,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId, points } = req.body;
-      await storage.updateUserPoints(userId, points);
+      const { adminUserId, points } = req.body;
+      await storage.updateUserPoints(adminUserId, points);
 
       res.json({ message: "Points updated successfully" });
     } catch (error) {
@@ -3996,7 +3996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4016,7 +4016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4030,15 +4030,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If rejecting, refund the credits
       if (status === 'rejected' && cashOut.status === 'pending') {
-        const user = await storage.getUser(cashOut.userId);
+        const user = await storage.getUser(cashOut.adminUserId);
         if (user) {
           const currentCredits = parseFloat(user.credits || '0');
           const refundAmount = parseFloat(cashOut.amount);
-          await storage.updateUserCredits(cashOut.userId, (currentCredits + refundAmount).toString());
+          await storage.updateUserCredits(cashOut.adminUserId, (currentCredits + refundAmount).toString());
           
           // Create transaction record for refund
           await storage.createTransaction({
-            userId: cashOut.userId,
+            adminUserId: cashOut.adminUserId,
             type: 'credit',
             amount: refundAmount.toString(),
             description: `Credit refund - Cash-out request rejected`,
@@ -4060,7 +4060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4099,7 +4099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4120,7 +4120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4161,7 +4161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4197,15 +4197,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/redeem-reward', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
       const { rewardId, pointsCost } = req.body;
       
       // Get user and reward data
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       const reward = await storage.getRewardItemById(rewardId);
       
       if (!user) {
@@ -4227,7 +4227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct points from user
-      await storage.updateUserPoints(userId, -pointsCost);
+      await storage.updateUserPoints(adminUserId, -pointsCost);
       
       // If it's a credit reward, add credits to user account
       if (reward.type === 'credit' && reward.creditAmount) {
@@ -4235,11 +4235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const creditAmount = parseFloat(reward.creditAmount);
         const newCredits = (currentCredits + creditAmount).toString();
         
-        await storage.updateUserCredits(userId, newCredits);
+        await storage.updateUserCredits(adminUserId, newCredits);
         
         // Create credit history record
         await storage.createCreditHistory({
-          userId,
+          adminUserId,
           type: 'earned',
           amount: reward.creditAmount,
           description: `Redeemed: ${reward.name}`
@@ -4248,7 +4248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create points history record for redemption
       await storage.createPointsHistory({
-        userId,
+        adminUserId,
         points: -pointsCost,
         type: 'redeemed',
         description: `Redeemed: ${reward.name}`
@@ -4276,7 +4276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user dashboard stats from database - OPTIMIZED for performance
   app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = getUserId(req);
+      const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
@@ -4320,7 +4320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // OPTIMIZATION: Enable caching for better performance (30 seconds)
       res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
-      res.set('ETag', `W/"user-stats-${userId}-${Date.now()}"`) ;
+      res.set('ETag', `W/"user-stats-${adminUserId}-${Date.now()}"`) ;
       
       res.json(stats);
     } catch (error) {
@@ -4332,13 +4332,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Credit history route for transaction timestamps
   app.get('/api/credit-history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       // Get credit transactions from database
-      const transactions = await storage.getCreditTransactionsByUserId(userId);
+      const transactions = await storage.getCreditTransactionsByUserId(adminUserId);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching credit history:", error);
@@ -4347,10 +4347,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points history routes
-  app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points-history/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.params.userId;
-      const pointsHistory = await storage.getPointsHistoryByUserId(userId);
+      const adminUserId = req.params.adminUserId;
+      const pointsHistory = await storage.getPointsHistoryByUserId(adminUserId);
       res.json(pointsHistory);
     } catch (error) {
       console.error("Error fetching points history:", error);
@@ -4360,20 +4360,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/points-history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       const validatedData = {
         ...req.body,
-        userId
+        adminUserId
       };
       
       const pointsHistory = await storage.createPointsHistory(validatedData);
       
       // Update user's loyalty points using the points difference
-      await storage.updateUserPoints(userId, req.body.points);
+      await storage.updateUserPoints(adminUserId, req.body.points);
       
       // Broadcast loyalty points update
       // Loyalty points updated successfully
@@ -4386,10 +4386,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Credit history routes
-  app.get('/api/credit-history/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/credit-history/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.params.userId;
-      const creditHistory = await storage.getCreditHistoryByUserId(userId);
+      const adminUserId = req.params.adminUserId;
+      const creditHistory = await storage.getCreditHistoryByUserId(adminUserId);
       res.json(creditHistory);
     } catch (error) {
       console.error("Error fetching credit history:", error);
@@ -4399,10 +4399,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/credit-history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const adminUserId = req.user.claims.sub;
       const validatedData = {
         ...req.body,
-        userId
+        adminUserId
       };
       
       const creditHistory = await storage.createCreditHistory(validatedData);
@@ -4434,12 +4434,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Game scores routes
   app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const adminUserId = req.user?.claims?.sub;
       const { petId, score } = req.body;
       
       // Create the game score record (no tokens awarded)
       const gameScore = await storage.createGameScore({
-        userId,
+        adminUserId,
         petId,
         score,
         tokensEarned: 0
@@ -4465,8 +4465,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/game-scores/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const userScores = await storage.getUserGameScores(userId);
+      const adminUserId = req.user?.claims?.sub;
+      const userScores = await storage.getUserGameScores(adminUserId);
       res.json(userScores);
     } catch (error: any) {
       console.error("Error fetching user scores:", error);
@@ -4477,8 +4477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin route to reset leaderboard
   app.delete('/api/admin/game-scores/reset', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user?.claims?.sub;
+      const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
@@ -4496,11 +4496,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/activated-pets', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
-      if (!userId) {
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
@@ -4548,8 +4548,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin pet editing
   app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
+      const adminUserId = req.user?.claims?.sub;
+      const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
@@ -4575,8 +4575,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Token claim routes for users to request physical tokens
   app.post('/api/token-claims', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
@@ -4587,17 +4587,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has enough tokens
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user || (user.tokens || 0) < tokensRequested) {
         return res.status(400).json({ message: "Insufficient tokens" });
       }
 
       // Deduct tokens from user account
-      await storage.deductUserTokens(userId, tokensRequested);
+      await storage.deductUserTokens(adminUserId, tokensRequested);
 
       // Create token claim request (no shipping address - redeem at approved locations)
       const claim = await storage.createTokenClaim({
-        userId,
+        adminUserId,
         tokensRequested,
         status: 'pending'
       });
@@ -4617,7 +4617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adminUser = await storage.getUser(adminUserId);
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4650,12 +4650,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User route to get their own token claim history
   app.get('/api/token-claims/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const claims = await storage.getTokenClaimsByUserId(userId);
+      const claims = await storage.getTokenClaimsByUserId(adminUserId);
       res.json(claims);
     } catch (error) {
       console.error("Error fetching user token claims:", error);
@@ -4666,8 +4666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comprehensive token transaction history for a user
   app.get('/api/tokens/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
@@ -4683,11 +4683,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           relatedId: tokenTransactions.relatedId
         })
         .from(tokenTransactions)
-        .where(eq(tokenTransactions.userId, userId))
+        .where(eq(tokenTransactions.adminUserId, adminUserId))
         .orderBy(desc(tokenTransactions.createdAt));
 
       // Get token claims (earning tokens) 
-      const tokenClaims = await storage.getTokenClaimsByUserId(userId);
+      const tokenClaims = await storage.getTokenClaimsByUserId(adminUserId);
       
       // Format token claims to match transaction format
       const formattedClaims = tokenClaims.map((claim: any) => ({
@@ -4716,7 +4716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user?.claims?.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4736,23 +4736,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin route to update user tokens directly
-  app.patch('/api/admin/users/:userId/tokens', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:adminUserId/tokens', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
       const adminUser = await storage.getUser(adminUserId);
       
-      if (!adminUser || adminUser.role !== 'admin') {
+      if (!adminUser || adminUserId.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { tokens } = req.body;
       
       if (typeof tokens !== 'number' || tokens < 0) {
         return res.status(400).json({ message: "Valid token amount required" });
       }
       
-      await storage.updateUserTokens(userId, tokens);
+      await storage.updateUserTokens(adminUserId, tokens);
       res.json({ message: "User tokens updated successfully" });
     } catch (error) {
       console.error("Error updating user tokens:", error);
@@ -4761,7 +4761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin add tokens to user
-  app.post('/api/admin/users/:userId/add-tokens', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/users/:adminUserId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = req.user?.claims?.sub;
       const admin = await storage.getUser(adminUserId);
@@ -4770,7 +4770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const { userId } = req.params;
+      const { userId: userId } = req.params;
       const { amount } = req.body;
       
       if (!amount || amount <= 0) {
@@ -4778,17 +4778,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get current user to verify existence
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(adminUserId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
       
       // Add tokens to pet's claimable pool (not directly to wallet)
-      await storage.updatePetTokens(userId, amount);
+      await storage.updatePetTokens(adminUserId, amount);
       
       // Create a transaction record for admin token addition
       await storage.createTransaction({
-        userId,
+        adminUserId,
         type: 'admin_token_grant',
         amount: amount.toString(),
         description: `Admin set claimable tokens to ${amount}`,
@@ -4827,7 +4827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminTokenTransactions = await db
         .select({
           id: tokenTransactions.id,
-          userId: tokenTransactions.userId,
+          adminUserId: tokenTransactions.adminUserId,
           tokens: tokenTransactions.tokens,
           type: tokenTransactions.type,
           description: tokenTransactions.description,
@@ -4841,11 +4841,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .offset(offset);
 
       // Get user information for each transaction
-      const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.userId)));
+      const userIds = Array.from(new Set(adminTokenTransactions.map(t => t.adminUserId)));
       const users = await Promise.all(
-        userIds.map(async (userId) => {
-          const user = await storage.getUser(userId);
-          return { id: userId, email: user?.email, firstName: user?.firstName };
+        userIds.map(async (adminUserId) => {
+          const user = await storage.getUser(adminUserId);
+          return { id: adminUserId, email: user?.email, firstName: user?.firstName };
         })
       );
 
@@ -4857,7 +4857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add user information to transactions
       const enrichedTransactions = adminTokenTransactions.map(transaction => ({
         ...transaction,
-        user: usersMap[transaction.userId]
+        user: usersMap[transaction.adminUserId]
       }));
 
       res.json({ 
@@ -4880,15 +4880,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Daily token reward endpoints
   app.get('/api/daily-token-reward/status', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      console.log("Checking daily token reward status for user:", userId);
+      console.log("Checking daily token reward status for user:", adminUserId);
       
       // Get user's pets to check health status
-      const userPets = await storage.getPetsByUserId(userId);
+      const userPets = await storage.getPetsByUserId(adminUserId);
       const petCount = userPets.length;
       
       // Check if all pets have stats > 25% (healthy threshold)
@@ -4900,7 +4900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Get last reward claim time
-      const lastReward = await storage.getLastDailyTokenReward(userId);
+      const lastReward = await storage.getLastDailyTokenReward(adminUserId);
       let canClaim = false;
       let timeUntilNext = 0;
       
@@ -4940,12 +4940,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/daily-token-reward/claim', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
+      const adminUserId = req.user?.claims?.sub;
+      if (!adminUserId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      const result = await storage.claimDailyTokenReward(userId);
+      const result = await storage.claimDailyTokenReward(adminUserId);
       
       if (result.success) {
         res.json({ 
