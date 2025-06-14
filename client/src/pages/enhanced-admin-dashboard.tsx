@@ -263,7 +263,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: toysResponse }: any = useQuery({
+  const { data: toysResponse, isLoading: toysLoading, error: toysError }: any = useQuery({
     queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
     retry: false,
   });
@@ -2512,19 +2512,28 @@ function EnhancedAdminDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Name</TableHead>
-                        <TableHead className="text-blue-200">Series</TableHead>
-                        <TableHead className="text-blue-200">Rarity</TableHead>
-                        <TableHead className="text-blue-200">Owner</TableHead>
-                        <TableHead className="text-blue-200">QR Code</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredToys.map((toy: any) => (
+                  {toysLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="text-white">Loading toys...</div>
+                    </div>
+                  ) : toysError ? (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="text-red-400">Error loading toys</div>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-white/20">
+                          <TableHead className="text-blue-200">Name</TableHead>
+                          <TableHead className="text-blue-200">Series</TableHead>
+                          <TableHead className="text-blue-200">Rarity</TableHead>
+                          <TableHead className="text-blue-200">Owner</TableHead>
+                          <TableHead className="text-blue-200">QR Code</TableHead>
+                          <TableHead className="text-blue-200">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredToys.map((toy: any) => (
                         <TableRow key={toy.id} className="border-white/10">
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-gray-300">{toy.series}</TableCell>
@@ -2669,6 +2678,7 @@ function EnhancedAdminDashboard() {
                       </div>
                     </div>
                   )}
+                )
                 </CardContent>
               </Card>
             </div>
