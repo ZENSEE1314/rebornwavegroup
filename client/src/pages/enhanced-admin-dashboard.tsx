@@ -2186,7 +2186,7 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Toy Management Tab */}
+          {/* Toy Management Tab - Minimal */}
           <TabsContent value="toys">
             <div className="space-y-6">
               {/* Single Toy Creation */}
