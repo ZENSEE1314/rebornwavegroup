@@ -3072,8 +3072,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                           <p className="font-medium">RP {parseFloat(verification.amount).toLocaleString('id-ID')}</p>
                           <p className="text-sm text-gray-600">{verification.description}</p>
                           <p className="text-xs text-gray-500">
-                            {new Date(verification.createdAt).toLocaleDateString(getCurrentLanguage() === "id" ? "id-ID" : "en-US")}
-                            {" "} {new Date(verification.createdAt).toLocaleTimeString(getCurrentLanguage() === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(verification.createdAt).toLocaleDateString(language === "id" ? "id-ID" : "en-US")}
+                            {" "} {new Date(verification.createdAt).toLocaleTimeString(language === "id" ? "id-ID" : "en-US", { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                         <Badge className={getStatusColor(verification.status)}>
@@ -5136,13 +5136,13 @@ export default function CompleteApp() {
                   type="number"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {language === "id" ? `Saldo tersedia: RP ${formatRupiah(userCredits)}` : `Available balance: RP ${formatRupiah(userCredits)}`}
+                  {t("cashout.availableBalance", { amount: formatRupiah(userCredits) })}
                 </p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nama Bank" : "Bank Name"}
+                  {t("cashout.bankName")}
                 </label>
                 <Select onValueChange={setBankName}>
                   <SelectTrigger>
@@ -5160,7 +5160,7 @@ export default function CompleteApp() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {language === "id" ? "Nomor Rekening" : "Account Number"}
+                  {t("cashout.accountNumber")}
                 </label>
                 <Input
                   placeholder={

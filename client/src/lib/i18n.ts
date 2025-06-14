@@ -3511,6 +3511,46 @@ export const translations: Translations = {
     en: 'An error occurred',
     zh: '发生错误',
     id: 'Terjadi kesalahan'
+  },
+  'credits.topUp': {
+    en: 'Top Up Credits',
+    zh: '充值积分',
+    id: 'Top Up Kredit'
+  },
+  'credits.customAmount': {
+    en: 'Custom amount',
+    zh: '自定义金额',
+    id: 'Jumlah custom'
+  },
+  'cashout.withdrawToBank': {
+    en: '💰 Cash Out to Bank',
+    zh: '💰 提现到银行',
+    id: '💰 Tarik Kredit ke Bank'
+  },
+  'cashout.withdrawalAmount': {
+    en: 'Withdrawal Amount',
+    zh: '提现金额',
+    id: 'Jumlah Penarikan'
+  },
+  'cashout.availableBalance': {
+    en: 'Available balance: RP {{amount}}',
+    zh: '可用余额：RP {{amount}}',
+    id: 'Saldo tersedia: RP {{amount}}'
+  },
+  'cashout.bankName': {
+    en: 'Bank Name',
+    zh: '银行名称',
+    id: 'Nama Bank'
+  },
+  'cashout.accountNumber': {
+    en: 'Account Number',
+    zh: '账户号码',
+    id: 'Nomor Rekening'
+  },
+  'common.submitRequest': {
+    en: 'Submit Request',
+    zh: '提交请求',
+    id: 'Kirim Permintaan'
   }
 };
 
