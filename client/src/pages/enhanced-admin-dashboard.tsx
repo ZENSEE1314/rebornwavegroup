@@ -179,11 +179,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // Debug logging for pagination data
-  console.log('Users response:', usersResponse);
-  console.log('Pagination data:', usersResponse?.pagination);
-  console.log('Total count from API:', usersResponse?.pagination?.totalCount);
-  console.log('Data length:', usersResponse?.data?.length);
+
 
   const { data: cashOutResponse }: any = useQuery({
     queryKey: ['/api/admin/cash-outs'],
@@ -976,7 +972,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Users</p>
-                  <p className="text-3xl font-bold text-white">{filteredUsers.length}</p>
+                  <p className="text-3xl font-bold text-white">{(usersResponse as any)?.pagination?.totalCount || filteredUsers.length}</p>
                 </div>
                 <Users className="h-8 w-8 text-gray-300" />
               </div>
