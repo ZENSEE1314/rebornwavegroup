@@ -115,8 +115,8 @@ export const seasons = pgTable("seasons", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Collection series for organizing toys within seasons
-export const collectionSeries = pgTable("collection_series", {
+// Collection sectors for organizing toys within seasons
+export const collectionSectors = pgTable("collection_sectors", {
   id: serial("id").primaryKey(),
   seasonId: integer("season_id").notNull(),
   name: varchar("name").notNull(), // 'Rare Finds', 'Daily Discoveries', 'Event Exclusives'
@@ -137,7 +137,7 @@ export const toys = pgTable("toys", {
   name: varchar("name").notNull(),
   series: varchar("series").notNull(),
   seasonId: integer("season_id"), // Link to seasonal collection
-  seriesId: integer("series_id"), // Link to collection series
+  sectorId: integer("sector_id"), // Link to collection sector
   rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare' | 'secret'
   color: varchar("color"), // 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'pink'
   qrCode: varchar("qr_code").unique().notNull(),
@@ -160,7 +160,7 @@ export const userCollectionProgress = pgTable("user_collection_progress", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   seasonId: integer("season_id").notNull(),
-  seriesId: integer("series_id"),
+  sectorId: integer("sector_id"),
   totalItems: integer("total_items").default(0), // Total items in this collection
   collectedItems: integer("collected_items").default(0), // Items user has collected
   completionPercentage: integer("completion_percentage").default(0), // 0-100
@@ -477,14 +477,14 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 
 // Seasonal collections relations
 export const seasonsRelations = relations(seasons, ({ many }) => ({
-  series: many(collectionSeries),
+  sectors: many(collectionSectors),
   toys: many(toys),
   userProgress: many(userCollectionProgress),
 }));
 
-export const collectionSeriesRelations = relations(collectionSeries, ({ one, many }) => ({
+export const collectionSectorsRelations = relations(collectionSectors, ({ one, many }) => ({
   season: one(seasons, {
-    fields: [collectionSeries.seasonId],
+    fields: [collectionSectors.seasonId],
     references: [seasons.id],
   }),
   toys: many(toys),
@@ -500,9 +500,9 @@ export const userCollectionProgressRelations = relations(userCollectionProgress,
     fields: [userCollectionProgress.seasonId],
     references: [seasons.id],
   }),
-  series: one(collectionSeries, {
-    fields: [userCollectionProgress.seriesId],
-    references: [collectionSeries.id],
+  sector: one(collectionSectors, {
+    fields: [userCollectionProgress.sectorId],
+    references: [collectionSectors.id],
   }),
 }));
 
@@ -515,9 +515,9 @@ export const toysRelations = relations(toys, ({ one, many }) => ({
     fields: [toys.seasonId],
     references: [seasons.id],
   }),
-  series: one(collectionSeries, {
-    fields: [toys.seriesId],
-    references: [collectionSeries.id],
+  sector: one(collectionSectors, {
+    fields: [toys.sectorId],
+    references: [collectionSectors.id],
   }),
   listings: many(listings),
 }));
@@ -747,7 +747,7 @@ export const insertSeasonSchema = createInsertSchema(seasons).omit({
   updatedAt: true,
 });
 
-export const insertCollectionSeriesSchema = createInsertSchema(collectionSeries).omit({
+export const insertCollectionSectorSchema = createInsertSchema(collectionSectors).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -760,10 +760,10 @@ export const insertUserCollectionProgressSchema = createInsertSchema(userCollect
 });
 
 export type InsertSeason = z.infer<typeof insertSeasonSchema>;
-export type InsertCollectionSeries = z.infer<typeof insertCollectionSeriesSchema>;
+export type InsertCollectionSector = z.infer<typeof insertCollectionSectorSchema>;
 export type InsertUserCollectionProgress = z.infer<typeof insertUserCollectionProgressSchema>;
 export type Season = typeof seasons.$inferSelect;
-export type CollectionSeries = typeof collectionSeries.$inferSelect;
+export type CollectionSector = typeof collectionSectors.$inferSelect;
 export type UserCollectionProgress = typeof userCollectionProgress.$inferSelect;
 
 // New table insert schemas

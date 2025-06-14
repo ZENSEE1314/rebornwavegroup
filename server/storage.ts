@@ -27,7 +27,7 @@ import {
   tokenTransactions,
   dailyTokenRewards,
   seasons,
-  collectionSeries,
+  collectionSectors,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -2521,58 +2521,27 @@ export class DatabaseStorage implements IStorage {
     return season;
   }
 
-  // Series management operations
-  async getSeriesByName(name: string): Promise<any | undefined> {
-    const [series] = await db.select().from(collectionSeries).where(eq(collectionSeries.name, name));
-    return series;
+  // Sector management operations
+  async getSectorByName(name: string): Promise<any | undefined> {
+    const [sector] = await db.select().from(collectionSectors).where(eq(collectionSectors.name, name));
+    return sector;
   }
 
-  async createSeries(seriesData: any): Promise<any> {
-    const [series] = await db.insert(collectionSeries).values({
-      seasonId: seriesData.seasonId,
-      name: seriesData.name,
-      displayName: seriesData.name,
-      description: seriesData.description,
+  async createSector(sectorData: any): Promise<any> {
+    const [sector] = await db.insert(collectionSectors).values({
+      seasonId: sectorData.seasonId,
+      name: sectorData.name,
+      displayName: sectorData.name,
+      description: sectorData.description,
       iconSymbol: '🎯',
       backgroundColor: '#F3F4F6',
       unlockCondition: 'none',
       isUnlocked: true,
-      displayOrder: seriesData.order || 0,
+      displayOrder: sectorData.order || 0,
       createdAt: new Date(),
       updatedAt: new Date()
     }).returning();
-    return series;
-  }
-
-  // Additional storage methods for enhanced admin functionality
-  async getAllSeasons(): Promise<any[]> {
-    return await db.select().from(seasons).orderBy(seasons.displayOrder, seasons.createdAt);
-  }
-
-  async getAllCollectionSeries(): Promise<any[]> {
-    return await db.select().from(collectionSeries).orderBy(collectionSeries.displayOrder, collectionSeries.createdAt);
-  }
-
-  async getAllToys(): Promise<any[]> {
-    return await db.select().from(toys).orderBy(toys.createdAt);
-  }
-
-  async createToy(toyData: any): Promise<any> {
-    const [toy] = await db.insert(toys).values({
-      name: toyData.name,
-      series: toyData.series,
-      seasonId: toyData.seasonId,
-      seriesId: toyData.seriesId,
-      rarity: toyData.rarity,
-      color: toyData.color,
-      qrCode: toyData.qrCode,
-      imageUrl: toyData.imageUrl,
-      originalPrice: toyData.originalPrice,
-      isActivated: toyData.isActivated || false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
-    return toy;
+    return sector;
   }
 }
 
