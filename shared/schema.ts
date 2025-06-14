@@ -99,11 +99,45 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Soft toys table
+// Seasonal collections table
+export const seasons = pgTable("seasons", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(), // 'Spring', 'Summer', 'Autumn', 'Winter', 'Holiday', 'Limited Edition'
+  displayName: varchar("display_name").notNull(),
+  description: text("description"),
+  iconUrl: varchar("icon_url"),
+  backgroundColor: varchar("background_color").default("#3B82F6"), // Hex color for season theme
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Collection sectors for organizing toys within seasons
+export const collectionSectors = pgTable("collection_sectors", {
+  id: serial("id").primaryKey(),
+  seasonId: integer("season_id").notNull(),
+  name: varchar("name").notNull(), // 'Rare Finds', 'Daily Discoveries', 'Event Exclusives'
+  displayName: varchar("display_name").notNull(),
+  description: text("description"),
+  iconSymbol: varchar("icon_symbol"), // Emoji or symbol
+  backgroundColor: varchar("background_color").default("#F3F4F6"),
+  unlockCondition: varchar("unlock_condition"), // 'level_5', 'toys_10', 'points_500'
+  isUnlocked: boolean("is_unlocked").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Soft toys table - enhanced with seasonal collections
 export const toys = pgTable("toys", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
   series: varchar("series").notNull(),
+  seasonId: integer("season_id"), // Link to seasonal collection
+  sectorId: integer("sector_id"), // Link to collection sector
   rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare' | 'secret'
   color: varchar("color"), // 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'pink'
   qrCode: varchar("qr_code").unique().notNull(),
@@ -114,9 +148,28 @@ export const toys = pgTable("toys", {
   purchasedBy: varchar("purchased_by"),
   isForSale: boolean("is_for_sale").default(false),
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
+  collectionProgress: integer("collection_progress").default(0), // Progress towards collection completion
+  isSeasonalExclusive: boolean("is_seasonal_exclusive").default(false),
+  releaseDate: timestamp("release_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// User collection progress tracking
+export const userCollectionProgress = pgTable("user_collection_progress", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  seasonId: integer("season_id").notNull(),
+  sectorId: integer("sector_id"),
+  totalItems: integer("total_items").default(0), // Total items in this collection
+  collectedItems: integer("collected_items").default(0), // Items user has collected
+  completionPercentage: integer("completion_percentage").default(0), // 0-100
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_user_season_progress").on(table.userId, table.seasonId)
+]);
 
 // Marketplace listings table
 export const listings = pgTable("listings", {
@@ -392,6 +445,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   pets: many(pets),
   petCareActivities: many(petCareActivities),
   dailyCareStatus: many(dailyCareStatus),
+  collectionProgress: many(userCollectionProgress),
 }));
 
 export const referralsRelations = relations(referrals, ({ one }) => ({
@@ -421,10 +475,49 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
+// Seasonal collections relations
+export const seasonsRelations = relations(seasons, ({ many }) => ({
+  sectors: many(collectionSectors),
+  toys: many(toys),
+  userProgress: many(userCollectionProgress),
+}));
+
+export const collectionSectorsRelations = relations(collectionSectors, ({ one, many }) => ({
+  season: one(seasons, {
+    fields: [collectionSectors.seasonId],
+    references: [seasons.id],
+  }),
+  toys: many(toys),
+  userProgress: many(userCollectionProgress),
+}));
+
+export const userCollectionProgressRelations = relations(userCollectionProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userCollectionProgress.userId],
+    references: [users.id],
+  }),
+  season: one(seasons, {
+    fields: [userCollectionProgress.seasonId],
+    references: [seasons.id],
+  }),
+  sector: one(collectionSectors, {
+    fields: [userCollectionProgress.sectorId],
+    references: [collectionSectors.id],
+  }),
+}));
+
 export const toysRelations = relations(toys, ({ one, many }) => ({
   owner: one(users, {
     fields: [toys.ownerId],
     references: [users.id],
+  }),
+  season: one(seasons, {
+    fields: [toys.seasonId],
+    references: [seasons.id],
+  }),
+  sector: one(collectionSectors, {
+    fields: [toys.sectorId],
+    references: [collectionSectors.id],
   }),
   listings: many(listings),
 }));
@@ -646,6 +739,32 @@ export const insertCashOutTransactionSchema = createInsertSchema(cashOutTransact
 });
 
 export type InsertCashOutTransaction = z.infer<typeof insertCashOutTransactionSchema>;
+
+// Seasonal collection schemas
+export const insertSeasonSchema = createInsertSchema(seasons).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCollectionSectorSchema = createInsertSchema(collectionSectors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserCollectionProgressSchema = createInsertSchema(userCollectionProgress).omit({
+  id: true,
+  lastUpdated: true,
+  completedAt: true,
+});
+
+export type InsertSeason = z.infer<typeof insertSeasonSchema>;
+export type InsertCollectionSector = z.infer<typeof insertCollectionSectorSchema>;
+export type InsertUserCollectionProgress = z.infer<typeof insertUserCollectionProgressSchema>;
+export type Season = typeof seasons.$inferSelect;
+export type CollectionSector = typeof collectionSectors.$inferSelect;
+export type UserCollectionProgress = typeof userCollectionProgress.$inferSelect;
 
 // New table insert schemas
 export const insertPendingPurchaseSchema = createInsertSchema(pendingPurchases).omit({
