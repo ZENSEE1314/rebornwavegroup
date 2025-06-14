@@ -4896,6 +4896,36 @@ export const translations: Translations = {
     zh: 'RP积分',
     id: 'Kredit RP'
   },
+  'filters.spent': {
+    en: 'Spent',
+    zh: '已花费',
+    id: 'Digunakan'
+  },
+  'achievements.unlocked': {
+    en: '🎉 Achievement Unlocked!',
+    zh: '🎉 成就解锁！',
+    id: '🎉 Pencapaian Baru!'
+  },
+  'achievements.yourReward': {
+    en: '🏆 Your Reward:',
+    zh: '🏆 您的奖励：',
+    id: '🏆 Hadiah Anda:'
+  },
+  'referral.progress': {
+    en: 'Referral Progress:',
+    zh: '推荐进度：',
+    id: 'Progres Rujukan:'
+  },
+  'achievements.awesome': {
+    en: 'Awesome!',
+    zh: '太棒了！',
+    id: 'Luar Biasa!'
+  },
+  'achievements.waiting': {
+    en: '{{count}} more achievements waiting...',
+    zh: '还有 {{count}} 个成就在等待...',
+    id: '{{count}} pencapaian lagi menunggu...'
+  },
 
   'common.receive': {
     en: 'Receive',

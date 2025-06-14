@@ -7656,7 +7656,7 @@ export default function CompleteApp() {
                   >
                     <option value="all">{t("filters.all")}</option>
                     <option value="earned">{t("filters.earned")}</option>
-                    <option value="spent">{language === "id" ? "Digunakan" : "Spent"}</option>
+                    <option value="spent">{t('filters.spent')}</option>
                   </select>
                   <input
                     type="date"
@@ -7785,7 +7785,7 @@ export default function CompleteApp() {
             
             <div className="mt-8 mb-6">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                {language === "id" ? "🎉 Pencapaian Baru!" : "🎉 Achievement Unlocked!"}
+                {t('achievements.unlocked')}
               </h2>
               <div className={`inline-block px-4 py-2 rounded-full ${currentAchievement.bgColor} ${currentAchievement.borderColor} border-2 mb-4`}>
                 <h3 className="text-lg font-bold text-gray-800">{currentAchievement.title}</h3>
@@ -7795,7 +7795,7 @@ export default function CompleteApp() {
               {/* Reward section */}
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-lg p-4 mb-6">
                 <p className="text-sm font-semibold text-amber-800 mb-1">
-                  {language === "id" ? "🏆 Hadiah Anda:" : "🏆 Your Reward:"}
+                  {t('achievements.yourReward')}
                 </p>
                 <p className="text-lg font-bold text-amber-900">{currentAchievement.reward}</p>
               </div>
@@ -7803,7 +7803,7 @@ export default function CompleteApp() {
               {/* Progress indicator */}
               <div className="bg-gray-100 rounded-lg p-3 mb-6">
                 <p className="text-sm text-gray-600 mb-2">
-                  {language === "id" ? "Progres Rujukan:" : "Referral Progress:"}
+                  {t('referral.progress')}
                 </p>
                 <div className="flex items-center justify-center space-x-2">
                   <span className="text-2xl font-bold text-purple-600">{userReferrals.length}</span>
@@ -7820,15 +7820,13 @@ export default function CompleteApp() {
               onClick={closeAchievement}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transform transition-all duration-200 hover:scale-105"
             >
-              {language === "id" ? "Luar Biasa!" : "Awesome!"}
+              {t('achievements.awesome')}
             </Button>
             
             {/* Queue indicator */}
             {achievementQueue.length > 0 && (
               <p className="text-xs text-gray-500 mt-3">
-                {language === "id" 
-                  ? `${achievementQueue.length} pencapaian lagi menunggu...` 
-                  : `${achievementQueue.length} more achievements waiting...`}
+                {t('achievements.waiting', { count: achievementQueue.length })}
               </p>
             )}
           </div>
