@@ -438,6 +438,93 @@ export const translations: Translations = {
     id: 'Dapatkan token harian dan tukarkan dengan hadiah eksklusif'
   },
 
+  // Landing Page
+  'landing.subtitle': {
+    en: 'The Future of Beauty, Food & Beverage & Entertainment',
+    zh: '美容、餐饮和娱乐的未来',
+    id: 'Masa Depan Kecantikan, Makanan & Minuman & Hiburan'
+  },
+  'landing.aboutCompany': {
+    en: 'About Reborn Wave Group',
+    zh: '关于重生浪潮集团',
+    id: 'Tentang Reborn Wave Group'
+  },
+  'landing.aboutDescription': {
+    en: "The world's first 5-in-1 business concept revolutionizing lifestyle experiences",
+    zh: '世界首个5合1商业概念，革新生活方式体验',
+    id: 'Konsep bisnis 5-in-1 pertama di dunia yang merevolusi pengalaman gaya hidup'
+  },
+  'landing.ourVision': {
+    en: 'Our Vision',
+    zh: '我们的愿景',
+    id: 'Visi Kami'
+  },
+  'landing.visionText1': {
+    en: 'Based in Singapore, Reborn Wave Group is pioneering the world\'s first 5-in-1 business concept that seamlessly integrates beauty, food & beverage, gaming, KTV, and cutting-edge IT solutions into one extraordinary destination.',
+    zh: '总部位于新加坡，重生浪潮集团开创了世界首个5合1商业概念，将美容、餐饮、游戏、KTV和前沿IT解决方案无缝整合为一个非凡目的地。',
+    id: 'Bermarkas di Singapura, Reborn Wave Group memelopori konsep bisnis 5-in-1 pertama di dunia yang mengintegrasikan kecantikan, makanan & minuman, gaming, KTV, dan solusi IT canggih menjadi satu destinasi luar biasa.'
+  },
+  'landing.enterFuture': {
+    en: 'Enter the Future',
+    zh: '进入未来',
+    id: 'Masuki Masa Depan'
+  },
+  'landing.exploreServices': {
+    en: 'Explore Services',
+    zh: '探索服务',
+    id: 'Jelajahi Layanan'
+  },
+  'landing.fourSectors': {
+    en: 'Four Revolutionary Sectors',
+    zh: '四大革命性领域',
+    id: 'Empat Sektor Revolusioner'
+  },
+  'landing.sectorsDescription': {
+    en: 'Discover premium services designed for the modern lifestyle',
+    zh: '发现为现代生活方式设计的优质服务',
+    id: 'Temukan layanan premium yang dirancang untuk gaya hidup modern'
+  },
+  'landing.beautyWellness': {
+    en: 'Beauty & Wellness',
+    zh: '美容与健康',
+    id: 'Kecantikan & Kesehatan'
+  },
+  'landing.beautyDescription': {
+    en: 'Professional beauty treatments, wellness consultations, and premium spa services. Experience luxury skincare, rejuvenating therapies, and personalized beauty solutions.',
+    zh: '专业美容护理、健康咨询和优质水疗服务。体验奢华护肤、焕活疗法和个性化美容解决方案。',
+    id: 'Perawatan kecantikan profesional, konsultasi kesehatan, dan layanan spa premium. Rasakan perawatan kulit mewah, terapi peremajaan, dan solusi kecantikan yang dipersonalisasi.'
+  },
+  'landing.foodBeverage': {
+    en: 'Food & Beverage',
+    zh: '餐饮',
+    id: 'Makanan & Minuman'
+  },
+  'landing.foodDescription': {
+    en: 'Premium culinary experiences, artisan coffee, craft beverages, and gourmet dining services. Savor exceptional flavors and enjoy memorable dining moments with friends and family.',
+    zh: '优质烹饪体验、精品咖啡、精酿饮品和美食餐饮服务。品味非凡口味，与朋友和家人享受难忘的用餐时光。',
+    id: 'Pengalaman kuliner premium, kopi artisan, minuman craft, dan layanan fine dining. Nikmati rasa istimewa dan momen makan berkesan bersama teman dan keluarga.'
+  },
+  'landing.entertainment': {
+    en: 'Entertainment & Gaming',
+    zh: '娱乐与游戏',
+    id: 'Hiburan & Gaming'
+  },
+  'landing.entertainmentDescription': {
+    en: 'Premium entertainment experiences, gaming lounges, collectible trading, and exclusive events. Immerse yourself in cutting-edge entertainment technology and community experiences.',
+    zh: '优质娱乐体验、游戏休息室、收藏品交易和独家活动。沉浸在前沿娱乐技术和社区体验中。',
+    id: 'Pengalaman hiburan premium, gaming lounge, perdagangan koleksi, dan acara eksklusif. Nikmati teknologi hiburan canggih dan pengalaman komunitas.'
+  },
+  'landing.corporateEvents': {
+    en: 'Corporate Events',
+    zh: '企业活动',
+    id: 'Acara Korporat'
+  },
+  'landing.corporateDescription': {
+    en: 'Professional event planning, corporate retreats, team building activities, and business conferences. Create memorable corporate experiences that strengthen relationships and drive success.',
+    zh: '专业活动策划、企业度假、团队建设活动和商务会议。创造难忘的企业体验，加强关系并推动成功。',
+    id: 'Perencanaan acara profesional, corporate retreat, kegiatan team building, dan konferensi bisnis. Ciptakan pengalaman korporat berkesan yang memperkuat hubungan dan mendorong kesuksesan.'
+  },
+
   // Authentication
   'auth.email': {
     en: 'Email',
@@ -453,6 +540,61 @@ export const translations: Translations = {
     en: 'Confirm Password',
     zh: '确认密码',
     id: 'Konfirmasi Kata Sandi'
+  },
+  'auth.login': {
+    en: 'Login',
+    zh: '登录',
+    id: 'Masuk'
+  },
+  'auth.signUp': {
+    en: 'Sign Up',
+    zh: '注册',
+    id: 'Daftar'
+  },
+  'auth.signIn': {
+    en: 'Sign In',
+    zh: '登录',
+    id: 'Masuk'
+  },
+  'auth.signingIn': {
+    en: 'Signing in...',
+    zh: '登录中...',
+    id: 'Sedang masuk...'
+  },
+  'auth.forgotPassword': {
+    en: 'Forgot password?',
+    zh: '忘记密码？',
+    id: 'Lupa kata sandi?'
+  },
+  'auth.orContinueWith': {
+    en: 'Or continue with',
+    zh: '或继续使用',
+    id: 'Atau lanjutkan dengan'
+  },
+  'auth.welcomeTitle': {
+    en: 'Reborn Wave Pet Care',
+    zh: '重生浪潮宠物护理',
+    id: 'Perawatan Hewan Peliharaan Reborn Wave'
+  },
+  'auth.welcomeDescription': {
+    en: 'Your digital pet adventure awaits',
+    zh: '您的数字宠物冒险在等待',
+    id: 'Petualangan hewan peliharaan digital Anda menanti'
+  },
+  'auth.referralCodeInfo': {
+    en: 'Have a referral code? Enter it in the form below before choosing your sign-up method',
+    zh: '有推荐码？在选择注册方式之前在下面的表格中输入',
+    id: 'Punya kode referral? Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
+  },
+  'auth.enterEmail': {
+    en: 'Enter your email',
+    zh: '输入您的电子邮件',
+    id: 'Masukkan email Anda'
+  },
+  'auth.enterPassword': {
+    en: 'Enter your password',
+    zh: '输入您的密码',
+    id: 'Masukkan kata sandi Anda'
   },
   'auth.firstName': {
     en: 'First Name',

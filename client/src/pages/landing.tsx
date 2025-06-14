@@ -76,7 +76,7 @@ export default function Landing() {
           <div className="mb-10">
             <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-400/40 rounded-full text-sm font-semibold backdrop-blur-md shadow-lg hover:shadow-purple-500/20 transition-all duration-300">
               <Sparkles className="w-4 h-4 mr-2 text-purple-300" />
-              The Future of Beauty, Food & Beverage & Entertainment
+              {t('landing.subtitle')}
             </div>
           </div>
           
@@ -97,7 +97,7 @@ export default function Landing() {
               className="group bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
               <Rocket className="w-5 h-5 mr-2 group-hover:animate-pulse" />
-              <span>Enter the Future</span>
+              <span>{t('landing.enterFuture')}</span>
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
             </Button>
             <Button 
@@ -106,7 +106,7 @@ export default function Landing() {
               className="border-white/30 bg-white/10 hover:bg-white/20 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:shadow-xl"
             >
               <Globe className="w-5 h-5 mr-2" />
-              Explore Services
+              {t('landing.exploreServices')}
             </Button>
           </div>
 
@@ -120,11 +120,11 @@ export default function Landing() {
               </div>
               <h3 className="text-3xl md:text-4xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  About Reborn Wave Group
+                  {t('landing.aboutCompany')}
                 </span>
               </h3>
               <p className="text-xl text-white/70 max-w-4xl mx-auto mb-8">
-                The world's first 5-in-1 business concept revolutionizing lifestyle experiences
+                {t('landing.aboutDescription')}
               </p>
             </div>
             
@@ -132,10 +132,9 @@ export default function Landing() {
               {/* About Content */}
               <div className="space-y-6">
                 <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
-                  <h4 className="text-2xl font-bold text-white mb-6">Our Vision</h4>
+                  <h4 className="text-2xl font-bold text-white mb-6">{t('landing.ourVision')}</h4>
                   <p className="text-white/70 leading-relaxed mb-4">
-                    Based in Singapore, Reborn Wave Group is pioneering the world's first 5-in-1 business concept that seamlessly 
-                    integrates beauty, food & beverage, gaming, KTV, and cutting-edge IT solutions into one extraordinary destination.
+                    {t('landing.visionText1')}
                   </p>
                   <p className="text-white/70 leading-relaxed mb-4">
                     We are a comprehensive one-stop station designed for tours, couples, families, and corporate clients to enjoy 
@@ -194,11 +193,11 @@ export default function Landing() {
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                Four Revolutionary Sectors
+                {t('landing.fourSectors')}
               </span>
             </h2>
             <p className="text-xl text-white/70 max-w-3xl mx-auto">
-              Discover premium services designed for the modern lifestyle
+              {t('landing.sectorsDescription')}
             </p>
           </div>
           
@@ -210,10 +209,9 @@ export default function Landing() {
                 <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center mb-6">
                   <Palette className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Beauty & Wellness</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.beautyWellness')}</h3>
                 <p className="text-white/70 mb-6 leading-relaxed">
-                  Professional beauty treatments, wellness consultations, and premium spa services. 
-                  Experience luxury skincare, rejuvenating therapies, and personalized beauty solutions.
+                  {t('landing.beautyDescription')}
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
@@ -239,10 +237,9 @@ export default function Landing() {
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mb-6">
                   <span className="text-3xl">🍽️</span>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Food & Beverage</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.foodBeverage')}</h3>
                 <p className="text-white/70 mb-6 leading-relaxed">
-                  Premium culinary experiences, artisan coffee, craft beverages, and gourmet dining services. 
-                  Savor exceptional flavors and enjoy memorable dining moments with friends and family.
+                  {t('landing.foodDescription')}
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
@@ -268,10 +265,9 @@ export default function Landing() {
                 <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl flex items-center justify-center mb-6">
                   <GamepadIcon className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Entertainment & Gaming</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.entertainment')}</h3>
                 <p className="text-white/70 mb-6 leading-relaxed">
-                  Premium entertainment experiences, gaming lounges, collectible trading, and exclusive events. 
-                  Immerse yourself in cutting-edge entertainment technology and community experiences.
+                  {t('landing.entertainmentDescription')}
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">
@@ -297,10 +293,9 @@ export default function Landing() {
                 <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6">
                   <Calendar className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Corporate Events</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.corporateEvents')}</h3>
                 <p className="text-white/70 mb-6 leading-relaxed">
-                  Professional event planning, corporate retreats, team building activities, and business conferences. 
-                  Create memorable corporate experiences that strengthen relationships and drive success.
+                  {t('landing.corporateDescription')}
                 </p>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 text-white/80">

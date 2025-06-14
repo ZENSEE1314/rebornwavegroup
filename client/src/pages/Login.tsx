@@ -13,6 +13,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users } from "lucide-react";
 import { FaGoogle, FaFacebook, FaInstagram } from "react-icons/fa";
+import { useTranslation } from "@/lib/i18n";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -52,6 +54,7 @@ type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function Login() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
