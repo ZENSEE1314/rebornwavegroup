@@ -4638,6 +4638,66 @@ export const translations: Translations = {
     zh: '服务条款',
     id: 'Syarat Layanan'
   },
+  'common.version': {
+    en: 'Version',
+    zh: '版本',
+    id: 'Versi'
+  },
+  'common.language': {
+    en: 'Language',
+    zh: '语言',
+    id: 'Bahasa'
+  },
+  'common.theme': {
+    en: 'Theme',
+    zh: '主题',
+    id: 'Tema'
+  },
+  'theme.dark': {
+    en: 'Dark',
+    zh: '深色',
+    id: 'Gelap'
+  },
+  'theme.light': {
+    en: 'Light',
+    zh: '浅色',
+    id: 'Terang'
+  },
+  'theme.auto': {
+    en: 'Auto',
+    zh: '自动',
+    id: 'Otomatis'
+  },
+  'common.notifications': {
+    en: 'Notifications',
+    zh: '通知',
+    id: 'Notifikasi'
+  },
+  'common.email': {
+    en: 'Email',
+    zh: '邮件',
+    id: 'Email'
+  },
+  'common.sms': {
+    en: 'SMS',
+    zh: '短信',
+    id: 'SMS'
+  },
+  'common.push': {
+    en: 'Push',
+    zh: '推送',
+    id: 'Push'
+  },
+  'common.all': {
+    en: 'All',
+    zh: '全部',
+    id: 'Semua'
+  },
+  'common.none': {
+    en: 'None',
+    zh: '无',
+    id: 'Tidak Ada'
+  },
 
 
 };
