@@ -5,6 +5,88 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/lib/i18n';
 import petGuideImage from '@assets/Doluruu Grandpa_1749903476706.png';
 
+// Arrow Pointer Component
+interface ArrowPointerProps {
+  targetElement: string;
+  position: string;
+}
+
+function ArrowPointer({ targetElement, position }: ArrowPointerProps) {
+  const [arrowPosition, setArrowPosition] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const element = document.querySelector(targetElement);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let arrowX = centerX;
+        let arrowY = centerY;
+        
+        // Adjust position based on arrow direction
+        switch (position) {
+          case 'top':
+            arrowY = rect.top - 40;
+            break;
+          case 'bottom':
+            arrowY = rect.bottom + 40;
+            break;
+          case 'left':
+            arrowX = rect.left - 40;
+            break;
+          case 'right':
+            arrowX = rect.right + 40;
+            break;
+        }
+        
+        setArrowPosition({ top: arrowY, left: arrowX });
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition);
+    
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition);
+    };
+  }, [targetElement, position]);
+
+  const getArrowIcon = () => {
+    switch (position) {
+      case 'top':
+        return <ChevronUp className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'bottom':
+        return <ChevronDown className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'left':
+        return <ChevronLeft className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      case 'right':
+        return <ChevronRight className="w-8 h-8 text-yellow-400 animate-bounce" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div 
+      className="fixed z-45 pointer-events-none"
+      style={{ 
+        top: arrowPosition.top, 
+        left: arrowPosition.left, 
+        transform: 'translate(-50%, -50%)' 
+      }}
+    >
+      <div className="relative">
+        {getArrowIcon()}
+        <div className="absolute -inset-2 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
+      </div>
+    </div>
+  );
+}
+
 interface OnboardingStep {
   id: string;
   title: string;
@@ -72,30 +154,30 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       petAnimation: 'excited'
     },
     {
-      id: 'pets-tab',
-      title: 'Pet Care Tab',
-      description: 'Access your pet care features here. Feed, clean, and play with your digital pets!',
-      targetElement: '[data-tab="pets"]',
+      id: 'petcare-tab',
+      title: t('onboarding.petcare.title'),
+      description: t('onboarding.petcare.description'),
+      targetElement: '[data-tab="petcare"]',
       position: 'bottom',
-      petMessage: 'This tab is where all the magic happens - your pets are waiting for you!',
+      petMessage: t('onboarding.petcare.petMessage'),
       petAnimation: 'pointing'
     },
     {
-      id: 'shop-tab',
-      title: 'Shop & Marketplace',
-      description: 'Browse toys, activate new pets, and explore the marketplace!',
-      targetElement: '[data-tab="shop"]',
+      id: 'marketplace-tab',
+      title: t('onboarding.marketplace.title'),
+      description: t('onboarding.marketplace.description'),
+      targetElement: '[data-tab="marketplace"]',
       position: 'bottom',
-      petMessage: 'Find amazing toys and expand your collection here!',
+      petMessage: t('onboarding.marketplace.petMessage'),
       petAnimation: 'excited'
     },
     {
-      id: 'rewards-tab',
-      title: 'Rewards Center',
-      description: 'Claim daily rewards and redeem loyalty points for amazing prizes!',
-      targetElement: '[data-tab="rewards"]',
+      id: 'loyalty-tab',
+      title: t('onboarding.loyaltyTab.title'),
+      description: t('onboarding.loyaltyTab.description'),
+      targetElement: '[data-tab="loyalty"]',
       position: 'bottom',
-      petMessage: 'Don\'t forget to claim your daily rewards - every day brings new surprises!',
+      petMessage: t('onboarding.loyaltyTab.petMessage'),
       petAnimation: 'celebrating'
     },
     {
@@ -132,21 +214,7 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
     }
   }, [currentStep, isOpen, currentStepData.targetElement]);
 
-  // Function to get arrow direction based on position
-  const getArrowIcon = (position: string) => {
-    switch (position) {
-      case 'top':
-        return <ChevronUp className="w-8 h-8 text-yellow-400 animate-bounce" />;
-      case 'bottom':
-        return <ChevronDown className="w-8 h-8 text-yellow-400 animate-bounce" />;
-      case 'left':
-        return <ChevronLeft className="w-8 h-8 text-yellow-400 animate-bounce" />;
-      case 'right':
-        return <ChevronRight className="w-8 h-8 text-yellow-400 animate-bounce" />;
-      default:
-        return null;
-    }
-  };
+
 
   // Function to get modal position
   const getModalPosition = () => {
@@ -231,14 +299,12 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
         </div>
       )}
 
-      {/* Animated Arrow Pointer */}
+      {/* Dynamic Arrow Pointer */}
       {currentStepData.targetElement && currentStepData.position !== 'center' && (
-        <div className="fixed inset-0 flex items-center justify-center z-45 pointer-events-none">
-          <div className="relative">
-            {getArrowIcon(currentStepData.position)}
-            <div className="absolute -inset-2 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
-          </div>
-        </div>
+        <ArrowPointer 
+          targetElement={currentStepData.targetElement}
+          position={currentStepData.position}
+        />
       )}
 
       {/* Onboarding Modal */}

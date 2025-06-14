@@ -2393,6 +2393,51 @@ export const translations: Translations = {
     zh: '每个选项卡都打开了新的可能性世界 - 花时间探索它们！',
     id: 'Setiap tab membuka dunia kemungkinan baru - luangkan waktu untuk menjelajahi semuanya!'
   },
+  'onboarding.petcare.title': {
+    en: 'Pet Care Center',
+    zh: '宠物护理中心',
+    id: 'Pusat Perawatan Hewan'
+  },
+  'onboarding.petcare.description': {
+    en: 'This is where you care for your digital pets. Feed, clean, and play with them to keep them happy!',
+    zh: '这是您照顾数字宠物的地方。喂食、清洁和与它们玩耍以保持它们快乐！',
+    id: 'Di sinilah Anda merawat hewan peliharaan digital. Beri makan, bersihkan, dan bermain dengan mereka agar tetap bahagia!'
+  },
+  'onboarding.petcare.petMessage': {
+    en: 'This tab is where all the magic happens - your pets are waiting for your love and care!',
+    zh: '这个选项卡是所有奇迹发生的地方 - 您的宠物正在等待您的爱和关怀！',
+    id: 'Tab ini adalah tempat semua keajaiban terjadi - hewan peliharaan Anda menunggu cinta dan perhatian Anda!'
+  },
+  'onboarding.marketplace.title': {
+    en: 'Marketplace & Shop',
+    zh: '市场与商店',
+    id: 'Pasar & Toko'
+  },
+  'onboarding.marketplace.description': {
+    en: 'Browse and buy toys, activate new pets, and explore the marketplace for amazing collectibles!',
+    zh: '浏览和购买玩具，激活新宠物，并探索市场以获得惊人的收藏品！',
+    id: 'Jelajahi dan beli mainan, aktifkan hewan peliharaan baru, dan jelajahi pasar untuk koleksi yang menakjubkan!'
+  },
+  'onboarding.marketplace.petMessage': {
+    en: 'Find amazing toys and expand your collection here - every purchase brings new joy!',
+    zh: '在这里找到惊人的玩具并扩展您的收藏 - 每次购买都会带来新的快乐！',
+    id: 'Temukan mainan yang menakjubkan dan perluas koleksi Anda di sini - setiap pembelian membawa kebahagiaan baru!'
+  },
+  'onboarding.loyaltyTab.title': {
+    en: 'Loyalty Rewards',
+    zh: '忠诚度奖励',
+    id: 'Hadiah Loyalitas'
+  },
+  'onboarding.loyaltyTab.description': {
+    en: 'Claim daily rewards, redeem loyalty points, and unlock special bonuses for your dedication!',
+    zh: '领取每日奖励，兑换忠诚度积分，并为您的奉献解锁特殊奖金！',
+    id: 'Klaim hadiah harian, tukarkan poin loyalitas, dan buka bonus khusus untuk dedikasi Anda!'
+  },
+  'onboarding.loyaltyTab.petMessage': {
+    en: 'Don\'t forget to claim your daily rewards - consistency brings the best treasures!',
+    zh: '不要忘记领取您的每日奖励 - 坚持会带来最好的宝藏！',
+    id: 'Jangan lupa klaim hadiah harian Anda - konsistensi membawa harta terbaik!'
+  },
   'onboarding.complete.title': {
     en: 'You\'re Ready to Go!',
     zh: '您准备好了！',
