@@ -4204,16 +4204,6 @@ export const translations: Translations = {
     zh: '退出',
     id: 'Keluar'
   },
-  'common.save': {
-    en: 'Save',
-    zh: '保存',
-    id: 'Simpan'
-  },
-  'common.cancel': {
-    en: 'Cancel',
-    zh: '取消',
-    id: 'Batal'
-  },
   'common.yes': {
     en: 'Yes',
     zh: '是',
@@ -4239,31 +4229,8 @@ export const translations: Translations = {
     zh: '查看详情',
     id: 'Lihat Detail'
   },
-  'common.close': {
-    en: 'Close',
-    zh: '关闭',
-    id: 'Tutup'
-  },
-  'common.confirm': {
-    en: 'Confirm',
-    zh: '确认',
-    id: 'Konfirmasi'
-  },
-  'common.message': {
-    en: 'Message',
-    zh: '消息',
-    id: 'Pesan'
-  },
-  'common.next': {
-    en: 'Next',
-    zh: '下一个',
-    id: 'Berikutnya'
-  },
-  'common.previous': {
-    en: 'Previous',
-    zh: '上一个',
-    id: 'Sebelumnya'
-  },
+
+
   'common.select': {
     en: 'Select',
     zh: '选择',
@@ -4304,11 +4271,7 @@ export const translations: Translations = {
     zh: '价格：Rp ',
     id: 'Harga: Rp '
   },
-  'profile.title': {
-    en: 'Your Profile',
-    zh: '您的个人资料',
-    id: 'Profil Anda'
-  },
+
   'profile.memberSince': {
     en: 'Member Since:',
     zh: '注册时间：',
@@ -4324,31 +4287,7 @@ export const translations: Translations = {
     zh: '个人信息',
     id: 'Informasi Pribadi'
   },
-  'form.firstName': {
-    en: 'First Name',
-    zh: '名字',
-    id: 'Nama Depan'
-  },
-  'form.lastName': {
-    en: 'Last Name',
-    zh: '姓氏',
-    id: 'Nama Belakang'
-  },
-  'form.gender': {
-    en: 'Gender',
-    zh: '性别',
-    id: 'Jenis Kelamin'
-  },
-  'form.dateOfBirth': {
-    en: 'Date of Birth',
-    zh: '出生日期',
-    id: 'Tanggal Lahir'
-  },
-  'form.phoneNumber': {
-    en: 'Phone Number',
-    zh: '电话号码',
-    id: 'Nomor Telepon'
-  }
+
 };
 
 // Language context and hook
