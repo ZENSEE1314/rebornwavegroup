@@ -4248,6 +4248,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seasonal Collections API endpoints
+  app.get('/api/seasons', requireAuth, async (req: any, res) => {
+    try {
+      const seasons = await db.select({
+        id: schema.seasons.id,
+        name: schema.seasons.name,
+        displayName: schema.seasons.displayName,
+        description: schema.seasons.description,
+        iconUrl: schema.seasons.iconUrl,
+        backgroundColor: schema.seasons.backgroundColor,
+        isActive: schema.seasons.isActive,
+        displayOrder: schema.seasons.displayOrder,
+      }).from(schema.seasons)
+        .where(eq(schema.seasons.isActive, true))
+        .orderBy(schema.seasons.displayOrder);
+
+      res.json(seasons);
+    } catch (error) {
+      console.error("Error fetching seasons:", error);
+      res.status(500).json({ message: "Failed to fetch seasons" });
+    }
+  });
+
+  app.get('/api/seasons/:seasonId/sectors', requireAuth, async (req: any, res) => {
+    try {
+      const { seasonId } = req.params;
+      const sectors = await db.select({
+        id: schema.collectionSectors.id,
+        seasonId: schema.collectionSectors.seasonId,
+        name: schema.collectionSectors.name,
+        displayName: schema.collectionSectors.displayName,
+        description: schema.collectionSectors.description,
+        iconSymbol: schema.collectionSectors.iconSymbol,
+        backgroundColor: schema.collectionSectors.backgroundColor,
+        unlockCondition: schema.collectionSectors.unlockCondition,
+        isUnlocked: schema.collectionSectors.isUnlocked,
+        displayOrder: schema.collectionSectors.displayOrder,
+      }).from(schema.collectionSectors)
+        .where(eq(schema.collectionSectors.seasonId, parseInt(seasonId)))
+        .orderBy(schema.collectionSectors.displayOrder);
+
+      res.json(sectors);
+    } catch (error) {
+      console.error("Error fetching collection sectors:", error);
+      res.status(500).json({ message: "Failed to fetch collection sectors" });
+    }
+  });
+
+  app.get('/api/user/collection-progress', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const progress = await db.select({
+        id: schema.userCollectionProgress.id,
+        seasonId: schema.userCollectionProgress.seasonId,
+        sectorId: schema.userCollectionProgress.sectorId,
+        totalItems: schema.userCollectionProgress.totalItems,
+        collectedItems: schema.userCollectionProgress.collectedItems,
+        completionPercentage: schema.userCollectionProgress.completionPercentage,
+        isCompleted: schema.userCollectionProgress.isCompleted,
+        lastUpdated: schema.userCollectionProgress.lastUpdated,
+        season: {
+          id: schema.seasons.id,
+          name: schema.seasons.name,
+          displayName: schema.seasons.displayName,
+          backgroundColor: schema.seasons.backgroundColor,
+        },
+        sector: {
+          id: schema.collectionSectors.id,
+          name: schema.collectionSectors.name,
+          displayName: schema.collectionSectors.displayName,
+          iconSymbol: schema.collectionSectors.iconSymbol,
+        }
+      }).from(schema.userCollectionProgress)
+        .leftJoin(schema.seasons, eq(schema.userCollectionProgress.seasonId, schema.seasons.id))
+        .leftJoin(schema.collectionSectors, eq(schema.userCollectionProgress.sectorId, schema.collectionSectors.id))
+        .where(eq(schema.userCollectionProgress.userId, userId));
+
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching user collection progress:", error);
+      res.status(500).json({ message: "Failed to fetch collection progress" });
+    }
+  });
+
+  app.get('/api/seasons/:seasonId/toys', requireAuth, async (req: any, res) => {
+    try {
+      const { seasonId } = req.params;
+      const { sectorId } = req.query;
+      const userId = getUserId(req);
+
+      let query = db.select({
+        id: schema.toys.id,
+        name: schema.toys.name,
+        series: schema.toys.series,
+        rarity: schema.toys.rarity,
+        color: schema.toys.color,
+        imageUrl: schema.toys.imageUrl,
+        ownerId: schema.toys.ownerId,
+        isActivated: schema.toys.isActivated,
+        seasonId: schema.toys.seasonId,
+        sectorId: schema.toys.sectorId,
+        collectionProgress: schema.toys.collectionProgress,
+        isSeasonalExclusive: schema.toys.isSeasonalExclusive,
+        releaseDate: schema.toys.releaseDate,
+        isOwned: sql<boolean>`CASE WHEN ${schema.toys.ownerId} = ${userId} THEN true ELSE false END`,
+      }).from(schema.toys)
+        .where(eq(schema.toys.seasonId, parseInt(seasonId)));
+
+      if (sectorId) {
+        query = query.where(eq(schema.toys.sectorId, parseInt(sectorId as string)));
+      }
+
+      const toys = await query.orderBy(schema.toys.rarity, schema.toys.name);
+      res.json(toys);
+    } catch (error) {
+      console.error("Error fetching seasonal toys:", error);
+      res.status(500).json({ message: "Failed to fetch seasonal toys" });
+    }
+  });
+
   // Get user dashboard stats from database - OPTIMIZED for performance
   app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
