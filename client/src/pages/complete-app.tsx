@@ -4425,8 +4425,8 @@ export default function CompleteApp() {
 
     if (amount > userCredits) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
+        title: t('common.error'),
+        description: t('credits.insufficient'),
         variant: "destructive"
       });
       return;
@@ -4436,10 +4436,12 @@ export default function CompleteApp() {
     if (!validateAccountNumber(bankName, accountNumber)) {
       const bank = indonesianBanks.find(b => b.code === bankName);
       toast({
-        title: language === "id" ? "Nomor Rekening Tidak Valid" : "Invalid Account Number",
-        description: language === "id" ? 
-          `Nomor rekening ${bank?.name} harus ${bank?.minDigits}-${bank?.maxDigits} digit` :
-          `${bank?.name} account number must be ${bank?.minDigits}-${bank?.maxDigits} digits`,
+        title: t('account.invalidAccountNumber'),
+        description: t('account.accountNumberDigits', { 
+          bankName: bank?.name, 
+          minDigits: bank?.minDigits, 
+          maxDigits: bank?.maxDigits 
+        }),
         variant: "destructive"
       });
       return;
@@ -4712,8 +4714,8 @@ export default function CompleteApp() {
     const price = parseFloat(listing.price || '0');
     if (userCredits < price) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Kredit tidak mencukupi" : "Insufficient credits",
+        title: t('common.error'),
+        description: t('credits.insufficient'),
         variant: "destructive"
       });
       return;
@@ -4848,8 +4850,8 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Berhasil" : "Success",
-          description: language === "id" ? "Password berhasil diubah" : "Password changed successfully"
+          title: t('common.success'),
+          description: t('profile.passwordChangedSuccessfully')
         });
         setShowPasswordModal(false);
         setCurrentPassword("");
@@ -4859,7 +4861,7 @@ export default function CompleteApp() {
         const error = await response.json();
         toast({
           title: "Error",
-          description: error.message || (language === "id" ? "Gagal mengubah password" : "Failed to change password"),
+          description: error.message || t('profile.passwordChangeFailed'),
           variant: "destructive"
         });
       }
@@ -4888,7 +4890,7 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Berhasil" : "Success",
+          title: t('common.success'),
           description: t('settings.notificationsSaved')
         });
         setShowEmailModal(false);

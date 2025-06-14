@@ -3490,6 +3490,21 @@ export const translations: Translations = {
     en: 'Password must be at least 6 characters',
     zh: '密码至少需要6个字符',
     id: 'Password minimal 6 karakter'
+  },
+  'account.invalidAccountNumber': {
+    en: 'Invalid Account Number',
+    zh: '无效的账户号码',
+    id: 'Nomor Rekening Tidak Valid'
+  },
+  'account.accountNumberDigits': {
+    en: '{{bankName}} account number must be {{minDigits}}-{{maxDigits}} digits',
+    zh: '{{bankName}} 账户号码必须为 {{minDigits}}-{{maxDigits}} 位数字',
+    id: 'Nomor rekening {{bankName}} harus {{minDigits}}-{{maxDigits}} digit'
+  },
+  'profile.passwordChangedSuccessfully': {
+    en: 'Password changed successfully',
+    zh: '密码修改成功',
+    id: 'Password berhasil diubah'
   }
 };
 
