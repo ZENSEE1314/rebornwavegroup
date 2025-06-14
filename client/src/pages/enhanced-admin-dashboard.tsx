@@ -2008,7 +2008,7 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Season" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Season</SelectItem>
+                          <SelectItem value="none">No Season</SelectItem>
                           <SelectItem value="1">Spring Collection</SelectItem>
                           <SelectItem value="2">Summer Collection</SelectItem>
                           <SelectItem value="3">Autumn Collection</SelectItem>
@@ -2024,7 +2024,7 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Sector</SelectItem>
+                          <SelectItem value="none">No Sector</SelectItem>
                           <SelectItem value="1">Rare Finds</SelectItem>
                           <SelectItem value="2">Daily Discoveries</SelectItem>
                           <SelectItem value="3">Event Exclusives</SelectItem>
