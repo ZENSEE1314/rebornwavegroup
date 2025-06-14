@@ -75,6 +75,7 @@ function EnhancedAdminDashboard() {
     name: "",
     series: "",
     rarity: "common",
+    color: "",
     imageUrl: "",
     qrCode: "",
     seasonId: null as number | null,
@@ -165,16 +166,24 @@ function EnhancedAdminDashboard() {
     baseName: "",
     quantity: 10,
     rarity: "common",
+    color: "",
     seasonId: null as number | null,
     sectorId: null as number | null,
-    imageUrl: ""
+    imageUrl: "",
+    toyNames: "",
+    basePointsCost: 100,
+    baseCreditsCost: 50,
+    isSeasonalExclusive: false
   });
   
   // Token management dialog states (using existing declaration at line 71)
   const [tokenForm, setTokenForm] = useState({
     type: "daily_reward",
     pointsCost: 100,
-    creditAmount: 1000
+    creditAmount: 1000,
+    userId: "",
+    amount: 0,
+    reason: ""
   });
 
   // Content management dialog states
@@ -286,12 +295,12 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and sector management queries
-  const { data: seasons = [] } = useQuery({
+  const { data: seasonsResponse } = useQuery({
     queryKey: ['/api/admin/seasons'],
     retry: false,
   });
 
-  const { data: sectors = [] } = useQuery({
+  const { data: sectorsResponse } = useQuery({
     queryKey: ['/api/admin/sectors'],
     retry: false,
   });
@@ -4424,7 +4433,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {seasons.map((season: any) => (
+                    {(seasonsResponse?.data || []).map((season: any) => (
                       <div key={season.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: season.backgroundColor}}>
                         <div className="flex items-center space-x-3">
                           <div 
@@ -4502,7 +4511,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {sectors.map((sector: any) => (
+                    {(sectorsResponse?.data || []).map((sector: any) => (
                       <div key={sector.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: sector.backgroundColor}}>
                         <div className="flex items-center space-x-3">
                           <div 
@@ -4514,7 +4523,7 @@ function EnhancedAdminDashboard() {
                           <div>
                             <p className="font-medium text-white">{sector.displayName}</p>
                             <p className="text-sm text-gray-400">{sector.description}</p>
-                            <p className="text-xs text-gray-500">Season: {seasons.find((s: any) => s.id === sector.seasonId)?.displayName}</p>
+                            <p className="text-xs text-gray-500">Season: {(seasonsResponse?.data || []).find((s: any) => s.id === sector.seasonId)?.displayName}</p>
                           </div>
                         </div>
                         <div className="flex space-x-2">
