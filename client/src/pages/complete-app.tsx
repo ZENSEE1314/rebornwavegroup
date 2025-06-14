@@ -5990,7 +5990,7 @@ export default function CompleteApp() {
                 <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
                   <h4 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
                     <Users className="w-5 h-5 mr-2" />
-                    {language === "id" ? "Poin Rujukan" : "Referral Points"}
+                    {t("referral.points")}
                   </h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -6012,7 +6012,7 @@ export default function CompleteApp() {
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                   <h4 className="text-lg font-semibold text-green-800 mb-3 flex items-center">
                     <Target className="w-5 h-5 mr-2" />
-                    {language === "id" ? "Target Rujukan" : "Referral Milestones"}
+                    {t("referral.milestones")}
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
                     {allAchievements.filter(a => a.type === 'referral').map((achievement, index) => (
@@ -6036,13 +6036,13 @@ export default function CompleteApp() {
                 <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
                   <h4 className="text-lg font-semibold text-orange-800 mb-3 flex items-center">
                     <Star className="w-5 h-5 mr-2" />
-                    {language === "id" ? "Pencapaian Belanja" : "Spending Achievement"}
+                    {t("achievements.spending")}
                   </h4>
                   <div className="bg-white rounded p-3 shadow-sm">
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="font-medium text-gray-800">
-                          {language === "id" ? "Mentor Belanja" : "Shopping Mentor"}
+                          {t("shopping.mentor")}
                         </p>
                         <p className="text-sm text-gray-600">
                           {language === "id" 
@@ -6059,12 +6059,12 @@ export default function CompleteApp() {
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
                   <h4 className="text-lg font-semibold text-purple-800 mb-3 flex items-center">
                     <Trophy className="w-5 h-5 mr-2" />
-                    {language === "id" ? "Progres Saat Ini" : "Current Progress"}
+                    {t("progress.current")}
                   </h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
-                        {language === "id" ? "Total Rujukan:" : "Total Referrals:"}
+                        {t("referral.totalReferrals")}
                       </span>
                       <span className="font-bold text-purple-600">{userReferrals.length}</span>
                     </div>
@@ -6076,7 +6076,7 @@ export default function CompleteApp() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">
-                        {language === "id" ? "Target Berikutnya:" : "Next Milestone:"}
+                        {t("referral.nextMilestone")}
                       </span>
                       <span className="font-bold text-gray-800">
                         {allAchievements.filter(a => a.type === 'referral').find(m => m.count > userReferrals.length)?.count || 

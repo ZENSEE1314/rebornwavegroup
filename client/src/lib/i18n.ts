@@ -3716,6 +3716,81 @@ export const translations: Translations = {
     en: 'Used',
     zh: '已使用',
     id: 'Digunakan'
+  },
+  'achievements.rulesAndPoints': {
+    en: 'Achievement Rules & Points',
+    zh: '成就规则和积分',
+    id: 'Aturan Pencapaian & Poin'
+  },
+  'referral.points': {
+    en: 'Referral Points',
+    zh: '推荐积分',
+    id: 'Poin Rujukan'
+  },
+  'referral.milestones': {
+    en: 'Referral Milestones',
+    zh: '推荐里程碑',
+    id: 'Target Rujukan'
+  },
+  'achievements.spending': {
+    en: 'Spending Achievement',
+    zh: '消费成就',
+    id: 'Pencapaian Belanja'
+  },
+  'commission.store': {
+    en: 'Commission Store',
+    zh: '佣金商店',
+    id: 'Toko Komisi'
+  },
+  'digital.store': {
+    en: 'Digital Store',
+    zh: '数字商店',
+    id: 'Toko Digital'
+  },
+  'navigation.gifts': {
+    en: 'Gifts',
+    zh: '礼品',
+    id: 'Hadiah'
+  },
+  'navigation.collection': {
+    en: 'Collection',
+    zh: '收藏',
+    id: 'Koleksi'
+  },
+  'shopping.mentor': {
+    en: 'Shopping Mentor',
+    zh: '购物导师',
+    id: 'Mentor Belanja'
+  },
+  'progress.current': {
+    en: 'Current Progress',
+    zh: '当前进度',
+    id: 'Progres Saat Ini'
+  },
+  'referral.totalReferrals': {
+    en: 'Total Referrals:',
+    zh: '总推荐数：',
+    id: 'Total Rujukan:'
+  },
+  'referral.nextMilestone': {
+    en: 'Next Milestone:',
+    zh: '下一个里程碑：',
+    id: 'Target Berikutnya:'
+  },
+  'achievement.allCompleted': {
+    en: 'All completed!',
+    zh: '全部完成！',
+    id: 'Semua tercapai!'
+  },
+  'points.howTheyWork': {
+    en: 'How Points Work',
+    zh: '积分如何运作',
+    id: 'Cara Kerja Poin'
+  },
+  'points.exchangeInfo': {
+    en: 'Points can be exchanged for credits or rewards',
+    zh: '积分可以兑换积分或奖励',
+    id: 'Poin dapat ditukar dengan kredit atau hadiah'
   }
 };
 
