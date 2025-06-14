@@ -4194,6 +4194,16 @@ export const translations: Translations = {
     zh: '选择日期',
     id: 'Pilih Tanggal'
   },
+  'admin.role': {
+    en: 'Administrator',
+    zh: '管理员',
+    id: 'Administrator'
+  },
+  'auth.logout': {
+    en: 'Logout',
+    zh: '退出',
+    id: 'Keluar'
+  },
   'date.format': {
     en: 'en-US',
     zh: 'zh-CN',
