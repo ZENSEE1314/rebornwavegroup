@@ -3878,6 +3878,41 @@ export const translations: Translations = {
     en: 'Manage all your activity history',
     zh: '管理您的所有活动历史记录',
     id: 'Kelola semua riwayat aktivitas Anda'
+  },
+  'common.points': {
+    en: 'Points',
+    zh: '积分',
+    id: 'Poin'
+  },
+  'common.credits': {
+    en: 'Credits',
+    zh: '积分',
+    id: 'Kredit'
+  },
+  'common.tokens': {
+    en: 'Tokens',
+    zh: '代币',
+    id: 'Token'
+  },
+  'common.bookings': {
+    en: 'Bookings',
+    zh: '预订',
+    id: 'Booking'
+  },
+  'common.redemptions': {
+    en: 'Redemptions',
+    zh: '兑换',
+    id: 'Penukaran'
+  },
+  'history.filtersSearch': {
+    en: 'Filters & Search',
+    zh: '筛选和搜索',
+    id: 'Filter & Pencarian'
+  },
+  'date.startDate': {
+    en: 'Start Date',
+    zh: '开始日期',
+    id: 'Tanggal Mulai'
   }
 };
 

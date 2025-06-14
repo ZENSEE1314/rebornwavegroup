@@ -6615,11 +6615,11 @@ export default function CompleteApp() {
             {/* History Type Tabs */}
             <div className="flex flex-wrap gap-2 mb-6">
               {[
-                { key: 'points', label: language === "id" ? "Poin" : "Points", icon: "🎯" },
-                { key: 'credits', label: language === "id" ? "Kredit" : "Credits", icon: "💰" },
-                { key: 'tokens', label: language === "id" ? "Token" : "Tokens", icon: "🪙" },
-                { key: 'appointments', label: language === "id" ? "Booking" : "Bookings", icon: "📅" },
-                { key: 'redemptions', label: language === "id" ? "Penukaran" : "Redemptions", icon: "🎁" }
+                { key: 'points', label: t("common.points"), icon: "🎯" },
+                { key: 'credits', label: t("common.credits"), icon: "💰" },
+                { key: 'tokens', label: t("common.tokens"), icon: "🪙" },
+                { key: 'appointments', label: t("common.bookings"), icon: "📅" },
+                { key: 'redemptions', label: t("common.redemptions"), icon: "🎁" }
               ].map((tab) => (
                 <Button
                   key={tab.key}
@@ -6641,14 +6641,14 @@ export default function CompleteApp() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Filter className="h-5 w-5" />
-                  {language === "id" ? "Filter & Pencarian" : "Filters & Search"}
+                  {t("history.filtersSearch")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      {language === "id" ? "Tanggal Mulai" : "Start Date"}
+                      {t("date.startDate")}
                     </label>
                     <input
                       type="date"
@@ -6659,7 +6659,7 @@ export default function CompleteApp() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      {language === "id" ? "Tanggal Akhir" : "End Date"}
+                      {t("date.endDate")}
                     </label>
                     <input
                       type="date"
@@ -6800,7 +6800,7 @@ export default function CompleteApp() {
                                   
                                   <span className="font-semibold">
                                     {historyFilter === 'tokens' ? 
-                                      `${item.tokensRequested} ${language === "id" ? "Token" : "Tokens"}` :
+                                      `${item.tokensRequested} ${t("common.tokens")}` :
                                       item.description || item.serviceName || `${item.points || item.amount || 0}`
                                     }
                                   </span>
