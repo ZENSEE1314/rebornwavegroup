@@ -1141,11 +1141,6 @@ export const translations: Translations = {
     zh: '请选择玩具并输入价格',
     id: 'Harap pilih mainan dan masukkan harga'
   },
-  'rewards.insufficientPoints': {
-    en: 'Insufficient Points',
-    zh: '积分不足',
-    id: 'Poin Tidak Cukup'
-  },
   'rewards.outOfStock': {
     en: 'Out of Stock',
     zh: '库存不足',
@@ -4612,6 +4607,36 @@ export const translations: Translations = {
     en: 'Order Number',
     zh: '订单编号',
     id: 'Nomor Pesanan'
+  },
+  'common.settings': {
+    en: 'Settings',
+    zh: '设置',
+    id: 'Pengaturan'
+  },
+  'common.help': {
+    en: 'Help',
+    zh: '帮助',
+    id: 'Bantuan'
+  },
+  'common.about': {
+    en: 'About',
+    zh: '关于',
+    id: 'Tentang'
+  },
+  'common.contactUs': {
+    en: 'Contact Us',
+    zh: '联系我们',
+    id: 'Hubungi Kami'
+  },
+  'common.privacyPolicy': {
+    en: 'Privacy Policy',
+    zh: '隐私政策',
+    id: 'Kebijakan Privasi'
+  },
+  'common.termsOfService': {
+    en: 'Terms of Service',
+    zh: '服务条款',
+    id: 'Syarat Layanan'
   },
 
 
