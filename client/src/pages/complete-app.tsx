@@ -3523,7 +3523,7 @@ export default function CompleteApp() {
       console.error('Error accessing camera:', error);
       toast({
         title: t('camera.notAvailable'),
-        description: language === "id" ? "Tidak dapat mengakses kamera. Gunakan input manual." : "Cannot access camera. Please use manual input.",
+        description: t('camera.useManual'),
         variant: "destructive",
       });
     }
@@ -4689,7 +4689,7 @@ export default function CompleteApp() {
       if (response.ok) {
         toast({
           title: language === "id" ? "Pembelian Dibatalkan" : "Purchase Cancelled",
-          description: language === "id" ? "Kredit dikembalikan ke akun Anda" : "Credits refunded to your account"
+          description: t('account.creditsRefunded')
         });
         
         // Refresh all data from database
@@ -4805,7 +4805,7 @@ export default function CompleteApp() {
       if (response.ok) {
         toast({
           title: language === "id" ? "Penjualan Dikonfirmasi!" : "Sale Confirmed!",
-          description: language === "id" ? "Kredit telah ditambahkan ke akun Anda" : "Credits have been added to your account"
+          description: t('account.creditsAdded')
         });
         
         // Refresh all data from database
@@ -4898,13 +4898,13 @@ export default function CompleteApp() {
       if (response.ok) {
         toast({
           title: language === "id" ? "Berhasil" : "Success",
-          description: language === "id" ? "Pengaturan notifikasi berhasil disimpan" : "Notification settings saved successfully"
+          description: t('settings.notificationsSaved')
         });
         setShowEmailModal(false);
       } else {
         toast({
           title: "Error",
-          description: language === "id" ? "Gagal menyimpan pengaturan" : "Failed to save settings",
+          description: t('settings.saveFailed'),
           variant: "destructive"
         });
       }
@@ -4942,7 +4942,7 @@ export default function CompleteApp() {
         
         toast({
           title: language === "id" ? "Berhasil!" : "Success!",
-          description: language === "id" ? "Profil berhasil diperbarui" : "Profile updated successfully",
+          description: t('profile.updateSuccess'),
         });
       } else {
         toast({

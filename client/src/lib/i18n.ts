@@ -3305,6 +3305,26 @@ export const translations: Translations = {
     en: 'Cannot access camera. Please use manual input.',
     zh: '无法访问摄像头。请使用手动输入。',
     id: 'Tidak dapat mengakses kamera. Gunakan input manual.'
+  },
+  'account.creditsRefunded': {
+    en: 'Credits refunded to your account',
+    zh: '积分已退还到您的账户',
+    id: 'Kredit dikembalikan ke akun Anda'
+  },
+  'account.creditsAdded': {
+    en: 'Credits have been added to your account',
+    zh: '积分已添加到您的账户',
+    id: 'Kredit telah ditambahkan ke akun Anda'
+  },
+  'settings.notificationsSaved': {
+    en: 'Notification settings saved successfully',
+    zh: '通知设置保存成功',
+    id: 'Pengaturan notifikasi berhasil disimpan'
+  },
+  'settings.saveFailed': {
+    en: 'Failed to save settings',
+    zh: '保存设置失败',
+    id: 'Gagal menyimpan pengaturan'
   }
 };
 
