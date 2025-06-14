@@ -4808,26 +4808,7 @@ export const translations: Translations = {
     zh: '接收关于预约和促销的更新',
     id: 'Terima update tentang janji dan promosi'
   },
-  'account.actions': {
-    en: 'Account Actions',
-    zh: '账户操作',
-    id: 'Aksi Akun'
-  },
-  'account.editProfile': {
-    en: 'Edit Profile',
-    zh: '编辑资料',
-    id: 'Edit Profil'
-  },
-  'account.changePassword': {
-    en: 'Change Password',
-    zh: '更改密码',
-    id: 'Ubah Password'
-  },
-  'account.statistics': {
-    en: 'Account Statistics',
-    zh: '账户统计',
-    id: 'Statistik Akun'
-  },
+
   'account.currentCredits': {
     en: 'Current Credits',
     zh: '当前积分',

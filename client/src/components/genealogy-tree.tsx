@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, TrendingUp, Calendar, Crown } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { useLanguage } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
 
 interface GenealogyNode {
   id: number;
@@ -23,7 +23,7 @@ interface GenealogyTreeData {
 }
 
 export default function GenealogyTree() {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const { data: genealogyData, isLoading } = useQuery<GenealogyTreeData>({
     queryKey: ['/api/users/genealogy-tree'],
     retry: false,
