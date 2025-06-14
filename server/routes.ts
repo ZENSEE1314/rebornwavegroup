@@ -3464,40 +3464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
-    try {
-      const adminUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(adminUserId);
-      
-      if (!currentUser || currentUser.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
 
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 1000;
-      const offset = (page - 1) * limit;
-
-      const allUsers = await storage.getAllUsers();
-      const totalCount = allUsers.length;
-      const totalPages = Math.ceil(totalCount / limit);
-      const paginatedUsers = allUsers.slice(offset, offset + limit);
-
-      res.json({
-        data: paginatedUsers,
-        pagination: {
-          page,
-          limit,
-          totalCount,
-          totalPages,
-          hasNext: page < totalPages,
-          hasPrev: page > 1
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Failed to fetch users" });
-    }
-  });
 
   app.get('/api/admin/cash-outs', isAuthenticated, async (req: any, res) => {
     try {
