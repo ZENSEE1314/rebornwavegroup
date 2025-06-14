@@ -378,14 +378,9 @@ export const translations: Translations = {
   
   // Landing Page
   'landing.title': {
-    en: 'Welcome to Reborn Wave Group',
-    zh: '欢迎来到重生波浪集团',
-    id: 'Selamat Datang di Reborn Wave Group'
-  },
-  'landing.subtitle': {
-    en: 'Your Digital Pet Care Adventure Awaits',
-    zh: '您的数字宠物护理冒险等待着您',
-    id: 'Petualangan Perawatan Hewan Digital Anda Menanti'
+    en: 'Reborn Wave Group',
+    zh: '重生波浪集团',
+    id: 'Reborn Wave Group'
   },
   'landing.description': {
     en: 'Care for virtual dragons, earn tokens, and build your collection in this immersive pet care experience.',
@@ -439,6 +434,11 @@ export const translations: Translations = {
   },
 
   // Landing Page
+  'landing.platformSubtitle': {
+    en: 'Premium Digital Platform',
+    zh: '优质数字平台',
+    id: 'Platform Digital Premium'
+  },
   'landing.subtitle': {
     en: 'The Future of Beauty, Food & Beverage & Entertainment',
     zh: '美容、餐饮和娱乐的未来',

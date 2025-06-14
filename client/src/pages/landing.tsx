@@ -43,10 +43,10 @@ export default function Landing() {
               </div>
               <div className="hidden sm:block">
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  Reborn Wave Group
+                  {t('landing.title')}
                 </span>
                 <div className="text-xs text-white/60 font-medium tracking-wider">
-                  Premium Digital Platform
+                  {t('landing.platformSubtitle')}
                 </div>
               </div>
               <div className="sm:hidden">
