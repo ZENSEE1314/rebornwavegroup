@@ -2222,7 +2222,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           <CardHeader>
             <CardTitle>{t('toys.awaiting')}</CardTitle>
             <p className="text-sm text-gray-600">
-              {language === "id" ? "Aktivasi mainan untuk mengubahnya menjadi hewan peliharaan" : "Activate your toys to turn them into pets"}
+              {t('toys.activateDescription')}
             </p>
           </CardHeader>
           <CardContent>
@@ -2257,7 +2257,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       className="w-full bg-purple-600 hover:bg-purple-700"
                     >
                       <Heart className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Lahirkan" : "Born"}
+                      {t('common.born')}
                     </Button>
                   </CardContent>
                 </Card>
@@ -2292,9 +2292,9 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       {ownedToys.filter((toy: any) => toy.isActivated && !pets?.some((pet: any) => pet.toyId === toy.id)).length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{language === "id" ? "Mainan Aktif - Buat Hewan Peliharaan" : "Active Toys - Create Pets"}</CardTitle>
+            <CardTitle>{t('toys.active')}</CardTitle>
             <p className="text-sm text-gray-600">
-              {language === "id" ? "Ubah mainan aktif menjadi hewan peliharaan virtual" : "Turn active toys into virtual pets"}
+              {t('toys.createDescription')}
             </p>
           </CardHeader>
           <CardContent>
@@ -2316,7 +2316,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <p className="text-xs text-gray-500 mb-1">{toy.series}</p>
                     <div className="mb-3">
                       <Badge className="bg-green-100 text-green-800">
-                        {language === "id" ? "Aktif" : "Active"}
+                        {t('common.active')}
                       </Badge>
                     </div>
                     <Button 
@@ -2329,13 +2329,13 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         }).then(() => {
                           queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
                           toast({
-                            title: language === "id" ? "Berhasil!" : "Success!",
-                            description: language === "id" ? "Hewan peliharaan berhasil dibuat!" : "Pet successfully created!",
+                            title: t('success.title'),
+                            description: t('success.petCreated'),
                           });
                         }).catch((error) => {
                           toast({
-                            title: language === "id" ? "Error" : "Error", 
-                            description: error.message || (language === "id" ? "Gagal membuat hewan peliharaan" : "Failed to create pet"),
+                            title: t('error.title'), 
+                            description: error.message || t('error.petCreationFailed'),
                             variant: "destructive"
                           });
                         });
@@ -2343,7 +2343,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       className="w-full bg-green-600 hover:bg-green-700"
                     >
                       <Heart className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Buat Pet" : "Create Pet"}
+                      {t('common.createPet')}
                     </Button>
                   </CardContent>
                 </Card>
