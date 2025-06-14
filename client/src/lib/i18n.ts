@@ -540,6 +540,197 @@ export const translations: Translations = {
     id: 'Undang teman Anda dan dapatkan komisi 10% setiap kali mereka berbelanja di platform kami.'
   },
 
+  'landing.visionText2': {
+    en: 'Our venue features breathtaking scenery including a sky bar with stunning sea views, beautiful night lighting, and Instagram-worthy photo spots throughout the facility.',
+    zh: '我们的场地拥有令人叹为观止的景色，包括带有令人惊叹海景的天空酒吧、美丽的夜间照明，以及遍布整个设施的Instagram风格拍照点。',
+    id: 'Venue kami menampilkan pemandangan menakjubkan termasuk sky bar dengan pemandangan laut yang menawan, pencahayaan malam yang indah, dan spot foto yang layak untuk Instagram di seluruh fasilitas.'
+  },
+  'landing.conceptTitle': {
+    en: '5-in-1 Concept',
+    zh: '五合一概念',
+    id: 'Konsep 5-in-1'
+  },
+  'landing.conceptDescription': {
+    en: 'Beauty • F&B • Gaming • KTV • IT Solutions',
+    zh: '美容 • 餐饮 • 游戏 • KTV • IT解决方案',
+    id: 'Kecantikan • F&B • Gaming • KTV • Solusi IT'
+  },
+  'landing.globalFirstTitle': {
+    en: 'Global First',
+    zh: '全球首创',
+    id: 'Pertama Global'
+  },
+  'landing.globalFirstDescription': {
+    en: "World's first integrated lifestyle destination",
+    zh: '世界首个综合生活方式目的地',
+    id: 'Destinasi gaya hidup terintegrasi pertama di dunia'
+  },
+  'landing.visitUs': {
+    en: 'Visit Us',
+    zh: '拜访我们',
+    id: 'Kunjungi Kami'
+  },
+  'landing.ourLocation': {
+    en: 'Our Location',
+    zh: '我们的位置',
+    id: 'Lokasi Kami'
+  },
+  'landing.beautyFeature1': {
+    en: 'Advanced Skincare Treatments',
+    zh: '先进护肤治疗',
+    id: 'Perawatan Kulit Lanjutan'
+  },
+  'landing.beautyFeature2': {
+    en: 'Luxury Spa Experiences',
+    zh: '奢华水疗体验',
+    id: 'Pengalaman Spa Mewah'
+  },
+  'landing.beautyFeature3': {
+    en: 'Personal Beauty Consultations',
+    zh: '个人美容咨询',
+    id: 'Konsultasi Kecantikan Personal'
+  },
+  'landing.foodFeature1': {
+    en: 'Gourmet Dining Experiences',
+    zh: '美食用餐体验',
+    id: 'Pengalaman Bersantap Gourmet'
+  },
+  'landing.foodFeature2': {
+    en: 'Artisan Coffee & Beverages',
+    zh: '手工咖啡和饮品',
+    id: 'Kopi & Minuman Artisan'
+  },
+  'landing.foodFeature3': {
+    en: 'Catering & Event Services',
+    zh: '餐饮和活动服务',
+    id: 'Layanan Katering & Acara'
+  },
+  'landing.entertainmentFeature1': {
+    en: 'Gaming Lounge Access',
+    zh: '游戏休息室通道',
+    id: 'Akses Gaming Lounge'
+  },
+  'landing.entertainmentFeature2': {
+    en: 'Collectible Trading Platform',
+    zh: '收藏品交易平台',
+    id: 'Platform Trading Koleksi'
+  },
+  'landing.entertainmentFeature3': {
+    en: 'Exclusive Entertainment Events',
+    zh: '独家娱乐活动',
+    id: 'Acara Hiburan Eksklusif'
+  },
+  'landing.corporateFeature1': {
+    en: 'Business Conferences',
+    zh: '商务会议',
+    id: 'Konferensi Bisnis'
+  },
+  'landing.corporateFeature2': {
+    en: 'Team Building Events',
+    zh: '团队建设活动',
+    id: 'Acara Team Building'
+  },
+  'landing.corporateFeature3': {
+    en: 'Corporate Retreats',
+    zh: '企业聚会',
+    id: 'Retret Korporat'
+  },
+  'landing.inviteFriendsTitle': {
+    en: 'Invite Friends',
+    zh: '邀请朋友',
+    id: 'Undang Teman'
+  },
+  'landing.commissionText': {
+    en: 'Earn 10% commission every time your friends spend on our platform',
+    zh: '每次朋友在我们平台消费时获得10%佣金',
+    id: 'Dapatkan komisi 10% setiap kali teman Anda berbelanja di platform kami'
+  },
+  'landing.lifetimeEarnings': {
+    en: 'Lifetime Earnings',
+    zh: '终身收益',
+    id: 'Penghasilan Seumur Hidup'
+  },
+  'landing.simpleRewarding': {
+    en: 'Simple & Rewarding',
+    zh: '简单且有奖励',
+    id: 'Sederhana & Menguntungkan'
+  },
+  'landing.shareEarnText': {
+    en: 'Share with friends and earn 10% commission from every purchase they make',
+    zh: '与朋友分享，从他们的每次购买中获得10%佣金',
+    id: 'Bagikan dengan teman dan dapatkan komisi 10% dari setiap pembelian yang mereka lakukan'
+  },
+  'landing.passiveIncome': {
+    en: 'Passive Income',
+    zh: '被动收入',
+    id: 'Penghasilan Pasif'
+  },
+  'landing.passiveIncomeDesc': {
+    en: 'Earn money while you sleep from your network\'s activities',
+    zh: '从您网络的活动中赚取睡觉时的收入',
+    id: 'Dapatkan uang saat Anda tidur dari aktivitas jaringan Anda'
+  },
+  'landing.exclusiveBonuses': {
+    en: 'Exclusive Bonuses',
+    zh: '独家奖励',
+    id: 'Bonus Eksklusif'
+  },
+  'landing.exclusiveBonusesDesc': {
+    en: 'Unlock special rewards and VIP benefits as your network grows',
+    zh: '随着您网络的增长解锁特殊奖励和VIP福利',
+    id: 'Buka kunci hadiah khusus dan manfaat VIP saat jaringan Anda berkembang'
+  },
+  'landing.loyaltyPoints': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'landing.loyaltyPointsDesc': {
+    en: 'Earn points with every transaction and level up your status',
+    zh: '每次交易都能获得积分并提升您的状态',
+    id: 'Dapatkan poin dengan setiap transaksi dan tingkatkan status Anda'
+  },
+  'landing.joinRevolution': {
+    en: 'Join the Revolution',
+    zh: '加入革命',
+    id: 'Bergabung dengan Revolusi'
+  },
+  'landing.readyTransform': {
+    en: 'Ready to Transform',
+    zh: '准备改变',
+    id: 'Siap untuk Mengubah'
+  },
+  'landing.yourExperience': {
+    en: 'Your Experience?',
+    zh: '您的体验？',
+    id: 'Pengalaman Anda?'
+  },
+  'landing.joinThousands': {
+    en: 'Join thousands of users who are already experiencing the future of beauty, food & beverage, and entertainment. Start sharing with friends and earning 10% from their spending today.',
+    zh: '加入成千上万已经体验美容、餐饮和娱乐未来的用户。今天就开始与朋友分享，从他们的消费中获得10%收益。',
+    id: 'Bergabunglah dengan ribuan pengguna yang sudah merasakan masa depan kecantikan, makanan & minuman, dan hiburan. Mulai berbagi dengan teman dan mendapat 10% dari pengeluaran mereka hari ini.'
+  },
+  'landing.accessPlatform': {
+    en: 'Access the Platform',
+    zh: '访问平台',
+    id: 'Akses Platform'
+  },
+  'landing.learnMore': {
+    en: 'Learn More',
+    zh: '了解更多',
+    id: 'Pelajari Lebih Lanjut'
+  },
+  'landing.allRightsReserved': {
+    en: '© 2025 Reborn Wave Group. All rights reserved.',
+    zh: '© 2025 重生波浪集团。保留所有权利。',
+    id: '© 2025 Reborn Wave Group. Semua hak dilindungi.'
+  },
+  'landing.footerTagline': {
+    en: 'The future of beauty, food & beverage, entertainment & corporate events',
+    zh: '美容、餐饮、娱乐和企业活动的未来',
+    id: 'Masa depan kecantikan, makanan & minuman, hiburan & acara korporat'
+  },
+
   // Authentication
   'auth.email': {
     en: 'Email',

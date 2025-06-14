@@ -136,14 +136,8 @@ export default function Landing() {
                   <p className="text-white/70 leading-relaxed mb-4">
                     {t('landing.visionText1')}
                   </p>
-                  <p className="text-white/70 leading-relaxed mb-4">
-                    We are a comprehensive one-stop station designed for tours, couples, families, and corporate clients to enjoy 
-                    a full-day experience with us. From beauty treatments from top to tail, three complete meals (breakfast, lunch, dinner), 
-                    to entertainment for adults and kids - we offer it all.
-                  </p>
                   <p className="text-white/70 leading-relaxed">
-                    Our venue features breathtaking scenery including a sky bar with stunning sea views, beautiful night lighting, 
-                    and Instagram-worthy photo spots throughout the facility.
+                    {t('landing.visionText2')}
                   </p>
                 </div>
               </div>
@@ -155,15 +149,15 @@ export default function Landing() {
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
                       <span className="text-2xl">🏢</span>
                     </div>
-                    <h4 className="text-lg font-bold text-white mb-2">5-in-1 Concept</h4>
-                    <p className="text-white/70 text-sm">Beauty • F&B • Gaming • KTV • IT Solutions</p>
+                    <h4 className="text-lg font-bold text-white mb-2">{t('landing.conceptTitle')}</h4>
+                    <p className="text-white/70 text-sm">{t('landing.conceptDescription')}</p>
                   </div>
                   <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                     <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
                       <span className="text-2xl">🌏</span>
                     </div>
-                    <h4 className="text-lg font-bold text-white mb-2">Global First</h4>
-                    <p className="text-white/70 text-sm">World's first integrated lifestyle destination</p>
+                    <h4 className="text-lg font-bold text-white mb-2">{t('landing.globalFirstTitle')}</h4>
+                    <p className="text-white/70 text-sm">{t('landing.globalFirstDescription')}</p>
                   </div>
                 </div>
                 
