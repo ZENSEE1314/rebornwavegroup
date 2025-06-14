@@ -4563,6 +4563,56 @@ export const translations: Translations = {
     zh: '提现',
     id: 'Tarik Tunai'
   },
+  'payment.minimumWithdrawal': {
+    en: 'Minimum Withdrawal',
+    zh: '最低提现金额',
+    id: 'Minimum Penarikan'
+  },
+  'payment.withdrawalSuccessful': {
+    en: 'Withdrawal Successful',
+    zh: '提现成功',
+    id: 'Penarikan Berhasil'
+  },
+  'payment.withdrawalFailed': {
+    en: 'Withdrawal Failed',
+    zh: '提现失败',
+    id: 'Penarikan Gagal'
+  },
+  'purchase.confirmPurchase': {
+    en: 'Confirm Purchase',
+    zh: '确认购买',
+    id: 'Konfirmasi Pembelian'
+  },
+  'purchase.purchaseSuccessful': {
+    en: 'Purchase Successful',
+    zh: '购买成功',
+    id: 'Pembelian Berhasil'
+  },
+  'purchase.purchaseFailed': {
+    en: 'Purchase Failed',
+    zh: '购买失败',
+    id: 'Pembelian Gagal'
+  },
+  'order.cancel': {
+    en: 'Cancel Order',
+    zh: '取消订单',
+    id: 'Batalkan Pesanan'
+  },
+  'order.details': {
+    en: 'Order Details',
+    zh: '订单详情',
+    id: 'Detail Pesanan'
+  },
+  'order.status': {
+    en: 'Order Status',
+    zh: '订单状态',
+    id: 'Status Pesanan'
+  },
+  'order.number': {
+    en: 'Order Number',
+    zh: '订单编号',
+    id: 'Nomor Pesanan'
+  },
 
 
 };
