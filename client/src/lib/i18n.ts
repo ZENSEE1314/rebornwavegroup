@@ -3913,6 +3913,81 @@ export const translations: Translations = {
     en: 'Start Date',
     zh: '开始日期',
     id: 'Tanggal Mulai'
+  },
+  'date.endDate': {
+    en: 'End Date',
+    zh: '结束日期',
+    id: 'Tanggal Akhir'
+  },
+  'common.type': {
+    en: 'Type',
+    zh: '类型',
+    id: 'Tipe'
+  },
+  'common.search': {
+    en: 'Search',
+    zh: '搜索',
+    id: 'Cari'
+  },
+  'status.pending': {
+    en: 'Pending',
+    zh: '待处理',
+    id: 'Menunggu'
+  },
+  'status.approved': {
+    en: 'Approved',
+    zh: '已批准',
+    id: 'Disetujui'
+  },
+  'status.rejected': {
+    en: 'Rejected',
+    zh: '已拒绝',
+    id: 'Ditolak'
+  },
+  'filter.reset': {
+    en: 'Reset Filters',
+    zh: '重置筛选',
+    id: 'Reset Filter'
+  },
+  'history.points': {
+    en: 'Points History',
+    zh: '积分历史记录',
+    id: 'Riwayat Poin'
+  },
+  'history.credits': {
+    en: 'Credits History',
+    zh: '积分历史记录',
+    id: 'Riwayat Kredit'
+  },
+  'history.tokens': {
+    en: 'Tokens History',
+    zh: '代币历史记录',
+    id: 'Riwayat Token'
+  },
+  'history.appointments': {
+    en: 'Appointment History',
+    zh: '预约历史记录',
+    id: 'Riwayat Booking'
+  },
+  'history.redemptions': {
+    en: 'Redemption History',
+    zh: '兑换历史记录',
+    id: 'Riwayat Penukaran'
+  },
+  'common.page': {
+    en: 'Page',
+    zh: '页',
+    id: 'Halaman'
+  },
+  'common.noDataFound': {
+    en: 'No data found',
+    zh: '未找到数据',
+    id: 'Tidak ada data ditemukan'
+  },
+  'common.notes': {
+    en: 'Notes: ',
+    zh: '备注：',
+    id: 'Catatan: '
   }
 };
 

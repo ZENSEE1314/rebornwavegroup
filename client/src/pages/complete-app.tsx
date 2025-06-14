@@ -6678,10 +6678,10 @@ export default function CompleteApp() {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="all">{t("filters.all")}</option>
-                      <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
+                      <option value="pending">{t("status.pending")}</option>
                       <option value="completed">{t("status.completed")}</option>
-                      <option value="approved">{language === "id" ? "Disetujui" : "Approved"}</option>
-                      <option value="rejected">{language === "id" ? "Ditolak" : "Rejected"}</option>
+                      <option value="approved">{t("status.approved")}</option>
+                      <option value="rejected">{t("status.rejected")}</option>
                     </select>
                   </div>
                 </div>
@@ -6694,7 +6694,7 @@ export default function CompleteApp() {
                       setStatusFilter('all');
                     }}
                   >
-                    {language === "id" ? "Reset Filter" : "Reset Filters"}
+                    {t("filter.reset")}
                   </Button>
                 </div>
               </CardContent>
@@ -6705,14 +6705,14 @@ export default function CompleteApp() {
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
                   <span>
-                    {historyFilter === 'points' && (language === "id" ? "Riwayat Poin" : "Points History")}
-                    {historyFilter === 'credits' && (language === "id" ? "Riwayat Kredit" : "Credits History")}
-                    {historyFilter === 'tokens' && (language === "id" ? "Riwayat Token" : "Token History")}
-                    {historyFilter === 'appointments' && (language === "id" ? "Riwayat Booking" : "Booking History")}
-                    {historyFilter === 'redemptions' && (language === "id" ? "Riwayat Penukaran" : "Redemption History")}
+                    {historyFilter === 'points' && (t("history.points"))}
+                    {historyFilter === 'credits' && (t("history.credits"))}
+                    {historyFilter === 'tokens' && (t("history.tokens"))}
+                    {historyFilter === 'appointments' && (t("history.appointments"))}
+                    {historyFilter === 'redemptions' && (t("history.redemptions"))}
                   </span>
                   <div className="text-sm text-gray-500">
-                    {language === "id" ? "Halaman" : "Page"} {historyPage}
+                    {t("common.page")} {historyPage}
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -6825,10 +6825,10 @@ export default function CompleteApp() {
                                   'bg-gray-100 text-gray-800'
                                 }`}>
                                   {item.status === 'completed' ? (t("status.completed")) :
-                                   item.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
+                                   item.status === 'approved' ? (t("status.approved")) :
                                    item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
-                                   item.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
-                                   item.status === 'pending' ? (language === "id" ? "Menunggu" : "Pending") :
+                                   item.status === 'rejected' ? (t("status.rejected")) :
+                                   item.status === 'pending' ? (t("status.pending")) :
                                    (item.status || (language === "id" ? "Tidak diketahui" : "Unknown"))}
                                 </div>
                                 
@@ -7150,7 +7150,7 @@ export default function CompleteApp() {
                   </Button>
                   
                   <span className="text-sm text-gray-600">
-                    {language === "id" ? "Halaman" : "Page"} {toyInventoryPage} {t("pagination.of")} {Math.ceil(toyInventory.length / 10)}
+                    {t("common.page")} {toyInventoryPage} {t("pagination.of")} {Math.ceil(toyInventory.length / 10)}
                   </span>
                   
                   <Button
