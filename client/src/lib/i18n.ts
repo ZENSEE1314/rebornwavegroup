@@ -4478,6 +4478,41 @@ export const translations: Translations = {
     zh: '搜索...',
     id: 'Cari...'
   },
+  'referral.totalEarningsLabel': {
+    en: 'Total Referral Earnings',
+    zh: '总推荐收益',
+    id: 'Total Pendapatan Referral'
+  },
+  'referral.totalCount': {
+    en: 'Total Referrals',
+    zh: '总推荐数',
+    id: 'Total Referral'
+  },
+  'referral.network': {
+    en: 'Referral Network',
+    zh: '推荐网络',
+    id: 'Jaringan Referral'
+  },
+  'referral.shareDescription': {
+    en: 'Share your referral link to start building your network and earning commissions',
+    zh: '分享您的推荐链接开始建立网络并赚取佣金',
+    id: 'Bagikan link referral Anda untuk mulai membangun jaringan dan mendapatkan komisi'
+  },
+  'referral.noNetworkYet': {
+    en: 'No Referral Network Yet',
+    zh: '没有推荐网络',
+    id: 'Tidak Ada Jaringan Referral'
+  },
+  'common.copyLink': {
+    en: 'Copy Link',
+    zh: '复制链接',
+    id: 'Salin Link'
+  },
+  'toast.linkCopied': {
+    en: 'Link copied',
+    zh: '链接已复制',
+    id: 'Link Disalin'
+  },
 
 
 };
