@@ -3767,11 +3767,7 @@ export const translations: Translations = {
     zh: '当前进度',
     id: 'Progres Saat Ini'
   },
-  'referral.totalReferrals': {
-    en: 'Total Referrals:',
-    zh: '总推荐数：',
-    id: 'Total Rujukan:'
-  },
+
   'referral.nextMilestone': {
     en: 'Next Milestone:',
     zh: '下一个里程碑：',
@@ -3791,6 +3787,56 @@ export const translations: Translations = {
     en: 'Points can be exchanged for credits or rewards',
     zh: '积分可以兑换积分或奖励',
     id: 'Poin dapat ditukar dengan kredit atau hadiah'
+  },
+  'points.noTimeLimit': {
+    en: 'No time limit for using points',
+    zh: '使用积分没有时间限制',
+    id: 'Tidak ada batas waktu untuk menggunakan poin'
+  },
+  'common.startingFrom': {
+    en: 'Starting from',
+    zh: '起价',
+    id: 'Mulai dari'
+  },
+  'common.save': {
+    en: 'Save',
+    zh: '保存',
+    id: 'Simpan'
+  },
+  'appointment.reschedule': {
+    en: 'Reschedule',
+    zh: '重新安排',
+    id: 'Ubah'
+  },
+  'pagination.perPage': {
+    en: '10 per page',
+    zh: '每页10项',
+    id: '10 per halaman'
+  },
+  'listing.soldBy': {
+    en: 'Sold by',
+    zh: '销售者',
+    id: 'Dijual oleh'
+  },
+  'purchase.awaitingConfirmation': {
+    en: 'Awaiting Your Confirmation',
+    zh: '等待您的确认',
+    id: 'Menunggu Konfirmasi Anda'
+  },
+  'common.cancel': {
+    en: 'Cancel',
+    zh: '取消',
+    id: 'Tolak'
+  },
+  'listing.yourItem': {
+    en: 'Your Item',
+    zh: '您的物品',
+    id: 'Milik Anda'
+  },
+  'sale.cancelled': {
+    en: 'Sale Cancelled',
+    zh: '销售已取消',
+    id: 'Penjualan Dibatalkan'
   }
 };
 

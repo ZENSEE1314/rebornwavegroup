@@ -6080,7 +6080,7 @@ export default function CompleteApp() {
                       </span>
                       <span className="font-bold text-gray-800">
                         {allAchievements.filter(a => a.type === 'referral').find(m => m.count > userReferrals.length)?.count || 
-                         (language === "id" ? "Semua tercapai!" : "All completed!")}
+                         (t("achievement.allCompleted"))}
                       </span>
                     </div>
                   </div>
@@ -6089,13 +6089,13 @@ export default function CompleteApp() {
                 {/* How Points Work */}
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">
-                    {language === "id" ? "Cara Kerja Poin" : "How Points Work"}
+                    {t("points.howTheyWork")}
                   </h4>
                   <div className="space-y-2 text-sm text-gray-600">
                     <p>• {t('referral.autoPoints')}</p>
                     <p>• {t('referral.milestoneBonus')}</p>
-                    <p>• {language === "id" ? "Poin dapat ditukar dengan kredit atau hadiah" : "Points can be exchanged for credits or rewards"}</p>
-                    <p>• {language === "id" ? "Tidak ada batas waktu untuk menggunakan poin" : "No time limit for using points"}</p>
+                    <p>• {t("points.exchangeInfo")}</p>
+                    <p>• {t("points.noTimeLimit")}</p>
                   </div>
                 </div>
               </div>
@@ -6127,7 +6127,7 @@ export default function CompleteApp() {
                   </h3>
                   <p className="text-sm text-pink-600 mb-4">Hair Spa, Facials, Nails</p>
                   <Badge className="bg-pink-100 text-pink-800">
-                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.beauty.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories.beauty.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6140,7 +6140,7 @@ export default function CompleteApp() {
                   </h3>
                   <p className="text-sm text-blue-600 mb-4">Claw Machine, KTV Rooms</p>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.entertainment.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories.entertainment.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6153,7 +6153,7 @@ export default function CompleteApp() {
                   </h3>
                   <p className="text-sm text-green-600 mb-4">Breakfast, Lunch, Dinner</p>
                   <Badge className="bg-green-100 text-green-800">
-                    {language === "id" ? "Mulai dari" : "Starting from"} RP {serviceCategories.restaurant.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories.restaurant.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6331,7 +6331,7 @@ export default function CompleteApp() {
                                     </SelectContent>
                                   </Select>
                                   <Button size="sm" onClick={() => rescheduleAppointment(apt.id, apt.newDate || apt.date, apt.newTime || apt.time)}>
-                                    {language === "id" ? "Simpan" : "Save"}
+                                    {t("common.save")}
                                   </Button>
                                   <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
                                     {t('common.cancel')}
@@ -6342,7 +6342,7 @@ export default function CompleteApp() {
                                   {apt.status !== 'cancelled' && (
                                     <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
                                       <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                      <span className="hidden sm:inline ml-1">{language === "id" ? "Ubah" : "Reschedule"}</span>
+                                      <span className="hidden sm:inline ml-1">{t("appointment.reschedule")}</span>
                                     </Button>
                                   )}
                                   {apt.status !== 'cancelled' && (
