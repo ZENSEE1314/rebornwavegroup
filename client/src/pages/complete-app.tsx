@@ -3531,8 +3531,8 @@ export default function CompleteApp() {
   const simulateQRDetection = () => {
     // For demonstration purposes - in a real app, you'd use a QR code detection library
     toast({
-      title: language === "id" ? "Fitur Dalam Pengembangan" : "Feature Under Development",
-      description: language === "id" ? "Deteksi QR code otomatis akan segera tersedia. Silakan gunakan input manual." : "Automatic QR code detection coming soon. Please use manual input.",
+      title: t('qr.featureUnderDevelopment'),
+      description: t('qr.autoDetectionComingSoon'),
     });
     stopCamera();
   };
@@ -3883,14 +3883,14 @@ export default function CompleteApp() {
       setShowTokenClaimModal(false);
       setTokenClaimAmount("");
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Permintaan klaim token berhasil diajukan!" : "Token claim request submitted successfully!",
+        title: t('common.success'),
+        description: t('tokens.claimSubmittedSuccess'),
       });
     },
     onError: () => {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Gagal mengajukan klaim token" : "Failed to submit token claim",
+        title: t('common.error'),
+        description: t('tokens.claimSubmitFailed'),
         variant: "destructive",
       });
     },
@@ -4287,8 +4287,8 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Berhasil!" : "Success!",
-          description: language === "id" ? "Reservasi berhasil dibuat! Menunggu persetujuan admin" : "Appointment booked! Waiting for admin approval",
+          title: t('common.success'),
+          description: t('appointments.bookingSuccess'),
         });
         
         // Refresh user data to show new appointment
@@ -4327,8 +4327,8 @@ export default function CompleteApp() {
       if (response.ok) {
         setEditingAppointment(null);
         toast({
-          title: language === "id" ? "Berhasil!" : "Success!",
-          description: language === "id" ? "Jadwal berhasil diubah" : "Appointment rescheduled successfully",
+          title: t('common.success'),
+          description: t('appointments.rescheduleSuccess'),
         });
         queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       } else {

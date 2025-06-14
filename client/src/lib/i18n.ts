@@ -3360,6 +3360,46 @@ export const translations: Translations = {
     en: 'Sleeping for {{time}}',
     zh: '已睡眠{{time}}',
     id: 'Telah tidur selama {{time}}'
+  },
+  'qr.featureUnderDevelopment': {
+    en: 'Feature Under Development',
+    zh: '功能开发中',
+    id: 'Fitur Dalam Pengembangan'
+  },
+  'qr.autoDetectionComingSoon': {
+    en: 'Automatic QR code detection coming soon. Please use manual input.',
+    zh: '自动二维码检测即将推出。请使用手动输入。',
+    id: 'Deteksi QR code otomatis akan segera tersedia. Silakan gunakan input manual.'
+  },
+  'common.success': {
+    en: 'Success!',
+    zh: '成功！',
+    id: 'Berhasil!'
+  },
+  'common.error': {
+    en: 'Error',
+    zh: '错误',
+    id: 'Error'
+  },
+  'tokens.claimSubmittedSuccess': {
+    en: 'Token claim request submitted successfully!',
+    zh: '代币申请提交成功！',
+    id: 'Permintaan klaim token berhasil diajukan!'
+  },
+  'tokens.claimSubmitFailed': {
+    en: 'Failed to submit token claim',
+    zh: '提交代币申请失败',
+    id: 'Gagal mengajukan klaim token'
+  },
+  'appointments.bookingSuccess': {
+    en: 'Appointment booked! Waiting for admin approval',
+    zh: '预约已创建！等待管理员批准',
+    id: 'Reservasi berhasil dibuat! Menunggu persetujuan admin'
+  },
+  'appointments.rescheduleSuccess': {
+    en: 'Appointment rescheduled successfully',
+    zh: '预约重新安排成功',
+    id: 'Jadwal berhasil diubah'
   }
 };
 
