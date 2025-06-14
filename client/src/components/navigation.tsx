@@ -15,6 +15,7 @@ export default function Navigation() {
     { name: "Dashboard", href: "/", current: location === "/" },
     { name: "Bookings", href: "/bookings", current: location === "/bookings" },
     { name: "Marketplace", href: "/marketplace", current: location === "/marketplace" },
+    { name: "Collections", href: "/seasonal-collections", current: location === "/seasonal-collections" },
     { name: "Loyalty", href: "/loyalty", current: location === "/loyalty" },
     { name: "Referrals", href: "/referrals", current: location === "/referrals" },
   ];

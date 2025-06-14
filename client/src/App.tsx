@@ -98,6 +98,7 @@ function Router() {
           <Route path="/referrals" component={Referrals} />
           <Route path="/my-referral" component={MyReferral} />
           <Route path="/loyalty-program" component={LoyaltyProgram} />
+          <Route path="/seasonal-collections" component={SeasonalCollections} />
           <Route path="/profile" component={Profile} />
         </>
       )}
