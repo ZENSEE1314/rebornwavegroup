@@ -3410,6 +3410,31 @@ export const translations: Translations = {
     en: 'Insufficient credits',
     zh: '积分不足',
     id: 'Kredit tidak mencukupi'
+  },
+  'cashout.requestSubmitted': {
+    en: 'Cash-out request submitted successfully',
+    zh: '提现申请提交成功',
+    id: 'Permintaan penarikan berhasil diajukan'
+  },
+  'cashout.processingFailed': {
+    en: 'Failed to process cash-out',
+    zh: '处理提现失败',
+    id: 'Gagal memproses penarikan'
+  },
+  'toys.enterQrCode': {
+    en: 'Enter toy QR code',
+    zh: '输入玩具二维码',
+    id: 'Masukkan kode QR mainan'
+  },
+  'marketplace.saleCanceled': {
+    en: 'Sale Canceled',
+    zh: '销售已取消',
+    id: 'Penjualan Dibatalkan'
+  },
+  'marketplace.toyReturnedToInventory': {
+    en: 'Toy returned to your inventory',
+    zh: '玩具已返回您的库存',
+    id: 'Mainan dikembalikan ke inventori Anda'
   }
 };
 

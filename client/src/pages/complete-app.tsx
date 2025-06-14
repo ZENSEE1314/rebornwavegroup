@@ -4461,8 +4461,8 @@ export default function CompleteApp() {
       setAccountHolderName("");
 
       toast({
-        title: language === "id" ? "Berhasil!" : "Success!",
-        description: language === "id" ? "Permintaan penarikan berhasil diajukan" : "Cash-out request submitted successfully",
+        title: t('common.success'),
+        description: t('cashout.requestSubmitted'),
       });
 
       // Refresh cash-out history from API
@@ -4473,8 +4473,8 @@ export default function CompleteApp() {
       // Transaction history now handled by database queries
     } catch (error) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Gagal memproses penarikan" : "Failed to process cash-out",
+        title: t('common.error'),
+        description: t('cashout.processingFailed'),
         variant: "destructive"
       });
     }
@@ -4483,8 +4483,8 @@ export default function CompleteApp() {
   const addToyByCode = async () => {
     if (!newToyCode) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Masukkan kode QR mainan" : "Enter toy QR code",
+        title: t('common.error'),
+        description: t('toys.enterQrCode'),
         variant: "destructive"
       });
       return;
@@ -4633,8 +4633,8 @@ export default function CompleteApp() {
     }
     
     toast({
-      title: language === "id" ? "Penjualan Dibatalkan" : "Sale Canceled",
-      description: language === "id" ? "Mainan dikembalikan ke inventori Anda" : "Toy returned to your inventory",
+      title: t('marketplace.saleCanceled'),
+      description: t('marketplace.toyReturnedToInventory'),
     });
   };
 
@@ -4649,8 +4649,8 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Penjualan Dibatalkan" : "Sale Cancelled",
-          description: language === "id" ? "Item dikembalikan ke marketplace dan kredit dikembalikan" : "Item returned to marketplace and credits refunded"
+          title: t('marketplace.saleCancelled'),
+          description: t('marketplace.itemReturnedWithRefund')
         });
         
         // Refresh all data from database
@@ -4679,7 +4679,7 @@ export default function CompleteApp() {
 
       if (response.ok) {
         toast({
-          title: language === "id" ? "Pembelian Dibatalkan" : "Purchase Cancelled",
+          title: t('marketplace.purchaseCancelled'),
           description: t('account.creditsRefunded')
         });
         
@@ -4702,8 +4702,8 @@ export default function CompleteApp() {
     // Check if trying to buy own item
     if (listing.sellerId === user?.id) {
       toast({
-        title: language === "id" ? "Error" : "Error",
-        description: language === "id" ? "Tidak bisa membeli item sendiri" : "Cannot buy your own item",
+        title: t('common.error'),
+        description: t('marketplace.cannotBuyOwnItem'),
         variant: "destructive"
       });
       return;
