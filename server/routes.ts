@@ -1177,7 +1177,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/appointment-events', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -3587,7 +3592,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Approve/Cancel appointment
   app.patch('/api/admin/appointments/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -3650,7 +3659,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Single toy creation
   app.post('/api/admin/create-toy', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -3690,7 +3703,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Bulk toy upload
   app.post('/api/admin/toys/bulk', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -3736,7 +3753,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update toy owner (admin only)
   app.patch('/api/admin/toys/:toyId/owner', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
