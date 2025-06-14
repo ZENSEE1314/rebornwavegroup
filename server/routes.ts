@@ -3577,7 +3577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -3915,7 +3915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Get admin fees report
   app.get('/api/admin/fees-report', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
