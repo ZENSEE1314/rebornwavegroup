@@ -4101,11 +4101,7 @@ export const translations: Translations = {
     zh: '邀请朋友并赚取佣金',
     id: 'Undang teman dan dapatkan komisi'
   },
-  'price.label': {
-    en: 'Price:',
-    zh: '价格：',
-    id: 'Harga:'
-  },
+
   'referral.direct': {
     en: 'Direct Referrals',
     zh: '直接推荐',
@@ -4875,6 +4871,32 @@ export const translations: Translations = {
     zh: '注意',
     id: 'Catatan'
   },
+  'marketplace.adminFeeNote': {
+    en: 'Includes 10% admin fee. Seller receives 90% of the sale price.',
+    zh: '包含10%管理费。卖家收到售价的90%。',
+    id: 'Termasuk biaya admin 10%. Penjual menerima 90% dari harga jual.'
+  },
+  'marketplace.creditDeductionNote': {
+    en: 'Credits will be deducted now. Seller must confirm to complete the transaction.',
+    zh: '积分将立即扣除。卖家必须确认完成交易。',
+    id: 'Kredit akan dipotong sekarang. Penjual harus mengkonfirmasi untuk menyelesaikan transaksi.'
+  },
+  'marketplace.yesBuy': {
+    en: 'Yes, Buy',
+    zh: '是的，购买',
+    id: 'Ya, Beli'
+  },
+  'account.financialHistory': {
+    en: 'Financial History',
+    zh: '财务历史',
+    id: 'Riwayat Keuangan'
+  },
+  'account.rpCredits': {
+    en: 'RP Credits',
+    zh: 'RP积分',
+    id: 'Kredit RP'
+  },
+
   'common.receive': {
     en: 'Receive',
     zh: '接收',

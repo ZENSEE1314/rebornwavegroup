@@ -7586,18 +7586,12 @@ export default function CompleteApp() {
                 </p>
                 <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
                   <p className="text-xs text-blue-600">
-                    <strong>{t('common.note')}:</strong> {language === "id" 
-                      ? "Termasuk biaya admin 10%. Penjual menerima 90% dari harga jual."
-                      : "Includes 10% admin fee. Seller receives 90% of the sale price."
-                    }
+                    <strong>{t('common.note')}:</strong> {t('marketplace.adminFeeNote')}
                   </p>
                 </div>
               </div>
               <p className="text-sm text-slate-600">
-                {language === "id" 
-                  ? "Kredit akan dipotong sekarang. Penjual harus mengkonfirmasi untuk menyelesaikan transaksi."
-                  : "Credits will be deducted now. Seller must confirm to complete the transaction."
-                }
+                {t('marketplace.creditDeductionNote')}
               </p>
             </div>
             <div className="flex space-x-3">
@@ -7617,7 +7611,7 @@ export default function CompleteApp() {
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
                 <Check className="w-4 h-4 mr-2" />
-                {language === "id" ? "Ya, Beli" : "Yes, Buy"}
+                {t('marketplace.yesBuy')}
               </Button>
             </div>
           </div>
@@ -7636,7 +7630,7 @@ export default function CompleteApp() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
-                {language === "id" ? "Riwayat Keuangan" : "Financial History"}
+                {t('account.financialHistory')}
               </h3>
               <Button variant="ghost" size="sm" onClick={() => setShowCreditHistory(false)}>
                 <X className="w-4 h-4" />
@@ -7647,7 +7641,7 @@ export default function CompleteApp() {
             <div className="mb-4">
               <h4 className="text-lg font-semibold text-slate-800 border-b pb-3 mb-4">
                 <DollarSign className="w-5 h-5 mr-2 inline" />
-                {language === "id" ? "Kredit RP" : "RP Credits"}
+                {t('account.rpCredits')}
               </h4>
             </div>
             
