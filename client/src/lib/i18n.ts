@@ -4788,6 +4788,66 @@ export const translations: Translations = {
     zh: '发送',
     id: 'Kirim'
   },
+  'common.manage': {
+    en: 'Manage',
+    zh: '管理',
+    id: 'Kelola'
+  },
+  'preferences.title': {
+    en: 'Preferences',
+    zh: '偏好设置',
+    id: 'Preferensi'
+  },
+  'preferences.emailNotifications': {
+    en: 'Email Notifications',
+    zh: '邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'preferences.emailDescription': {
+    en: 'Receive updates about appointments and promotions',
+    zh: '接收关于预约和促销的更新',
+    id: 'Terima update tentang janji dan promosi'
+  },
+  'account.actions': {
+    en: 'Account Actions',
+    zh: '账户操作',
+    id: 'Aksi Akun'
+  },
+  'account.editProfile': {
+    en: 'Edit Profile',
+    zh: '编辑资料',
+    id: 'Edit Profil'
+  },
+  'account.changePassword': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Password'
+  },
+  'account.statistics': {
+    en: 'Account Statistics',
+    zh: '账户统计',
+    id: 'Statistik Akun'
+  },
+  'account.currentCredits': {
+    en: 'Current Credits',
+    zh: '当前积分',
+    id: 'Kredit Saat Ini'
+  },
+  'account.loyaltyPoints': {
+    en: 'Loyalty Points',
+    zh: '忠诚度积分',
+    id: 'Poin Loyalitas'
+  },
+  'account.totalBookings': {
+    en: 'Total Bookings',
+    zh: '总预订数',
+    id: 'Total Reservasi'
+  },
+  'account.referralEarnings': {
+    en: 'Referral Earnings',
+    zh: '推荐收益',
+    id: 'Pendapatan Rujukan'
+  },
   'common.receive': {
     en: 'Receive',
     zh: '接收',
