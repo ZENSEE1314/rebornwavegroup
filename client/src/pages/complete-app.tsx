@@ -6925,11 +6925,11 @@ export default function CompleteApp() {
                       className="border-purple-300 text-purple-700 hover:bg-purple-50"
                     >
                       <Camera className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Kamera" : "Camera"}
+                      {t('camera.button')}
                     </Button>
                     <Button onClick={addToyByCode} className="bg-purple-600 hover:bg-purple-700">
                       <QrCode className="w-4 h-4 mr-2" />
-                      {language === "id" ? "Aktifkan" : "Activate"}
+                      {t('activation.activateButton')}
                     </Button>
                   </div>
                   <div className="bg-purple-100 p-4 rounded-lg">

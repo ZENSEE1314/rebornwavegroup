@@ -3335,6 +3335,16 @@ export const translations: Translations = {
     en: '1,000 secret rarity • 6,000 common rarity',
     zh: '1,000个秘密稀有度 • 6,000个普通稀有度',
     id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
+  },
+  'camera.button': {
+    en: 'Camera',
+    zh: '相机',
+    id: 'Kamera'
+  },
+  'activation.activateButton': {
+    en: 'Activate',
+    zh: '激活',
+    id: 'Aktifkan'
   }
 };
 
