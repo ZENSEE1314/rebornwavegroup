@@ -858,6 +858,56 @@ export const translations: Translations = {
     zh: '已有账户？',
     id: 'Sudah punya akun?'
   },
+  'auth.enterEmail': {
+    en: 'Enter your email',
+    zh: '输入您的电子邮件',
+    id: 'Masukkan email Anda'
+  },
+  'auth.enterPassword': {
+    en: 'Enter your password',
+    zh: '输入您的密码',
+    id: 'Masukkan kata sandi Anda'
+  },
+  'auth.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'auth.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'auth.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
+  },
+  'auth.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'auth.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'auth.male': {
+    en: 'Male',
+    zh: '男性',
+    id: 'Laki-laki'
+  },
+  'auth.female': {
+    en: 'Female',
+    zh: '女性',
+    id: 'Perempuan'
+  },
+  'auth.referralCode': {
+    en: 'Referral Code (Optional)',
+    zh: '推荐码（可选）',
+    id: 'Kode Referral (Opsional)'
+  },
   'auth.noAccount': {
     en: "Don't have an account?",
     zh: '没有账户？',

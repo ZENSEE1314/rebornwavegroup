@@ -451,12 +451,12 @@ export default function Login() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">{t('auth.lastName')}</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         id="lastName"
-                        placeholder="Last name"
+                        placeholder={t('auth.lastName')}
                         className="pl-10"
                         {...registerForm.register("lastName")}
                       />
