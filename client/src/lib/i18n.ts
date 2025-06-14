@@ -3687,25 +3687,35 @@ export const translations: Translations = {
     zh: '清除筛选',
     id: 'Hapus Filter'
   },
-  'pagination.showing': {
-    en: 'Showing',
-    zh: '显示',
-    id: 'Menampilkan'
-  },
-  'pagination.of': {
-    en: 'of',
-    zh: '的',
-    id: 'dari'
-  },
   'pagination.items': {
     en: 'items',
     zh: '项目',
     id: 'item'
   },
-  'pagination.previous': {
-    en: 'Previous',
-    zh: '上一页',
-    id: 'Sebelumnya'
+  'common.noData': {
+    en: 'No data',
+    zh: '无数据',
+    id: 'Tidak ada data'
+  },
+  'common.noHistory': {
+    en: 'No history',
+    zh: '无历史记录',
+    id: 'Tidak ada riwayat'
+  },
+  'common.next': {
+    en: 'Next',
+    zh: '下一个',
+    id: 'Selanjutnya'
+  },
+  'status.completed': {
+    en: 'Completed',
+    zh: '已完成',
+    id: 'Selesai'
+  },
+  'status.used': {
+    en: 'Used',
+    zh: '已使用',
+    id: 'Digunakan'
   }
 };
 

@@ -5823,7 +5823,7 @@ export default function CompleteApp() {
                                   onClick={() => setPointsHistoryPage(Math.min(totalPages, pointsHistoryPage + 1))}
                                   disabled={pointsHistoryPage === totalPages}
                                 >
-                                  {language === "id" ? "Selanjutnya" : "Next"}
+                                  {t("common.next")}
                                 </Button>
                               </div>
                             </div>
@@ -5864,8 +5864,8 @@ export default function CompleteApp() {
                         className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="all">{t("filters.all")}</option>
-                        <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
-                        <option value="used">{language === "id" ? "Digunakan" : "Used"}</option>
+                        <option value="completed">{t("status.completed")}</option>
+                        <option value="used">{t("status.used")}</option>
                       </select>
                       <input
                         type="date"
@@ -5946,7 +5946,7 @@ export default function CompleteApp() {
                                   onClick={() => setRedemptionHistoryPage(Math.min(totalPages, redemptionHistoryPage + 1))}
                                   disabled={redemptionHistoryPage === totalPages}
                                 >
-                                  {language === "id" ? "Selanjutnya" : "Next"}
+                                  {t("common.next")}
                                 </Button>
                               </div>
                             </div>
@@ -5973,7 +5973,7 @@ export default function CompleteApp() {
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-gray-800">
-                  {language === "id" ? "Aturan Pencapaian & Poin" : "Achievement Rules & Points"}
+                  {t("achievements.rulesAndPoints")}
                 </h3>
                 <Button
                   variant="ghost"
@@ -6382,7 +6382,7 @@ export default function CompleteApp() {
                               onClick={() => setAppointmentsPage(Math.min(totalPages, appointmentsPage + 1))}
                               disabled={appointmentsPage === totalPages}
                             >
-                              {language === "id" ? "Selanjutnya" : "Next"}
+                              {t("common.next")}
                             </Button>
                           </div>
                         )}
@@ -6589,7 +6589,7 @@ export default function CompleteApp() {
                             onClick={() => setMarketplacePage(Math.min(totalPages, marketplacePage + 1))}
                             disabled={marketplacePage === totalPages}
                           >
-                            {language === "id" ? "Selanjutnya" : "Next"}
+                            {t("common.next")}
                           </Button>
                         </div>
                       </div>
@@ -6679,7 +6679,7 @@ export default function CompleteApp() {
                     >
                       <option value="all">{t("filters.all")}</option>
                       <option value="pending">{language === "id" ? "Menunggu" : "Pending"}</option>
-                      <option value="completed">{language === "id" ? "Selesai" : "Completed"}</option>
+                      <option value="completed">{t("status.completed")}</option>
                       <option value="approved">{language === "id" ? "Disetujui" : "Approved"}</option>
                       <option value="rejected">{language === "id" ? "Ditolak" : "Rejected"}</option>
                     </select>
@@ -6824,7 +6824,7 @@ export default function CompleteApp() {
                                   item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {item.status === 'completed' ? (language === "id" ? "Selesai" : "Completed") :
+                                  {item.status === 'completed' ? (t("status.completed")) :
                                    item.status === 'approved' ? (language === "id" ? "Disetujui" : "Approved") :
                                    item.status === 'cancelled' ? (language === "id" ? "Dibatalkan" : "Cancelled") :
                                    item.status === 'rejected' ? (language === "id" ? "Ditolak" : "Rejected") :
@@ -6869,7 +6869,7 @@ export default function CompleteApp() {
                               onClick={() => setHistoryPage(Math.min(totalPages, historyPage + 1))}
                               disabled={historyPage === totalPages}
                             >
-                              {language === "id" ? "Selanjutnya" : "Next"}
+                              {t("common.next")}
                             </Button>
                           </div>
                         </div>
@@ -7159,7 +7159,7 @@ export default function CompleteApp() {
                     onClick={() => setToyInventoryPage(prev => Math.min(Math.ceil(toyInventory.length / 10), prev + 1))}
                     disabled={toyInventoryPage >= Math.ceil(toyInventory.length / 10)}
                   >
-                    {language === "id" ? "Selanjutnya" : "Next"}
+                    {t("common.next")}
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
@@ -7754,7 +7754,7 @@ export default function CompleteApp() {
                             onClick={() => setCreditHistoryPage(Math.min(totalPages, creditHistoryPage + 1))}
                             disabled={creditHistoryPage === totalPages}
                           >
-                            {language === "id" ? "Selanjutnya" : "Next"}
+                            {t("common.next")}
                           </Button>
                         </div>
                       </div>
@@ -8243,7 +8243,7 @@ export default function CompleteApp() {
                             onClick={() => setModalHistoryPage(Math.min(totalPages, modalHistoryPage + 1))}
                             disabled={modalHistoryPage === totalPages}
                           >
-                            {language === "id" ? "Selanjutnya" : "Next"}
+                            {t("common.next")}
                           </Button>
                         </div>
                       </div>
