@@ -153,9 +153,12 @@ function SeasonalCollectionsTab() {
                   <div className="text-center">
                     <div className="mb-4">
                       <img 
-                        src={toyImage} 
+                        src={toy.imageUrl || '/images/default-toy.png'} 
                         alt={toy.name} 
                         className="w-24 h-24 mx-auto object-contain"
+                        onError={(e) => {
+                          e.currentTarget.src = '/images/default-toy.png';
+                        }}
                       />
                     </div>
                     <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>

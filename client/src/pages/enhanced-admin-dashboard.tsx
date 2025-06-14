@@ -75,7 +75,10 @@ function EnhancedAdminDashboard() {
     series: "",
     rarity: "common",
     imageUrl: "",
-    qrCode: ""
+    qrCode: "",
+    seasonId: null as number | null,
+    sectorId: null as number | null,
+    isSeasonalExclusive: false
   });
   
   // Pagination states
@@ -401,7 +404,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "" });
+      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
     },
     onError: (error: any) => {
       const errorMessage = error.message || "Failed to create toy";
@@ -863,19 +866,41 @@ function EnhancedAdminDashboard() {
     try {
       const lines = bulkToyData.trim().split('\n');
       const toys = lines.map(line => {
-        const [name, series, rarity = 'common', imageUrl = ''] = line.split(',').map(s => s.trim());
-        return {
-          name,
-          series,
-          rarity,
-          imageUrl,
-          qrCode: `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        };
+        const parts = line.split(',').map(s => s.trim());
+        
+        // Support both old format (4 fields) and new seasonal format (6 fields)
+        if (parts.length === 4) {
+          const [name, series, rarity = 'common', imageUrl = ''] = parts;
+          return {
+            name,
+            series,
+            rarity,
+            imageUrl,
+            qrCode: `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            seasonId: null,
+            sectorId: null,
+            isSeasonalExclusive: false
+          };
+        } else if (parts.length === 6) {
+          const [name, series, rarity = 'common', seasonId, sectorId, imageUrl = ''] = parts;
+          return {
+            name,
+            series,
+            rarity,
+            imageUrl,
+            qrCode: `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            seasonId: seasonId ? parseInt(seasonId) : null,
+            sectorId: sectorId ? parseInt(sectorId) : null,
+            isSeasonalExclusive: !!(seasonId && sectorId)
+          };
+        } else {
+          throw new Error(`Invalid format: expected 4 or 6 fields, got ${parts.length}`);
+        }
       });
       
       bulkCreateToysMutation.mutate(toys);
     } catch (error) {
-      toast({ title: "Invalid format. Use: name,series,rarity,imageUrl per line", variant: "destructive" });
+      toast({ title: "Invalid format. Use: name,series,rarity,imageUrl OR name,series,rarity,seasonId,sectorId,imageUrl per line", variant: "destructive" });
     }
   };
 
