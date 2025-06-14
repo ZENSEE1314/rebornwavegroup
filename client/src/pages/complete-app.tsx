@@ -7915,7 +7915,7 @@ export default function CompleteApp() {
                 }}
                 className="flex-1"
               >
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -7933,16 +7933,16 @@ export default function CompleteApp() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Pengaturan Notifikasi" : "Notification Settings"}
+              {t('profile.notificationSettings')}
             </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    {language === "id" ? "Notifikasi Email" : "Email Notifications"}
+                    {t('profile.emailNotifications')}
                   </label>
                   <p className="text-xs text-gray-500">
-                    {language === "id" ? "Terima update melalui email" : "Receive updates via email"}
+                    {t('profile.receiveEmailUpdates')}
                   </p>
                 </div>
                 <input
@@ -7955,10 +7955,10 @@ export default function CompleteApp() {
               <div className="flex items-center justify-between">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    {language === "id" ? "Notifikasi SMS" : "SMS Notifications"}
+                    {t('profile.smsNotifications')}
                   </label>
                   <p className="text-xs text-gray-500">
-                    {language === "id" ? "Terima update melalui SMS" : "Receive updates via SMS"}
+                    {t('profile.receiveSmsUpdates')}
                   </p>
                 </div>
                 <input
@@ -7974,14 +7974,14 @@ export default function CompleteApp() {
                 onClick={saveNotificationSettings}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                {language === "id" ? "Simpan" : "Save"}
+                {t('common.save')}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowEmailModal(false)}
                 className="flex-1"
               >
-                {language === "id" ? "Batal" : "Cancel"}
+                {t('common.cancel')}
               </Button>
             </div>
           </div>
@@ -7993,7 +7993,7 @@ export default function CompleteApp() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
-              {language === "id" ? "Konfirmasi Tukar Reward" : "Confirm Reward Redemption"}
+              {t('rewards.confirmRedemption')}
             </h3>
             <div className="space-y-4">
               <div className="text-center">
