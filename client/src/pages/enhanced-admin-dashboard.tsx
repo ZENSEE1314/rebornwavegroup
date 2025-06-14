@@ -5193,19 +5193,12 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button
                 onClick={() => {
-                  if (editingSeason) {
-                    updateSeasonMutation.mutate({
-                      id: editingSeason.id,
-                      data: seasonForm
-                    });
-                  } else {
-                    createSeasonMutation.mutate(seasonForm);
-                  }
+                  seasonMutation.mutate(seasonForm);
                 }}
                 className="flex-1 bg-purple-600 hover:bg-purple-700"
-                disabled={createSeasonMutation.isPending || updateSeasonMutation.isPending}
+                disabled={seasonMutation.isPending}
               >
-                {(createSeasonMutation.isPending || updateSeasonMutation.isPending) 
+                {seasonMutation.isPending 
                   ? (editingSeason ? "Updating..." : "Creating...") 
                   : (editingSeason ? "Update Season" : "Create Season")
                 }

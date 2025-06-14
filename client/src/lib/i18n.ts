@@ -6000,11 +6000,7 @@ export const translations: Translations = {
     zh: '让我带您了解数字宠物护理之旅！',
     id: 'Biarkan saya memandu Anda melalui perjalanan perawatan hewan digital!'
   },
-  'onboarding.welcome.petMessage': {
-    en: 'Hi there! I\'m your virtual pet guide. Ready to explore together?',
-    zh: '你好！我是你的虚拟宠物向导。准备好一起探索了吗？',
-    id: 'Halo! Saya adalah panduan hewan virtual Anda. Siap menjelajah bersama?'
-  },
+
   'onboarding.dashboard.title': {
     en: 'Your Dashboard Overview',
     zh: '您的仪表板概览',
