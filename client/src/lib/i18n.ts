@@ -3316,11 +3316,7 @@ export const translations: Translations = {
     zh: '积分已添加到您的账户',
     id: 'Kredit telah ditambahkan ke akun Anda'
   },
-  'settings.notificationsSaved': {
-    en: 'Notification settings saved successfully',
-    zh: '通知设置保存成功',
-    id: 'Pengaturan notifikasi berhasil disimpan'
-  },
+
   'settings.saveFailed': {
     en: 'Failed to save settings',
     zh: '保存设置失败',
@@ -3505,6 +3501,16 @@ export const translations: Translations = {
     en: 'Password changed successfully',
     zh: '密码修改成功',
     id: 'Password berhasil diubah'
+  },
+  'profile.passwordChangeFailed': {
+    en: 'Failed to change password',
+    zh: '密码修改失败',
+    id: 'Gagal mengubah password'
+  },
+  'common.errorOccurred': {
+    en: 'An error occurred',
+    zh: '发生错误',
+    id: 'Terjadi kesalahan'
   }
 };
 

@@ -4934,7 +4934,7 @@ export default function CompleteApp() {
         queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
         
         toast({
-          title: language === "id" ? "Berhasil!" : "Success!",
+          title: t('common.success') + '!',
           description: t('profile.updateSuccess'),
         });
       } else {
