@@ -7041,7 +7041,7 @@ export default function CompleteApp() {
                           className="w-full bg-blue-600 hover:bg-blue-700"
                         >
                           <Check className="w-4 h-4 mr-2" />
-                          {language === "id" ? "Konfirmasi Diterima" : "Confirm Received"}
+                          {t("purchase.confirmReceived")}
                         </Button>
                       </div>
                     </div>
@@ -7075,8 +7075,8 @@ export default function CompleteApp() {
                             <div className="flex items-center justify-center text-yellow-800 text-sm font-medium">
                               <Clock className="w-4 h-4 mr-2" />
                               {pendingTransaction.status === 'pending_buyer_confirmation' 
-                                ? (language === "id" ? "Menunggu konfirmasi pembeli" : "Waiting for buyer confirmation")
-                                : (language === "id" ? "Menunggu konfirmasi penjual" : "Waiting for seller confirmation")
+                                ? (t("purchase.waitingBuyer"))
+                                : (t("purchase.waitingSellerConfirm"))
                               }
                             </div>
                             <p className="text-xs text-yellow-700 mt-1">

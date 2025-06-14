@@ -4058,6 +4058,56 @@ export const translations: Translations = {
     en: 'Waiting for seller confirmation',
     zh: '等待卖家确认',
     id: 'Menunggu konfirmasi penjual'
+  },
+  'pet.stage1': {
+    en: 'Stage 1',
+    zh: '第1阶段',
+    id: 'Tahap 1'
+  },
+  'pet.stage2': {
+    en: 'Stage 2',
+    zh: '第2阶段',
+    id: 'Tahap 2'
+  },
+  'pet.stage3': {
+    en: 'Stage 3',
+    zh: '第3阶段',
+    id: 'Tahap 3'
+  },
+  'pet.stage4': {
+    en: 'Stage 4',
+    zh: '第4阶段',
+    id: 'Tahap 4'
+  },
+  'pet.stage5': {
+    en: 'Stage 5',
+    zh: '第5阶段',
+    id: 'Tahap 5'
+  },
+  'pet.stage6': {
+    en: 'Stage 6',
+    zh: '第6阶段',
+    id: 'Tahap 6'
+  },
+  'pet.currentStage': {
+    en: 'Current Stage:',
+    zh: '当前阶段：',
+    id: 'Tahap Saat Ini:'
+  },
+  'pet.alive': {
+    en: 'Alive',
+    zh: '存活',
+    id: 'Hidup'
+  },
+  'pet.dead': {
+    en: 'Dead',
+    zh: '死亡',
+    id: 'Mati'
+  },
+  'pet.status': {
+    en: 'Status:',
+    zh: '状态：',
+    id: 'Status:'
   }
 };
 
