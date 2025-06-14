@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,6 @@ function EnhancedAdminDashboard() {
     name: "",
     series: "",
     rarity: "common",
-    color: "",
     imageUrl: "",
     qrCode: "",
     seasonId: null as number | null,
@@ -166,24 +165,16 @@ function EnhancedAdminDashboard() {
     baseName: "",
     quantity: 10,
     rarity: "common",
-    color: "",
     seasonId: null as number | null,
     sectorId: null as number | null,
-    imageUrl: "",
-    toyNames: "",
-    basePointsCost: 100,
-    baseCreditsCost: 50,
-    isSeasonalExclusive: false
+    imageUrl: ""
   });
   
   // Token management dialog states (using existing declaration at line 71)
   const [tokenForm, setTokenForm] = useState({
     type: "daily_reward",
     pointsCost: 100,
-    creditAmount: 1000,
-    userId: "",
-    amount: 0,
-    reason: ""
+    creditAmount: 1000
   });
 
   // Content management dialog states
@@ -263,7 +254,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: toysResponse, isLoading: toysLoading, error: toysError }: any = useQuery({
+  const { data: toysResponse }: any = useQuery({
     queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
     retry: false,
   });
@@ -295,12 +286,12 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and sector management queries
-  const { data: seasonsResponse } = useQuery({
+  const { data: seasons = [] } = useQuery({
     queryKey: ['/api/admin/seasons'],
     retry: false,
   });
 
-  const { data: sectorsResponse } = useQuery({
+  const { data: sectors = [] } = useQuery({
     queryKey: ['/api/admin/sectors'],
     retry: false,
   });
@@ -346,6 +337,7 @@ function EnhancedAdminDashboard() {
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
+  const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
@@ -382,13 +374,9 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
-  const filteredToys = useMemo(() => {
-    if (toysLoading || toysError || !toysResponse?.data) {
-      return [];
-    }
-    
+  const filteredToys = (() => {
     try {
-      const toys = (toysResponse.data || []) as any[];
+      const toys = (allToys || []) as any[];
       console.log('*** FILTERING TOYS DEBUG:', { allToys: toys.length, toySearch, rarityFilter, ownerFilter });
       
       return toys.filter((toy: any) => {
@@ -407,7 +395,7 @@ function EnhancedAdminDashboard() {
       console.error('*** TOY FILTERING ERROR:', error);
       return [];
     }
-  }, [toysResponse?.data, toySearch, rarityFilter, ownerFilter, toysLoading, toysError]);
+  })();
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
@@ -505,7 +493,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
+      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
     },
     onError: () => {
       toast({ title: "Failed to create toy", variant: "destructive" });
@@ -1143,7 +1131,7 @@ function EnhancedAdminDashboard() {
         }
       });
       
-      createToyMutation.mutate(toys[0]); // Create only first toy for now
+      bulkCreateToysMutation.mutate(toys);
     } catch (error) {
       toast({ title: "Invalid format. Use: name,series,rarity,imageUrl OR name,series,rarity,seasonId,sectorId,imageUrl per line", variant: "destructive" });
     }
@@ -2186,56 +2174,44 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Toy Management Tab - Minimal Working Version */}
+          {/* Toy Management Tab */}
           <TabsContent value="toys">
             <div className="space-y-6">
+              {/* Single Toy Creation */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Toy Management Dashboard</CardTitle>
-                  <p className="text-gray-300 text-sm">Overview of toy inventory and management tools</p>
+                  <CardTitle className="text-white">Create New Toy</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <div className="text-white text-lg mb-4">
-                      Toy Management System
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Name</Label>
+                      <Input
+                        value={newToy.name}
+                        onChange={(e) => setNewToy({ ...newToy, name: e.target.value })}
+                        className="bg-white/10 border-white/20 text-white"
+                      />
                     </div>
-                    <div className="text-gray-300 mb-6">
-                      Features temporarily disabled for system stability
+                    <div>
+                      <Label className="text-gray-300">Series</Label>
+                      <Input
+                        value={newToy.series}
+                        onChange={(e) => setNewToy({ ...newToy, series: e.target.value })}
+                        className="bg-white/10 border-white/20 text-white"
+                      />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white">--</div>
-                        <div className="text-sm text-gray-300">Total Toys</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-400">--</div>
-                        <div className="text-sm text-gray-300">Owned</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400">--</div>
-                        <div className="text-sm text-gray-300">Available</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-400">--</div>
-                        <div className="text-sm text-gray-300">Rare Items</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-                          <SelectItem value="blue">Blue</SelectItem>
-                          <SelectItem value="green">Green</SelectItem>
-                          <SelectItem value="purple">Purple</SelectItem>
-                          <SelectItem value="orange">Orange</SelectItem>
-                          <SelectItem value="pink">Pink</SelectItem>
-                          <SelectItem value="yellow">Yellow</SelectItem>
-                          <SelectItem value="black">Black</SelectItem>
-                          <SelectItem value="white">White</SelectItem>
-                          <SelectItem value="brown">Brown</SelectItem>
-                          <SelectItem value="gray">Gray</SelectItem>
-                          <SelectItem value="rainbow">Rainbow</SelectItem>
+                    <div>
+                      <Label className="text-gray-300">Rarity</Label>
+                      <Select value={newToy.rarity} onValueChange={(value) => setNewToy({ ...newToy, rarity: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="common">Common</SelectItem>
+                          <SelectItem value="rare">Rare</SelectItem>
+                          <SelectItem value="epic">Epic</SelectItem>
+                          <SelectItem value="legendary">Legendary</SelectItem>
+                          <SelectItem value="secret">Secret</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2246,12 +2222,12 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Season" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Season</SelectItem>
-                          {(seasonsResponse?.data || []).map((season: any) => (
-                            <SelectItem key={season.id} value={season.id.toString()}>
-                              {season.displayName}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="none">No Season</SelectItem>
+                          <SelectItem value="1">Spring Collection</SelectItem>
+                          <SelectItem value="2">Summer Collection</SelectItem>
+                          <SelectItem value="3">Autumn Collection</SelectItem>
+                          <SelectItem value="4">Winter Collection</SelectItem>
+                          <SelectItem value="5">Limited Edition</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2262,14 +2238,12 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Sector</SelectItem>
-                          {(sectorsResponse?.data || [])
-                            .filter((sector: any) => !newToy.seasonId || sector.seasonId === newToy.seasonId)
-                            .map((sector: any) => (
-                              <SelectItem key={sector.id} value={sector.id.toString()}>
-                                {sector.displayName}
-                              </SelectItem>
-                            ))}
+                          <SelectItem value="none">No Sector</SelectItem>
+                          <SelectItem value="1">Rare Finds</SelectItem>
+                          <SelectItem value="2">Daily Discoveries</SelectItem>
+                          <SelectItem value="3">Event Exclusives</SelectItem>
+                          <SelectItem value="4">Community Favorites</SelectItem>
+                          <SelectItem value="5">Mystery Box</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2299,11 +2273,11 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Toy Management Status */}
+              {/* Advanced Bulk Toy Generator */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Toy Management Overview</CardTitle>
-                  <p className="text-gray-300 text-sm">Current toy inventory and management tools</p>
+                  <CardTitle className="text-white">Advanced Bulk Toy Generator</CardTitle>
+                  <p className="text-gray-300 text-sm">Auto-generate multiple toys with custom seasons and QR codes</p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2404,12 +2378,12 @@ function EnhancedAdminDashboard() {
                   
                   <div className="mt-6 flex gap-4">
                     <Button 
-                      onClick={() => toast({ title: "Feature temporarily disabled for stability" })}
+                      onClick={handleBulkGeneration}
                       className="bg-purple-600 hover:bg-purple-700"
-                      disabled
+                      disabled={!customSeason || !baseToyName || !totalToysToGenerate || parseInt(totalToysToGenerate) < 1}
                     >
                       <Zap className="h-4 w-4 mr-2" />
-                      Generate Toys (Disabled)
+                      Generate {totalToysToGenerate} Toys
                     </Button>
                     <Button 
                       onClick={() => {
@@ -2443,12 +2417,12 @@ function EnhancedAdminDashboard() {
                       className="bg-white/10 border-white/20 text-white min-h-24"
                     />
                     <Button 
-                      onClick={() => toast({ title: "Bulk upload temporarily disabled for stability" })}
+                      onClick={handleBulkUpload}
                       className="bg-green-600 hover:bg-green-700"
-                      disabled
+                      disabled={!bulkToyData.trim()}
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload (Disabled)
+                      Upload Manually
                     </Button>
                   </div>
                 </CardContent>
@@ -2460,7 +2434,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-white">All Toys</CardTitle>
                     <Button 
-                      onClick={() => downloadCSV(toysResponse?.data || [], 'toys')}
+                      onClick={() => downloadCSV(allToys, 'toys')}
                       variant="outline" 
                       size="sm"
                       className="bg-white/10 text-white border-white/20"
@@ -2505,29 +2479,19 @@ function EnhancedAdminDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {toysLoading ? (
-                    <div className="flex justify-center items-center py-8">
-                      <div className="text-white">Loading toys...</div>
-                    </div>
-                  ) : toysError ? (
-                    <div className="flex justify-center items-center py-8">
-                      <div className="text-red-400">Error loading toys</div>
-                    </div>
-                  ) : (
-                    <>
-                      <Table>
-                      <TableHeader>
-                        <TableRow className="border-white/20">
-                          <TableHead className="text-blue-200">Name</TableHead>
-                          <TableHead className="text-blue-200">Series</TableHead>
-                          <TableHead className="text-blue-200">Rarity</TableHead>
-                          <TableHead className="text-blue-200">Owner</TableHead>
-                          <TableHead className="text-blue-200">QR Code</TableHead>
-                          <TableHead className="text-blue-200">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredToys.map((toy: any) => (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-blue-200">Name</TableHead>
+                        <TableHead className="text-blue-200">Series</TableHead>
+                        <TableHead className="text-blue-200">Rarity</TableHead>
+                        <TableHead className="text-blue-200">Owner</TableHead>
+                        <TableHead className="text-blue-200">QR Code</TableHead>
+                        <TableHead className="text-blue-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredToys.map((toy: any) => (
                         <TableRow key={toy.id} className="border-white/10">
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-gray-300">{toy.series}</TableCell>
@@ -2671,8 +2635,6 @@ function EnhancedAdminDashboard() {
                         </Button>
                       </div>
                     </div>
-                  )}
-                    </>
                   )}
                 </CardContent>
               </Card>
@@ -4438,7 +4400,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {(seasonsResponse?.data || []).map((season: any) => (
+                    {seasons.map((season: any) => (
                       <div key={season.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: season.backgroundColor}}>
                         <div className="flex items-center space-x-3">
                           <div 
@@ -4516,7 +4478,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {(sectorsResponse?.data || []).map((sector: any) => (
+                    {sectors.map((sector: any) => (
                       <div key={sector.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: sector.backgroundColor}}>
                         <div className="flex items-center space-x-3">
                           <div 
@@ -4528,7 +4490,7 @@ function EnhancedAdminDashboard() {
                           <div>
                             <p className="font-medium text-white">{sector.displayName}</p>
                             <p className="text-sm text-gray-400">{sector.description}</p>
-                            <p className="text-xs text-gray-500">Season: {(seasonsResponse?.data || []).find((s: any) => s.id === sector.seasonId)?.displayName}</p>
+                            <p className="text-xs text-gray-500">Season: {seasons.find((s: any) => s.id === sector.seasonId)?.displayName}</p>
                           </div>
                         </div>
                         <div className="flex space-x-2">
@@ -5298,7 +5260,7 @@ function EnhancedAdminDashboard() {
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Season</option>
-                  {(seasonsResponse?.data || []).map((season: any) => (
+                  {seasons.map((season: any) => (
                     <option key={season.id} value={season.id}>
                       {season.displayName}
                     </option>
@@ -5408,12 +5370,12 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Season</label>
                 <select
-                  value={bulkToyForm.seasonId || ""}
-                  onChange={(e) => setBulkToyForm({...bulkToyForm, seasonId: e.target.value ? parseInt(e.target.value) : null})}
+                  value={bulkToyForm.seasonId}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, seasonId: e.target.value})}
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Season</option>
-                  {(seasonsResponse?.data || []).map((season: any) => (
+                  {seasons.map((season: any) => (
                     <option key={season.id} value={season.id}>
                       {season.displayName}
                     </option>
@@ -5423,40 +5385,18 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Sector</label>
                 <select
-                  value={bulkToyForm.sectorId || ""}
-                  onChange={(e) => setBulkToyForm({...bulkToyForm, sectorId: e.target.value ? parseInt(e.target.value) : null})}
+                  value={bulkToyForm.sectorId}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, sectorId: e.target.value})}
                   className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
                 >
                   <option value="">Select Sector</option>
-                  {(sectorsResponse?.data || [])
-                    .filter((sector: any) => !bulkToyForm.seasonId || sector.seasonId === parseInt(bulkToyForm.seasonId))
+                  {sectors
+                    .filter((sector: any) => sector.seasonId === parseInt(bulkToyForm.seasonId))
                     .map((sector: any) => (
                       <option key={sector.id} value={sector.id}>
                         {sector.displayName}
                       </option>
                     ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Base Toy Color</label>
-                <select
-                  value={bulkToyForm.color || ""}
-                  onChange={(e) => setBulkToyForm({...bulkToyForm, color: e.target.value})}
-                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
-                >
-                  <option value="">Select Color</option>
-                  <option value="red">Red</option>
-                  <option value="blue">Blue</option>
-                  <option value="green">Green</option>
-                  <option value="purple">Purple</option>
-                  <option value="orange">Orange</option>
-                  <option value="pink">Pink</option>
-                  <option value="yellow">Yellow</option>
-                  <option value="black">Black</option>
-                  <option value="white">White</option>
-                  <option value="brown">Brown</option>
-                  <option value="gray">Gray</option>
-                  <option value="rainbow">Rainbow</option>
                 </select>
               </div>
               <div>
