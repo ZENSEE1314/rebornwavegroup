@@ -7308,7 +7308,7 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                {language === "id" ? "Profil Anda" : "Your Profile"}
+                {t("profile.title")}
               </h2>
               <p className="text-slate-600">
                 {t('profile.manageSettings')}
@@ -7361,7 +7361,7 @@ export default function CompleteApp() {
                   </Badge>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>{language === "id" ? "Member Sejak:" : "Member Since:"}</span>
+                      <span>{t("profile.memberSince")}</span>
                       <span className="font-medium">May 2025</span>
                     </div>
                     <div className="flex justify-between">
@@ -7379,18 +7379,18 @@ export default function CompleteApp() {
               {/* Account Settings */}
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>{language === "id" ? "Pengaturan Akun" : "Account Settings"}</CardTitle>
+                  <CardTitle>{t("account.settings")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Personal Information */}
                   <div>
                     <h4 className="font-semibold text-slate-900 mb-4">
-                      {language === "id" ? "Informasi Pribadi" : "Personal Information"}
+                      {t("personal.information")}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          {language === "id" ? "Nama Depan" : "First Name"}
+                          {t("form.firstName")}
                         </label>
                         <Input 
                           value={firstName}

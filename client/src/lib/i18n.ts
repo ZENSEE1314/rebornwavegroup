@@ -4131,11 +4131,7 @@ export const translations: Translations = {
     zh: '直接推荐',
     id: 'Rujukan Langsung'
   },
-  'referral.totalEarnings': {
-    en: 'Total Earnings',
-    zh: '总收入',
-    id: 'Total Pendapatan'
-  },
+
   'referral.level': {
     en: 'Referrer Level',
     zh: '推荐等级',
@@ -4146,11 +4142,7 @@ export const translations: Translations = {
     zh: '佣金率',
     id: 'Tingkat Komisi'
   },
-  'referral.shareCode': {
-    en: 'Share Your Referral Code',
-    zh: '分享您的推荐码',
-    id: 'Bagikan Kode Rujukan'
-  },
+
   'common.copyCode': {
     en: 'Copy Code',
     zh: '复制代码',
@@ -4161,11 +4153,7 @@ export const translations: Translations = {
     zh: '佣金结构',
     id: 'Struktur Komisi'
   },
-  'referral.totalReferrals': {
-    en: 'Total Referrals:',
-    zh: '推荐总数：',
-    id: 'Total Rujukan:'
-  },
+
   'referral.totalEarningsLabel': {
     en: 'Total Earnings:',
     zh: '总收入：',
@@ -4180,6 +4168,51 @@ export const translations: Translations = {
     en: 'Price: Rp ',
     zh: '价格：Rp ',
     id: 'Harga: Rp '
+  },
+  'profile.title': {
+    en: 'Your Profile',
+    zh: '您的个人资料',
+    id: 'Profil Anda'
+  },
+  'profile.memberSince': {
+    en: 'Member Since:',
+    zh: '注册时间：',
+    id: 'Member Sejak:'
+  },
+  'account.settings': {
+    en: 'Account Settings',
+    zh: '账户设置',
+    id: 'Pengaturan Akun'
+  },
+  'personal.information': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'form.firstName': {
+    en: 'First Name',
+    zh: '名字',
+    id: 'Nama Depan'
+  },
+  'form.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'form.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'form.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'form.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
   }
 };
 
