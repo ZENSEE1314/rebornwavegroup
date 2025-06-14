@@ -279,15 +279,16 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100 dark:from-purple-900 dark:via-pink-900 dark:to-indigo-900 p-4">
       <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center relative">
+          <div className="absolute top-4 right-4">
+            <LanguageSelector />
+          </div>
           <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">
             Reborn Wave Pet Care
           </CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-300">
             Your digital pet adventure awaits
           </CardDescription>
-          
-
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
