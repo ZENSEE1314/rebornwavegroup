@@ -4154,10 +4154,25 @@ export const translations: Translations = {
     id: 'Struktur Komisi'
   },
 
-  'referral.totalEarningsLabel': {
-    en: 'Total Earnings:',
-    zh: '总收入：',
-    id: 'Total Pendapatan:'
+  'form.lastName': {
+    en: 'Last Name',
+    zh: '姓氏',
+    id: 'Nama Belakang'
+  },
+  'form.gender': {
+    en: 'Gender',
+    zh: '性别',
+    id: 'Jenis Kelamin'
+  },
+  'form.dateOfBirth': {
+    en: 'Date of Birth',
+    zh: '出生日期',
+    id: 'Tanggal Lahir'
+  },
+  'form.phoneNumber': {
+    en: 'Phone Number',
+    zh: '电话号码',
+    id: 'Nomor Telepon'
   },
   'date.format': {
     en: 'en-US',

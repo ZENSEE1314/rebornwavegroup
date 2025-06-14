@@ -7401,7 +7401,7 @@ export default function CompleteApp() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          {language === "id" ? "Nama Belakang" : "Last Name"}
+                          {t("form.lastName")}
                         </label>
                         <Input 
                           value={lastName}
@@ -7421,7 +7421,7 @@ export default function CompleteApp() {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          {language === "id" ? "Nomor Telepon" : "Phone Number"}
+                          {t("form.phoneNumber")}
                         </label>
                         <Input 
                           value={phoneNumber}
@@ -7433,7 +7433,7 @@ export default function CompleteApp() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          {language === "id" ? "Jenis Kelamin" : "Gender"}
+                          {t("form.gender")}
                         </label>
                         <select 
                           value={gender}
@@ -7448,7 +7448,7 @@ export default function CompleteApp() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          {language === "id" ? "Tanggal Lahir" : "Date of Birth"}
+                          {t("form.dateOfBirth")}
                         </label>
                         <Input 
                           type="date"
