@@ -1954,6 +1954,38 @@ function EnhancedAdminDashboard() {
                       </Select>
                     </div>
                     <div>
+                      <Label className="text-gray-300">Season</Label>
+                      <Select value={newToy.seasonId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, seasonId: value ? parseInt(value) : null })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Season" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Season</SelectItem>
+                          <SelectItem value="1">Spring Collection</SelectItem>
+                          <SelectItem value="2">Summer Collection</SelectItem>
+                          <SelectItem value="3">Autumn Collection</SelectItem>
+                          <SelectItem value="4">Winter Collection</SelectItem>
+                          <SelectItem value="5">Limited Edition</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Sector</Label>
+                      <Select value={newToy.sectorId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, sectorId: value ? parseInt(value) : null })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Sector" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Sector</SelectItem>
+                          <SelectItem value="1">Rare Finds</SelectItem>
+                          <SelectItem value="2">Daily Discoveries</SelectItem>
+                          <SelectItem value="3">Event Exclusives</SelectItem>
+                          <SelectItem value="4">Community Favorites</SelectItem>
+                          <SelectItem value="5">Mystery Box</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <Label className="text-gray-300">Image Upload</Label>
                       <Input
                         type="file"
@@ -1979,16 +2011,20 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Bulk Upload */}
+              {/* Bulk Seasonal Toy Upload */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Bulk Toy Upload</CardTitle>
-                  <p className="text-gray-300 text-sm">Format: name,series,rarity,imageUrl (one per line)</p>
+                  <CardTitle className="text-white">Bulk Seasonal Toy Upload</CardTitle>
+                  <p className="text-gray-300 text-sm">Format: name,series,rarity,seasonId,sectorId,imageUrl (one per line)</p>
+                  <div className="text-xs text-gray-400 space-y-1 mt-2">
+                    <p>Season IDs: 1=Spring, 2=Summer, 3=Autumn, 4=Winter, 5=Limited Edition</p>
+                    <p>Sector IDs: 1=Rare Finds, 2=Daily Discoveries, 3=Event Exclusives, 4=Community Favorites, 5=Mystery Box</p>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <Textarea
-                      placeholder="Doluruu Blue #2001,Season 2 Collection,rare,/images/blue-toy.png"
+                      placeholder="Spring Dragon #001,Spring 2025,rare,1,1,/images/spring-dragon.png&#10;Summer Phoenix #002,Summer 2025,epic,2,3,/images/summer-phoenix.png&#10;Autumn Wolf #003,Autumn 2025,legendary,3,1,/images/autumn-wolf.png"
                       value={bulkToyData}
                       onChange={(e) => setBulkToyData(e.target.value)}
                       className="bg-white/10 border-white/20 text-white min-h-32"

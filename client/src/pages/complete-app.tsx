@@ -50,8 +50,8 @@ function SeasonalCollectionsTab() {
   });
 
   const { data: seasonalToys = [] } = useQuery({
-    queryKey: ['/api/seasonal-toys', selectedSector?.id],
-    enabled: !!selectedSector,
+    queryKey: ['/api/seasons', selectedSeason?.id, 'toys', selectedSector?.id],
+    enabled: !!selectedSeason,
   });
 
   // Set default season when seasons load
