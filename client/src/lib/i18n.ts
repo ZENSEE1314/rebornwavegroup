@@ -4371,6 +4371,51 @@ export const translations: Translations = {
     zh: '国家',
     id: 'Negara'
   },
+  'footer.privacy': {
+    en: 'Privacy Policy',
+    zh: '隐私政策',
+    id: 'Kebijakan Privasi'
+  },
+  'footer.terms': {
+    en: 'Terms of Service',
+    zh: '服务条款',
+    id: 'Syarat Layanan'
+  },
+  'footer.contact': {
+    en: 'Contact Us',
+    zh: '联系我们',
+    id: 'Hubungi Kami'
+  },
+  'footer.about': {
+    en: 'About Us',
+    zh: '关于我们',
+    id: 'Tentang Kami'
+  },
+  'common.more': {
+    en: 'More',
+    zh: '更多',
+    id: 'Lebih Banyak'
+  },
+  'common.less': {
+    en: 'Less',
+    zh: '较少',
+    id: 'Lebih Sedikit'
+  },
+  'common.show': {
+    en: 'Show',
+    zh: '显示',
+    id: 'Tampilkan'
+  },
+  'common.hide': {
+    en: 'Hide',
+    zh: '隐藏',
+    id: 'Sembunyikan'
+  },
+  'common.add': {
+    en: 'Add',
+    zh: '添加',
+    id: 'Tambah'
+  },
 
 
 };
