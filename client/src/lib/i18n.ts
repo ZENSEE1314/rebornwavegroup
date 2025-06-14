@@ -5267,6 +5267,66 @@ export const translations: Translations = {
     en: 'Receipt',
     zh: '收据',
     id: 'Kwitansi'
+  },
+  'personal.information': {
+    en: 'Personal Information',
+    zh: '个人信息',
+    id: 'Informasi Pribadi'
+  },
+  'settings.notifications': {
+    en: 'Notification Settings',
+    zh: '通知设置',
+    id: 'Pengaturan Notifikasi'
+  },
+  'account.actions': {
+    en: 'Account Actions',
+    zh: '账户操作',
+    id: 'Tindakan Akun'
+  },
+  'profile.edit': {
+    en: 'Edit Profile',
+    zh: '编辑个人资料',
+    id: 'Edit Profil'
+  },
+  'password.change': {
+    en: 'Change Password',
+    zh: '更改密码',
+    id: 'Ubah Password'
+  },
+  'account.statistics': {
+    en: 'Account Statistics',
+    zh: '账户统计',
+    id: 'Statistik Akun'
+  },
+  'credits.current': {
+    en: 'Current Credits',
+    zh: '当前积分',
+    id: 'Kredit Saat Ini'
+  },
+  'loyalty.points': {
+    en: 'Loyalty Points',
+    zh: '忠诚积分',
+    id: 'Poin Loyalitas'
+  },
+  'bookings.total': {
+    en: 'Total Bookings',
+    zh: '总预订',
+    id: 'Total Booking'
+  },
+  'referral.earnings': {
+    en: 'Referral Earnings',
+    zh: '推荐收益',
+    id: 'Pendapatan Rujukan'
+  },
+  'referral.network.empty': {
+    en: 'No Referral Network Yet',
+    zh: '没有推荐网络',
+    id: 'Belum Ada Jaringan Rujukan'
+  },
+  'referral.share.message': {
+    en: 'Share your referral link to start building your network and earning commissions',
+    zh: '分享您的推荐链接以开始构建您的网络并赚取佣金',
+    id: 'Bagikan tautan rujukan Anda untuk mulai membangun jaringan dan mendapatkan komisi'
   }
 
 };
