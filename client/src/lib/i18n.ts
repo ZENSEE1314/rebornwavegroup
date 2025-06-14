@@ -4941,6 +4941,51 @@ export const translations: Translations = {
     zh: '输入当前密码',
     id: 'Masukkan password saat ini'
   },
+  'password.new': {
+    en: 'New Password',
+    zh: '新密码',
+    id: 'Password Baru'
+  },
+  'password.newPlaceholder': {
+    en: 'Enter new password',
+    zh: '输入新密码',
+    id: 'Masukkan password baru'
+  },
+  'password.confirm': {
+    en: 'Confirm New Password',
+    zh: '确认新密码',
+    id: 'Konfirmasi Password Baru'
+  },
+  'password.confirmPlaceholder': {
+    en: 'Confirm new password',
+    zh: '确认新密码',
+    id: 'Konfirmasi password baru'
+  },
+  'tokens.claimMessage': {
+    en: 'You have {{count}} tokens. How many would you like to claim for redemption at approved locations?',
+    zh: '您有 {{count}} 个代币。您想要申请多少个代币在指定地点兑换？',
+    id: 'Anda memiliki {{count}} token. Berapa yang ingin diklaim untuk ditukar di lokasi yang disetujui?'
+  },
+  'tokens.redemptionInfo': {
+    en: 'Tokens will be redeemed at approved locations. No shipping required.',
+    zh: '代币将在指定地点兑换。无需运费。',
+    id: 'Token akan ditukar di lokasi yang disetujui. Tidak ada pengiriman diperlukan.'
+  },
+  'admin.dashboard': {
+    en: 'Admin Dashboard',
+    zh: '管理员仪表板',
+    id: 'Dashboard Admin'
+  },
+  'admin.manageSystem': {
+    en: 'Manage system and users',
+    zh: '管理系统和用户',
+    id: 'Kelola sistem dan pengguna'
+  },
+  'admin.accessFeatures': {
+    en: 'Access to system administration features',
+    zh: '访问系统管理功能',
+    id: 'Akses ke fitur administrasi sistem'
+  },
 
   'common.receive': {
     en: 'Receive',
@@ -5326,11 +5371,6 @@ export const translations: Translations = {
     en: 'Edit Profile',
     zh: '编辑个人资料',
     id: 'Edit Profil'
-  },
-  'password.change': {
-    en: 'Change Password',
-    zh: '更改密码',
-    id: 'Ubah Password'
   },
   'account.statistics': {
     en: 'Account Statistics',
