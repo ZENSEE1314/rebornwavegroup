@@ -3611,6 +3611,31 @@ export const translations: Translations = {
     en: 'Achievement',
     zh: '成就',
     id: 'Pencapaian'
+  },
+  'cashout.bankValidation': {
+    en: '{{bankName}}: {{digits}} digits {{status}}',
+    zh: '{{bankName}}: {{digits}} 位数字 {{status}}',
+    id: '{{bankName}}: {{digits}} digit {{status}}'
+  },
+  'cashout.withdrawalNotice': {
+    en: '⚠️ Withdrawal process takes 1-3 business days. Please ensure bank details are correct.',
+    zh: '⚠️ 提现过程需要1-3个工作日。请确保银行详细信息正确。',
+    id: '⚠️ Proses penarikan membutuhkan 1-3 hari kerja. Pastikan data bank sudah benar.'
+  },
+  'referral.shareToEarn': {
+    en: 'Share to earn 10% commission',
+    zh: '分享以获得10%佣金',
+    id: 'Bagikan untuk dapat komisi 10%'
+  },
+  'qr.scanCode': {
+    en: 'Scan QR Code',
+    zh: '扫描二维码',
+    id: 'Pindai QR Code'
+  },
+  'loyalty.discountActive': {
+    en: 'discount active',
+    zh: '折扣活跃',
+    id: 'diskon aktif'
   }
 };
 

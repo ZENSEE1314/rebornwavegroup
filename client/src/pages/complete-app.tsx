@@ -5552,7 +5552,7 @@ export default function CompleteApp() {
                     <div className="bg-white/20 rounded-lg p-4 mb-4 text-center">
                       <p className="text-3xl font-bold font-mono mb-2">{referralCode}</p>
                       <p className="text-emerald-100 text-sm">
-                        {language === "id" ? "Bagikan untuk dapat komisi 10%" : "Share to earn 10% commission"}
+                        {t("referral.shareToEarn")}
                       </p>
                     </div>
                     <Button 
@@ -5565,7 +5565,7 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <QrCode className="w-16 h-16 mx-auto text-white/80 mb-2" />
                       <p className="text-xs text-white/80">
-                        {language === "id" ? "Pindai QR Code" : "Scan QR Code"}
+                        {t("qr.scanCode")}
                       </p>
                     </div>
                   </CardContent>
@@ -5599,7 +5599,7 @@ export default function CompleteApp() {
                       <h3 className="text-2xl font-bold text-slate-900">{currentLoyaltyLevel.name}</h3>
                       <p className="text-slate-600">Level {currentLoyaltyLevel.level}</p>
                       {currentLoyaltyLevel.discount > 0 && (
-                        <p className="text-green-600 font-semibold">{currentLoyaltyLevel.discount}% {language === "id" ? "diskon aktif" : "discount active"}</p>
+                        <p className="text-green-600 font-semibold">{currentLoyaltyLevel.discount}% {t("loyalty.discountActive")}</p>
                       )}
                     </div>
                   </div>
@@ -6466,7 +6466,7 @@ export default function CompleteApp() {
                                     className="flex-1 bg-blue-600 hover:bg-blue-700"
                                   >
                                     <Check className="w-4 h-4 mr-2" />
-                                    {language === "id" ? "Konfirmasi" : "Confirm"}
+                                    {t("common.confirm")}
                                   </Button>
                                   <Button 
                                     onClick={() => cancelSale(pendingPurchase.id)}
@@ -7237,7 +7237,7 @@ export default function CompleteApp() {
                   <div className="bg-white/20 rounded-lg p-4 mb-4 text-center">
                     <p className="text-4xl font-bold font-mono mb-2">{referralCode}</p>
                     <p className="text-blue-100">
-                      {language === "id" ? "Bagikan untuk dapat komisi 10%" : "Share to earn 10% commission"}
+                      {t("referral.shareToEarn")}
                     </p>
                   </div>
                   <Button 
@@ -8306,7 +8306,7 @@ export default function CompleteApp() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
-                {language === "id" ? "Pindai QR Code" : "Scan QR Code"}
+                {t("qr.scanCode")}
               </h3>
               <Button
                 variant="ghost"
