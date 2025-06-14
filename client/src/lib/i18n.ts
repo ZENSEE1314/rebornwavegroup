@@ -3551,6 +3551,26 @@ export const translations: Translations = {
     en: 'Submit Request',
     zh: '提交请求',
     id: 'Kirim Permintaan'
+  },
+  'cashout.minimumAmount': {
+    en: 'Min. RP 50,000',
+    zh: '最低 RP 50,000',
+    id: 'Min. RP 50,000'
+  },
+  'cashout.selectBank': {
+    en: 'Select bank or e-wallet',
+    zh: '选择银行或电子钱包',
+    id: 'Pilih bank atau e-wallet'
+  },
+  'cashout.enterAccountNumber': {
+    en: 'Enter account number',
+    zh: '输入账户号码',
+    id: 'Masukkan nomor rekening'
+  },
+  'cashout.selectBankFirst': {
+    en: 'Select bank first',
+    zh: '请先选择银行',
+    id: 'Pilih bank terlebih dahulu'
   }
 };
 

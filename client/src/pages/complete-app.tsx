@@ -5130,7 +5130,7 @@ export default function CompleteApp() {
                   {t('cashout.withdrawalAmount')}
                 </label>
                 <Input
-                  placeholder={language === "id" ? "Min. RP 50,000" : "Min. RP 50,000"}
+                  placeholder={t("cashout.minimumAmount")}
                   value={cashOutAmount}
                   onChange={(e) => setCashOutAmount(e.target.value)}
                   type="number"
@@ -5146,7 +5146,7 @@ export default function CompleteApp() {
                 </label>
                 <Select onValueChange={setBankName}>
                   <SelectTrigger>
-                    <SelectValue placeholder={language === "id" ? "Pilih bank atau e-wallet" : "Select bank or e-wallet"} />
+                    <SelectValue placeholder={t("cashout.selectBank")} />
                   </SelectTrigger>
                   <SelectContent>
                     {indonesianBanks.map((bank) => (
@@ -5169,9 +5169,9 @@ export default function CompleteApp() {
                         const bank = indonesianBanks.find(b => b.code === bankName);
                         return bank ? 
                           `${bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`} digits` :
-                          (language === "id" ? "Masukkan nomor rekening" : "Enter account number");
+                          t("cashout.enterAccountNumber");
                       })() :
-                      (language === "id" ? "Pilih bank terlebih dahulu" : "Select bank first")
+                      t("cashout.selectBankFirst")
                   }
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
@@ -6671,7 +6671,7 @@ export default function CompleteApp() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      {language === "id" ? "Status" : "Status"}
+                      {t("common.status")}
                     </label>
                     <select
                       value={statusFilter}
