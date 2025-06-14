@@ -77,16 +77,6 @@ export const translations: Translations = {
     zh: '忠诚积分',
     id: 'Poin Loyalitas'
   },
-  'dashboard.referrals': {
-    en: 'Referrals',
-    zh: '推荐',
-    id: 'Rujukan'
-  },
-  'dashboard.achievements': {
-    en: 'Achievements',
-    zh: '成就',
-    id: 'Pencapaian'
-  },
   'dashboard.tokens': {
     en: 'Tokens',
     zh: '代币',
