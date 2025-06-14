@@ -3072,6 +3072,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Admin Routes for Season and Series Management
+  app.get("/api/seasons", async (req, res) => {
+    try {
+      const seasons = await storage.getAllSeasons();
+      res.json(seasons);
+    } catch (error) {
+      console.error("Error fetching seasons:", error);
+      res.status(500).json({ message: "Failed to fetch seasons" });
+    }
+  });
+
+  app.post("/api/admin/seasons", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, displayName, description, backgroundColor } = req.body;
+      const season = await storage.createSeason({
+        name,
+        displayName,
+        description,
+        backgroundColor,
+        isActive: true,
+        displayOrder: 0
+      });
+
+      res.json(season);
+    } catch (error) {
+      console.error("Error creating season:", error);
+      res.status(500).json({ message: "Failed to create season" });
+    }
+  });
+
+  app.get("/api/collection-series", async (req, res) => {
+    try {
+      const series = await storage.getAllCollectionSeries();
+      res.json(series);
+    } catch (error) {
+      console.error("Error fetching collection series:", error);
+      res.status(500).json({ message: "Failed to fetch collection series" });
+    }
+  });
+
+  app.post("/api/admin/collection-series", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { seasonId, name, displayName, description, backgroundColor } = req.body;
+      const series = await storage.createSeries({
+        seasonId,
+        name,
+        displayName,
+        description,
+        backgroundColor,
+        order: 0
+      });
+
+      res.json(series);
+    } catch (error) {
+      console.error("Error creating collection series:", error);
+      res.status(500).json({ message: "Failed to create collection series" });
+    }
+  });
+
+  app.post("/api/admin/toys/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { seasonId, seriesId, baseName, count, rarity, colors, price, generateQR, generateImages } = req.body;
+      
+      const createdToys = [];
+      
+      for (let i = 1; i <= count; i++) {
+        for (const color of colors) {
+          const toyName = `${baseName} ${color.charAt(0).toUpperCase() + color.slice(1)} #${i}`;
+          const qrCode = generateQR ? `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : '';
+          const imageUrl = generateImages ? `/images/toys/${toyName.toLowerCase().replace(/\s+/g, '-')}.png` : null;
+          
+          const toy = await storage.createToy({
+            name: toyName,
+            series: baseName,
+            seasonId,
+            seriesId,
+            rarity,
+            color,
+            qrCode,
+            imageUrl,
+            originalPrice: price,
+            isActivated: false
+          });
+          
+          createdToys.push(toy);
+        }
+      }
+
+      res.json({ 
+        message: `Successfully created ${createdToys.length} toys`,
+        count: createdToys.length,
+        toys: createdToys.slice(0, 5) // Return first 5 as sample
+      });
+    } catch (error) {
+      console.error("Error creating bulk toys:", error);
+      res.status(500).json({ message: "Failed to create bulk toys" });
+    }
+  });
+
+  app.get("/api/admin/toys", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user?.claims?.sub);
+      if (user?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toys = await storage.getAllToys();
+      res.json(toys);
+    } catch (error) {
+      console.error("Error fetching toys:", error);
+      res.status(500).json({ message: "Failed to fetch toys" });
+    }
+  });
+
   app.put("/api/admin/cashouts/:id/status", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUser(req.user?.claims?.sub);
