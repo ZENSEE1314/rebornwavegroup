@@ -4149,7 +4149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user dashboard stats from database
+  // Get user dashboard stats from database - OPTIMIZED for performance
   app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -4157,25 +4157,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      // Get actual user data from database
-      const user = await storage.getUser(userId);
+      // OPTIMIZATION: Execute all database queries in parallel instead of sequential
+      const [
+        user,
+        referralEarnings,
+        referrals,
+        appointments,
+        pointRedemptions
+      ] = await Promise.all([
+        storage.getUser(userId),
+        storage.calculateReferralEarnings(userId),
+        storage.getReferralsByUserId(userId),
+        storage.getAppointmentsByUserId(userId),
+        storage.getPointsHistoryByUserId ? storage.getPointsHistoryByUserId(userId) : []
+      ]);
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
       // Get loyalty points directly from user database record
       const loyaltyPoints = user.loyaltyPoints || 0;
-
-      // Calculate referral earnings and get referral data
-      const referralEarnings = await storage.calculateReferralEarnings(userId);
-      const referrals = await storage.getReferralsByUserId(userId);
-
-      // Get total appointments from database
-      const appointments = await storage.getAppointmentsByUserId(userId);
-
-      // Get point redemptions (rewards) from database
-      const pointRedemptions = await storage.getPointsHistoryByUserId ? 
-        await storage.getPointsHistoryByUserId(userId) : [];
 
       const stats = {
         credits: user.credits || '0',
@@ -4192,10 +4194,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('*** USER STATS from DB:', stats);
       
-      // Force no-cache to ensure frontend gets fresh data
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', '0');
+      // OPTIMIZATION: Enable caching for better performance (30 seconds)
+      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+      res.set('ETag', `W/"user-stats-${userId}-${Date.now()}"`) ;
       
       res.json(stats);
     } catch (error) {

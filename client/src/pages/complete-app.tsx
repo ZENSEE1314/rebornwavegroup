@@ -3229,20 +3229,24 @@ export default function CompleteApp() {
     };
   }, []);
 
-  // Real-time data updates via frequent polling for stable performance
+  // Optimized data fetching with reduced API calls and improved caching
   
-  // User data - fetch from database with reduced polling
-  const { data: userStats, refetch: refetchUserStats } = useQuery({
+  // User data - fetch from database with optimized caching
+  const { data: userStats, refetch: refetchUserStats, isLoading: userStatsLoading } = useQuery({
     queryKey: ['/api/user-stats'],
     enabled: !!user?.id,
-    refetchInterval: 30000, // Update every 30 seconds to reduce refresh frequency
-    refetchOnWindowFocus: false, // Disable auto-refresh on window focus
+    staleTime: 5 * 60 * 1000, // 5 minutes stale time for better caching
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection time (replaces cacheTime)
+    refetchInterval: 60000, // Reduced to 1 minute instead of 30 seconds
+    refetchOnWindowFocus: false,
   });
 
-  // Genealogy tree data
-  const { data: genealogyData } = useQuery({
+  // Genealogy tree data - less frequently updated
+  const { data: genealogyData, isLoading: genealogyLoading } = useQuery({
     queryKey: ['/api/users/genealogy-tree'],
     enabled: !!user?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutes stale time
+    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection time
   });
 
   const userCredits = userStats ? parseFloat(userStats.credits) : 0;
