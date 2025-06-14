@@ -4261,6 +4261,56 @@ export const translations: Translations = {
     zh: '账户设置',
     id: 'Pengaturan Akun'
   },
+  'time.day': {
+    en: 'Day',
+    zh: '天',
+    id: 'Hari'
+  },
+  'time.month': {
+    en: 'Month',
+    zh: '月',
+    id: 'Bulan'
+  },
+  'time.year': {
+    en: 'Year',
+    zh: '年',
+    id: 'Tahun'
+  },
+  'time.hour': {
+    en: 'Hour',
+    zh: '小时',
+    id: 'Jam'
+  },
+  'time.minute': {
+    en: 'Minute',
+    zh: '分钟',
+    id: 'Menit'
+  },
+  'time.week': {
+    en: 'Week',
+    zh: '周',
+    id: 'Minggu'
+  },
+  'time.second': {
+    en: 'Second',
+    zh: '秒',
+    id: 'Detik'
+  },
+  'time.today': {
+    en: 'Today',
+    zh: '今天',
+    id: 'Hari ini'
+  },
+  'time.yesterday': {
+    en: 'Yesterday',
+    zh: '昨天',
+    id: 'Kemarin'
+  },
+  'time.tomorrow': {
+    en: 'Tomorrow',
+    zh: '明天',
+    id: 'Besok'
+  },
 
 
 };
