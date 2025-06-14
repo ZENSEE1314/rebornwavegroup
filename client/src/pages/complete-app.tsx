@@ -3259,6 +3259,7 @@ export default function CompleteApp() {
   const userAppointments = userStats?.appointments || [];
   const pointRedemptions = userStats?.pointRedemptions || [];
   const userReferrals = userStats?.referrals || [];
+  const referralCount = userReferrals.length;
 
   const [language, setLanguage] = useState("en");
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
