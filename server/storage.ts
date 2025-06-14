@@ -26,6 +26,8 @@ import {
   tokenHistory,
   tokenTransactions,
   dailyTokenRewards,
+  seasons,
+  collectionSectors,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -2494,6 +2496,52 @@ export class DatabaseStorage implements IStorage {
       passwordResetExpiry: null,
       updatedAt: new Date()
     }).where(eq(users.id, userId));
+  }
+
+  // Season management operations
+  async getSeasonByName(name: string): Promise<any | undefined> {
+    const [season] = await db.select().from(seasons).where(eq(seasons.name, name));
+    return season;
+  }
+
+  async createSeason(seasonData: any): Promise<any> {
+    const [season] = await db.insert(seasons).values({
+      name: seasonData.name,
+      displayName: seasonData.name,
+      description: seasonData.description,
+      iconUrl: '/images/default-season.png',
+      backgroundColor: '#3B82F6',
+      isActive: seasonData.isActive || true,
+      displayOrder: 0,
+      startDate: seasonData.startDate,
+      endDate: seasonData.endDate,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return season;
+  }
+
+  // Sector management operations
+  async getSectorByName(name: string): Promise<any | undefined> {
+    const [sector] = await db.select().from(collectionSectors).where(eq(collectionSectors.name, name));
+    return sector;
+  }
+
+  async createSector(sectorData: any): Promise<any> {
+    const [sector] = await db.insert(collectionSectors).values({
+      seasonId: sectorData.seasonId,
+      name: sectorData.name,
+      displayName: sectorData.name,
+      description: sectorData.description,
+      iconSymbol: '🎯',
+      backgroundColor: '#F3F4F6',
+      unlockCondition: 'none',
+      isUnlocked: true,
+      displayOrder: sectorData.order || 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return sector;
   }
 }
 
