@@ -4778,16 +4778,6 @@ export const translations: Translations = {
     zh: '工具',
     id: 'Alat'
   },
-  'common.help': {
-    en: 'Help',
-    zh: '帮助',
-    id: 'Bantuan'
-  },
-  'common.about': {
-    en: 'About',
-    zh: '关于',
-    id: 'Tentang'
-  },
   'common.contact': {
     en: 'Contact',
     zh: '联系',
@@ -4848,40 +4838,15 @@ export const translations: Translations = {
     zh: '查看',
     id: 'Lihat'
   },
-  'common.hide': {
-    en: 'Hide',
-    zh: '隐藏',
-    id: 'Sembunyikan'
-  },
-  'common.show': {
-    en: 'Show',
-    zh: '显示',
-    id: 'Tampilkan'
-  },
   'common.toggle': {
     en: 'Toggle',
     zh: '切换',
     id: 'Ganti'
   },
-  'common.select': {
-    en: 'Select',
-    zh: '选中',
-    id: 'Pilih'
-  },
   'common.deselect': {
     en: 'Deselect',
     zh: '取消选中',
     id: 'Batal Pilih'
-  },
-  'common.enable': {
-    en: 'Enable',
-    zh: '启用',
-    id: 'Aktifkan'
-  },
-  'common.disable': {
-    en: 'Disable',
-    zh: '禁用',
-    id: 'Nonaktifkan'
   },
   'common.enabled': {
     en: 'Enabled',
@@ -4942,11 +4907,6 @@ export const translations: Translations = {
     en: 'Configuration',
     zh: '配置',
     id: 'Konfigurasi'
-  },
-  'common.version': {
-    en: 'Version',
-    zh: '版本',
-    id: 'Versi'
   },
   'common.permission': {
     en: 'Permission',
@@ -5013,20 +4973,10 @@ export const translations: Translations = {
     zh: '账户',
     id: 'Akun'
   },
-  'common.success': {
-    en: 'Success',
-    zh: '成功',
-    id: 'Berhasil'
-  },
   'common.failed': {
     en: 'Failed',
     zh: '失败',
     id: 'Gagal'
-  },
-  'common.error': {
-    en: 'Error',
-    zh: '错误',
-    id: 'Error'
   },
   'common.warning': {
     en: 'Warning',
@@ -5047,21 +4997,6 @@ export const translations: Translations = {
     en: 'Status',
     zh: '状态',
     id: 'Status'
-  },
-  'common.type': {
-    en: 'Type',
-    zh: '类型',
-    id: 'Jenis'
-  },
-  'common.search': {
-    en: 'Search',
-    zh: '搜索',
-    id: 'Cari'
-  },
-  'common.active': {
-    en: 'Active',
-    zh: '活动',
-    id: 'Aktif'
   },
   'common.inactive': {
     en: 'Inactive',
@@ -5243,11 +5178,6 @@ export const translations: Translations = {
     zh: '税费',
     id: 'Pajak'
   },
-  'common.discount': {
-    en: 'Discount',
-    zh: '折扣',
-    id: 'Diskon'
-  },
   'common.shipping': {
     en: 'Shipping',
     zh: '运费',
@@ -5277,11 +5207,6 @@ export const translations: Translations = {
     en: 'Notification Settings',
     zh: '通知设置',
     id: 'Pengaturan Notifikasi'
-  },
-  'account.actions': {
-    en: 'Account Actions',
-    zh: '账户操作',
-    id: 'Tindakan Akun'
   },
   'profile.edit': {
     en: 'Edit Profile',
@@ -5327,6 +5252,21 @@ export const translations: Translations = {
     en: 'Share your referral link to start building your network and earning commissions',
     zh: '分享您的推荐链接以开始构建您的网络并赚取佣金',
     id: 'Bagikan tautan rujukan Anda untuk mulai membangun jaringan dan mendapatkan komisi'
+  },
+  'email.notifications': {
+    en: 'Email Notifications',
+    zh: '邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'notifications.manage': {
+    en: 'Manage',
+    zh: '管理',
+    id: 'Kelola'
+  },
+  'notifications.description': {
+    en: 'Receive updates about appointments and promotions',
+    zh: '接收关于预约和促销的更新',
+    id: 'Terima pembaruan tentang janji temu dan promosi'
   }
 
 };
