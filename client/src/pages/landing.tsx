@@ -338,16 +338,16 @@ export default function Landing() {
                 <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Users className="w-12 h-12 text-white" />
                 </div>
-                <h3 className="text-3xl font-bold text-white mb-3">Invite Friends</h3>
+                <h3 className="text-3xl font-bold text-white mb-3">{t('landing.inviteFriendsTitle')}</h3>
                 <div className="text-6xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-4">
                   10%
                 </div>
                 <p className="text-white/70 mb-6 text-lg">
-                  Earn 10% commission every time your friends spend on our platform
+                  {t('landing.commissionText')}
                 </p>
                 <div className="flex items-center justify-center space-x-2 text-emerald-400">
                   <Gift className="w-5 h-5" />
-                  <span className="text-sm font-medium">Lifetime Earnings</span>
+                  <span className="text-sm font-medium">{t('landing.lifetimeEarnings')}</span>
                 </div>
               </div>
             </div>

@@ -590,6 +590,12 @@ export const translations: Translations = {
     zh: '个人美容咨询',
     id: 'Konsultasi Kecantikan Personal'
   },
+
+  'landing.inviteFriendsTitle': {
+    en: 'Invite Friends',
+    zh: '邀请朋友',
+    id: 'Undang Teman'
+  },
   'landing.foodFeature1': {
     en: 'Gourmet Dining Experiences',
     zh: '美食用餐体验',
@@ -634,11 +640,6 @@ export const translations: Translations = {
     en: 'Corporate Retreats',
     zh: '企业聚会',
     id: 'Retret Korporat'
-  },
-  'landing.inviteFriendsTitle': {
-    en: 'Invite Friends',
-    zh: '邀请朋友',
-    id: 'Undang Teman'
   },
   'landing.commissionText': {
     en: 'Earn 10% commission every time your friends spend on our platform',
