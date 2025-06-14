@@ -5439,443 +5439,71 @@ function EnhancedAdminDashboard() {
         </Dialog>
 
         {/* Add Tokens Dialog */}
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Season</TableHead>
-                        <TableHead className="text-blue-200">Color</TableHead>
-                        <TableHead className="text-blue-200">Status</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {seasons.map((season: any) => (
-                        <TableRow key={season.id} className="border-white/10">
-                          <TableCell className="text-white">
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: season.backgroundColor }}
-                              />
-                              <div>
-                                <div className="font-medium">{season.displayName}</div>
-                                <div className="text-sm text-gray-400">{season.description}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge 
-                              variant="outline" 
-                              style={{ 
-                                backgroundColor: season.backgroundColor + '20',
-                                borderColor: season.backgroundColor,
-                                color: season.backgroundColor
-                              }}
-                            >
-                              {season.backgroundColor}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge variant={season.isActive ? "default" : "secondary"}>
-                              {season.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingSeason(season);
-                                  setSeasonForm({
-                                    name: season.name,
-                                    displayName: season.displayName,
-                                    description: season.description || "",
-                                    backgroundColor: season.backgroundColor,
-                                    iconUrl: season.iconUrl || "/images/default-season.png",
-                                    isActive: season.isActive
-                                  });
-                                  setShowSeasonDialog(true);
-                                }}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this season? This will also delete all associated sectors.')) {
-                                    deleteSeasonMutation.mutate(season.id);
-                                  }
-                                }}
-                                className="bg-red-500/20 border-red-400/20 text-red-300 hover:bg-red-500/30"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Sectors Management */}
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Sector Management</CardTitle>
-                  <Button 
-                    onClick={() => {
-                      setEditingSector(null);
-                      setSectorForm({
-                        seasonId: "",
-                        name: "",
-                        displayName: "",
-                        description: "",
-                        backgroundColor: "#F3F4F6",
-                        iconSymbol: "🎯",
-                        unlockCondition: "none",
-                        isUnlocked: true
-                      });
-                      setShowSectorDialog(true);
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700"
+        {showTokenDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">Add Tokens</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Select User</label>
+                  <select
+                    value={tokenForm.userId}
+                    onChange={(e) => setTokenForm({...tokenForm, userId: e.target.value})}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Sector
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Sector</TableHead>
-                        <TableHead className="text-blue-200">Season</TableHead>
-                        <TableHead className="text-blue-200">Color</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sectors.map((sector: any) => (
-                        <TableRow key={sector.id} className="border-white/10">
-                          <TableCell className="text-white">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{sector.iconSymbol}</span>
-                              <div>
-                                <div className="font-medium">{sector.displayName}</div>
-                                <div className="text-sm text-gray-400">{sector.description}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge variant="outline" className="text-gray-300 border-gray-500">
-                              {sector.seasonName || "Unknown Season"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge 
-                              variant="outline" 
-                              style={{ 
-                                backgroundColor: sector.backgroundColor + '20',
-                                borderColor: sector.backgroundColor,
-                                color: sector.backgroundColor
-                              }}
-                            >
-                              {sector.backgroundColor}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingSector(sector);
-                                  setSectorForm({
-                                    seasonId: sector.seasonId.toString(),
-                                    name: sector.name,
-                                    displayName: sector.displayName,
-                                    description: sector.description || "",
-                                    backgroundColor: sector.backgroundColor,
-                                    iconSymbol: sector.iconSymbol,
-                                    unlockCondition: sector.unlockCondition || "none",
-                                    isUnlocked: sector.isUnlocked
-                                  });
-                                  setShowSectorDialog(true);
-                                }}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this sector?')) {
-                                    deleteSectorMutation.mutate(sector.id);
-                                  }
-                                }}
-                                className="bg-red-500/20 border-red-400/20 text-red-300 hover:bg-red-500/30"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Season Dialog */}
-        <Dialog open={showSeasonDialog} onOpenChange={setShowSeasonDialog}>
-          <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingSeason ? "Edit Season" : "Add New Season"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="season-name" className="text-gray-300">Name</Label>
-                  <Input
-                    id="season-name"
-                    value={seasonForm.name}
-                    onChange={(e) => setSeasonForm({...seasonForm, name: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="spring_collection"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="season-display-name" className="text-gray-300">Display Name</Label>
-                  <Input
-                    id="season-display-name"
-                    value={seasonForm.displayName}
-                    onChange={(e) => setSeasonForm({...seasonForm, displayName: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="Spring Collection"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="season-description" className="text-gray-300">Description</Label>
-                <Textarea
-                  id="season-description"
-                  value={seasonForm.description}
-                  onChange={(e) => setSeasonForm({...seasonForm, description: e.target.value})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Seasonal collection description..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="season-bg-color" className="text-gray-300">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="season-bg-color"
-                      type="color"
-                      value={seasonForm.backgroundColor}
-                      onChange={(e) => setSeasonForm({...seasonForm, backgroundColor: e.target.value})}
-                      className="w-12 h-10 p-1 bg-gray-800 border-gray-600"
-                    />
-                    <Input
-                      value={seasonForm.backgroundColor}
-                      onChange={(e) => setSeasonForm({...seasonForm, backgroundColor: e.target.value})}
-                      className="bg-gray-800 border-gray-600 text-white"
-                      placeholder="#3B82F6"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="season-icon" className="text-gray-300">Icon URL</Label>
-                  <Input
-                    id="season-icon"
-                    value={seasonForm.iconUrl}
-                    onChange={(e) => setSeasonForm({...seasonForm, iconUrl: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="/images/default-season.png"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="season-active"
-                  checked={seasonForm.isActive}
-                  onChange={(e) => setSeasonForm({...seasonForm, isActive: e.target.checked})}
-                  className="rounded"
-                />
-                <Label htmlFor="season-active" className="text-gray-300">Active</Label>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSeasonDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => seasonMutation.mutate(seasonForm)}
-                disabled={seasonMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {seasonMutation.isPending 
-                  ? (editingSeason ? "Updating..." : "Creating...") 
-                  : (editingSeason ? "Update Season" : "Create Season")
-                }
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Sector Dialog */}
-        <Dialog open={showSectorDialog} onOpenChange={setShowSectorDialog}>
-          <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingSector ? "Edit Sector" : "Add New Sector"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="sector-season" className="text-gray-300">Season</Label>
-                <Select 
-                  value={sectorForm.seasonId} 
-                  onValueChange={(value) => setSectorForm({...sectorForm, seasonId: value})}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue placeholder="Select a season" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    {seasons.map((season: any) => (
-                      <SelectItem key={season.id} value={season.id.toString()}>
-                        {season.displayName}
-                      </SelectItem>
+                    <option value="">Choose User</option>
+                    {usersResponse?.users?.map((user: any) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} ({user.email})
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+                  </select>
+                </div>
                 <div>
-                  <Label htmlFor="sector-name" className="text-gray-300">Name</Label>
-                  <Input
-                    id="sector-name"
-                    value={sectorForm.name}
-                    onChange={(e) => setSectorForm({...sectorForm, name: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="rare_finds"
+                  <label className="block text-sm font-medium text-white mb-2">Token Amount</label>
+                  <input
+                    type="number"
+                    value={tokenForm.amount}
+                    onChange={(e) => setTokenForm({...tokenForm, amount: parseInt(e.target.value) || 0})}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="Enter token amount"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="sector-display-name" className="text-gray-300">Display Name</Label>
-                  <Input
-                    id="sector-display-name"
-                    value={sectorForm.displayName}
-                    onChange={(e) => setSectorForm({...sectorForm, displayName: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="Rare Finds"
+                  <label className="block text-sm font-medium text-white mb-2">Reason</label>
+                  <input
+                    type="text"
+                    value={tokenForm.reason}
+                    onChange={(e) => setTokenForm({...tokenForm, reason: e.target.value})}
+                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                    placeholder="Enter reason for token addition"
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="sector-description" className="text-gray-300">Description</Label>
-                <Textarea
-                  id="sector-description"
-                  value={sectorForm.description}
-                  onChange={(e) => setSectorForm({...sectorForm, description: e.target.value})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Sector description..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sector-bg-color" className="text-gray-300">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="sector-bg-color"
-                      type="color"
-                      value={sectorForm.backgroundColor}
-                      onChange={(e) => setSectorForm({...sectorForm, backgroundColor: e.target.value})}
-                      className="w-12 h-10 p-1 bg-gray-800 border-gray-600"
-                    />
-                    <Input
-                      value={sectorForm.backgroundColor}
-                      onChange={(e) => setSectorForm({...sectorForm, backgroundColor: e.target.value})}
-                      className="bg-gray-800 border-gray-600 text-white"
-                      placeholder="#F3F4F6"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="sector-icon" className="text-gray-300">Icon Symbol</Label>
-                  <Input
-                    id="sector-icon"
-                    value={sectorForm.iconSymbol}
-                    onChange={(e) => setSectorForm({...sectorForm, iconSymbol: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="🎯"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="sector-unlock" className="text-gray-300">Unlock Condition</Label>
-                <Select 
-                  value={sectorForm.unlockCondition} 
-                  onValueChange={(value) => setSectorForm({...sectorForm, unlockCondition: value})}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowTokenDialog(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
                 >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue placeholder="Select unlock condition" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="none">No Condition</SelectItem>
-                    <SelectItem value="level_5">Level 5</SelectItem>
-                    <SelectItem value="toys_10">10 Toys</SelectItem>
-                    <SelectItem value="points_500">500 Points</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="sector-unlocked"
-                  checked={sectorForm.isUnlocked}
-                  onChange={(e) => setSectorForm({...sectorForm, isUnlocked: e.target.checked})}
-                  className="rounded"
-                />
-                <Label htmlFor="sector-unlocked" className="text-gray-300">Unlocked</Label>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (tokenForm.userId && tokenForm.amount && tokenForm.reason) {
+                      addTokensMutation.mutate(tokenForm);
+                    }
+                  }}
+                  disabled={addTokensMutation.isPending || !tokenForm.userId || !tokenForm.amount || !tokenForm.reason}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded transition-colors"
+                >
+                  {addTokensMutation.isPending ? "Adding..." : "Add Tokens"}
+                </button>
               </div>
             </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSectorDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => sectorMutation.mutate(sectorForm)}
-                disabled={sectorMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {sectorMutation.isPending 
-                  ? (editingSector ? "Updating..." : "Creating...") 
-                  : (editingSector ? "Update Sector" : "Create Sector")
-                }
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
+
+        {/* Collections Management Tab - Temporarily disabled due to JSX compilation issues */}
       </div>
     </div>
   );
