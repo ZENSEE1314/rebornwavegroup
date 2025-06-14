@@ -6361,7 +6361,7 @@ export default function CompleteApp() {
                       {/* Pagination Controls - Always show to indicate 10-per-page structure */}
                       <div className="flex justify-between items-center pt-4 border-t mt-6">
                         <div className="text-sm text-gray-600">
-                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {t("pagination.of")} {appointments.length} {t("pagination.items")} ({language === "id" ? "10 per halaman" : "10 per page"})
+                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {t("pagination.of")} {appointments.length} {t("pagination.items")} ({t("pagination.perPage")})
                         </div>
                         {totalPages > 1 && (
                           <div className="flex gap-2">
@@ -6450,7 +6450,7 @@ export default function CompleteApp() {
                           RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
                         </p>
                         <p className="text-sm text-slate-500 mb-4">
-                          {language === "id" ? "Dijual oleh" : "Sold by"}: {listing.seller?.firstName || listing.seller?.email?.split('@')[0] || "User"}
+                          {t("listing.soldBy")}: {listing.seller?.firstName || listing.seller?.email?.split('@')[0] || "User"}
                         </p>
                         
                         {isOwnListing ? (
@@ -6458,7 +6458,7 @@ export default function CompleteApp() {
                             {pendingPurchase && pendingPurchase.status === 'pending_seller_confirmation' ? (
                               <div className="space-y-2">
                                 <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
-                                  {language === "id" ? "Menunggu Konfirmasi Anda" : "Awaiting Your Confirmation"}
+                                  {t("purchase.awaitingConfirmation")}
                                 </Badge>
                                 <div className="flex gap-2">
                                   <Button 
@@ -6474,14 +6474,14 @@ export default function CompleteApp() {
                                     className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
                                   >
                                     <X className="w-4 h-4 mr-2" />
-                                    {language === "id" ? "Tolak" : "Cancel"}
+                                    {t("common.cancel")}
                                   </Button>
                                 </div>
                               </div>
                             ) : (
                               <div className="space-y-2">
                                 <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
-                                  {language === "id" ? "Milik Anda" : "Your Item"}
+                                  {t("listing.yourItem")}
                                 </Badge>
                                 <Button 
                                   onClick={async () => {
@@ -6492,7 +6492,7 @@ export default function CompleteApp() {
                                       });
                                       if (response.ok) {
                                         toast({
-                                          title: language === "id" ? "Penjualan Dibatalkan" : "Sale Cancelled",
+                                          title: t("sale.cancelled"),
                                           description: language === "id" ? "Listing dihapus dari marketplace" : "Listing removed from marketplace"
                                         });
                                         queryClient.invalidateQueries({ queryKey: ['/api/listings'] });

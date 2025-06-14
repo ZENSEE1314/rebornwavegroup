@@ -3823,11 +3823,7 @@ export const translations: Translations = {
     zh: '等待您的确认',
     id: 'Menunggu Konfirmasi Anda'
   },
-  'common.cancel': {
-    en: 'Cancel',
-    zh: '取消',
-    id: 'Tolak'
-  },
+
   'listing.yourItem': {
     en: 'Your Item',
     zh: '您的物品',
