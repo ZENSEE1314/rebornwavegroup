@@ -3110,6 +3110,51 @@ export const translations: Translations = {
     en: 'Wake Pet',
     zh: '唤醒宠物',
     id: 'Bangunkan Pet'
+  },
+  'petCareSystem.description': {
+    en: 'Take care of your digital pets to earn daily tokens!',
+    zh: '照顾您的数字宠物以获得每日代币！',
+    id: 'Rawat hewan digital Anda untuk mendapatkan token harian!'
+  },
+  'booking.incompleteData': {
+    en: 'Incomplete Data',
+    zh: '数据不完整',
+    id: 'Data Tidak Lengkap'
+  },
+  'booking.fillAllFields': {
+    en: 'Please fill all fields, select service category, and upload receipt image',
+    zh: '请填写所有字段，选择服务类别，并上传收据图片',
+    id: 'Mohon isi semua field dan upload bukti pembayaran'
+  },
+  'common.remove': {
+    en: 'Remove',
+    zh: '移除',
+    id: 'Hapus'
+  },
+  'profile.notificationSettings': {
+    en: 'Notification Settings',
+    zh: '通知设置',
+    id: 'Pengaturan Notifikasi'
+  },
+  'profile.emailNotifications': {
+    en: 'Email Notifications',
+    zh: '邮件通知',
+    id: 'Notifikasi Email'
+  },
+  'profile.receiveEmailUpdates': {
+    en: 'Receive updates via email',
+    zh: '通过邮件接收更新',
+    id: 'Terima update melalui email'
+  },
+  'profile.smsNotifications': {
+    en: 'SMS Notifications',
+    zh: '短信通知',
+    id: 'Notifikasi SMS'
+  },
+  'profile.receiveSmsUpdates': {
+    en: 'Receive updates via SMS',
+    zh: '通过短信接收更新',
+    id: 'Terima update melalui SMS'
   }
 };
 

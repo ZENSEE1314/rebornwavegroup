@@ -2195,7 +2195,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               {t('toys.noToys')}
             </p>
             <p className="text-sm text-gray-500">
-              {language === "id" ? "Kunjungi tab Marketplace untuk membeli mainan" : "Visit Marketplace tab to buy toys"}
+              {t('toys.visitMarketplace')}
             </p>
           </CardContent>
         </Card>
@@ -2209,10 +2209,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     <div className="space-y-8">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-slate-900 mb-2">
-          {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+          {t('petCareSystem.title')}
         </h2>
         <p className="text-slate-600">
-          {language === "id" ? "Rawat hewan digital Anda untuk mendapatkan token harian!" : "Take care of your digital pets to earn daily tokens!"}
+          {t('petCareSystem.description')}
         </p>
       </div>
 
@@ -2220,7 +2220,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       {unactivatedToys.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{language === "id" ? "Mainan yang Perlu Diaktivasi" : "Toys Awaiting Activation"}</CardTitle>
+            <CardTitle>{t('toys.awaiting')}</CardTitle>
             <p className="text-sm text-gray-600">
               {language === "id" ? "Aktivasi mainan untuk mengubahnya menjadi hewan peliharaan" : "Activate your toys to turn them into pets"}
             </p>
