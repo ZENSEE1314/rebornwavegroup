@@ -4603,11 +4603,6 @@ export const translations: Translations = {
     zh: '订单编号',
     id: 'Nomor Pesanan'
   },
-  'common.settings': {
-    en: 'Settings',
-    zh: '设置',
-    id: 'Pengaturan'
-  },
   'common.help': {
     en: 'Help',
     zh: '帮助',
