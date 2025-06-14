@@ -3030,6 +3030,86 @@ export const translations: Translations = {
     en: 'Buy toys from the marketplace to create pets!',
     zh: '从市场购买玩具来创建宠物！',
     id: 'Beli mainan terlebih dahulu untuk membuat hewan peliharaan!'
+  },
+  'toys.visitMarketplace': {
+    en: 'Visit Marketplace tab to buy toys',
+    zh: '访问市场选项卡购买玩具',
+    id: 'Kunjungi tab Marketplace untuk membeli mainan'
+  },
+  'toys.awaiting': {
+    en: 'Toys Awaiting Activation',
+    zh: '等待激活的玩具',
+    id: 'Mainan yang Perlu Diaktivasi'
+  },
+  'toys.activateDescription': {
+    en: 'Activate your toys to turn them into pets',
+    zh: '激活您的玩具将其变成宠物',
+    id: 'Aktivasi mainan untuk mengubahnya menjadi hewan peliharaan'
+  },
+  'toys.active': {
+    en: 'Active Toys - Create Pets',
+    zh: '活跃玩具 - 创建宠物',
+    id: 'Mainan Aktif - Buat Hewan Peliharaan'
+  },
+  'toys.createDescription': {
+    en: 'Turn active toys into virtual pets',
+    zh: '将活跃玩具变成虚拟宠物',
+    id: 'Ubah mainan aktif menjadi hewan peliharaan virtual'
+  },
+  'common.active': {
+    en: 'Active',
+    zh: '活跃',
+    id: 'Aktif'
+  },
+  'common.born': {
+    en: 'Born',
+    zh: '出生',
+    id: 'Lahirkan'
+  },
+  'common.createPet': {
+    en: 'Create Pet',
+    zh: '创建宠物',
+    id: 'Buat Pet'
+  },
+  'success.title': {
+    en: 'Success!',
+    zh: '成功！',
+    id: 'Berhasil!'
+  },
+  'success.petCreated': {
+    en: 'Pet successfully created!',
+    zh: '宠物创建成功！',
+    id: 'Hewan peliharaan berhasil dibuat!'
+  },
+  'error.title': {
+    en: 'Error',
+    zh: '错误',
+    id: 'Error'
+  },
+  'error.petCreationFailed': {
+    en: 'Failed to create pet',
+    zh: '创建宠物失败',
+    id: 'Gagal membuat hewan peliharaan'
+  },
+  'dailyActivities.completeAll': {
+    en: 'Complete all activities to earn 1 token today!',
+    zh: '完成所有活动即可获得今日1个代币！',
+    id: 'Selesaikan semua aktivitas untuk mendapatkan 1 token hari ini!'
+  },
+  'energy.currentEnergy': {
+    en: 'Current energy: ',
+    zh: '当前能量：',
+    id: 'Energi saat ini: '
+  },
+  'energy.fullCanWake': {
+    en: 'Energy full! Can wake up now',
+    zh: '能量满满！现在可以唤醒',
+    id: 'Energi penuh! Bisa bangun sekarang'
+  },
+  'wakeUp.button': {
+    en: 'Wake Pet',
+    zh: '唤醒宠物',
+    id: 'Bangunkan Pet'
   }
 };
 

@@ -2012,7 +2012,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         </p>
                       </div>
                       <div>
-                        <span className="text-gray-600">{language === "id" ? "Token:" : "Tokens:"}</span>
+                        <span className="text-gray-600">{t('petInfo.tokens')}</span>
                         <p className="font-medium">{pet.totalTokensEarned || 0}</p>
                       </div>
                     </div>
@@ -2183,16 +2183,16 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       <div className="space-y-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-2">
-            {language === "id" ? "Sistem Perawatan Hewan" : "Pet Care System"}
+            {t('petCareSystem.title')}
           </h2>
           <p className="text-slate-600">
-            {language === "id" ? "Beli mainan terlebih dahulu untuk membuat hewan peliharaan!" : "Buy toys from the marketplace to create pets!"}
+            {t('petCareSystem.buyToys')}
           </p>
         </div>
         <Card>
           <CardContent className="text-center py-12">
             <p className="text-gray-600 mb-4">
-              {language === "id" ? "Tidak ada mainan yang dimiliki" : "No toys owned"}
+              {t('toys.noToys')}
             </p>
             <p className="text-sm text-gray-500">
               {language === "id" ? "Kunjungi tab Marketplace untuk membeli mainan" : "Visit Marketplace tab to buy toys"}
