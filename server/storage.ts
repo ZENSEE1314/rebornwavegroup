@@ -27,7 +27,7 @@ import {
   tokenTransactions,
   dailyTokenRewards,
   seasons,
-  collectionSectors,
+  collectionSeries,
   type User,
   type UpsertUser,
   type InsertAppointment,
