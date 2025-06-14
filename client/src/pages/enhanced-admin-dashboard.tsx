@@ -4331,6 +4331,170 @@ function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Collections Management Tab */}
+          <TabsContent value="collections">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Seasons Management */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white">Season Management</CardTitle>
+                    <Button 
+                      onClick={() => {
+                        setEditingSeason(null);
+                        setSeasonForm({
+                          name: "",
+                          displayName: "",
+                          description: "",
+                          backgroundColor: "#3B82F6",
+                          iconUrl: "/images/default-season.png",
+                          isActive: true
+                        });
+                        setShowSeasonDialog(true);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Season
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {seasons.map((season: any) => (
+                      <div key={season.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: season.backgroundColor}}>
+                        <div className="flex items-center space-x-3">
+                          <div 
+                            className="w-6 h-6 rounded-full"
+                            style={{backgroundColor: season.backgroundColor}}
+                          />
+                          <div>
+                            <p className="font-medium text-white">{season.displayName}</p>
+                            <p className="text-sm text-gray-400">{season.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingSeason(season);
+                              setSeasonForm({
+                                name: season.name,
+                                displayName: season.displayName,
+                                description: season.description,
+                                backgroundColor: season.backgroundColor,
+                                iconUrl: season.iconUrl,
+                                isActive: season.isActive
+                              });
+                              setShowSeasonDialog(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (window.confirm('Are you sure? This will delete the season and all its sectors.')) {
+                                deleteSeasonMutation.mutate(season.id);
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sectors Management */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white">Sector Management</CardTitle>
+                    <Button 
+                      onClick={() => {
+                        setEditingSector(null);
+                        setSectorForm({
+                          seasonId: "",
+                          name: "",
+                          displayName: "",
+                          description: "",
+                          backgroundColor: "#F3F4F6",
+                          iconSymbol: "🎯",
+                          unlockCondition: "none",
+                          isUnlocked: true
+                        });
+                        setShowSectorDialog(true);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Sector
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {sectors.map((sector: any) => (
+                      <div key={sector.id} className="flex items-center justify-between p-4 bg-gray-800 rounded border" style={{borderColor: sector.backgroundColor}}>
+                        <div className="flex items-center space-x-3">
+                          <div 
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                            style={{backgroundColor: sector.backgroundColor}}
+                          >
+                            {sector.iconSymbol}
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{sector.displayName}</p>
+                            <p className="text-sm text-gray-400">{sector.description}</p>
+                            <p className="text-xs text-gray-500">Season: {seasons.find((s: any) => s.id === sector.seasonId)?.displayName}</p>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingSector(sector);
+                              setSectorForm({
+                                seasonId: sector.seasonId.toString(),
+                                name: sector.name,
+                                displayName: sector.displayName,
+                                description: sector.description,
+                                backgroundColor: sector.backgroundColor,
+                                iconSymbol: sector.iconSymbol,
+                                unlockCondition: sector.unlockCondition,
+                                isUnlocked: sector.isUnlocked
+                              });
+                              setShowSectorDialog(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this sector?')) {
+                                deleteSectorMutation.mutate(sector.id);
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
 
         {/* Add Tokens Dialog */}
@@ -4956,37 +5120,325 @@ function EnhancedAdminDashboard() {
           </DialogContent>
         </Dialog>
 
-          {/* Collections Management Tab */}
-          <TabsContent value="collections">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Seasons Management */}
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Season Management</CardTitle>
-                  <Button 
-                    onClick={() => {
-                      setEditingSeason(null);
-                      setSeasonForm({
-                        name: "",
-                        displayName: "",
-                        description: "",
-                        backgroundColor: "#3B82F6",
-                        iconUrl: "/images/default-season.png",
-                        isActive: true
-                      });
-                      setShowSeasonDialog(true);
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Season
-                  </Button>
+        {/* Season Dialog */}
+        <Dialog open={showSeasonDialog} onOpenChange={setShowSeasonDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white">
+            <DialogHeader>
+              <DialogTitle>{editingSeason ? 'Edit Season' : 'Add New Season'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Name (Internal)</label>
+                <Input
+                  value={seasonForm.name}
+                  onChange={(e) => setSeasonForm({...seasonForm, name: e.target.value})}
+                  placeholder="spring_2024"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Display Name</label>
+                <Input
+                  value={seasonForm.displayName}
+                  onChange={(e) => setSeasonForm({...seasonForm, displayName: e.target.value})}
+                  placeholder="Spring Collection 2024"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <Input
+                  value={seasonForm.description}
+                  onChange={(e) => setSeasonForm({...seasonForm, description: e.target.value})}
+                  placeholder="Beautiful spring-themed collectibles"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Background Color</label>
+                <Input
+                  type="color"
+                  value={seasonForm.backgroundColor}
+                  onChange={(e) => setSeasonForm({...seasonForm, backgroundColor: e.target.value})}
+                  className="bg-gray-800 border-gray-600 h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Icon URL</label>
+                <Input
+                  value={seasonForm.iconUrl}
+                  onChange={(e) => setSeasonForm({...seasonForm, iconUrl: e.target.value})}
+                  placeholder="/images/spring-icon.png"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={seasonForm.isActive}
+                  onChange={(e) => setSeasonForm({...seasonForm, isActive: e.target.checked})}
+                  className="rounded"
+                />
+                <label htmlFor="isActive" className="text-sm">Active Season</label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={() => setShowSeasonDialog(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingSeason) {
+                    updateSeasonMutation.mutate({
+                      id: editingSeason.id,
+                      data: seasonForm
+                    });
+                  } else {
+                    createSeasonMutation.mutate(seasonForm);
+                  }
+                }}
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                disabled={createSeasonMutation.isPending || updateSeasonMutation.isPending}
+              >
+                {(createSeasonMutation.isPending || updateSeasonMutation.isPending) 
+                  ? (editingSeason ? "Updating..." : "Creating...") 
+                  : (editingSeason ? "Update Season" : "Create Season")
+                }
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Sector Dialog */}
+        <Dialog open={showSectorDialog} onOpenChange={setShowSectorDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white">
+            <DialogHeader>
+              <DialogTitle>{editingSector ? 'Edit Sector' : 'Add New Sector'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Season</label>
+                <select
+                  value={sectorForm.seasonId}
+                  onChange={(e) => setSectorForm({...sectorForm, seasonId: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
+                >
+                  <option value="">Select Season</option>
+                  {seasons.map((season: any) => (
+                    <option key={season.id} value={season.id}>
+                      {season.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Name (Internal)</label>
+                <Input
+                  value={sectorForm.name}
+                  onChange={(e) => setSectorForm({...sectorForm, name: e.target.value})}
+                  placeholder="forest_animals"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Display Name</label>
+                <Input
+                  value={sectorForm.displayName}
+                  onChange={(e) => setSectorForm({...sectorForm, displayName: e.target.value})}
+                  placeholder="Forest Animals"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <Input
+                  value={sectorForm.description}
+                  onChange={(e) => setSectorForm({...sectorForm, description: e.target.value})}
+                  placeholder="Cute forest creature collectibles"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Background Color</label>
+                <Input
+                  type="color"
+                  value={sectorForm.backgroundColor}
+                  onChange={(e) => setSectorForm({...sectorForm, backgroundColor: e.target.value})}
+                  className="bg-gray-800 border-gray-600 h-12"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Icon Symbol</label>
+                <Input
+                  value={sectorForm.iconSymbol}
+                  onChange={(e) => setSectorForm({...sectorForm, iconSymbol: e.target.value})}
+                  placeholder="🌲"
+                  className="bg-gray-800 border-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Unlock Condition</label>
+                <select
+                  value={sectorForm.unlockCondition}
+                  onChange={(e) => setSectorForm({...sectorForm, unlockCondition: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
+                >
+                  <option value="none">Always Available</option>
+                  <option value="level">Level Requirement</option>
+                  <option value="points">Points Requirement</option>
+                  <option value="achievement">Achievement Unlock</option>
+                </select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isUnlocked"
+                  checked={sectorForm.isUnlocked}
+                  onChange={(e) => setSectorForm({...sectorForm, isUnlocked: e.target.checked})}
+                  className="rounded"
+                />
+                <label htmlFor="isUnlocked" className="text-sm">Currently Unlocked</label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={() => setShowSectorDialog(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingSector) {
+                    updateSectorMutation.mutate({
+                      id: editingSector.id,
+                      data: sectorForm
+                    });
+                  } else {
+                    createSectorMutation.mutate(sectorForm);
+                  }
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={createSectorMutation.isPending || updateSectorMutation.isPending}
+              >
+                {(createSectorMutation.isPending || updateSectorMutation.isPending) 
+                  ? (editingSector ? "Updating..." : "Creating...") 
+                  : (editingSector ? "Update Sector" : "Create Sector")
+                }
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Toy Generation Dialog */}
+        <Dialog open={showBulkToyDialog} onOpenChange={setShowBulkToyDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Bulk Toy Generation</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Season</label>
+                <select
+                  value={bulkToyForm.seasonId}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, seasonId: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
+                >
+                  <option value="">Select Season</option>
+                  {seasons.map((season: any) => (
+                    <option key={season.id} value={season.id}>
+                      {season.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Sector</label>
+                <select
+                  value={bulkToyForm.sectorId}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, sectorId: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded"
+                >
+                  <option value="">Select Sector</option>
+                  {sectors
+                    .filter((sector: any) => sector.seasonId === parseInt(bulkToyForm.seasonId))
+                    .map((sector: any) => (
+                      <option key={sector.id} value={sector.id}>
+                        {sector.displayName}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Toy Names (one per line)</label>
+                <textarea
+                  value={bulkToyForm.toyNames}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, toyNames: e.target.value})}
+                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded h-32"
+                  placeholder="Cute Bunny&#10;Forest Fox&#10;Magic Unicorn"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Base Points Cost</label>
+                  <Input
+                    type="number"
+                    value={bulkToyForm.basePointsCost}
+                    onChange={(e) => setBulkToyForm({...bulkToyForm, basePointsCost: parseInt(e.target.value)})}
+                    className="bg-gray-800 border-gray-600"
+                    placeholder="100"
+                  />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Base Credits Cost</label>
+                  <Input
+                    type="number"
+                    value={bulkToyForm.baseCreditsCost}
+                    onChange={(e) => setBulkToyForm({...bulkToyForm, baseCreditsCost: parseInt(e.target.value)})}
+                    className="bg-gray-800 border-gray-600"
+                    placeholder="50"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isSeasonalExclusive"
+                  checked={bulkToyForm.isSeasonalExclusive}
+                  onChange={(e) => setBulkToyForm({...bulkToyForm, isSeasonalExclusive: e.target.checked})}
+                  className="rounded"
+                />
+                <label htmlFor="isSeasonalExclusive" className="text-sm">Seasonal Exclusive</label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={() => setShowBulkToyDialog(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  bulkToyMutation.mutate(bulkToyForm);
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                disabled={bulkToyMutation.isPending}
+              >
+                {bulkToyMutation.isPending ? "Generating..." : "Generate Toys"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Tokens Dialog */}
                     <TableHeader>
                       <TableRow className="border-white/20">
                         <TableHead className="text-blue-200">Season</TableHead>
