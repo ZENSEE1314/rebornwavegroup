@@ -3289,10 +3289,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/points-history/:adminUserId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points-history/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const { userId } = req.params;
-      const history = await storage.getPointsHistoryByUserId(adminUserId);
+      const history = await storage.getPointsHistoryByUserId(userId);
       res.json(history);
     } catch (error) {
       console.error("Error fetching points history:", error);
@@ -4251,14 +4251,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user dashboard stats from database - OPTIMIZED for performance
   app.get('/api/user-stats', requireAuth, async (req: any, res) => {
     try {
-      console.log('*** USER-STATS DEBUG: req.user:', req.user);
-      console.log('*** USER-STATS DEBUG: req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'no isAuthenticated method');
-      
       const userId = getUserId(req);
-      console.log('*** USER-STATS DEBUG: extracted userId:', userId);
-      
       if (!userId) {
-        console.log('*** USER-STATS DEBUG: No userId found, returning 401');
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
