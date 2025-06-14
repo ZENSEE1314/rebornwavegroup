@@ -4311,6 +4311,46 @@ export const translations: Translations = {
     zh: '明天',
     id: 'Besok'
   },
+  'form.name': {
+    en: 'Name',
+    zh: '姓名',
+    id: 'Nama'
+  },
+  'form.email': {
+    en: 'Email',
+    zh: '邮箱',
+    id: 'Email'
+  },
+  'form.phone': {
+    en: 'Phone',
+    zh: '电话',
+    id: 'Telepon'
+  },
+  'form.address': {
+    en: 'Address',
+    zh: '地址',
+    id: 'Alamat'
+  },
+  'form.description': {
+    en: 'Description',
+    zh: '描述',
+    id: 'Deskripsi'
+  },
+  'form.category': {
+    en: 'Category',
+    zh: '类别',
+    id: 'Kategori'
+  },
+  'form.amount': {
+    en: 'Amount',
+    zh: '金额',
+    id: 'Jumlah'
+  },
+  'form.price': {
+    en: 'Price',
+    zh: '价格',
+    id: 'Harga'
+  },
 
 
 };
