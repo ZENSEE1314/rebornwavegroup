@@ -179,6 +179,12 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Debug logging for pagination data
+  console.log('Users response:', usersResponse);
+  console.log('Pagination data:', usersResponse?.pagination);
+  console.log('Total count from API:', usersResponse?.pagination?.totalCount);
+  console.log('Data length:', usersResponse?.data?.length);
+
   const { data: cashOutResponse }: any = useQuery({
     queryKey: ['/api/admin/cash-outs'],
     retry: false,
@@ -1526,8 +1532,8 @@ function EnhancedAdminDashboard() {
                     
                     <div className="ml-4 text-sm text-gray-300">
                       Showing {((usersPage - 1) * usersPerPage) + 1} to{' '}
-                      {Math.min(usersPage * usersPerPage, (usersResponse as any).pagination.totalCount || 0)} of{' '}
-                      {(usersResponse as any).pagination.totalCount || 0} users
+                      {Math.min(usersPage * usersPerPage, (usersResponse as any)?.pagination?.totalCount || usersResponse?.data?.length || 0)} of{' '}
+                      {(usersResponse as any)?.pagination?.totalCount || usersResponse?.data?.length || 0} users
                     </div>
                   </div>
                 )}
