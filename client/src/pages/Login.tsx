@@ -318,12 +318,12 @@ export default function Login() {
             <TabsContent value="login" className="space-y-4">
               <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
+                  <Label htmlFor="login-email">{t('auth.email')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="login-email"
-                      placeholder="Enter your email"
+                      placeholder={t('auth.enterEmail')}
                       className="pl-10"
                       {...loginForm.register("email")}
                     />
@@ -336,13 +336,13 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
+                  <Label htmlFor="login-password">{t('auth.password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="login-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
+                      placeholder={t('auth.enterPassword')}
                       className="pl-10 pr-10"
                       {...loginForm.register("password")}
                     />
@@ -374,7 +374,7 @@ export default function Login() {
                     className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800"
                     onClick={() => setActiveTab("forgot-password")}
                   >
-                    Forgot password?
+                    {t('auth.forgotPassword')}
                   </Button>
                 </div>
 
@@ -383,7 +383,7 @@ export default function Login() {
                   className="w-full"
                   disabled={loginMutation.isPending}
                 >
-                  {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                  {loginMutation.isPending ? t('auth.signingIn') : t('auth.signIn')}
                 </Button>
               </form>
 
@@ -394,7 +394,7 @@ export default function Login() {
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-background px-2 text-muted-foreground">
-                      Or continue with
+                      {t('auth.orContinueWith')}
                     </span>
                   </div>
                 </div>
@@ -433,12 +433,12 @@ export default function Login() {
               <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">{t('auth.firstName')}</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         id="firstName"
-                        placeholder="First name"
+                        placeholder={t('auth.firstName')}
                         className="pl-10"
                         {...registerForm.register("firstName")}
                       />
