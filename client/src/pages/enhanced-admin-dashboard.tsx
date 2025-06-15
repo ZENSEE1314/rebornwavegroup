@@ -2390,7 +2390,7 @@ function EnhancedAdminDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="">No Season</SelectItem>
-                          {(seasonsData || []).map((season: any) => (
+                          {seasonsData.map((season: any) => (
                             <SelectItem key={season.id} value={season.id.toString()}>
                               {season.displayName}
                             </SelectItem>
@@ -2406,7 +2406,7 @@ function EnhancedAdminDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="">No Series</SelectItem>
-                          {(seriesData || []).map((series: any) => (
+                          {seriesData.map((series: any) => (
                             <SelectItem key={series.id} value={series.id.toString()}>
                               {series.displayName}
                             </SelectItem>
@@ -2536,7 +2536,7 @@ function EnhancedAdminDashboard() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="">Keep original season</SelectItem>
-                            {(seasonsData || []).map((season: any) => (
+                            {seasonsData.map((season: any) => (
                               <SelectItem key={season.id} value={season.id.toString()}>
                                 {season.displayName}
                               </SelectItem>
@@ -2552,7 +2552,7 @@ function EnhancedAdminDashboard() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="">Keep original series</SelectItem>
-                            {(seriesData || []).map((series: any) => (
+                            {seriesData.map((series: any) => (
                               <SelectItem key={series.id} value={series.id.toString()}>
                                 {series.displayName}
                               </SelectItem>
