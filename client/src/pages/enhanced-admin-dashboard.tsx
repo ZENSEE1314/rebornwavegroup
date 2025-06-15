@@ -82,30 +82,6 @@ function EnhancedAdminDashboard() {
     isSeasonalExclusive: false
   });
   
-  // Collections Management state
-  const [showSeasonDialog, setShowSeasonDialog] = useState(false);
-  const [showSectorDialog, setShowSectorDialog] = useState(false);
-  const [editingSeason, setEditingSeason] = useState<any>(null);
-  const [editingSector, setEditingSector] = useState<any>(null);
-  const [seasonForm, setSeasonForm] = useState({
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#3B82F6",
-    iconUrl: "/images/default-season.png",
-    isActive: true
-  });
-  const [sectorForm, setSectorForm] = useState({
-    seasonId: "",
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#F3F4F6",
-    iconSymbol: "🎯",
-    unlockCondition: "none",
-    isUnlocked: true
-  });
-  
   // Pagination states
   const [topUpCurrentPage, setTopUpCurrentPage] = useState(1);
   const topUpItemsPerPage = 10;
@@ -197,7 +173,29 @@ function EnhancedAdminDashboard() {
     isActive: true
   });
 
-
+  // Season and sector management states
+  const [showSeasonDialog, setShowSeasonDialog] = useState(false);
+  const [showSectorDialog, setShowSectorDialog] = useState(false);
+  const [editingSeason, setEditingSeason] = useState<any>(null);
+  const [editingSector, setEditingSector] = useState<any>(null);
+  const [seasonForm, setSeasonForm] = useState({
+    name: "",
+    displayName: "",
+    description: "",
+    backgroundColor: "#3B82F6",
+    iconUrl: "/images/default-season.png",
+    isActive: true
+  });
+  const [sectorForm, setSectorForm] = useState({
+    seasonId: "",
+    name: "",
+    displayName: "",
+    description: "",
+    backgroundColor: "#F3F4F6",
+    iconSymbol: "🎯",
+    unlockCondition: "none",
+    isUnlocked: true
+  });
 
   // Check if user is admin
   if (!user || (user as any).role !== 'admin') {
@@ -477,97 +475,42 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
     },
-    onError: () => {
-      toast({ title: "Failed to create toy", variant: "destructive" });
-    }
-  });
-
-  // Season and Sector Management Mutations
-  const seasonMutation = useMutation({
-    mutationFn: async (seasonData: any) => {
-      if (editingSeason) {
-        return apiRequest('PUT', `/api/admin/seasons/${editingSeason.id}`, seasonData);
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to create toy";
+      if (errorMessage.includes("QR code already exists")) {
+        toast({ 
+          title: "QR Code Error", 
+          description: "This QR code is already in use. Please use a different QR code or leave it empty to auto-generate one.",
+          variant: "destructive" 
+        });
       } else {
-        return apiRequest('POST', '/api/admin/seasons', seasonData);
+        toast({ title: errorMessage, variant: "destructive" });
       }
-    },
-    onSuccess: () => {
-      toast({ title: editingSeason ? "Season updated successfully" : "Season created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-      setShowSeasonDialog(false);
-      setEditingSeason(null);
-      setSeasonForm({
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#3B82F6",
-        iconUrl: "/images/default-season.png",
-        isActive: true
-      });
-    },
-    onError: () => {
-      toast({ title: editingSeason ? "Failed to update season" : "Failed to create season", variant: "destructive" });
     }
   });
 
-  const deleteSeasonMutation = useMutation({
-    mutationFn: async (seasonId: number) => {
-      return apiRequest('DELETE', `/api/admin/seasons/${seasonId}`);
+  const bulkCreateToysMutation = useMutation({
+    mutationFn: async (toys: any[]) => {
+      return apiRequest('POST', '/api/admin/toys/bulk', { toys });
     },
-    onSuccess: () => {
-      toast({ title: "Season deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete season", variant: "destructive" });
-    }
-  });
-
-  const sectorMutation = useMutation({
-    mutationFn: async (sectorData: any) => {
-      if (editingSector) {
-        return apiRequest('PUT', `/api/admin/sectors/${editingSector.id}`, sectorData);
+    onSuccess: (data: any) => {
+      if (data.errorCount > 0) {
+        toast({ 
+          title: `Partial Success: ${data.createdCount} toys created, ${data.errorCount} errors`,
+          description: data.errors?.slice(0, 3).join('; ') + (data.errors?.length > 3 ? '...' : ''),
+          variant: "destructive" 
+        });
       } else {
-        return apiRequest('POST', '/api/admin/sectors', sectorData);
+        toast({ title: `Successfully created ${data.createdCount} toys` });
       }
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      setBulkToyData("");
     },
-    onSuccess: () => {
-      toast({ title: editingSector ? "Sector updated successfully" : "Sector created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-      setShowSectorDialog(false);
-      setEditingSector(null);
-      setSectorForm({
-        seasonId: "",
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#F3F4F6",
-        iconSymbol: "🎯",
-        unlockCondition: "none",
-        isUnlocked: true
-      });
-    },
-    onError: () => {
-      toast({ title: editingSector ? "Failed to update sector" : "Failed to create sector", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to upload toys";
+      toast({ title: errorMessage, variant: "destructive" });
     }
   });
-
-  const deleteSectorMutation = useMutation({
-    mutationFn: async (sectorId: number) => {
-      return apiRequest('DELETE', `/api/admin/sectors/${sectorId}`);
-    },
-    onSuccess: () => {
-      toast({ title: "Sector deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete sector", variant: "destructive" });
-    }
-  });
-
-
 
   const updateAppointmentMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
@@ -1478,10 +1421,6 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="token-transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Trophy className="h-4 w-4 mr-2" />
                 Token Transactions
-              </TabsTrigger>
-              <TabsTrigger value="collections" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Package className="h-4 w-4 mr-2" />
-                Collections Management
               </TabsTrigger>
             </TabsList>
           </div>
@@ -5043,475 +4982,6 @@ function EnhancedAdminDashboard() {
                 {(createRewardMutation.isPending || updateRewardMutation.isPending) 
                   ? (editingReward ? "Updating..." : "Creating...") 
                   : (editingReward ? "Update Reward" : "Create Reward")
-                }
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Collections Management Tab */}
-        <TabsContent value="collections">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Seasons Management */}
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Season Management</CardTitle>
-                  <Button 
-                    onClick={() => {
-                      setEditingSeason(null);
-                      setSeasonForm({
-                        name: "",
-                        displayName: "",
-                        description: "",
-                        backgroundColor: "#3B82F6",
-                        iconUrl: "/images/default-season.png",
-                        isActive: true
-                      });
-                      setShowSeasonDialog(true);
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Season
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Season</TableHead>
-                        <TableHead className="text-blue-200">Color</TableHead>
-                        <TableHead className="text-blue-200">Status</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {seasons.map((season: any) => (
-                        <TableRow key={season.id} className="border-white/10">
-                          <TableCell className="text-white">
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: season.backgroundColor }}
-                              />
-                              <div>
-                                <div className="font-medium">{season.displayName}</div>
-                                <div className="text-sm text-gray-400">{season.description}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge 
-                              variant="outline" 
-                              style={{ 
-                                backgroundColor: season.backgroundColor + '20',
-                                borderColor: season.backgroundColor,
-                                color: season.backgroundColor
-                              }}
-                            >
-                              {season.backgroundColor}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge variant={season.isActive ? "default" : "secondary"}>
-                              {season.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingSeason(season);
-                                  setSeasonForm({
-                                    name: season.name,
-                                    displayName: season.displayName,
-                                    description: season.description || "",
-                                    backgroundColor: season.backgroundColor,
-                                    iconUrl: season.iconUrl || "/images/default-season.png",
-                                    isActive: season.isActive
-                                  });
-                                  setShowSeasonDialog(true);
-                                }}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this season? This will also delete all associated sectors.')) {
-                                    deleteSeasonMutation.mutate(season.id);
-                                  }
-                                }}
-                                className="bg-red-500/20 border-red-400/20 text-red-300 hover:bg-red-500/30"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Sectors Management */}
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Sector Management</CardTitle>
-                  <Button 
-                    onClick={() => {
-                      setEditingSector(null);
-                      setSectorForm({
-                        seasonId: "",
-                        name: "",
-                        displayName: "",
-                        description: "",
-                        backgroundColor: "#F3F4F6",
-                        iconSymbol: "🎯",
-                        unlockCondition: "none",
-                        isUnlocked: true
-                      });
-                      setShowSectorDialog(true);
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Sector
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Sector</TableHead>
-                        <TableHead className="text-blue-200">Season</TableHead>
-                        <TableHead className="text-blue-200">Color</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sectors.map((sector: any) => (
-                        <TableRow key={sector.id} className="border-white/10">
-                          <TableCell className="text-white">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">{sector.iconSymbol}</span>
-                              <div>
-                                <div className="font-medium">{sector.displayName}</div>
-                                <div className="text-sm text-gray-400">{sector.description}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge variant="outline" className="text-gray-300 border-gray-500">
-                              {sector.seasonName || "Unknown Season"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <Badge 
-                              variant="outline" 
-                              style={{ 
-                                backgroundColor: sector.backgroundColor + '20',
-                                borderColor: sector.backgroundColor,
-                                color: sector.backgroundColor
-                              }}
-                            >
-                              {sector.backgroundColor}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-white">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingSector(sector);
-                                  setSectorForm({
-                                    seasonId: sector.seasonId.toString(),
-                                    name: sector.name,
-                                    displayName: sector.displayName,
-                                    description: sector.description || "",
-                                    backgroundColor: sector.backgroundColor,
-                                    iconSymbol: sector.iconSymbol,
-                                    unlockCondition: sector.unlockCondition || "none",
-                                    isUnlocked: sector.isUnlocked
-                                  });
-                                  setShowSectorDialog(true);
-                                }}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this sector?')) {
-                                    deleteSectorMutation.mutate(sector.id);
-                                  }
-                                }}
-                                className="bg-red-500/20 border-red-400/20 text-red-300 hover:bg-red-500/30"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Season Dialog */}
-        <Dialog open={showSeasonDialog} onOpenChange={setShowSeasonDialog}>
-          <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingSeason ? "Edit Season" : "Add New Season"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="season-name" className="text-gray-300">Name</Label>
-                  <Input
-                    id="season-name"
-                    value={seasonForm.name}
-                    onChange={(e) => setSeasonForm({...seasonForm, name: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="spring_collection"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="season-display-name" className="text-gray-300">Display Name</Label>
-                  <Input
-                    id="season-display-name"
-                    value={seasonForm.displayName}
-                    onChange={(e) => setSeasonForm({...seasonForm, displayName: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="Spring Collection"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="season-description" className="text-gray-300">Description</Label>
-                <Textarea
-                  id="season-description"
-                  value={seasonForm.description}
-                  onChange={(e) => setSeasonForm({...seasonForm, description: e.target.value})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Seasonal collection description..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="season-bg-color" className="text-gray-300">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="season-bg-color"
-                      type="color"
-                      value={seasonForm.backgroundColor}
-                      onChange={(e) => setSeasonForm({...seasonForm, backgroundColor: e.target.value})}
-                      className="w-12 h-10 p-1 bg-gray-800 border-gray-600"
-                    />
-                    <Input
-                      value={seasonForm.backgroundColor}
-                      onChange={(e) => setSeasonForm({...seasonForm, backgroundColor: e.target.value})}
-                      className="bg-gray-800 border-gray-600 text-white"
-                      placeholder="#3B82F6"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="season-icon" className="text-gray-300">Icon URL</Label>
-                  <Input
-                    id="season-icon"
-                    value={seasonForm.iconUrl}
-                    onChange={(e) => setSeasonForm({...seasonForm, iconUrl: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="/images/default-season.png"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="season-active"
-                  checked={seasonForm.isActive}
-                  onChange={(e) => setSeasonForm({...seasonForm, isActive: e.target.checked})}
-                  className="rounded"
-                />
-                <Label htmlFor="season-active" className="text-gray-300">Active</Label>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSeasonDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => seasonMutation.mutate(seasonForm)}
-                disabled={seasonMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {seasonMutation.isPending 
-                  ? (editingSeason ? "Updating..." : "Creating...") 
-                  : (editingSeason ? "Update Season" : "Create Season")
-                }
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Sector Dialog */}
-        <Dialog open={showSectorDialog} onOpenChange={setShowSectorDialog}>
-          <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingSector ? "Edit Sector" : "Add New Sector"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="sector-season" className="text-gray-300">Season</Label>
-                <Select 
-                  value={sectorForm.seasonId} 
-                  onValueChange={(value) => setSectorForm({...sectorForm, seasonId: value})}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue placeholder="Select a season" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    {seasons.map((season: any) => (
-                      <SelectItem key={season.id} value={season.id.toString()}>
-                        {season.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sector-name" className="text-gray-300">Name</Label>
-                  <Input
-                    id="sector-name"
-                    value={sectorForm.name}
-                    onChange={(e) => setSectorForm({...sectorForm, name: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="rare_finds"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sector-display-name" className="text-gray-300">Display Name</Label>
-                  <Input
-                    id="sector-display-name"
-                    value={sectorForm.displayName}
-                    onChange={(e) => setSectorForm({...sectorForm, displayName: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="Rare Finds"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="sector-description" className="text-gray-300">Description</Label>
-                <Textarea
-                  id="sector-description"
-                  value={sectorForm.description}
-                  onChange={(e) => setSectorForm({...sectorForm, description: e.target.value})}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Sector description..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sector-bg-color" className="text-gray-300">Background Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="sector-bg-color"
-                      type="color"
-                      value={sectorForm.backgroundColor}
-                      onChange={(e) => setSectorForm({...sectorForm, backgroundColor: e.target.value})}
-                      className="w-12 h-10 p-1 bg-gray-800 border-gray-600"
-                    />
-                    <Input
-                      value={sectorForm.backgroundColor}
-                      onChange={(e) => setSectorForm({...sectorForm, backgroundColor: e.target.value})}
-                      className="bg-gray-800 border-gray-600 text-white"
-                      placeholder="#F3F4F6"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="sector-icon" className="text-gray-300">Icon Symbol</Label>
-                  <Input
-                    id="sector-icon"
-                    value={sectorForm.iconSymbol}
-                    onChange={(e) => setSectorForm({...sectorForm, iconSymbol: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="🎯"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="sector-unlock" className="text-gray-300">Unlock Condition</Label>
-                <Select 
-                  value={sectorForm.unlockCondition} 
-                  onValueChange={(value) => setSectorForm({...sectorForm, unlockCondition: value})}
-                >
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                    <SelectValue placeholder="Select unlock condition" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="none">No Condition</SelectItem>
-                    <SelectItem value="level_5">Level 5</SelectItem>
-                    <SelectItem value="toys_10">10 Toys</SelectItem>
-                    <SelectItem value="points_500">500 Points</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="sector-unlocked"
-                  checked={sectorForm.isUnlocked}
-                  onChange={(e) => setSectorForm({...sectorForm, isUnlocked: e.target.checked})}
-                  className="rounded"
-                />
-                <Label htmlFor="sector-unlocked" className="text-gray-300">Unlocked</Label>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSectorDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={() => sectorMutation.mutate(sectorForm)}
-                disabled={sectorMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {sectorMutation.isPending 
-                  ? (editingSector ? "Updating..." : "Creating...") 
-                  : (editingSector ? "Update Sector" : "Create Sector")
                 }
               </Button>
             </div>
