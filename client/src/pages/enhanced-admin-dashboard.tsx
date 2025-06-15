@@ -2609,80 +2609,6 @@ function EnhancedAdminDashboard() {
               </Card>
 
               {/* Toy List */}
-                  <div className="mt-6 space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={generateQRImages}
-                        onChange={(e) => setGenerateQRImages(e.target.checked)}
-                        className="rounded border-white/20"
-                      />
-                      <Label className="text-gray-300">Generate QR Code Images</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={autoNumbering}
-                        onChange={(e) => setAutoNumbering(e.target.checked)}
-                        className="rounded border-white/20"
-                      />
-                      <Label className="text-gray-300">Auto-number toys (e.g., #001, #002, etc.)</Label>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 flex gap-4">
-                    <Button 
-                      onClick={handleBulkGeneration}
-                      className="bg-purple-600 hover:bg-purple-700"
-                      disabled={!customSeason || !baseToyName || !totalToysToGenerate || parseInt(totalToysToGenerate) < 1}
-                    >
-                      <Zap className="h-4 w-4 mr-2" />
-                      Generate {totalToysToGenerate} Toys
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        setCustomSeason('');
-                        setCustomSector('');
-                        setBaseToyName('');
-                        setTotalToysToGenerate('');
-                        setDefaultImageUrl('');
-                      }}
-                      variant="outline"
-                      className="border-white/20 text-white hover:bg-white/10"
-                    >
-                      Clear Form
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Manual Bulk Upload (Legacy) */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">Manual Bulk Upload</CardTitle>
-                  <p className="text-gray-300 text-sm">Format: name,series,rarity,seasonId,sectorId,imageUrl (one per line)</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Textarea
-                      placeholder="Spring Dragon #001,Spring 2025,rare,1,1,/images/spring-dragon.png&#10;Summer Phoenix #002,Summer 2025,epic,2,3,/images/summer-phoenix.png"
-                      value={bulkToyData}
-                      onChange={(e) => setBulkToyData(e.target.value)}
-                      className="bg-white/10 border-white/20 text-white min-h-24"
-                    />
-                    <Button 
-                      onClick={handleBulkUpload}
-                      className="bg-green-600 hover:bg-green-700"
-                      disabled={!bulkToyData.trim()}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Manually
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Toy List */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
                   <div className="flex justify-between items-center">
@@ -2720,17 +2646,155 @@ function EnhancedAdminDashboard() {
                         <SelectItem value="secret">Secret</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-                      <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
-                        <SelectValue placeholder="Filter by owner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Toys</SelectItem>
-                        <SelectItem value="owned">With Owner</SelectItem>
-                        <SelectItem value="unowned">No Owner</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/20">
+                        <TableHead className="text-blue-200">Image</TableHead>
+                        <TableHead className="text-blue-200">Name</TableHead>
+                        <TableHead className="text-blue-200">Color</TableHead>
+                        <TableHead className="text-blue-200">Series</TableHead>
+                        <TableHead className="text-blue-200">Rarity</TableHead>
+                        <TableHead className="text-blue-200">Season</TableHead>
+                        <TableHead className="text-blue-200">Owner</TableHead>
+                        <TableHead className="text-blue-200">QR Code</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredToys.map((toy: any) => (
+                        <TableRow key={toy.id} className="border-white/10">
+                          <TableCell>
+                            <img 
+                              src={toy.imageUrl} 
+                              alt={toy.name}
+                              className="w-10 h-10 rounded object-cover"
+                            />
+                          </TableCell>
+                          <TableCell className="text-white">{toy.name}</TableCell>
+                          <TableCell className="text-white">
+                            <div className="flex items-center gap-2">
+                              {toy.color && (
+                                <div className={`w-3 h-3 rounded-full ${
+                                  toy.color === 'red' ? 'bg-red-500' :
+                                  toy.color === 'blue' ? 'bg-blue-500' :
+                                  toy.color === 'green' ? 'bg-green-500' :
+                                  toy.color === 'yellow' ? 'bg-yellow-500' :
+                                  toy.color === 'purple' ? 'bg-purple-500' :
+                                  toy.color === 'orange' ? 'bg-orange-500' :
+                                  toy.color === 'pink' ? 'bg-pink-500' :
+                                  toy.color === 'black' ? 'bg-black border border-white/20' :
+                                  toy.color === 'white' ? 'bg-white' :
+                                  toy.color === 'gold' ? 'bg-yellow-400' :
+                                  toy.color === 'silver' ? 'bg-gray-400' :
+                                  'bg-gradient-to-r from-red-500 to-purple-500'
+                                }`}></div>
+                              )}
+                              <span className="capitalize">{toy.color || 'No color'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-white">{toy.series}</TableCell>
+                          <TableCell>
+                            <Badge className={`${
+                              toy.rarity === 'common' ? 'bg-gray-500' :
+                              toy.rarity === 'rare' ? 'bg-blue-500' :
+                              toy.rarity === 'epic' ? 'bg-purple-500' :
+                              toy.rarity === 'legendary' ? 'bg-yellow-500' :
+                              toy.rarity === 'secret' ? 'bg-red-500' :
+                              'bg-gray-500'
+                            }`}>
+                              {toy.rarity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {toy.season?.displayName || 'No season'}
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
+                          </TableCell>
+                          <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Appointments Tab */}
+          <TabsContent value="appointments" className="space-y-6">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Appointments Management</CardTitle>
+                  <Button 
+                    onClick={() => downloadCSV(appointments, 'appointments')}
+                    variant="outline" 
+                    size="sm"
+                    className="bg-white/10 text-white border-white/20"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-blue-200">User</TableHead>
+                      <TableHead className="text-blue-200">Date</TableHead>
+                      <TableHead className="text-blue-200">Time</TableHead>
+                      <TableHead className="text-blue-200">Service</TableHead>
+                      <TableHead className="text-blue-200">Status</TableHead>
+                      <TableHead className="text-blue-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appointments?.map((appointment: any) => (
+                      <TableRow key={appointment.id} className="border-white/10">
+                        <TableCell className="text-white">
+                          {appointment.user?.firstName} {appointment.user?.lastName}
+                        </TableCell>
+                        <TableCell className="text-white">{formatDate(appointment.date)}</TableCell>
+                        <TableCell className="text-white">{appointment.time}</TableCell>
+                        <TableCell className="text-white">{appointment.service}</TableCell>
+                        <TableCell>
+                          <Badge className={`${
+                            appointment.status === 'confirmed' ? 'bg-green-500' :
+                            appointment.status === 'pending' ? 'bg-yellow-500' :
+                            appointment.status === 'cancelled' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          }`}>
+                            {appointment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-white/10 text-white border-white/20">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-white/10 text-white border-white/20">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+
+export default EnhancedAdminDashboard;
                 </CardHeader>
                 <CardContent>
                   <Table>
