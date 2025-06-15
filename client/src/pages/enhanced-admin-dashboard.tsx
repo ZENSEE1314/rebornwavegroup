@@ -2467,7 +2467,7 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Choose existing toy" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(allToys || []).slice(0, 50).map((toy: any) => (
+                            {(allToys || []).slice(0, 50).filter((toy: any) => toy && toy.id).map((toy: any) => (
                               <SelectItem key={toy.id} value={toy.id.toString()}>
                                 {toy.name} - {toy.rarity} ({toy.color || 'No color'})
                               </SelectItem>
