@@ -493,6 +493,19 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const editToyMutation = useMutation({
+    mutationFn: async ({ toyId, toyData }: { toyId: number; toyData: any }) => {
+      return apiRequest('PUT', `/api/admin/toys/${toyId}`, toyData);
+    },
+    onSuccess: () => {
+      toast({ title: "Toy updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update toy", variant: "destructive" });
+    }
+  });
+
   const createToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
       return apiRequest('POST', '/api/admin/create-toy', toyData);
@@ -764,6 +777,19 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const editSeasonMutation = useMutation({
+    mutationFn: async ({ seasonId, seasonData }: { seasonId: number; seasonData: any }) => {
+      return apiRequest('PUT', `/api/seasons/${seasonId}`, seasonData);
+    },
+    onSuccess: () => {
+      toast({ title: "Season updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update season", variant: "destructive" });
+    }
+  });
+
   // Series management mutations
   const createSeriesMutation = useMutation({
     mutationFn: async (seriesData: any) => {
@@ -808,6 +834,19 @@ function EnhancedAdminDashboard() {
         description: error.response?.data?.message || "An error occurred",
         variant: "destructive" 
       });
+    }
+  });
+
+  const editSeriesMutation = useMutation({
+    mutationFn: async ({ seriesId, seriesData }: { seriesId: number; seriesData: any }) => {
+      return apiRequest('PUT', `/api/collection-series/${seriesId}`, seriesData);
+    },
+    onSuccess: () => {
+      toast({ title: "Series updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update series", variant: "destructive" });
     }
   });
 
@@ -2603,6 +2642,7 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200">Season</TableHead>
                         <TableHead className="text-blue-200">Owner</TableHead>
                         <TableHead className="text-blue-200">QR Code</TableHead>
+                        <TableHead className="text-blue-200">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2657,6 +2697,38 @@ function EnhancedAdminDashboard() {
                             {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
                           </TableCell>
                           <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
+                                onClick={() => {
+                                  // Edit toy functionality
+                                  const editData = {
+                                    name: prompt("Edit toy name:", toy.name) || toy.name,
+                                    color: prompt("Edit toy color:", toy.color) || toy.color,
+                                    rarity: prompt("Edit toy rarity:", toy.rarity) || toy.rarity
+                                  };
+                                  editToyMutation.mutate({ toyId: toy.id, toyData: editData });
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
+                                onClick={() => {
+                                  if (confirm(`Delete toy "${toy.name}"?`)) {
+                                    deleteToyMutation.mutate(toy.id);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
