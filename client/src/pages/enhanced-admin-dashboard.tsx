@@ -191,7 +191,7 @@ function EnhancedAdminDashboard() {
     description: "",
     type: "item",
     pointsCost: 0,
-    stockQuantity: null,
+    stockQuantity: null as number | null,
     creditAmount: "",
     imageUrl: "",
     isActive: true
@@ -268,12 +268,12 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and sector management queries
-  const { data: seasons = [] } = useQuery({
+  const { data: seasons = [] }: any = useQuery({
     queryKey: ['/api/admin/seasons'],
     retry: false,
   });
 
-  const { data: sectors = [] } = useQuery({
+  const { data: sectors = [] }: any = useQuery({
     queryKey: ['/api/admin/sectors'],
     retry: false,
   });
@@ -864,7 +864,7 @@ function EnhancedAdminDashboard() {
         description: "",
         type: "item",
         pointsCost: 0,
-        stockQuantity: null,
+        stockQuantity: null as number | null,
         creditAmount: "",
         imageUrl: "",
         isActive: true
@@ -891,7 +891,7 @@ function EnhancedAdminDashboard() {
           description: "",
           type: "item",
           pointsCost: 0,
-          stockQuantity: null,
+          stockQuantity: null as number | null,
           creditAmount: "",
           imageUrl: "",
           isActive: true
@@ -4937,7 +4937,7 @@ function EnhancedAdminDashboard() {
                     description: "",
                     type: "item",
                     pointsCost: 0,
-                    stockQuantity: null,
+                    stockQuantity: null as number | null,
                     creditAmount: "",
                     imageUrl: "",
                     isActive: true
