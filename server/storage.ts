@@ -27,7 +27,7 @@ import {
   tokenTransactions,
   dailyTokenRewards,
   seasons,
-  collectionSectors,
+  collectionSeries,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -2521,27 +2521,27 @@ export class DatabaseStorage implements IStorage {
     return season;
   }
 
-  // Sector management operations
-  async getSectorByName(name: string): Promise<any | undefined> {
-    const [sector] = await db.select().from(collectionSectors).where(eq(collectionSectors.name, name));
-    return sector;
+  // Series management operations
+  async getSeriesByName(name: string): Promise<any | undefined> {
+    const [series] = await db.select().from(collectionSeries).where(eq(collectionSeries.name, name));
+    return series;
   }
 
-  async createSector(sectorData: any): Promise<any> {
-    const [sector] = await db.insert(collectionSectors).values({
-      seasonId: sectorData.seasonId,
-      name: sectorData.name,
-      displayName: sectorData.name,
-      description: sectorData.description,
+  async createSeries(seriesData: any): Promise<any> {
+    const [series] = await db.insert(collectionSeries).values({
+      seasonId: seriesData.seasonId,
+      name: seriesData.name,
+      displayName: seriesData.name,
+      description: seriesData.description,
       iconSymbol: '🎯',
       backgroundColor: '#F3F4F6',
       unlockCondition: 'none',
       isUnlocked: true,
-      displayOrder: sectorData.order || 0,
+      displayOrder: seriesData.order || 0,
       createdAt: new Date(),
       updatedAt: new Date()
     }).returning();
-    return sector;
+    return series;
   }
 }
 
