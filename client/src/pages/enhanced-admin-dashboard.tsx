@@ -304,7 +304,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: allPendingPurchases = [] } = useQuery({
+  const { data: allPendingPurchases = [] }: any = useQuery({
     queryKey: ['/api/admin/all-pending-purchases'],
     retry: false,
   });
@@ -1037,10 +1037,10 @@ function EnhancedAdminDashboard() {
 
       const response = await apiRequest('POST', '/api/admin/toys/bulk-generate', generationData);
 
-      if (response.success) {
+      if ((response as any).success) {
         toast({ 
           title: "Success", 
-          description: `Successfully generated ${response.toysCreated} toys with QR codes!` 
+          description: `Successfully generated ${(response as any).toysCreated} toys with QR codes!` 
         });
         
         // Reset form
@@ -3005,7 +3005,7 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingPurchases.map((purchase: any) => (
+                      {(pendingPurchases || []).map((purchase: any) => (
                         <TableRow key={purchase.id} className="border-white/10">
                           <TableCell className="text-white">#{purchase.id}</TableCell>
                           <TableCell className="text-white">
@@ -4860,7 +4860,7 @@ function EnhancedAdminDashboard() {
                   id="reward-stock"
                   type="number"
                   value={rewardForm.stockQuantity || ""}
-                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : undefined})}
+                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
                   className="bg-gray-800 border-gray-600 text-white"
                 />
               </div>
