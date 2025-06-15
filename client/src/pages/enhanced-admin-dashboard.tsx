@@ -2293,7 +2293,36 @@ function EnhancedAdminDashboard() {
                           {seasonsData.map((season: any) => (
                             <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
                               <span className="text-white text-sm">{season.displayName}</span>
-                              <Badge variant="outline" className="text-xs">ID: {season.id}</Badge>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40 h-6 px-2"
+                                  onClick={() => {
+                                    const editData = {
+                                      name: prompt("Edit season name:", season.name) || season.name,
+                                      displayName: prompt("Edit display name:", season.displayName) || season.displayName,
+                                      description: prompt("Edit description:", season.description) || season.description
+                                    };
+                                    editSeasonMutation.mutate({ seasonId: season.id, seasonData: editData });
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40 h-6 px-2"
+                                  onClick={() => {
+                                    if (confirm(`Delete season "${season.displayName}"?`)) {
+                                      deleteSeasonMutation.mutate(season.id);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                                <Badge variant="outline" className="text-xs">ID: {season.id}</Badge>
+                              </div>
                             </div>
                           ))}
                         </div>

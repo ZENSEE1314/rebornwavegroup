@@ -3960,6 +3960,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Edit toy (admin only)
+  app.put('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const toyId = parseInt(req.params.toyId);
+      const toyData = req.body;
+      
+      await storage.updateToy(toyId, toyData);
+      res.json({ message: "Toy updated successfully" });
+    } catch (error) {
+      console.error("Error updating toy:", error);
+      res.status(500).json({ message: "Failed to update toy" });
+    }
+  });
+
   // Delete toy (admin only)
   app.delete('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
     try {
@@ -3976,6 +3997,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting toy:", error);
       res.status(500).json({ message: "Failed to delete toy" });
+    }
+  });
+
+  // Edit season (admin only)
+  app.put('/api/seasons/:seasonId', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const seasonId = parseInt(req.params.seasonId);
+      const { name, displayName, description, backgroundColor, iconUrl } = req.body;
+      
+      await db.update(schema.seasons)
+        .set({ name, displayName, description, backgroundColor, iconUrl })
+        .where(eq(schema.seasons.id, seasonId));
+        
+      res.json({ message: "Season updated successfully" });
+    } catch (error) {
+      console.error("Error updating season:", error);
+      res.status(500).json({ message: "Failed to update season" });
+    }
+  });
+
+  // Delete season (admin only)
+  app.delete('/api/seasons/:seasonId', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const seasonId = parseInt(req.params.seasonId);
+      
+      // Delete the season
+      await db.delete(schema.seasons).where(eq(schema.seasons.id, seasonId));
+      
+      res.json({ message: "Season deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting season:", error);
+      res.status(500).json({ message: "Failed to delete season" });
+    }
+  });
+
+  // Edit series (admin only)
+  app.put('/api/collection-series/:seriesId', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const seriesId = parseInt(req.params.seriesId);
+      const { name, description, requiredCount } = req.body;
+      
+      await db.update(schema.collectionSeries)
+        .set({ name, description, requiredCount })
+        .where(eq(schema.collectionSeries.id, seriesId));
+        
+      res.json({ message: "Series updated successfully" });
+    } catch (error) {
+      console.error("Error updating series:", error);
+      res.status(500).json({ message: "Failed to update series" });
+    }
+  });
+
+  // Delete series (admin only)
+  app.delete('/api/collection-series/:seriesId', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const seriesId = parseInt(req.params.seriesId);
+      
+      // Delete the series
+      await db.delete(schema.collectionSeries).where(eq(schema.collectionSeries.id, seriesId));
+      
+      res.json({ message: "Series deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting series:", error);
+      res.status(500).json({ message: "Failed to delete series" });
     }
   });
 

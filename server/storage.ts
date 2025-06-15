@@ -126,6 +126,7 @@ export interface IStorage {
   getAllToys(): Promise<Toy[]>;
   getToyByQrCode(qrCode: string): Promise<Toy | undefined>;
   updateToyOwner(toyId: number, newOwnerId: string | null): Promise<void>;
+  updateToy(toyId: number, toyData: Partial<InsertToy>): Promise<void>;
   activateToyByQrCode(qrCode: string, userId: string): Promise<Toy | null>;
   getAvailableToysForPurchase(): Promise<Toy[]>;
   purchaseToy(toyId: number, userId: string): Promise<void>;
@@ -678,6 +679,13 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(toys)
       .set({ ownerId: newOwnerId, updatedAt: new Date() })
+      .where(eq(toys.id, toyId));
+  }
+
+  async updateToy(toyId: number, toyData: Partial<InsertToy>): Promise<void> {
+    await db
+      .update(toys)
+      .set({ ...toyData, updatedAt: new Date() })
       .where(eq(toys.id, toyId));
   }
 
