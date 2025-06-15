@@ -191,7 +191,7 @@ function EnhancedAdminDashboard() {
     description: "",
     type: "item",
     pointsCost: 0,
-    stockQuantity: null as number | null,
+    stockQuantity: null,
     creditAmount: "",
     imageUrl: "",
     isActive: true
@@ -268,12 +268,12 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and sector management queries
-  const { data: seasons = [] }: any = useQuery({
+  const { data: seasons = [] } = useQuery({
     queryKey: ['/api/admin/seasons'],
     retry: false,
   });
 
-  const { data: sectors = [] }: any = useQuery({
+  const { data: sectors = [] } = useQuery({
     queryKey: ['/api/admin/sectors'],
     retry: false,
   });
@@ -304,7 +304,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: allPendingPurchases = [] }: any = useQuery({
+  const { data: allPendingPurchases = [] } = useQuery({
     queryKey: ['/api/admin/all-pending-purchases'],
     retry: false,
   });
@@ -616,20 +616,6 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  const bulkCreateToysMutation = useMutation({
-    mutationFn: async (toys: any[]) => {
-      return apiRequest('POST', '/api/admin/toys/bulk-create', { toys });
-    },
-    onSuccess: () => {
-      toast({ title: "Toys created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setBulkToyData("");
-    },
-    onError: () => {
-      toast({ title: "Failed to create toys", variant: "destructive" });
-    }
-  });
-
   const updateUserTokensMutation = useMutation({
     mutationFn: async ({ userId, tokens }: { userId: string; tokens: number }) => {
       return apiRequest('PATCH', `/api/admin/users/${userId}/tokens`, { tokens });
@@ -763,11 +749,106 @@ function EnhancedAdminDashboard() {
     }
   };
 
+  // Season management mutations
+  const seasonMutation = useMutation({
+    mutationFn: async (seasonData: any) => {
+      if (editingSeason) {
+        return apiRequest('PUT', `/api/admin/seasons/${editingSeason.id}`, seasonData);
+      } else {
+        return apiRequest('POST', '/api/admin/seasons', seasonData);
+      }
+    },
+    onSuccess: () => {
+      toast({ title: editingSeason ? "Season updated successfully" : "Season created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      setShowSeasonDialog(false);
+      setEditingSeason(null);
+      setSeasonForm({
+        name: "",
+        displayName: "",
+        description: "",
+        backgroundColor: "#3B82F6",
+        iconUrl: "/images/default-season.png",
+        isActive: true
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: editingSeason ? "Failed to update season" : "Failed to create season", 
+        description: error.response?.data?.message || "An error occurred",
+        variant: "destructive" 
+      });
+    }
+  });
 
+  const deleteSeasonMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('DELETE', `/api/admin/seasons/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Season deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete season", 
+        description: error.response?.data?.message || "An error occurred",
+        variant: "destructive" 
+      });
+    }
+  });
 
-  // Sector management functions and mutations
+  // Sector management mutations
+  const sectorMutation = useMutation({
+    mutationFn: async (sectorData: any) => {
+      if (editingSector) {
+        return apiRequest('PUT', `/api/admin/sectors/${editingSector.id}`, sectorData);
+      } else {
+        return apiRequest('POST', '/api/admin/sectors', sectorData);
+      }
+    },
+    onSuccess: () => {
+      toast({ title: editingSector ? "Sector updated successfully" : "Sector created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
+      setShowSectorDialog(false);
+      setEditingSector(null);
+      setSectorForm({
+        seasonId: "",
+        name: "",
+        displayName: "",
+        description: "",
+        backgroundColor: "#F3F4F6",
+        iconSymbol: "🎯",
+        unlockCondition: "none",
+        isUnlocked: true
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: editingSector ? "Failed to update sector" : "Failed to create sector", 
+        description: error.response?.data?.message || "An error occurred",
+        variant: "destructive" 
+      });
+    }
+  });
 
-
+  const deleteSectorMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('DELETE', `/api/admin/sectors/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Sector deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/sectors'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete sector", 
+        description: error.response?.data?.message || "An error occurred",
+        variant: "destructive" 
+      });
+    }
+  });
 
   // Reset leaderboard mutation
   const resetLeaderboardMutation = useMutation({
@@ -864,7 +945,7 @@ function EnhancedAdminDashboard() {
         description: "",
         type: "item",
         pointsCost: 0,
-        stockQuantity: null as number | null,
+        stockQuantity: null,
         creditAmount: "",
         imageUrl: "",
         isActive: true
@@ -891,7 +972,7 @@ function EnhancedAdminDashboard() {
           description: "",
           type: "item",
           pointsCost: 0,
-          stockQuantity: null as number | null,
+          stockQuantity: null,
           creditAmount: "",
           imageUrl: "",
           isActive: true
@@ -985,8 +1066,6 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // State variables already declared above, removing duplicates
-
 
 
   // Download functions
@@ -1035,12 +1114,16 @@ function EnhancedAdminDashboard() {
         autoNumbering
       };
 
-      const response = await apiRequest('POST', '/api/admin/toys/bulk-generate', generationData);
+      const response = await apiRequest('/api/admin/toys/bulk-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generationData)
+      });
 
-      if ((response as any).success) {
+      if (response.success) {
         toast({ 
           title: "Success", 
-          description: `Successfully generated ${(response as any).toysCreated} toys with QR codes!` 
+          description: `Successfully generated ${response.toysCreated} toys with QR codes!` 
         });
         
         // Reset form
@@ -3005,7 +3088,7 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(pendingPurchases || []).map((purchase: any) => (
+                      {pendingPurchases.map((purchase: any) => (
                         <TableRow key={purchase.id} className="border-white/10">
                           <TableCell className="text-white">#{purchase.id}</TableCell>
                           <TableCell className="text-white">
@@ -4860,7 +4943,7 @@ function EnhancedAdminDashboard() {
                   id="reward-stock"
                   type="number"
                   value={rewardForm.stockQuantity || ""}
-                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                  onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : undefined})}
                   className="bg-gray-800 border-gray-600 text-white"
                 />
               </div>
@@ -4937,7 +5020,7 @@ function EnhancedAdminDashboard() {
                     description: "",
                     type: "item",
                     pointsCost: 0,
-                    stockQuantity: null as number | null,
+                    stockQuantity: null,
                     creditAmount: "",
                     imageUrl: "",
                     isActive: true
