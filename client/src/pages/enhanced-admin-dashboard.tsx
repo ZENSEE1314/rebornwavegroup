@@ -49,7 +49,8 @@ import {
   Clock,
   Camera,
   Star,
-  AlertTriangle
+  AlertTriangle,
+  Tag
 } from "lucide-react";
 
 function EnhancedAdminDashboard() {
@@ -75,11 +76,35 @@ function EnhancedAdminDashboard() {
     name: "",
     series: "",
     rarity: "common",
+    color: "",
     imageUrl: "",
     qrCode: "",
+    price: 0,
     seasonId: null as number | null,
-    sectorId: null as number | null,
+    seriesId: null as number | null,
     isSeasonalExclusive: false
+  });
+
+  // Season and Series management states
+  const [newSeason, setNewSeason] = useState({
+    name: "",
+    displayName: "",
+    description: ""
+  });
+
+  const [newSeries, setNewSeries] = useState({
+    name: "",
+    seasonId: null as number | null,
+    description: ""
+  });
+
+  // Simplified bulk generation states
+  const [selectedToyForBulk, setSelectedToyForBulk] = useState<number | null>(null);
+  const [bulkQuantity, setBulkQuantity] = useState(1);
+  const [bulkOverrides, setBulkOverrides] = useState({
+    seasonId: null as number | null,
+    seriesId: null as number | null,
+    color: null as string | null
   });
   
   // Pagination states
@@ -2171,34 +2196,185 @@ function EnhancedAdminDashboard() {
           {/* Toy Management Tab */}
           <TabsContent value="toys">
             <div className="space-y-6">
-              {/* Single Toy Creation */}
+              {/* Season and Series Management */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Season Management */}
+                <Card className="bg-white/10 backdrop-blur border-white/20">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Season Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-gray-300">Season Name</Label>
+                          <Input
+                            value={newSeason.name}
+                            onChange={(e) => setNewSeason({ ...newSeason, name: e.target.value })}
+                            className="bg-white/10 border-white/20 text-white"
+                            placeholder="e.g., Winter 2025"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-gray-300">Display Name</Label>
+                          <Input
+                            value={newSeason.displayName}
+                            onChange={(e) => setNewSeason({ ...newSeason, displayName: e.target.value })}
+                            className="bg-white/10 border-white/20 text-white"
+                            placeholder="e.g., Winter Collection"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Description</Label>
+                        <Input
+                          value={newSeason.description}
+                          onChange={(e) => setNewSeason({ ...newSeason, description: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white"
+                          placeholder="Season description"
+                        />
+                      </div>
+                      <Button 
+                        onClick={() => createSeasonMutation.mutate(newSeason)}
+                        className="bg-green-600 hover:bg-green-700 w-full"
+                        disabled={!newSeason.name || createSeasonMutation.isPending}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {createSeasonMutation.isPending ? "Creating..." : "Create Season"}
+                      </Button>
+                      
+                      {/* Available Seasons */}
+                      <div className="mt-4">
+                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({(seasonsData || []).length})</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {(seasonsData || []).map((season: any) => (
+                            <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
+                              <span className="text-white text-sm">{season.displayName}</span>
+                              <Badge variant="outline" className="text-xs">ID: {season.id}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Series Management */}
+                <Card className="bg-white/10 backdrop-blur border-white/20">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Tag className="h-5 w-5" />
+                      Series Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300">Series Name</Label>
+                        <Input
+                          value={newSeries.name}
+                          onChange={(e) => setNewSeries({ ...newSeries, name: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white"
+                          placeholder="e.g., Rare Collectibles"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Season</Label>
+                        <Select value={newSeries.seasonId?.toString() || ""} onValueChange={(value) => setNewSeries({ ...newSeries, seasonId: value ? parseInt(value) : null })}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select Season" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">No Season</SelectItem>
+                            {(seasonsData || []).map((season: any) => (
+                              <SelectItem key={season.id} value={season.id.toString()}>
+                                {season.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Description</Label>
+                        <Input
+                          value={newSeries.description}
+                          onChange={(e) => setNewSeries({ ...newSeries, description: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white"
+                          placeholder="Series description"
+                        />
+                      </div>
+                      <Button 
+                        onClick={() => createSeriesMutation.mutate(newSeries)}
+                        className="bg-blue-600 hover:bg-blue-700 w-full"
+                        disabled={!newSeries.name || createSeriesMutation.isPending}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {createSeriesMutation.isPending ? "Creating..." : "Create Series"}
+                      </Button>
+                      
+                      {/* Available Series */}
+                      <div className="mt-4">
+                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Series ({(seriesData || []).length})</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {(seriesData || []).map((series: any) => (
+                            <div key={series.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
+                              <span className="text-white text-sm">{series.displayName}</span>
+                              <Badge variant="outline" className="text-xs">ID: {series.id}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Enhanced Toy Creation */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
                   <CardTitle className="text-white">Create New Toy</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <Label className="text-gray-300">Name</Label>
                       <Input
                         value={newToy.name}
                         onChange={(e) => setNewToy({ ...newToy, name: e.target.value })}
                         className="bg-white/10 border-white/20 text-white"
+                        placeholder="Toy name"
                       />
                     </div>
                     <div>
-                      <Label className="text-gray-300">Series</Label>
-                      <Input
-                        value={newToy.series}
-                        onChange={(e) => setNewToy({ ...newToy, series: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white"
-                      />
+                      <Label className="text-gray-300">Color</Label>
+                      <Select value={newToy.color || ""} onValueChange={(value) => setNewToy({ ...newToy, color: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="red">Red</SelectItem>
+                          <SelectItem value="blue">Blue</SelectItem>
+                          <SelectItem value="green">Green</SelectItem>
+                          <SelectItem value="yellow">Yellow</SelectItem>
+                          <SelectItem value="purple">Purple</SelectItem>
+                          <SelectItem value="orange">Orange</SelectItem>
+                          <SelectItem value="pink">Pink</SelectItem>
+                          <SelectItem value="black">Black</SelectItem>
+                          <SelectItem value="white">White</SelectItem>
+                          <SelectItem value="gold">Gold</SelectItem>
+                          <SelectItem value="silver">Silver</SelectItem>
+                          <SelectItem value="rainbow">Rainbow</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-gray-300">Rarity</Label>
                       <Select value={newToy.rarity} onValueChange={(value) => setNewToy({ ...newToy, rarity: value })}>
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue />
+                          <SelectValue placeholder="Select Rarity" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="common">Common</SelectItem>
@@ -2216,28 +2392,28 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Season" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No Season</SelectItem>
-                          <SelectItem value="1">Spring Collection</SelectItem>
-                          <SelectItem value="2">Summer Collection</SelectItem>
-                          <SelectItem value="3">Autumn Collection</SelectItem>
-                          <SelectItem value="4">Winter Collection</SelectItem>
-                          <SelectItem value="5">Limited Edition</SelectItem>
+                          <SelectItem value="">No Season</SelectItem>
+                          {(seasonsData || []).map((season: any) => (
+                            <SelectItem key={season.id} value={season.id.toString()}>
+                              {season.displayName}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-gray-300">Sector</Label>
-                      <Select value={newToy.sectorId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, sectorId: value ? parseInt(value) : null })}>
+                      <Label className="text-gray-300">Series</Label>
+                      <Select value={newToy.seriesId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, seriesId: value ? parseInt(value) : null })}>
                         <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select Sector" />
+                          <SelectValue placeholder="Select Series" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No Sector</SelectItem>
-                          <SelectItem value="1">Rare Finds</SelectItem>
-                          <SelectItem value="2">Daily Discoveries</SelectItem>
-                          <SelectItem value="3">Event Exclusives</SelectItem>
-                          <SelectItem value="4">Community Favorites</SelectItem>
-                          <SelectItem value="5">Mystery Box</SelectItem>
+                          <SelectItem value="">No Series</SelectItem>
+                          {(seriesData || []).map((series: any) => (
+                            <SelectItem key={series.id} value={series.id.toString()}>
+                              {series.displayName}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2250,105 +2426,189 @@ function EnhancedAdminDashboard() {
                         className="bg-white/10 border-white/20 text-white"
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
+                      <Label className="text-gray-300">Price (RP)</Label>
+                      <Input
+                        type="number"
+                        value={newToy.price || ""}
+                        onChange={(e) => setNewToy({ ...newToy, price: parseFloat(e.target.value) || 0 })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
                       <Button 
                         onClick={() => {
                           const qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                           createToyMutation.mutate({ ...newToy, qrCode });
                         }}
-                        className="bg-blue-600 hover:bg-blue-700"
-                        disabled={!newToy.name || !newToy.series}
+                        className="bg-blue-600 hover:bg-blue-700 w-full"
+                        disabled={!newToy.name || createToyMutation.isPending}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Toy
+                        {createToyMutation.isPending ? "Creating..." : "Create Toy"}
                       </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Advanced Bulk Toy Generator */}
+              {/* Simplified Bulk Toy Generator */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Advanced Bulk Toy Generator</CardTitle>
-                  <p className="text-gray-300 text-sm">Auto-generate multiple toys with custom seasons and QR codes</p>
+                  <CardTitle className="text-white">Bulk Toy Generator</CardTitle>
+                  <p className="text-gray-300 text-sm">Select existing toys and specify quantities to generate</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Season Configuration */}
-                    <div className="space-y-4">
+                  <div className="space-y-6">
+                    {/* Toy Selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-gray-300">Custom Season Name</Label>
-                        <Input
-                          placeholder="Enter season name (e.g., Mystic Winter 2025)"
-                          value={customSeason}
-                          onChange={(e) => setCustomSeason(e.target.value)}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Custom Sector Name</Label>
-                        <Input
-                          placeholder="Enter sector name (e.g., Legendary Collection)"
-                          value={customSector}
-                          onChange={(e) => setCustomSector(e.target.value)}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Base Toy Name</Label>
-                        <Input
-                          placeholder="Enter base name (e.g., Mystic Dragon)"
-                          value={baseToyName}
-                          onChange={(e) => setBaseToyName(e.target.value)}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Generation Settings */}
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300">Total Toys to Generate</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          placeholder="Enter total number (1-1000)"
-                          value={totalToysToGenerate}
-                          onChange={(e) => setTotalToysToGenerate(e.target.value)}
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Rarity Distribution</Label>
-                        <Select value={rarityDistribution} onValueChange={setRarityDistribution}>
+                        <Label className="text-gray-300">Select Base Toy</Label>
+                        <Select value={selectedToyForBulk?.toString() || ""} onValueChange={(value) => setSelectedToyForBulk(value ? parseInt(value) : null)}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Select rarity distribution" />
+                            <SelectValue placeholder="Choose existing toy" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="common">All Common</SelectItem>
-                            <SelectItem value="rare">All Rare</SelectItem>
-                            <SelectItem value="epic">All Epic</SelectItem>
-                            <SelectItem value="legendary">All Legendary</SelectItem>
-                            <SelectItem value="secret">All Secret</SelectItem>
-                            <SelectItem value="mixed">Mixed Distribution</SelectItem>
+                            {(allToys || []).slice(0, 50).map((toy: any) => (
+                              <SelectItem key={toy.id} value={toy.id.toString()}>
+                                {toy.name} - {toy.rarity} ({toy.color || 'No color'})
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-gray-300">Default Image URL</Label>
+                        <Label className="text-gray-300">Quantity to Generate</Label>
                         <Input
-                          placeholder="Enter default image URL"
-                          value={defaultImageUrl}
-                          onChange={(e) => setDefaultImageUrl(e.target.value)}
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="Enter quantity (1-100)"
+                          value={bulkQuantity}
+                          onChange={(e) => setBulkQuantity(parseInt(e.target.value) || 1)}
                           className="bg-white/10 border-white/20 text-white"
                         />
                       </div>
                     </div>
+
+                    {/* Selected Toy Preview */}
+                    {selectedToyForBulk && (() => {
+                      const selectedToy = (allToys || []).find((toy: any) => toy.id === selectedToyForBulk);
+                      return selectedToy ? (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-3">Selected Toy Preview</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <div className="text-white">{selectedToy.name}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Color:</span>
+                              <div className="text-white">{selectedToy.color || 'Not specified'}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Rarity:</span>
+                              <div className="text-white capitalize">{selectedToy.rarity}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Series:</span>
+                              <div className="text-white">{selectedToy.series || 'No series'}</div>
+                            </div>
+                          </div>
+                          {selectedToy.imageUrl && (
+                            <div className="mt-3">
+                              <img 
+                                src={selectedToy.imageUrl} 
+                                alt={selectedToy.name}
+                                className="w-16 h-16 rounded object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Generation Options */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Override Season</Label>
+                        <Select value={bulkOverrides.seasonId?.toString() || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, seasonId: value ? parseInt(value) : null })}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Keep original or select new" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Keep original season</SelectItem>
+                            {(seasonsData || []).map((season: any) => (
+                              <SelectItem key={season.id} value={season.id.toString()}>
+                                {season.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Override Series</Label>
+                        <Select value={bulkOverrides.seriesId?.toString() || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, seriesId: value ? parseInt(value) : null })}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Keep original or select new" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Keep original series</SelectItem>
+                            {(seriesData || []).map((series: any) => (
+                              <SelectItem key={series.id} value={series.id.toString()}>
+                                {series.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Override Color</Label>
+                        <Select value={bulkOverrides.color || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, color: value || null })}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Keep original or select new" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Keep original color</SelectItem>
+                            <SelectItem value="red">Red</SelectItem>
+                            <SelectItem value="blue">Blue</SelectItem>
+                            <SelectItem value="green">Green</SelectItem>
+                            <SelectItem value="yellow">Yellow</SelectItem>
+                            <SelectItem value="purple">Purple</SelectItem>
+                            <SelectItem value="orange">Orange</SelectItem>
+                            <SelectItem value="pink">Pink</SelectItem>
+                            <SelectItem value="black">Black</SelectItem>
+                            <SelectItem value="white">White</SelectItem>
+                            <SelectItem value="gold">Gold</SelectItem>
+                            <SelectItem value="silver">Silver</SelectItem>
+                            <SelectItem value="rainbow">Rainbow</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Generate Button */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-300">
+                        {selectedToyForBulk && bulkQuantity > 0 && (
+                          <span>Ready to generate {bulkQuantity} copies</span>
+                        )}
+                      </div>
+                      <Button 
+                        onClick={handleBulkGeneration}
+                        className="bg-purple-600 hover:bg-purple-700"
+                        disabled={!selectedToyForBulk || bulkQuantity < 1 || bulkGenerationMutation.isPending}
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        {bulkGenerationMutation.isPending ? "Generating..." : `Generate ${bulkQuantity} Toys`}
+                      </Button>
+                    </div>
                   </div>
-                  
-                  {/* Generation Options */}
+                </CardContent>
+              </Card>
+
+              {/* Toy List */}
                   <div className="mt-6 space-y-4">
                     <div className="flex items-center space-x-2">
                       <input
