@@ -291,15 +291,17 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and series management queries
-  const { data: seasonsData = [] } = useQuery({
+  const seasonsQuery = useQuery({
     queryKey: ['/api/seasons'],
     retry: false,
   });
+  const seasonsData = seasonsQuery.data || [];
 
-  const { data: seriesData = [] } = useQuery({
+  const seriesQuery = useQuery({
     queryKey: ['/api/collection-series'],
     retry: false,
   });
+  const seriesData = seriesQuery.data || [];
 
   // New queries for pet management and token claims with pagination
   const { data: activatedPetsResponse }: any = useQuery({
@@ -498,7 +500,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "", seasonId: null, sectorId: null, isSeasonalExclusive: false });
+      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, seriesId: null, isSeasonalExclusive: false });
     },
     onError: (error: any) => {
       const errorMessage = error.message || "Failed to create toy";
@@ -814,8 +816,8 @@ function EnhancedAdminDashboard() {
     mutationFn: async (generationData: any) => {
       return apiRequest('POST', '/api/admin/bulk-generate-toys', generationData);
     },
-    onSuccess: (response) => {
-      toast({ title: `Successfully generated ${response.toysCreated} toys` });
+    onSuccess: (response: any) => {
+      toast({ title: `Successfully generated ${response.toysCreated || 'multiple'} toys` });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
     },
     onError: (error: any) => {
@@ -2739,7 +2741,7 @@ function EnhancedAdminDashboard() {
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Appointments Management</CardTitle>
                   <Button 
-                    onClick={() => downloadCSV(appointments, 'appointments')}
+                    onClick={() => downloadCSV(allAppointments, 'appointments')}
                     variant="outline" 
                     size="sm"
                     className="bg-white/10 text-white border-white/20"
@@ -2762,7 +2764,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {appointments?.map((appointment: any) => (
+                    {allAppointments?.map((appointment: any) => (
                       <TableRow key={appointment.id} className="border-white/10">
                         <TableCell className="text-white">
                           {appointment.user?.firstName} {appointment.user?.lastName}
