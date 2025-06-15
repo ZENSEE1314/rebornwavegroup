@@ -2376,7 +2376,36 @@ function EnhancedAdminDashboard() {
                           {seriesData.map((series: any) => (
                             <div key={series.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
                               <span className="text-white text-sm">{series.displayName}</span>
-                              <Badge variant="outline" className="text-xs">ID: {series.id}</Badge>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40 h-6 px-2"
+                                  onClick={() => {
+                                    const editData = {
+                                      name: prompt("Edit series name:", series.name) || series.name,
+                                      description: prompt("Edit description:", series.description) || series.description,
+                                      requiredCount: parseInt(prompt("Edit required count:", series.requiredCount) || series.requiredCount)
+                                    };
+                                    editSeriesMutation.mutate({ seriesId: series.id, seriesData: editData });
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40 h-6 px-2"
+                                  onClick={() => {
+                                    if (confirm(`Delete series "${series.displayName}"?`)) {
+                                      deleteSeriesMutation.mutate(series.id);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                                <Badge variant="outline" className="text-xs">ID: {series.id}</Badge>
+                              </div>
                             </div>
                           ))}
                         </div>
