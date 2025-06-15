@@ -616,6 +616,20 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const bulkCreateToysMutation = useMutation({
+    mutationFn: async (toys: any[]) => {
+      return apiRequest('POST', '/api/admin/toys/bulk-create', { toys });
+    },
+    onSuccess: () => {
+      toast({ title: "Toys created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      setBulkToyData("");
+    },
+    onError: () => {
+      toast({ title: "Failed to create toys", variant: "destructive" });
+    }
+  });
+
   const updateUserTokensMutation = useMutation({
     mutationFn: async ({ userId, tokens }: { userId: string; tokens: number }) => {
       return apiRequest('PATCH', `/api/admin/users/${userId}/tokens`, { tokens });
@@ -971,29 +985,7 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // Missing state variables for Collections Management
-  const [showSeasonDialog, setShowSeasonDialog] = useState(false);
-  const [showSectorDialog, setShowSectorDialog] = useState(false);
-  const [editingSeason, setEditingSeason] = useState<any>(null);
-  const [editingSector, setEditingSector] = useState<any>(null);
-  const [seasonForm, setSeasonForm] = useState({
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#3B82F6",
-    iconUrl: "/images/default-season.png",
-    isActive: true
-  });
-  const [sectorForm, setSectorForm] = useState({
-    seasonId: "",
-    name: "",
-    displayName: "",
-    description: "",
-    backgroundColor: "#F3F4F6",
-    iconSymbol: "🎯",
-    unlockCondition: "none",
-    isUnlocked: true
-  });
+  // State variables already declared above, removing duplicates
 
 
 
@@ -1043,11 +1035,7 @@ function EnhancedAdminDashboard() {
         autoNumbering
       };
 
-      const response = await apiRequest('/api/admin/toys/bulk-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generationData)
-      });
+      const response = await apiRequest('POST', '/api/admin/toys/bulk-generate', generationData);
 
       if (response.success) {
         toast({ 
