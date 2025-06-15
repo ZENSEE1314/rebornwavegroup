@@ -873,6 +873,10 @@ function EnhancedAdminDashboard() {
     },
   });
 
+
+
+
+
   // Add tokens mutation
   const addTokensMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
@@ -2278,22 +2282,7 @@ function EnhancedAdminDashboard() {
                           placeholder="e.g., Rare Collectibles"
                         />
                       </div>
-                      <div>
-                        <Label className="text-gray-300">Season</Label>
-                        <Select value={newSeries.seasonId?.toString() || ""} onValueChange={(value) => setNewSeries({ ...newSeries, seasonId: value ? parseInt(value) : null })}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Select Season" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No Season</SelectItem>
-                            {seasonsData.map((season: any) => (
-                              <SelectItem key={season.id} value={season.id.toString()}>
-                                {season.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+
                       <div>
                         <Label className="text-gray-300">Description</Label>
                         <Input
@@ -2347,25 +2336,21 @@ function EnhancedAdminDashboard() {
                     </div>
                     <div>
                       <Label className="text-gray-300">Color</Label>
-                      <Select value={newToy.color || ""} onValueChange={(value) => setNewToy({ ...newToy, color: value })}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select Color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="red">Red</SelectItem>
-                          <SelectItem value="blue">Blue</SelectItem>
-                          <SelectItem value="green">Green</SelectItem>
-                          <SelectItem value="yellow">Yellow</SelectItem>
-                          <SelectItem value="purple">Purple</SelectItem>
-                          <SelectItem value="orange">Orange</SelectItem>
-                          <SelectItem value="pink">Pink</SelectItem>
-                          <SelectItem value="black">Black</SelectItem>
-                          <SelectItem value="white">White</SelectItem>
-                          <SelectItem value="gold">Gold</SelectItem>
-                          <SelectItem value="silver">Silver</SelectItem>
-                          <SelectItem value="rainbow">Rainbow</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={newToy.color || ""}
+                          onChange={(e) => setNewToy({ ...newToy, color: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white flex-1"
+                          placeholder="Enter color or hex code (e.g., #FF5733)"
+                        />
+                        <input
+                          type="color"
+                          value={newToy.color?.startsWith('#') ? newToy.color : '#FF5733'}
+                          onChange={(e) => setNewToy({ ...newToy, color: e.target.value })}
+                          className="w-12 h-10 rounded border border-white/20 bg-white/10"
+                        />
+                      </div>
                     </div>
                     <div>
                       <Label className="text-gray-300">Rarity</Label>
@@ -2526,64 +2511,7 @@ function EnhancedAdminDashboard() {
                       ) : null;
                     })()}
 
-                    {/* Generation Options */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-gray-300">Override Season</Label>
-                        <Select value={bulkOverrides.seasonId?.toString() || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, seasonId: value ? parseInt(value) : null })}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Keep original or select new" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="keep-original">Keep original season</SelectItem>
-                            {seasonsData.map((season: any) => (
-                              <SelectItem key={season.id} value={season.id.toString()}>
-                                {season.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Override Series</Label>
-                        <Select value={bulkOverrides.seriesId?.toString() || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, seriesId: value ? parseInt(value) : null })}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Keep original or select new" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="keep-original">Keep original series</SelectItem>
-                            {seriesData.map((series: any) => (
-                              <SelectItem key={series.id} value={series.id.toString()}>
-                                {series.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Override Color</Label>
-                        <Select value={bulkOverrides.color || ""} onValueChange={(value) => setBulkOverrides({ ...bulkOverrides, color: value || null })}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Keep original or select new" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="keep-original">Keep original color</SelectItem>
-                            <SelectItem value="red">Red</SelectItem>
-                            <SelectItem value="blue">Blue</SelectItem>
-                            <SelectItem value="green">Green</SelectItem>
-                            <SelectItem value="yellow">Yellow</SelectItem>
-                            <SelectItem value="purple">Purple</SelectItem>
-                            <SelectItem value="orange">Orange</SelectItem>
-                            <SelectItem value="pink">Pink</SelectItem>
-                            <SelectItem value="black">Black</SelectItem>
-                            <SelectItem value="white">White</SelectItem>
-                            <SelectItem value="gold">Gold</SelectItem>
-                            <SelectItem value="silver">Silver</SelectItem>
-                            <SelectItem value="rainbow">Rainbow</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+
 
                     {/* Generate Button */}
                     <div className="flex items-center justify-between">
