@@ -2285,7 +2285,7 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Select Season" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No Season</SelectItem>
+                            <SelectItem value="none">No Season</SelectItem>
                             {seasonsData.map((season: any) => (
                               <SelectItem key={season.id} value={season.id.toString()}>
                                 {season.displayName}
@@ -2389,7 +2389,7 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Season" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Season</SelectItem>
+                          <SelectItem value="none">No Season</SelectItem>
                           {seasonsData.map((season: any) => (
                             <SelectItem key={season.id} value={season.id.toString()}>
                               {season.displayName}
@@ -2405,7 +2405,7 @@ function EnhancedAdminDashboard() {
                           <SelectValue placeholder="Select Series" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Series</SelectItem>
+                          <SelectItem value="none">No Series</SelectItem>
                           {seriesData.map((series: any) => (
                             <SelectItem key={series.id} value={series.id.toString()}>
                               {series.displayName}
@@ -2535,7 +2535,7 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Keep original or select new" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Keep original season</SelectItem>
+                            <SelectItem value="keep-original">Keep original season</SelectItem>
                             {seasonsData.map((season: any) => (
                               <SelectItem key={season.id} value={season.id.toString()}>
                                 {season.displayName}
@@ -2551,7 +2551,7 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Keep original or select new" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Keep original series</SelectItem>
+                            <SelectItem value="keep-original">Keep original series</SelectItem>
                             {seriesData.map((series: any) => (
                               <SelectItem key={series.id} value={series.id.toString()}>
                                 {series.displayName}
@@ -2567,7 +2567,7 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Keep original or select new" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Keep original color</SelectItem>
+                            <SelectItem value="keep-original">Keep original color</SelectItem>
                             <SelectItem value="red">Red</SelectItem>
                             <SelectItem value="blue">Blue</SelectItem>
                             <SelectItem value="green">Green</SelectItem>
