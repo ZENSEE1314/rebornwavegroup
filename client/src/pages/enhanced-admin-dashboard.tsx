@@ -291,15 +291,17 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and series management queries
-  const { data: seasonsData = [] }: { data: any[] } = useQuery({
+  const { data: seasonsRaw } = useQuery({
     queryKey: ['/api/seasons'],
     retry: false,
-  }) as any;
+  });
+  const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
-  const { data: seriesData = [] }: { data: any[] } = useQuery({
+  const { data: seriesRaw } = useQuery({
     queryKey: ['/api/collection-series'],
     retry: false,
-  }) as any;
+  });
+  const seriesData = Array.isArray(seriesRaw) ? seriesRaw : [];
 
   // New queries for pet management and token claims with pagination
   const { data: activatedPetsResponse }: any = useQuery({
@@ -2243,9 +2245,9 @@ function EnhancedAdminDashboard() {
                       
                       {/* Available Seasons */}
                       <div className="mt-4">
-                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({(seasonsData || []).length})</h4>
+                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({seasonsData.length})</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {(seasonsData || []).map((season: any) => (
+                          {seasonsData.map((season: any) => (
                             <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
                               <span className="text-white text-sm">{season.displayName}</span>
                               <Badge variant="outline" className="text-xs">ID: {season.id}</Badge>
@@ -2284,7 +2286,7 @@ function EnhancedAdminDashboard() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="">No Season</SelectItem>
-                            {(seasonsData || []).map((season: any) => (
+                            {seasonsData.map((season: any) => (
                               <SelectItem key={season.id} value={season.id.toString()}>
                                 {season.displayName}
                               </SelectItem>
@@ -2312,9 +2314,9 @@ function EnhancedAdminDashboard() {
                       
                       {/* Available Series */}
                       <div className="mt-4">
-                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Series ({(seriesData || []).length})</h4>
+                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Series ({seriesData.length})</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {(seriesData || []).map((series: any) => (
+                          {seriesData.map((series: any) => (
                             <div key={series.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
                               <span className="text-white text-sm">{series.displayName}</span>
                               <Badge variant="outline" className="text-xs">ID: {series.id}</Badge>
