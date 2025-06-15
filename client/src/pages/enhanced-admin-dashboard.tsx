@@ -2599,8 +2599,8 @@ function EnhancedAdminDashboard() {
                             return;
                           }
                           const toyToClone = allToys?.find((toy: any) => toy.id === selectedToyForBulk);
-                          if (!toyToClone) {
-                            toast({ title: "Error", description: "Selected toy not found", variant: "destructive" });
+                          if (!toyToClone || !allToys || allToys.length === 0) {
+                            toast({ title: "Error", description: "Selected toy not found or toys not loaded", variant: "destructive" });
                             return;
                           }
                           
