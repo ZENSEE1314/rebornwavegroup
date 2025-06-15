@@ -2593,7 +2593,25 @@ function EnhancedAdminDashboard() {
                         )}
                       </div>
                       <Button 
-                        onClick={handleBulkGeneration}
+                        onClick={() => {
+                          if (!selectedToyForBulk || bulkQuantity < 1) {
+                            toast({ title: "Error", description: "Please select a toy and specify quantity", variant: "destructive" });
+                            return;
+                          }
+                          const toyToClone = allToys?.find((toy: any) => toy.id === selectedToyForBulk);
+                          if (!toyToClone) {
+                            toast({ title: "Error", description: "Selected toy not found", variant: "destructive" });
+                            return;
+                          }
+                          
+                          const bulkData = {
+                            baseToy: toyToClone,
+                            quantity: bulkQuantity,
+                            overrides: bulkOverrides
+                          };
+                          
+                          bulkGenerationMutation.mutate(bulkData);
+                        }}
                         className="bg-purple-600 hover:bg-purple-700"
                         disabled={!selectedToyForBulk || bulkQuantity < 1 || bulkGenerationMutation.isPending}
                       >
