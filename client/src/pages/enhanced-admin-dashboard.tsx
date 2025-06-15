@@ -291,17 +291,15 @@ function EnhancedAdminDashboard() {
   });
 
   // Season and series management queries
-  const seasonsQuery = useQuery({
+  const { data: seasonsData = [] }: { data: any[] } = useQuery({
     queryKey: ['/api/seasons'],
     retry: false,
-  });
-  const seasonsData = seasonsQuery.data || [];
+  }) as any;
 
-  const seriesQuery = useQuery({
+  const { data: seriesData = [] }: { data: any[] } = useQuery({
     queryKey: ['/api/collection-series'],
     retry: false,
-  });
-  const seriesData = seriesQuery.data || [];
+  }) as any;
 
   // New queries for pet management and token claims with pagination
   const { data: activatedPetsResponse }: any = useQuery({
@@ -1093,28 +1091,14 @@ function EnhancedAdminDashboard() {
         autoNumbering
       };
 
-      const response = await apiRequest('/api/admin/toys/bulk-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generationData)
-      });
-
-      if (response.success) {
-        toast({ 
-          title: "Success", 
-          description: `Successfully generated ${response.toysCreated} toys with QR codes!` 
-        });
-        
-        // Reset form
-        setCustomSeason('');
-        setCustomSector('');
-        setBaseToyName('');
-        setTotalToysToGenerate('');
-        setDefaultImageUrl('');
-        
-        // Refresh toy list
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
-      }
+      bulkGenerationMutation.mutate(generationData);
+      
+      // Reset form
+      setCustomSeason('');
+      setCustomSector('');
+      setBaseToyName('');
+      setTotalToysToGenerate('');
+      setDefaultImageUrl('');
     } catch (error: any) {
       console.error('Bulk generation error:', error);
       toast({ 
