@@ -1329,7 +1329,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Transactions</p>
-                  <p className="text-3xl font-bold text-white">{(feesReport as any).totalTransactions || 0}</p>
+                  <p className="text-3xl font-bold text-white">{allTransactions.length || 0}</p>
                 </div>
                 <CreditCard className="h-8 w-8 text-purple-400" />
               </div>
@@ -1358,7 +1358,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Toys</p>
-                  <p className="text-3xl font-bold text-white">{toysPaginationInfo.totalCount || 0}</p>
+                  <p className="text-3xl font-bold text-white">{allToys.length || 0}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-400" />
               </div>
