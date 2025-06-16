@@ -1445,7 +1445,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Active Appointments</p>
                   <p className="text-3xl font-bold text-white">
-                    {allAppointments.filter((apt: any) => apt.status === 'confirmed').length}
+                    {allAppointments.filter((apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed').length}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-400" />
