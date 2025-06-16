@@ -2690,7 +2690,7 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-blue-200">Image</TableHead>
                         <TableHead className="text-blue-200">Name</TableHead>
                         <TableHead className="text-blue-200">Color</TableHead>
-                        <TableHead className="text-blue-200">Series</TableHead>
+
                         <TableHead className="text-blue-200">Rarity</TableHead>
                         <TableHead className="text-blue-200">Season</TableHead>
                         <TableHead className="text-blue-200">Owner</TableHead>
