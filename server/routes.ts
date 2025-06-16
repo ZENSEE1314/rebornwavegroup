@@ -2000,7 +2000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create pet from the toy with proper initialization
       const now = new Date();
       const newPet = await storage.createPet({
-        adminUserId,
+        userId: adminUserId,
         toyId: toy.id,
         name: toy.name,
         species: 'Doluruu',
@@ -2039,7 +2039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2050,12 +2050,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updatePetStats(petId, { 
           isSleeping: true, 
           sleepStartTime: now,
-          lastEnergyUpdate: now // Initialize energy update tracker to prevent immediate energy gain
+          lastCareDate: now // Initialize energy update tracker to prevent immediate energy gain
         });
         
         await storage.createCareActivity({
           petId,
-          adminUserId,
+          userId: adminUserId,
           activityType: 'sleep',
           completedAt: new Date(),
           pointsEarned: 0
@@ -2078,14 +2078,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
       // Check if 24 hours have passed since last token claim or pet creation
       const now = new Date();
       const lastTokenClaim = pet.lastTokenClaim || pet.createdAt;
-      const timeSinceLastClaim = now.getTime() - new Date(lastTokenClaim).getTime();
+      const timeSinceLastClaim = now.getTime() - (lastTokenClaim ? new Date(lastTokenClaim).getTime() : 0);
       const hoursElapsed = timeSinceLastClaim / (1000 * 60 * 60);
 
       if (hoursElapsed < 24) {
@@ -2171,7 +2171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
