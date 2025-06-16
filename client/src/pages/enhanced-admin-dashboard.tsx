@@ -1445,7 +1445,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Pending Top-Ups</p>
                   <p className="text-3xl font-bold text-white">
-                    {topUpRequests.filter((req: any) => req.status === 'pending').length}
+                    {dataLoaded ? topUpRequests.filter((req: any) => req.status === 'pending').length : '...'}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-400" />
