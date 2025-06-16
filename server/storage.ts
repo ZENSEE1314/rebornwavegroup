@@ -771,6 +771,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(toys.id, toyId));
   }
 
+  async deleteHardcodedToys(): Promise<void> {
+    // Delete toys that are not owned by users (hardcoded/sample toys)
+    await db
+      .delete(toys)
+      .where(isNull(toys.ownerId));
+  }
+
   // Marketplace operations
   async createListing(listing: InsertListing): Promise<Listing> {
     // Check if this toy is already listed and active, or has pending transactions

@@ -3984,7 +3984,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete toy (admin only)
   app.delete('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -3997,6 +4001,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting toy:", error);
       res.status(500).json({ message: "Failed to delete toy" });
+    }
+  });
+
+  // Delete hardcoded toys (admin only)
+  app.delete('/api/admin/hardcoded-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deleteHardcodedToys();
+      res.json({ message: "Hardcoded toys deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting hardcoded toys:", error);
+      res.status(500).json({ message: "Failed to delete hardcoded toys" });
     }
   });
 

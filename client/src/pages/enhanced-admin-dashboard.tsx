@@ -2560,10 +2560,8 @@ function EnhancedAdminDashboard() {
                     <Button
                       onClick={async () => {
                         try {
-                          const response = await apiRequest('/api/admin/hardcoded-toys', {
-                            method: 'DELETE'
-                          });
-                          toast({ title: "Success", description: `Deleted ${response.deletedCount} hardcoded toys` });
+                          const response = await apiRequest('/api/admin/hardcoded-toys', 'DELETE');
+                          toast({ title: "Success", description: `Deleted hardcoded toys successfully` });
                           queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
                         } catch (error: any) {
                           toast({ 
@@ -2623,7 +2621,10 @@ function EnhancedAdminDashboard() {
                             {toy.rarity}
                           </Badge>
                           <Button
-                            onClick={() => setEditingToy(toy)}
+                            onClick={() => {
+                              // Edit functionality can be implemented later
+                              toast({ title: "Info", description: "Edit functionality coming soon" });
+                            }}
                             size="sm"
                             variant="outline"
                             className="text-white border-white/20 hover:bg-white/10"
@@ -2633,9 +2634,7 @@ function EnhancedAdminDashboard() {
                           <Button
                             onClick={async () => {
                               try {
-                                await apiRequest(`/api/admin/toys/${toy.id}`, {
-                                  method: 'DELETE'
-                                });
+                                await apiRequest(`/api/admin/toys/${toy.id}`, 'DELETE');
                                 toast({ title: "Success", description: "Toy deleted successfully" });
                                 queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
                               } catch (error: any) {
