@@ -74,14 +74,12 @@ function EnhancedAdminDashboard() {
   const [tokenAmount, setTokenAmount] = useState("");
   const [newToy, setNewToy] = useState({
     name: "",
-    series: "",
     rarity: "common",
     color: "",
     imageUrl: "",
     qrCode: "",
     price: 0,
     seasonId: null as number | null,
-    seriesId: null as number | null,
     isSeasonalExclusive: false,
     gender: "male" as "male" | "female"
   });
@@ -515,7 +513,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, seriesId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
+      setNewToy({ name: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
     },
     onError: (error: any) => {
       const errorMessage = error.message || "Failed to create toy";
@@ -2373,22 +2371,7 @@ function EnhancedAdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label className="text-gray-300">Series</Label>
-                      <Select value={newToy.seriesId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, seriesId: value ? parseInt(value) : null })}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select Series" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No Series</SelectItem>
-                          {seriesData.map((series: any) => (
-                            <SelectItem key={series.id} value={series.id.toString()}>
-                              {series.displayName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+
                     <div>
                       <Label className="text-gray-300">Image Upload</Label>
                       <Input
@@ -2605,10 +2588,7 @@ function EnhancedAdminDashboard() {
                               <span className="text-gray-400">Rarity:</span>
                               <div className="text-white capitalize">{selectedToy.rarity}</div>
                             </div>
-                            <div>
-                              <span className="text-gray-400">Series:</span>
-                              <div className="text-white">{selectedToy.series || 'No series'}</div>
-                            </div>
+
                           </div>
                           {selectedToy.imageUrl && (
                             <div className="mt-3">
