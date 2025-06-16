@@ -4579,6 +4579,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Collection Series endpoint
+  app.get('/api/collection-series', requireAuth, async (req: any, res) => {
+    try {
+      const series = await db.select({
+        id: schema.collectionSeries.id,
+        seasonId: schema.collectionSeries.seasonId,
+        name: schema.collectionSeries.name,
+        displayName: schema.collectionSeries.displayName,
+        description: schema.collectionSeries.description,
+        iconSymbol: schema.collectionSeries.iconSymbol,
+        backgroundColor: schema.collectionSeries.backgroundColor,
+        unlockCondition: schema.collectionSeries.unlockCondition,
+        isUnlocked: schema.collectionSeries.isUnlocked,
+        displayOrder: schema.collectionSeries.displayOrder,
+        createdAt: schema.collectionSeries.createdAt,
+        updatedAt: schema.collectionSeries.updatedAt,
+      }).from(schema.collectionSeries)
+        .orderBy(schema.collectionSeries.displayOrder);
+
+      res.json(series);
+    } catch (error) {
+      console.error("Error fetching collection series:", error);
+      res.status(500).json({ message: "Failed to fetch collection series" });
+    }
+  });
+
+  // Create new collection series
+  app.post('/api/collection-series', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { seasonId, name, displayName, description, iconSymbol, backgroundColor, unlockCondition, isUnlocked, displayOrder } = req.body;
+      
+      const newSeries = await db.insert(schema.collectionSeries).values({
+        seasonId: parseInt(seasonId),
+        name,
+        displayName,
+        description,
+        iconSymbol,
+        backgroundColor: backgroundColor || "#F3F4F6",
+        unlockCondition,
+        isUnlocked: isUnlocked !== undefined ? isUnlocked : true,
+        displayOrder: displayOrder || 0,
+      }).returning();
+
+      res.json(newSeries[0]);
+    } catch (error) {
+      console.error("Error creating collection series:", error);
+      res.status(500).json({ message: "Failed to create collection series" });
+    }
+  });
+
   // Seasonal Collections API endpoints
   app.get('/api/seasons', requireAuth, async (req: any, res) => {
     try {
@@ -4605,22 +4665,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/seasons/:seasonId/sectors', requireAuth, async (req: any, res) => {
     try {
       const { seasonId } = req.params;
-      const sectors = await db.select({
-        id: schema.collectionSectors.id,
-        seasonId: schema.collectionSectors.seasonId,
-        name: schema.collectionSectors.name,
-        displayName: schema.collectionSectors.displayName,
-        description: schema.collectionSectors.description,
-        iconSymbol: schema.collectionSectors.iconSymbol,
-        backgroundColor: schema.collectionSectors.backgroundColor,
-        unlockCondition: schema.collectionSectors.unlockCondition,
-        isUnlocked: schema.collectionSectors.isUnlocked,
-        displayOrder: schema.collectionSectors.displayOrder,
-      }).from(schema.collectionSectors)
-        .where(eq(schema.collectionSectors.seasonId, parseInt(seasonId)))
-        .orderBy(schema.collectionSectors.displayOrder);
+      const series = await db.select({
+        id: schema.collectionSeries.id,
+        seasonId: schema.collectionSeries.seasonId,
+        name: schema.collectionSeries.name,
+        displayName: schema.collectionSeries.displayName,
+        description: schema.collectionSeries.description,
+        iconSymbol: schema.collectionSeries.iconSymbol,
+        backgroundColor: schema.collectionSeries.backgroundColor,
+        unlockCondition: schema.collectionSeries.unlockCondition,
+        isUnlocked: schema.collectionSeries.isUnlocked,
+        displayOrder: schema.collectionSeries.displayOrder,
+      }).from(schema.collectionSeries)
+        .where(eq(schema.collectionSeries.seasonId, parseInt(seasonId)))
+        .orderBy(schema.collectionSeries.displayOrder);
 
-      res.json(sectors);
+      res.json(series);
     } catch (error) {
       console.error("Error fetching collection sectors:", error);
       res.status(500).json({ message: "Failed to fetch collection sectors" });
@@ -5468,8 +5528,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Delete associated sectors first
-      await db.delete(schema.collectionSectors).where(eq(schema.collectionSectors.seasonId, parseInt(id)));
+      // Delete associated series first
+      await db.delete(schema.collectionSeries).where(eq(schema.collectionSeries.seasonId, parseInt(id)));
       
       // Then delete the season
       await db.delete(schema.seasons).where(eq(schema.seasons.id, parseInt(id)));
