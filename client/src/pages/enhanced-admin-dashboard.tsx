@@ -356,6 +356,20 @@ function EnhancedAdminDashboard() {
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || paymentVerificationsResponse || [];
   const pendingPurchases = allPendingPurchases || [];
 
+  // Debug logging to trace data extraction
+  console.log('*** ADMIN STATISTICS DEBUG:', {
+    allToys: allToys.length,
+    allAppointments: allAppointments.length, 
+    appointmentsRaw: appointmentsResponse,
+    activatedPets: activatedPets.length,
+    activatedPetsRaw: activatedPetsResponse,
+    cashOutRequests: cashOutRequests.length,
+    cashOutRaw: cashOutResponse,
+    allTransactions: allTransactions.length,
+    transactionsRaw: transactionsResponse,
+    toysRaw: toysResponse
+  });
+
 
 
   // Filter functions
