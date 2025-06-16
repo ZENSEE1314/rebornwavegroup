@@ -5352,8 +5352,8 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {indonesianBanks.map((bank) => (
-                      <SelectItem key={bank?.code || ''} value={bank?.code || ''}>
-                        {bank?.icon} {bank?.name || 'Unknown Bank'}
+                      <SelectItem key={bank.code} value={bank.code}>
+                        {bank.icon} {bank.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -5383,18 +5383,16 @@ export default function CompleteApp() {
                   <p className="text-xs mt-1">
                     {(() => {
                       const bank = indonesianBanks.find(b => b.code === bankName);
-                      if (!bank) return null;
-                      
                       const isValid = validateAccountNumber(bankName, accountNumber);
-                      return (
+                      return bank ? (
                         <span className={isValid ? "text-green-600" : "text-red-500"}>
                           {t("cashout.bankValidation", { 
-                            bankName: bank?.name || 'Unknown Bank',
-                            digits: bank?.minDigits === bank?.maxDigits ? bank?.minDigits : `${bank?.minDigits || 0}-${bank?.maxDigits || 0}`,
+                            bankName: bank.name,
+                            digits: bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`,
                             status: isValid ? '✓' : '✗'
                           })}
                         </span>
-                      );
+                      ) : null;
                     })()}
                   </p>
                 )}
@@ -5694,11 +5692,11 @@ export default function CompleteApp() {
                           <SelectValue placeholder={t("booking.selectService")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {serviceCategories[newAppointment.category]?.options?.map((option) => (
+                          {serviceCategories[newAppointment.category].options.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
-                          )) || []}
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -6325,11 +6323,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">💄</div>
                   <h3 className="text-lg font-semibold text-pink-800 mb-2">
-                    {serviceCategories.beauty?.name || t('booking.beautyServices')}
+                    {serviceCategories.beauty.name}
                   </h3>
                   <p className="text-sm text-pink-600 mb-4">Hair Spa, Facials, Nails</p>
                   <Badge className="bg-pink-100 text-pink-800">
-                    {t("common.startingFrom")} RP {serviceCategories.beauty?.startingPrice || '0'}
+                    {t("common.startingFrom")} RP {serviceCategories.beauty.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6338,11 +6336,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">🎮</div>
                   <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    {serviceCategories.entertainment?.name || t('booking.entertainment')}
+                    {serviceCategories.entertainment.name}
                   </h3>
                   <p className="text-sm text-blue-600 mb-4">Claw Machine, KTV Rooms</p>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {t("common.startingFrom")} RP {serviceCategories.entertainment?.startingPrice || '0'}
+                    {t("common.startingFrom")} RP {serviceCategories.entertainment.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6351,11 +6349,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">🍽️</div>
                   <h3 className="text-lg font-semibold text-green-800 mb-2">
-                    {serviceCategories.restaurant?.name || t('booking.cafeRestaurant')}
+                    {serviceCategories.restaurant.name}
                   </h3>
                   <p className="text-sm text-green-600 mb-4">Breakfast, Lunch, Dinner</p>
                   <Badge className="bg-green-100 text-green-800">
-                    {t("common.startingFrom")} RP {serviceCategories.restaurant?.startingPrice || '0'}
+                    {t("common.startingFrom")} RP {serviceCategories.restaurant.startingPrice}
                   </Badge>
                 </CardContent>
               </Card>
@@ -6385,11 +6383,11 @@ export default function CompleteApp() {
                         <SelectValue placeholder={t("booking.selectService")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories[newAppointment.category]?.options?.map((option) => (
+                        {serviceCategories[newAppointment.category].options.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
-                        )) || []}
+                        ))}
                       </SelectContent>
                     </Select>
                   )}

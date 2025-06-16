@@ -148,8 +148,7 @@ export interface IStorage {
   deductUserTokens(userId: string, tokens: number): Promise<void>;
   
   // Admin operations
-  getAllUsers(limit?: number, offset?: number): Promise<User[]>;
-  getUserCount(): Promise<number>;
+  getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<void>;
   
   // Cash-out operations
@@ -307,9 +306,9 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id));
   }
 
-  // Email authentication operations - case insensitive
+  // Email authentication operations
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(sql`LOWER(${users.email}) = LOWER(${email})`);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
@@ -933,28 +932,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin operations
-  async getAllUsers(limit?: number, offset?: number): Promise<User[]> {
-    let query = db
+  async getAllUsers(): Promise<User[]> {
+    return await db
       .select()
       .from(users)
       .orderBy(desc(users.createdAt));
-    
-    if (limit !== undefined) {
-      query = query.limit(limit);
-    }
-    
-    if (offset !== undefined) {
-      query = query.offset(offset);
-    }
-    
-    return await query;
-  }
-
-  async getUserCount(): Promise<number> {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users);
-    return result[0].count;
   }
 
   async updateUserRole(userId: string, role: string): Promise<void> {

@@ -1,9 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { setupSession, setupLocalAuth, setupAuthRoutes } from "./multiAuth";
-import passport from "passport";
 
 const app = express();
 
@@ -17,13 +14,6 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
-
-// Setup session and authentication
-setupSession(app);
-setupLocalAuth();
-app.use(passport.initialize());
-app.use(passport.session());
-setupAuthRoutes(app);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -56,8 +46,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = createServer(app);
-  await registerRoutes(app);
+  const server = await registerRoutes(app);
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {

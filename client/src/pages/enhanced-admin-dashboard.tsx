@@ -223,23 +223,19 @@ function EnhancedAdminDashboard() {
     isUnlocked: true
   });
 
-  // Temporarily bypass admin check for debugging - user session exists on backend
-  // TODO: Fix frontend authentication data transmission
-  console.log('*** ADMIN DEBUG: user data:', user);
-  
-  // Check if user is admin (temporarily disabled for debugging)
-  // if (!user || (user as any).role !== 'admin') {
-  //   return (
-  //     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-  //       <Card className="p-8">
-  //         <CardContent className="text-center">
-  //           <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-  //           <p>You don't have admin privileges to access this page.</p>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   );
-  // }
+  // Check if user is admin
+  if (!user || (user as any).role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <Card className="p-8">
+          <CardContent className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
+            <p>You don't have admin privileges to access this page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Fetch all data with pagination
   const { data: usersResponse }: any = useQuery({
@@ -344,39 +340,17 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // Extract data arrays from responses - handle both direct arrays and paginated responses
-  const allUsers = (usersResponse as any)?.data || usersResponse || [];
-  const cashOutRequests = Array.isArray((cashOutResponse as any)?.data) ? (cashOutResponse as any).data : (Array.isArray(cashOutResponse) ? cashOutResponse : []);
+  // Extract data arrays from paginated responses
+  const allUsers = (usersResponse as any)?.data || [];
+  const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
-  const allTransactions = Array.isArray(transactionsResponse) ? transactionsResponse : [];
-  const allToys = Array.isArray(toysResponse) ? toysResponse : [];
-  const allAppointments = Array.isArray(appointmentsResponse) ? appointmentsResponse : [];
-  const activatedPets = Array.isArray(activatedPetsResponse) ? activatedPetsResponse : [];
-  const tokenClaims = (tokenClaimsResponse as any)?.data || tokenClaimsResponse || [];
-  const paymentVerifications = (paymentVerificationsResponse as any)?.data || paymentVerificationsResponse || [];
+  const allTransactions = (transactionsResponse as any)?.data || [];
+  const allToys = (toysResponse as any)?.data || [];
+  const allAppointments = (appointmentsResponse as any)?.data || [];
+  const activatedPets = (activatedPetsResponse as any)?.data || [];
+  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
+  const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
   const pendingPurchases = allPendingPurchases || [];
-
-  // Add loading check - only render statistics when data is loaded
-  const dataLoaded = Boolean(
-    transactionsResponse !== undefined && 
-    toysResponse !== undefined && 
-    appointmentsResponse !== undefined &&
-    activatedPetsResponse !== undefined
-  );
-
-  // Debug logging to trace data extraction
-  console.log('*** ADMIN STATISTICS DEBUG:', {
-    allToys: allToys.length,
-    allAppointments: allAppointments.length, 
-    appointmentsRaw: appointmentsResponse,
-    activatedPets: activatedPets.length,
-    activatedPetsRaw: activatedPetsResponse,
-    cashOutRequests: cashOutRequests.length,
-    cashOutRaw: cashOutResponse,
-    allTransactions: allTransactions.length,
-    transactionsRaw: transactionsResponse,
-    toysRaw: toysResponse
-  });
 
 
 
@@ -406,7 +380,7 @@ function EnhancedAdminDashboard() {
   });
 
   // Use server-side pagination for toys
-  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: allToys.length, hasNext: false, hasPrev: false };
+  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
   const filteredToys = (() => {
     try {
@@ -1351,9 +1325,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Transactions</p>
-                  <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? allTransactions.length : '...'}
-                  </p>
+                  <p className="text-3xl font-bold text-white">{(feesReport as any).totalTransactions || 0}</p>
                 </div>
                 <CreditCard className="h-8 w-8 text-purple-400" />
               </div>
@@ -1382,9 +1354,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Toys</p>
-                  <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? allToys.length : '...'}
-                  </p>
+                  <p className="text-3xl font-bold text-white">{toysPaginationInfo.totalCount || 0}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-400" />
               </div>
@@ -1396,9 +1366,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Pets</p>
-                  <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? activatedPets.length : '...'}
-                  </p>
+                  <p className="text-3xl font-bold text-white">{activatedPets.length}</p>
                 </div>
                 <Heart className="h-8 w-8 text-pink-400" />
               </div>
@@ -1414,10 +1382,10 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Total Cash-Outs (IDR)</p>
                   <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? cashOutRequests
+                    {cashOutRequests
                       .filter((req: any) => req.status === 'approved')
                       .reduce((total: number, req: any) => total + parseFloat(req.amount || '0'), 0)
-                      .toLocaleString() : '...'}
+                      .toLocaleString()}
                   </p>
                 </div>
                 <TrendingDown className="h-8 w-8 text-red-400" />
@@ -1431,7 +1399,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Pending Cash-Outs</p>
                   <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? cashOutRequests.filter((req: any) => req.status === 'pending').length : '...'}
+                    {cashOutRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-yellow-400" />
@@ -1445,7 +1413,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Pending Top-Ups</p>
                   <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? topUpRequests.filter((req: any) => req.status === 'pending').length : '...'}
+                    {topUpRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-400" />
@@ -1459,7 +1427,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Active Appointments</p>
                   <p className="text-3xl font-bold text-white">
-                    {dataLoaded ? allAppointments.filter((apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed').length : '...'}
+                    {allAppointments.filter((apt: any) => apt.status === 'confirmed').length}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-400" />
