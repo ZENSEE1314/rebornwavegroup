@@ -356,6 +356,14 @@ function EnhancedAdminDashboard() {
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || paymentVerificationsResponse || [];
   const pendingPurchases = allPendingPurchases || [];
 
+  // Add loading check - only render statistics when data is loaded
+  const dataLoaded = Boolean(
+    transactionsResponse !== undefined && 
+    toysResponse !== undefined && 
+    appointmentsResponse !== undefined &&
+    activatedPetsResponse !== undefined
+  );
+
   // Debug logging to trace data extraction
   console.log('*** ADMIN STATISTICS DEBUG:', {
     allToys: allToys.length,
@@ -1343,7 +1351,9 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Transactions</p>
-                  <p className="text-3xl font-bold text-white">{allTransactions.length}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {dataLoaded ? allTransactions.length : '...'}
+                  </p>
                 </div>
                 <CreditCard className="h-8 w-8 text-purple-400" />
               </div>
@@ -1372,7 +1382,9 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Toys</p>
-                  <p className="text-3xl font-bold text-white">{allToys.length}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {dataLoaded ? allToys.length : '...'}
+                  </p>
                 </div>
                 <Package className="h-8 w-8 text-blue-400" />
               </div>
@@ -1384,7 +1396,9 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-200 text-sm">Total Pets</p>
-                  <p className="text-3xl font-bold text-white">{activatedPets.length}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {dataLoaded ? activatedPets.length : '...'}
+                  </p>
                 </div>
                 <Heart className="h-8 w-8 text-pink-400" />
               </div>
@@ -1400,10 +1414,10 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Total Cash-Outs (IDR)</p>
                   <p className="text-3xl font-bold text-white">
-                    {cashOutRequests
+                    {dataLoaded ? cashOutRequests
                       .filter((req: any) => req.status === 'approved')
                       .reduce((total: number, req: any) => total + parseFloat(req.amount || '0'), 0)
-                      .toLocaleString()}
+                      .toLocaleString() : '...'}
                   </p>
                 </div>
                 <TrendingDown className="h-8 w-8 text-red-400" />
@@ -1417,7 +1431,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Pending Cash-Outs</p>
                   <p className="text-3xl font-bold text-white">
-                    {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                    {dataLoaded ? cashOutRequests.filter((req: any) => req.status === 'pending').length : '...'}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-yellow-400" />
@@ -1445,7 +1459,7 @@ function EnhancedAdminDashboard() {
                 <div>
                   <p className="text-gray-200 text-sm">Active Appointments</p>
                   <p className="text-3xl font-bold text-white">
-                    {allAppointments.filter((apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed').length}
+                    {dataLoaded ? allAppointments.filter((apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed').length : '...'}
                   </p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-400" />
