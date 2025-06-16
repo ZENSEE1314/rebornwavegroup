@@ -6643,9 +6643,20 @@ export default function CompleteApp() {
                           />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
-                        <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
-                          {listing.toy?.rarity}
-                        </Badge>
+                        <div className="flex justify-center gap-2 mb-2">
+                          <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
+                            {listing.toy?.rarity}
+                          </Badge>
+                          {listing.toy?.gender && (
+                            <Badge variant="outline" className={
+                              listing.toy.gender === 'male' 
+                                ? "border-blue-300 text-blue-700 bg-blue-50" 
+                                : "border-pink-300 text-pink-700 bg-pink-50"
+                            }>
+                              {listing.toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
                           RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
                         </p>
