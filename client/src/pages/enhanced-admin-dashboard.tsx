@@ -346,12 +346,12 @@ function EnhancedAdminDashboard() {
 
   // Extract data arrays from responses - handle both direct arrays and paginated responses
   const allUsers = (usersResponse as any)?.data || usersResponse || [];
-  const cashOutRequests = (cashOutResponse as any)?.data || cashOutResponse || [];
+  const cashOutRequests = Array.isArray((cashOutResponse as any)?.data) ? (cashOutResponse as any).data : (Array.isArray(cashOutResponse) ? cashOutResponse : []);
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || transactionsResponse || [];
   const allToys = (toysResponse as any)?.data || toysResponse || [];
-  const allAppointments = (appointmentsResponse as any)?.data || appointmentsResponse || [];
-  const activatedPets = (activatedPetsResponse as any)?.data || activatedPetsResponse || [];
+  const allAppointments = Array.isArray(appointmentsResponse) ? appointmentsResponse : [];
+  const activatedPets = Array.isArray(activatedPetsResponse) ? activatedPetsResponse : [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || tokenClaimsResponse || [];
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || paymentVerificationsResponse || [];
   const pendingPurchases = allPendingPurchases || [];
