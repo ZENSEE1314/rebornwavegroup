@@ -3963,7 +3963,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Edit toy (admin only)
   app.put('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
