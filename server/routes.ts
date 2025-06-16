@@ -23,6 +23,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
+
+
   // User authentication routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
@@ -169,6 +171,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching admin activated pets:", error);
       res.status(500).json({ message: "Failed to fetch activated pets" });
+    }
+  });
+
+  // Admin middleware helper
+  function checkAdminRole(req: any, res: any): boolean {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ message: "User not authenticated" });
+      return false;
+    }
+    return true;
+  }
+
+  // Admin users endpoint with pagination
+  app.get("/api/admin/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const users = await storage.getAllUsers(limit, offset);
+      const totalCount = await storage.getUserCount();
+      
+      res.json({
+        data: users,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalCount: totalCount,
+          limit: limit
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching admin users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Admin transactions endpoint
+  app.get("/api/admin/transactions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const transactions = await storage.getAllTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching admin transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  // Admin cash-outs endpoint
+  app.get("/api/admin/cash-outs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const cashOuts = await storage.getAllCashOuts();
+      res.json(cashOuts);
+    } catch (error) {
+      console.error("Error fetching admin cash-outs:", error);
+      res.status(500).json({ message: "Failed to fetch cash-outs" });
+    }
+  });
+
+  // Admin toys endpoint
+  app.get("/api/admin/toys", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const toys = await storage.getAllToys();
+      res.json(toys);
+    } catch (error) {
+      console.error("Error fetching admin toys:", error);
+      res.status(500).json({ message: "Failed to fetch toys" });
     }
   });
 
