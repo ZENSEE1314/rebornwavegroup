@@ -93,6 +93,16 @@ function EnhancedAdminDashboard() {
     description: ""
   });
 
+  const [editSeasonData, setEditSeasonData] = useState({
+    id: null as number | null,
+    name: "",
+    displayName: "",
+    description: "",
+    backgroundColor: "#3B82F6"
+  });
+
+  const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
+
   const [newSeries, setNewSeries] = useState({
     name: "",
     seasonId: null as number | null,
@@ -785,6 +795,14 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Season updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+      setShowEditSeasonDialog(false);
+      setEditSeasonData({
+        id: null,
+        name: "",
+        displayName: "",
+        description: "",
+        backgroundColor: "#3B82F6"
+      });
     },
     onError: () => {
       toast({ title: "Failed to update season", variant: "destructive" });
@@ -2307,12 +2325,14 @@ function EnhancedAdminDashboard() {
                                   variant="outline"
                                   className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40 h-6 px-2"
                                   onClick={() => {
-                                    const editData = {
-                                      name: prompt("Edit season name:", season.name) || season.name,
-                                      displayName: prompt("Edit display name:", season.displayName) || season.displayName,
-                                      description: prompt("Edit description:", season.description) || season.description
-                                    };
-                                    editSeasonMutation.mutate({ seasonId: season.id, seasonData: editData });
+                                    setEditSeasonData({
+                                      id: season.id,
+                                      name: season.name,
+                                      displayName: season.displayName,
+                                      description: season.description || "",
+                                      backgroundColor: season.backgroundColor || "#3B82F6"
+                                    });
+                                    setShowEditSeasonDialog(true);
                                   }}
                                 >
                                   Edit
@@ -2993,6 +3013,81 @@ function EnhancedAdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Season Dialog */}
+      <Dialog open={showEditSeasonDialog} onOpenChange={setShowEditSeasonDialog}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Edit Season</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-gray-300">Season Name</Label>
+              <Input
+                value={editSeasonData.name}
+                onChange={(e) => setEditSeasonData({ ...editSeasonData, name: e.target.value })}
+                className="bg-white/10 border-white/20 text-white"
+                placeholder="e.g., Winter 2025"
+              />
+            </div>
+            <div>
+              <Label className="text-gray-300">Display Name</Label>
+              <Input
+                value={editSeasonData.displayName}
+                onChange={(e) => setEditSeasonData({ ...editSeasonData, displayName: e.target.value })}
+                className="bg-white/10 border-white/20 text-white"
+                placeholder="e.g., Winter Collection"
+              />
+            </div>
+            <div>
+              <Label className="text-gray-300">Description</Label>
+              <Input
+                value={editSeasonData.description}
+                onChange={(e) => setEditSeasonData({ ...editSeasonData, description: e.target.value })}
+                className="bg-white/10 border-white/20 text-white"
+                placeholder="Season description"
+              />
+            </div>
+            <div>
+              <Label className="text-gray-300">Background Color</Label>
+              <Input
+                type="color"
+                value={editSeasonData.backgroundColor}
+                onChange={(e) => setEditSeasonData({ ...editSeasonData, backgroundColor: e.target.value })}
+                className="bg-white/10 border-white/20 text-white h-10"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editSeasonData.id) {
+                    editSeasonMutation.mutate({
+                      seasonId: editSeasonData.id,
+                      seasonData: {
+                        name: editSeasonData.name,
+                        displayName: editSeasonData.displayName,
+                        description: editSeasonData.description,
+                        backgroundColor: editSeasonData.backgroundColor
+                      }
+                    });
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-1"
+                disabled={!editSeasonData.name || !editSeasonData.displayName || editSeasonMutation.isPending}
+              >
+                {editSeasonMutation.isPending ? "Updating..." : "Update Season"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEditSeasonDialog(false)}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4072,6 +4072,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const seasonId = parseInt(req.params.seasonId);
       
+      // First check if there are any toys using this season
+      const toysInSeason = await db.select().from(schema.toys).where(eq(schema.toys.seasonId, seasonId));
+      
+      if (toysInSeason.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete season. ${toysInSeason.length} toys are using this season.` 
+        });
+      }
+
+      // Check if there are any collection series using this season
+      const seriesInSeason = await db.select().from(schema.collectionSeries).where(eq(schema.collectionSeries.seasonId, seasonId));
+      
+      if (seriesInSeason.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete season. ${seriesInSeason.length} collection series are using this season.` 
+        });
+      }
+
+      // Check if there are any user progress records for this season
+      const userProgressInSeason = await db.select().from(schema.userCollectionProgress).where(eq(schema.userCollectionProgress.seasonId, seasonId));
+      
+      if (userProgressInSeason.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete season. ${userProgressInSeason.length} user progress records exist for this season.` 
+        });
+      }
+      
       // Delete the season
       await db.delete(schema.seasons).where(eq(schema.seasons.id, seasonId));
       
