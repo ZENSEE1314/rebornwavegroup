@@ -148,7 +148,8 @@ export interface IStorage {
   deductUserTokens(userId: string, tokens: number): Promise<void>;
   
   // Admin operations
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(limit?: number, offset?: number): Promise<User[]>;
+  getUserCount(): Promise<number>;
   updateUserRole(userId: string, role: string): Promise<void>;
   
   // Cash-out operations
@@ -932,11 +933,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin operations
-  async getAllUsers(): Promise<User[]> {
-    return await db
+  async getAllUsers(limit?: number, offset?: number): Promise<User[]> {
+    let query = db
       .select()
       .from(users)
       .orderBy(desc(users.createdAt));
+    
+    if (limit !== undefined) {
+      query = query.limit(limit);
+    }
+    
+    if (offset !== undefined) {
+      query = query.offset(offset);
+    }
+    
+    return await query;
+  }
+
+  async getUserCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users);
+    return result[0].count;
   }
 
   async updateUserRole(userId: string, role: string): Promise<void> {
