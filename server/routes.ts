@@ -4717,7 +4717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }).from(schema.userCollectionProgress)
         .leftJoin(schema.seasons, eq(schema.userCollectionProgress.seasonId, schema.seasons.id))
-        .leftJoin(schema.collectionSeries, eq(schema.userCollectionProgress.seriesId, schema.collectionSeries.id))
+        .leftJoin(schema.collectionSeries, eq(schema.userCollectionProgress.sectorId, schema.collectionSeries.id))
         .where(eq(schema.userCollectionProgress.userId, userId));
 
       res.json(progress);
