@@ -4030,6 +4030,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create season (admin only)
+  app.post('/api/seasons', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, displayName, description, backgroundColor, iconUrl, isActive } = req.body;
+      
+      console.log("*** CREATE SEASON BACKEND:", {
+        requestBody: req.body,
+        parsedData: { name, displayName, description, backgroundColor, iconUrl, isActive }
+      });
+      
+      if (!name || !displayName) {
+        return res.status(400).json({ message: "Name and display name are required" });
+      }
+
+      const [season] = await db.insert(schema.seasons).values({
+        name,
+        displayName,
+        description: description || '',
+        iconUrl: iconUrl || '/images/default-season.png',
+        backgroundColor: backgroundColor || '#3B82F6',
+        isActive: isActive !== undefined ? isActive : true,
+        displayOrder: 0,
+        startDate: new Date(),
+        endDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+
+      console.log("*** CREATE SEASON RESULT:", season);
+      res.json(season);
+    } catch (error) {
+      console.error("Error creating season:", error);
+      res.status(500).json({ message: "Failed to create season" });
+    }
+  });
+
   // Edit season (admin only)
   app.put('/api/seasons/:seasonId', requireAuth, async (req: any, res) => {
     try {

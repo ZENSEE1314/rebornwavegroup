@@ -746,11 +746,15 @@ function EnhancedAdminDashboard() {
   // Season management mutations
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
+      console.log("*** CREATING SEASON:", seasonData);
       return apiRequest('POST', '/api/seasons', seasonData);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("*** CREATE SEASON SUCCESS:", data);
       toast({ title: "Season created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
+      queryClient.refetchQueries({ queryKey: ['/api/seasons'] });
       setShowSeasonDialog(false);
       setSeasonForm({
         name: "",
@@ -762,6 +766,7 @@ function EnhancedAdminDashboard() {
       });
     },
     onError: (error: any) => {
+      console.error("*** CREATE SEASON ERROR:", error);
       toast({ 
         title: "Failed to create season", 
         description: error.response?.data?.message || "An error occurred",
