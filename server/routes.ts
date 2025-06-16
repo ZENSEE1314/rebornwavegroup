@@ -807,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserCredits(adminUserId, newCredits);
       
       const cashOutRequest = await storage.createCashOutRequest({
-        adminUserId,
+        userId: adminUserId,
         amount,
         bankName,
         accountNumber,
@@ -847,7 +847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create payment transaction record
       const transaction = await storage.createPaymentTransaction({
-        adminUserId,
+        userId: adminUserId,
         amount: amount.toString(),
         currency,
         paymentMethod: 'paypal',
@@ -885,7 +885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const request = await storage.createTopUpRequest({
-        adminUserId,
+        userId: adminUserId,
         amount: amount.toString(),
         paymentMethod: 'bank_transfer',
         bankTransferDetails: JSON.stringify(bankTransferDetails),
@@ -920,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const requestData = {
-        adminUserId,
+        userId: adminUserId,
         amount: amount.toString(),
         paymentMethod: 'cash_deposit',
         paymentProof,
@@ -1678,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create transaction record
       await storage.createTransaction({
-        adminUserId,
+        userId: adminUserId,
         type: "credit_purchase",
         amount: validAmount,
         description: "Credit top-up",
@@ -1877,7 +1877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Create credit history for refund
             await storage.createCreditHistory({
-              adminUserId: purchase.buyerId,
+              userId: purchase.buyerId,
               amount: refundAmount.toFixed(2),
               type: 'refund',
               description: `Refund for cancelled listing: ${purchase.toy?.name || 'Toy'}`
