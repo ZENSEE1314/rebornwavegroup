@@ -7201,9 +7201,20 @@ export default function CompleteApp() {
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
-                      <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
-                        {purchase.toy?.rarity}
-                      </Badge>
+                      <div className="flex justify-center gap-2 mb-2">
+                        <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
+                          {purchase.toy?.rarity}
+                        </Badge>
+                        {purchase.toy?.gender && (
+                          <Badge variant="outline" className={
+                            purchase.toy.gender === 'male' 
+                              ? "border-blue-300 text-blue-700 bg-blue-50" 
+                              : "border-pink-300 text-pink-700 bg-pink-50"
+                          }>
+                            {purchase.toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                          </Badge>
+                        )}
+                      </div>
                       <Badge className="mt-2 w-full bg-orange-100 text-orange-800 border-orange-300">
                         {t("purchase.waitingSeller")}
                       </Badge>
@@ -7236,9 +7247,20 @@ export default function CompleteApp() {
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
-                      <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
-                        {purchase.toy?.rarity}
-                      </Badge>
+                      <div className="flex justify-center gap-2 mb-2">
+                        <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
+                          {purchase.toy?.rarity}
+                        </Badge>
+                        {purchase.toy?.gender && (
+                          <Badge variant="outline" className={
+                            purchase.toy.gender === 'male' 
+                              ? "border-blue-300 text-blue-700 bg-blue-50" 
+                              : "border-pink-300 text-pink-700 bg-pink-50"
+                          }>
+                            {purchase.toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                          </Badge>
+                        )}
+                      </div>
                       <Badge className="mt-2 w-full bg-yellow-100 text-yellow-800 border-yellow-300">
                         {t("purchase.awaitingDelivery")}
                       </Badge>
@@ -7326,10 +7348,19 @@ export default function CompleteApp() {
                           />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                        <div className="flex justify-center gap-2 mb-2">
+                        <div className="flex justify-center gap-2 mb-2 flex-wrap">
                           <Badge className={getRarityColor(toy.rarity)} variant="secondary">
                             {toy.rarity}
                           </Badge>
+                          {toy.gender && (
+                            <Badge variant="outline" className={
+                              toy.gender === 'male' 
+                                ? "border-blue-300 text-blue-700 bg-blue-50" 
+                                : "border-pink-300 text-pink-700 bg-pink-50"
+                            }>
+                              {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                            </Badge>
+                          )}
                           <Badge variant={toy.isActivated ? "default" : "outline"} className={
                             toy.isActivated 
                               ? "bg-purple-600 hover:bg-purple-700 text-white" 
