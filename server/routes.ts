@@ -519,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verifications = await db
         .select()
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.adminUserId, adminUserId))
+        .where(eq(paymentVerifications.userId, adminUserId))
         .orderBy(desc(paymentVerifications.createdAt))
         .limit(limit)
         .offset(offset);
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalCount = await db
         .select({ count: sql`count(*)` })
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.adminUserId, adminUserId));
+        .where(eq(paymentVerifications.userId, adminUserId));
       
       const total = Number(totalCount[0].count);
 
@@ -686,23 +686,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`*** APPROVAL DEBUG: Processing approval with ${pointsAwarded} points`);
         
         // Get user information to find introducer
-        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.adminUserId)).limit(1);
+        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
         console.log(`*** APPROVAL DEBUG: User info found:`, userInfo[0]);
         
         // Award points to user
-        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.adminUserId}`);
+        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.userId}`);
         await db
           .update(users)
           .set({
             loyaltyPoints: sql`${users.loyaltyPoints} + ${pointsAwarded}`,
             lifetimePoints: sql`${users.lifetimePoints} + ${pointsAwarded}`,
           })
-          .where(eq(users.id, updatedVerification.adminUserId));
+          .where(eq(users.id, updatedVerification.userId));
 
         // Record points history
         console.log(`*** APPROVAL DEBUG: Recording points history`);
         await db.insert(pointsHistory).values({
-          adminUserId: updatedVerification.adminUserId,
+          userId: updatedVerification.userId,
           points: pointsAwarded,
           type: 'earned',
           description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'}`,
@@ -729,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Record commission in credit history
           console.log(`*** APPROVAL DEBUG: Creating credit history record`);
           await storage.createCreditHistory({
-            adminUserId: userInfo[0].referredById,
+            userId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
             type: 'referral_commission',
             description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
@@ -740,7 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`*** APPROVAL DEBUG: Creating commission history record`);
           await db.insert(commissionHistory).values({
             introducerId: userInfo[0].referredById,
-            referredUserId: updatedVerification.adminUserId,
+            referredUserId: updatedVerification.userId,
             transactionAmount: transactionAmount.toString(),
             commissionAmount: commissionAmount.toString(),
             commissionRate: "0.10",
@@ -760,13 +760,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(
               and(
                 eq(referrals.referrerId, userInfo[0].referredById),
-                eq(referrals.referredId, updatedVerification.adminUserId)
+                eq(referrals.referredId, updatedVerification.userId)
               )
             );
 
           console.log(`*** APPROVAL DEBUG: Commission processing completed - awarded RP ${commissionAmount} to user ${userInfo[0].referredById}`);
         } else {
-          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.adminUserId}`);
+          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.userId}`);
         }
       } else {
         console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
