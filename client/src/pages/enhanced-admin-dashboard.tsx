@@ -82,7 +82,8 @@ function EnhancedAdminDashboard() {
     price: 0,
     seasonId: null as number | null,
     seriesId: null as number | null,
-    isSeasonalExclusive: false
+    isSeasonalExclusive: false,
+    gender: "male" as "male" | "female"
   });
 
   // Season and Series management states
@@ -513,7 +514,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, seriesId: null, isSeasonalExclusive: false });
+      setNewToy({ name: "", series: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, seriesId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
     },
     onError: (error: any) => {
       const errorMessage = error.message || "Failed to create toy";
@@ -1247,6 +1248,13 @@ function EnhancedAdminDashboard() {
             <p className="text-gray-300">Comprehensive system management and reporting</p>
           </div>
           <div className="flex items-center space-x-4">
+            <Button 
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <ArrowUp className="h-4 w-4 mr-2 rotate-180" />
+              Go Back to User Dashboard
+            </Button>
             <span className="text-gray-300">Welcome, {(user as any)?.firstName || (user as any)?.email || 'Admin'}</span>
             <Button
               onClick={() => window.location.href = '/api/logout'}
@@ -2504,6 +2512,18 @@ function EnhancedAdminDashboard() {
                         onChange={handleFileUpload}
                         className="bg-white/10 border-white/20 text-white"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Gender</Label>
+                      <Select value={newToy.gender} onValueChange={(value: "male" | "female") => setNewToy({ ...newToy, gender: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-gray-300">Price (RP)</Label>
