@@ -4104,6 +4104,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete all hardcoded toys (admin only)
+  app.delete('/api/admin/hardcoded-toys', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Delete toys that don't have an owner (hardcoded toys)
+      const result = await db.delete(schema.toys).where(sql`${schema.toys.ownerId} IS NULL`);
+      
+      res.json({ 
+        message: "All hardcoded toys deleted successfully",
+        deletedCount: result.rowCount || 0
+      });
+    } catch (error) {
+      console.error("Error deleting hardcoded toys:", error);
+      res.status(500).json({ message: "Failed to delete hardcoded toys" });
+    }
+  });
+
   // Admin endpoint - Update user profile (PUT)
   app.put('/api/admin/users/:adminUserId/profile', isAuthenticated, async (req: any, res) => {
     try {

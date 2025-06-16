@@ -140,6 +140,7 @@ export const toys = pgTable("toys", {
   seriesId: integer("series_id"), // Link to collection series
   rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare' | 'secret'
   color: varchar("color"), // 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'pink'
+  gender: varchar("gender").default("male").notNull(), // 'male' | 'female'
   qrCode: varchar("qr_code").unique().notNull(),
   imageUrl: varchar("image_url"),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),

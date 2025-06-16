@@ -2552,6 +2552,117 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
+              {/* List of Created Toys */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center justify-between">
+                    List of Created Toys
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const response = await apiRequest('/api/admin/hardcoded-toys', {
+                            method: 'DELETE'
+                          });
+                          toast({ title: "Success", description: `Deleted ${response.deletedCount} hardcoded toys` });
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+                        } catch (error: any) {
+                          toast({ 
+                            title: "Error", 
+                            description: error.message || "Failed to delete hardcoded toys",
+                            variant: "destructive" 
+                          });
+                        }
+                      }}
+                      variant="destructive"
+                      size="sm"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Hardcoded Toys
+                    </Button>
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Manage all created toys and remove hardcoded entries</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {filteredToys.map((toy: any) => (
+                      <div key={toy.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {toy.imageUrl && (
+                            <img src={toy.imageUrl} alt={toy.name} className="w-12 h-12 rounded object-cover" />
+                          )}
+                          <div>
+                            <h4 className="text-white font-medium">{toy.name}</h4>
+                            <div className="flex items-center space-x-2 text-sm text-gray-300">
+                              <span>ID: {toy.id}</span>
+                              <span>•</span>
+                              <span className="capitalize">{toy.rarity}</span>
+                              <span>•</span>
+                              <span className="capitalize">{toy.gender || 'male'}</span>
+                              {toy.color && (
+                                <>
+                                  <span>•</span>
+                                  <span className="capitalize">{toy.color}</span>
+                                </>
+                              )}
+                              {toy.ownerId ? (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-green-400">Owned</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-orange-400">Hardcoded</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getRarityColor(toy.rarity)}>
+                            {toy.rarity}
+                          </Badge>
+                          <Button
+                            onClick={() => setEditingToy(toy)}
+                            size="sm"
+                            variant="outline"
+                            className="text-white border-white/20 hover:bg-white/10"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={async () => {
+                              try {
+                                await apiRequest(`/api/admin/toys/${toy.id}`, {
+                                  method: 'DELETE'
+                                });
+                                toast({ title: "Success", description: "Toy deleted successfully" });
+                                queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+                              } catch (error: any) {
+                                toast({ 
+                                  title: "Error", 
+                                  description: error.message || "Failed to delete toy",
+                                  variant: "destructive" 
+                                });
+                              }
+                            }}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredToys.length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        No toys found matching your filters
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Simplified Bulk Toy Generator */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
