@@ -384,7 +384,7 @@ function EnhancedAdminDashboard() {
   });
 
   // Use server-side pagination for toys
-  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
+  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: allToys.length, hasNext: false, hasPrev: false };
 
   const filteredToys = (() => {
     try {
