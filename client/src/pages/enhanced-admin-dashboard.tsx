@@ -100,6 +100,16 @@ function EnhancedAdminDashboard() {
   });
 
   const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
+  
+  // Email interface state
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailData, setEmailData] = useState({
+    to: '',
+    subject: '',
+    text: '',
+    html: ''
+  });
+  const [emailSending, setEmailSending] = useState(false);
 
 
 
@@ -438,6 +448,41 @@ function EnhancedAdminDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to update points", variant: "destructive" });
+    }
+  });
+
+  // SendGrid email mutations
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: { to: string; subject: string; text?: string; html?: string }) => {
+      return apiRequest('POST', '/api/admin/send-email', emailData);
+    },
+    onSuccess: () => {
+      toast({ title: "Email sent successfully" });
+      setShowEmailForm(false);
+      setEmailData({ to: '', subject: '', text: '', html: '' });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to send email", 
+        description: error.message || "Please check your email configuration",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const sendWelcomeEmailMutation = useMutation({
+    mutationFn: async ({ email, name }: { email: string; name: string }) => {
+      return apiRequest('POST', '/api/send-welcome-email', { email, name });
+    },
+    onSuccess: () => {
+      toast({ title: "Welcome email sent successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to send welcome email", 
+        description: error.message,
+        variant: "destructive" 
+      });
     }
   });
 
@@ -1465,6 +1510,10 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="token-transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
                 <Trophy className="h-4 w-4 mr-2" />
                 Token Transactions
+              </TabsTrigger>
+              <TabsTrigger value="emails" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
+                <Mail className="h-4 w-4 mr-2" />
+                Email Management
               </TabsTrigger>
             </TabsList>
           </div>
