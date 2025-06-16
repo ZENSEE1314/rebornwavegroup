@@ -4046,11 +4046,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seasonId = parseInt(req.params.seasonId);
       const { name, displayName, description, backgroundColor, iconUrl } = req.body;
       
-      await db.update(schema.seasons)
-        .set({ name, displayName, description, backgroundColor, iconUrl })
-        .where(eq(schema.seasons.id, seasonId));
+      console.log("*** EDIT SEASON DEBUG:", {
+        seasonId,
+        requestBody: req.body,
+        parsedData: { name, displayName, description, backgroundColor, iconUrl }
+      });
+      
+      const result = await db.update(schema.seasons)
+        .set({ name, displayName, description, backgroundColor, iconUrl, updatedAt: new Date() })
+        .where(eq(schema.seasons.id, seasonId))
+        .returning();
         
-      res.json({ message: "Season updated successfully" });
+      console.log("*** EDIT SEASON RESULT:", result);
+        
+      res.json({ message: "Season updated successfully", season: result[0] });
     } catch (error) {
       console.error("Error updating season:", error);
       res.status(500).json({ message: "Failed to update season" });

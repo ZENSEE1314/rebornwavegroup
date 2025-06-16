@@ -795,6 +795,8 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Season updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin'] });
       setShowEditSeasonDialog(false);
       setEditSeasonData({
         id: null,
@@ -804,8 +806,13 @@ function EnhancedAdminDashboard() {
         backgroundColor: "#3B82F6"
       });
     },
-    onError: () => {
-      toast({ title: "Failed to update season", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Edit season error:", error);
+      toast({ 
+        title: "Failed to update season", 
+        description: error.response?.data?.message || "An error occurred",
+        variant: "destructive" 
+      });
     }
   });
 
