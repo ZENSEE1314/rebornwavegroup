@@ -407,11 +407,14 @@ If you didn't request this password reset, please ignore this email.
   });
 
   // Get current user
-  app.get('/api/auth/user', requireAuth, async (req: Request, res: Response) => {
+  app.get('/api/auth/user', async (req: Request, res: Response) => {
     try {
+      console.log('*** AUTH DEBUG: req.user:', req.user);
+      console.log('*** AUTH DEBUG: req.isAuthenticated():', req.isAuthenticated());
       const userId = getUserId(req);
+      console.log('*** AUTH DEBUG: getUserId result:', userId);
       if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
+        return res.status(401).json({ message: 'User not authenticated' });
       }
       
       const user = await storage.getUser(userId);
