@@ -780,9 +780,10 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
     },
     onError: (error: any) => {
+      const message = error.response?.data?.message || "An error occurred";
       toast({ 
-        title: "Failed to delete season", 
-        description: error.response?.data?.message || "An error occurred",
+        title: "Cannot delete season", 
+        description: `${message}. Please reassign or remove related items first.`,
         variant: "destructive" 
       });
     }
