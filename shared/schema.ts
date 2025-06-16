@@ -135,9 +135,9 @@ export const collectionSeries = pgTable("collection_series", {
 export const toys = pgTable("toys", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
-  series: varchar("series").notNull(),
+  series: varchar("series"), // Made nullable since series functionality was removed
   seasonId: integer("season_id"), // Link to seasonal collection
-  seriesId: integer("series_id"), // Link to collection series
+  seriesId: integer("series_id"), // Link to collection series - kept for backward compatibility
   rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'ultra_rare' | 'secret'
   color: varchar("color"), // 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'pink'
   gender: varchar("gender").default("male").notNull(), // 'male' | 'female'
