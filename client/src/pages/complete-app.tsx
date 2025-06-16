@@ -1547,6 +1547,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <span>{t('petStatus.age')}</span>
                       <span>{ageInYears} {t('petStatus.yearsOld')}</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span>Gender</span>
+                      <span className="capitalize">{pet.gender || 'male'} {pet.gender === 'female' ? '♀️' : '♂️'}</span>
+                    </div>
                     {isDead && (
                       <div className="text-red-300 font-bold text-center">
                         💀 {t('petStatus.diedAt100')}
