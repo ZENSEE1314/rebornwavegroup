@@ -348,8 +348,8 @@ function EnhancedAdminDashboard() {
   const allUsers = (usersResponse as any)?.data || usersResponse || [];
   const cashOutRequests = Array.isArray((cashOutResponse as any)?.data) ? (cashOutResponse as any).data : (Array.isArray(cashOutResponse) ? cashOutResponse : []);
   const topUpRequests = topUpRequestsResponse || [];
-  const allTransactions = (transactionsResponse as any)?.data || transactionsResponse || [];
-  const allToys = (toysResponse as any)?.data || toysResponse || [];
+  const allTransactions = Array.isArray(transactionsResponse) ? transactionsResponse : [];
+  const allToys = Array.isArray(toysResponse) ? toysResponse : [];
   const allAppointments = Array.isArray(appointmentsResponse) ? appointmentsResponse : [];
   const activatedPets = Array.isArray(activatedPetsResponse) ? activatedPetsResponse : [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || tokenClaimsResponse || [];
