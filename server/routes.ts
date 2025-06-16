@@ -4140,8 +4140,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seriesInSeason = await db.select().from(schema.collectionSeries).where(eq(schema.collectionSeries.seasonId, seasonId));
       
       if (seriesInSeason.length > 0) {
+        const seriesNames = seriesInSeason.map(s => s.displayName).join(', ');
         return res.status(400).json({ 
-          message: `Cannot delete season. ${seriesInSeason.length} collection series are using this season.` 
+          message: `Cannot delete season. ${seriesInSeason.length} collection series are using this season: ${seriesNames}` 
         });
       }
 
