@@ -308,11 +308,7 @@ function EnhancedAdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
-  const { data: seriesRaw } = useQuery({
-    queryKey: ['/api/collection-series'],
-    retry: false,
-  });
-  const seriesData = Array.isArray(seriesRaw) ? seriesRaw : [];
+
 
   // New queries for pet management and token claims with pagination
   const { data: activatedPetsResponse }: any = useQuery({
@@ -755,7 +751,7 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
       queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
       queryClient.refetchQueries({ queryKey: ['/api/seasons'] });
-      setShowSeasonDialog(false);
+      // Clear all form fields
       setSeasonForm({
         name: "",
         displayName: "",
@@ -2275,8 +2271,8 @@ function EnhancedAdminDashboard() {
           {/* Toy Management Tab */}
           <TabsContent value="toys">
             <div className="space-y-6">
-              {/* Season and Series Management */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Season Management */}
+              <div className="grid grid-cols-1 gap-6">
                 {/* Season Management */}
                 <Card className="bg-white/10 backdrop-blur border-white/20">
                   <CardHeader>
@@ -2372,88 +2368,7 @@ function EnhancedAdminDashboard() {
                   </CardContent>
                 </Card>
 
-                {/* Series Management */}
-                <Card className="bg-white/10 backdrop-blur border-white/20">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Tag className="h-5 w-5" />
-                      Series Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300">Series Name</Label>
-                        <Input
-                          value={newSeries.name}
-                          onChange={(e) => setNewSeries({ ...newSeries, name: e.target.value })}
-                          className="bg-white/10 border-white/20 text-white"
-                          placeholder="e.g., Rare Collectibles"
-                        />
-                      </div>
 
-                      <div>
-                        <Label className="text-gray-300">Description</Label>
-                        <Input
-                          value={newSeries.description}
-                          onChange={(e) => setNewSeries({ ...newSeries, description: e.target.value })}
-                          className="bg-white/10 border-white/20 text-white"
-                          placeholder="Series description"
-                        />
-                      </div>
-                      <Button 
-                        onClick={() => createSeriesMutation.mutate(newSeries)}
-                        className="bg-blue-600 hover:bg-blue-700 w-full"
-                        disabled={!newSeries.name || createSeriesMutation.isPending}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {createSeriesMutation.isPending ? "Creating..." : "Create Series"}
-                      </Button>
-                      
-                      {/* Available Series */}
-                      <div className="mt-4">
-                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Series ({seriesData.length})</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {seriesData.map((series: any) => (
-                            <div key={series.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
-                              <span className="text-white text-sm">{series.displayName}</span>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40 h-6 px-2"
-                                  onClick={() => {
-                                    const editData = {
-                                      name: prompt("Edit series name:", series.name) || series.name,
-                                      description: prompt("Edit description:", series.description) || series.description,
-                                      requiredCount: parseInt(prompt("Edit required count:", series.requiredCount) || series.requiredCount)
-                                    };
-                                    editSeriesMutation.mutate({ seriesId: series.id, seriesData: editData });
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40 h-6 px-2"
-                                  onClick={() => {
-                                    if (confirm(`Delete series "${series.displayName}"?`)) {
-                                      deleteSeriesMutation.mutate(series.id);
-                                    }
-                                  }}
-                                >
-                                  Delete
-                                </Button>
-                                <Badge variant="outline" className="text-xs">ID: {series.id}</Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
 
               {/* Enhanced Toy Creation */}
