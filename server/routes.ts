@@ -804,7 +804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Deduct credits immediately when cash-out is created
       const newCredits = (userCredits - cashOutAmount).toString();
-      await storage.updateUserCredits(adminUserId, newCredits);
+      await storage.updateUserCredits(userId: adminUserId, newCredits);
       
       const cashOutRequest = await storage.createCashOutRequest({
         userId: adminUserId,
@@ -909,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const { amount, paymentProof } = req.body;
 
-      console.log('Cash deposit request:', { adminUserId, amount, paymentProofLength: paymentProof?.length });
+      console.log('Cash deposit request:', { userId: adminUserId, amount, paymentProofLength: paymentProof?.length });
 
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
         return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
@@ -1005,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateTopUpRequestStatus(
         parseInt(requestId),
         status,
-        adminUserId,
+        userId: adminUserId,
         adminNotes
       );
 
@@ -1375,7 +1375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const { firstName, lastName, phoneNumber, gender, dateOfBirth } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(userId: adminUserId, {
         firstName,
         lastName,
         phoneNumber,
@@ -1468,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const validatedData = {
         ...req.body,
-        adminUserId,
+        userId: adminUserId,
         appointmentDate: new Date(req.body.appointmentDate),
         status: 'pending' // New appointments require admin confirmation
       };
@@ -1686,8 +1686,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update user credits and points
-      await storage.updateUserCredits(adminUserId, validAmount);
-      await storage.updateUserPoints(adminUserId, Math.floor(Number(validAmount) * 0.05));
+      await storage.updateUserCredits(userId: adminUserId, validAmount);
+      await storage.updateUserPoints(userId: adminUserId, Math.floor(Number(validAmount) * 0.05));
       
       // Broadcast credit update to all connected clients
       // Credits updated successfully
@@ -1734,7 +1734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const validatedData = insertToySchema.parse({
         ...req.body,
-        ownerId: adminUserId,
+        ownerId: userId: adminUserId,
       });
       
       const toy = await storage.createToy(validatedData);
@@ -1806,7 +1806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const validatedData = insertListingSchema.parse({
         ...req.body,
-        sellerId: adminUserId,
+        sellerId: userId: adminUserId,
       });
       
       // Check for existing ACTIVE listing of the same toy by the same seller
@@ -2189,7 +2189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Record the token transaction in the dedicated token_transactions table
           await tx.insert(tokenTransactions).values({
-            adminUserId,
+            userId: adminUserId,
             tokens: -5,
             type: 'spent',
             description: `Pet name changed to "${name.trim()}" (Cost: 5 tokens)`,
@@ -2251,7 +2251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Deduct 2 tokens and restore energy to 100%
-      await storage.deductUserTokens(adminUserId, 2);
+      await storage.deductUserTokens(userId: adminUserId, 2);
       await storage.updatePetStats(petId, { 
         energy: 100,
         isSleeping: false, // Wake up the pet
@@ -2374,7 +2374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Award evolution bonus tokens
-      await storage.addUserTokens(adminUserId, 5);
+      await storage.addUserTokens(userId: adminUserId, 5);
       
       // Create evolution activity record
       await storage.createCareActivity({
@@ -2698,12 +2698,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(adminUserId);
       const newTokenCount = (user.loyaltyPoints || 0) + 1;
       
-      await storage.updateUser(adminUserId, { loyaltyPoints: newTokenCount });
+      await storage.updateUser(userId: adminUserId, { loyaltyPoints: newTokenCount });
       await storage.updatePetStats(petId, { lastTokenClaim: now });
 
       // Record token transaction in the dedicated token_transactions table
       await db.insert(tokenTransactions).values({
-        adminUserId,
+        userId: adminUserId,
         tokens: 1,
         type: 'earned',
         description: `Daily token earned from pet ${pet.name}`,
@@ -2743,7 +2743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const validatedData = insertListingSchema.parse({
         ...req.body,
-        sellerId: adminUserId,
+        sellerId: userId: adminUserId,
       });
       
       const listing = await storage.createListing(validatedData);
@@ -2785,7 +2785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.user.claims.sub;
       const validatedData = insertMessageSchema.parse({
         ...req.body,
-        senderId: adminUserId,
+        senderId: userId: adminUserId,
       });
       
       const message = await storage.createMessage(validatedData);
@@ -2865,7 +2865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.params;
       const { role } = req.body;
       
-      await storage.updateUserRole(adminUserId, role);
+      await storage.updateUserRole(userId: adminUserId, role);
       res.json({ message: "User role updated successfully" });
     } catch (error) {
       console.error("Error updating user role:", error);
@@ -2895,7 +2895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create cash-out request
       const cashOut = await storage.createCashOutRequest({
-        adminUserId,
+        userId: adminUserId,
         amount,
         bankName,
         accountNumber,
@@ -2905,10 +2905,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Deduct credits from user account
       const newCredits = (parseFloat(user.credits) - parseFloat(amount)).toString();
-      await storage.updateUserCredits(adminUserId, newCredits);
+      await storage.updateUserCredits(userId: adminUserId, newCredits);
 
       // Update user's bank details for future use
-      await storage.updateUserBankDetails(adminUserId, bankName, accountNumber, accountHolderName);
+      await storage.updateUserBankDetails(userId: adminUserId, bankName, accountNumber, accountHolderName);
 
       res.json({ 
         message: "Cash-out request submitted successfully",
@@ -3018,14 +3018,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Add credits to user account
-        const currentUser = await storage.getUser(request.adminUserId);
+        const currentUser = await storage.getUser(request.userId);
         if (currentUser) {
           const newCredits = parseFloat(currentUser.credits || '0') + parseFloat(request.amount);
-          await storage.updateUserCredits(request.adminUserId, newCredits.toString());
+          await storage.updateUserCredits(request.userId: adminUserId, newCredits.toString());
 
           // Create transaction record
           await storage.createPaymentTransaction({
-            adminUserId: request.adminUserId,
+            adminUserId: request.userId: adminUserId,
             amount: request.amount,
             paymentMethod: 'credit_topup',
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
@@ -3034,7 +3034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Create credit history record
           await storage.createCreditHistory({
-            adminUserId: request.adminUserId,
+            adminUserId: request.userId: adminUserId,
             amount: request.amount,
             type: 'credit_topup',
             description: `Credit top-up via ${request.paymentMethod} - Admin approved`,
@@ -3092,16 +3092,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If rejecting, restore credits to user
       if (status === 'rejected') {
-        const requestUser = await storage.getUser(request.adminUserId);
+        const requestUser = await storage.getUser(request.userId);
         if (requestUser) {
           const currentCredits = parseFloat(requestUser.credits);
           const refundAmount = parseFloat(request.amount);
           const newCredits = (currentCredits + refundAmount).toString();
-          await storage.updateUserCredits(request.adminUserId, newCredits);
+          await storage.updateUserCredits(request.userId: adminUserId, newCredits);
           
           // Create credit history record for refund
           await storage.createCreditHistory({
-            adminUserId: request.adminUserId,
+            adminUserId: request.userId: adminUserId,
             amount: request.amount,
             type: 'cash_out_refund',
             description: `Cash-out refund - Admin rejected: ${adminNotes || 'No reason provided'}`,
@@ -3281,7 +3281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const points = await storage.createPointsHistory(validatedData);
       
       // Update user's loyalty points using the points difference
-      await storage.updateUserPoints(adminUserId, req.body.points);
+      await storage.updateUserPoints(userId: adminUserId, req.body.points);
       
       res.json(points);
     } catch (error) {
@@ -4173,7 +4173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.params;
       const { firstName, lastName, email, phoneNumber, role } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(userId: adminUserId, {
         firstName,
         lastName,
         email,
@@ -4201,7 +4201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { userId } = req.params;
       const { firstName, lastName, email, phoneNumber, gender, dateOfBirth, role } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(userId: adminUserId, {
         firstName,
         lastName,
         email,
@@ -4260,11 +4260,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, amount } = req.body;
-      await storage.updateUserCredits(adminUserId, amount);
+      await storage.updateUserCredits(userId: adminUserId, amount);
       
       // Create transaction record
       await storage.createTransaction({
-        adminUserId,
+        userId: adminUserId,
         type: 'credit',
         amount,
         description: `Admin credit adjustment by ${currentUser.firstName} ${currentUser.lastName}`,
@@ -4288,7 +4288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, points } = req.body;
-      await storage.updateUserPoints(adminUserId, points);
+      await storage.updateUserPoints(userId: adminUserId, points);
 
       res.json({ message: "Points updated successfully" });
     } catch (error) {
@@ -4340,11 +4340,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (user) {
           const currentCredits = parseFloat(user.credits || '0');
           const refundAmount = parseFloat(cashOut.amount);
-          await storage.updateUserCredits(cashOut.adminUserId, (currentCredits + refundAmount).toString());
+          await storage.updateUserCredits(cashOut.userId: adminUserId, (currentCredits + refundAmount).toString());
           
           // Create transaction record for refund
           await storage.createTransaction({
-            adminUserId: cashOut.adminUserId,
+            adminUserId: cashOut.userId: adminUserId,
             type: 'credit',
             amount: refundAmount.toString(),
             description: `Credit refund - Cash-out request rejected`,
@@ -4533,7 +4533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct points from user
-      await storage.updateUserPoints(adminUserId, -pointsCost);
+      await storage.updateUserPoints(userId: adminUserId, -pointsCost);
       
       // If it's a credit reward, add credits to user account
       if (reward.type === 'credit' && reward.creditAmount) {
@@ -4541,11 +4541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const creditAmount = parseFloat(reward.creditAmount);
         const newCredits = (currentCredits + creditAmount).toString();
         
-        await storage.updateUserCredits(adminUserId, newCredits);
+        await storage.updateUserCredits(userId: adminUserId, newCredits);
         
         // Create credit history record
         await storage.createCreditHistory({
-          adminUserId,
+          userId: adminUserId,
           type: 'earned',
           amount: reward.creditAmount,
           description: `Redeemed: ${reward.name}`
@@ -4554,7 +4554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create points history record for redemption
       await storage.createPointsHistory({
-        adminUserId,
+        userId: adminUserId,
         points: -pointsCost,
         type: 'redeemed',
         description: `Redeemed: ${reward.name}`
@@ -4863,7 +4863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pointsHistory = await storage.createPointsHistory(validatedData);
       
       // Update user's loyalty points using the points difference
-      await storage.updateUserPoints(adminUserId, req.body.points);
+      await storage.updateUserPoints(userId: adminUserId, req.body.points);
       
       // Broadcast loyalty points update
       // Loyalty points updated successfully
@@ -4929,7 +4929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create the game score record (no tokens awarded)
       const gameScore = await storage.createGameScore({
-        adminUserId,
+        userId: adminUserId,
         petId,
         score,
         tokensEarned: 0
@@ -5083,11 +5083,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct tokens from user account
-      await storage.deductUserTokens(adminUserId, tokensRequested);
+      await storage.deductUserTokens(userId: adminUserId, tokensRequested);
 
       // Create token claim request (no shipping address - redeem at approved locations)
       const claim = await storage.createTokenClaim({
-        adminUserId,
+        userId: adminUserId,
         tokensRequested,
         status: 'pending'
       });
@@ -5242,7 +5242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid token amount required" });
       }
       
-      await storage.updateUserTokens(adminUserId, tokens);
+      await storage.updateUserTokens(userId: adminUserId, tokens);
       res.json({ message: "User tokens updated successfully" });
     } catch (error) {
       console.error("Error updating user tokens:", error);
@@ -5274,11 +5274,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Add tokens to pet's claimable pool (not directly to wallet)
-      await storage.updatePetTokens(adminUserId, amount);
+      await storage.updatePetTokens(userId: adminUserId, amount);
       
       // Create a transaction record for admin token addition
       await storage.createTransaction({
-        adminUserId,
+        userId: adminUserId,
         type: 'admin_token_grant',
         amount: amount.toString(),
         description: `Admin set claimable tokens to ${amount}`,
@@ -5335,7 +5335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await Promise.all(
         userIds.map(async (adminUserId) => {
           const user = await storage.getUser(adminUserId);
-          return { id: adminUserId, email: user?.email, firstName: user?.firstName };
+          return { id: userId: adminUserId, email: user?.email, firstName: user?.firstName };
         })
       );
 
