@@ -2462,8 +2462,20 @@ function EnhancedAdminDashboard() {
                     {filteredToys.map((toy: any) => (
                       <div key={toy.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                          {toy.imageUrl && (
-                            <img src={toy.imageUrl} alt={toy.name} className="w-12 h-12 rounded object-cover" />
+                          {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
+                            <img 
+                              src={toy.imageUrl} 
+                              alt={toy.name} 
+                              className="w-12 h-12 rounded object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-gray-600 flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No Image</span>
+                            </div>
                           )}
                           <div>
                             <h4 className="text-white font-medium">{toy.name}</h4>

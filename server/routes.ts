@@ -8,6 +8,7 @@ import { db } from "./db";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
+import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
 
 // Helper function to extract user ID from different auth formats
 function getUserId(req: any): string | null {
@@ -5666,6 +5667,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting sector:", error);
       res.status(500).json({ message: "Failed to delete sector" });
+    }
+  });
+
+  // SendGrid Email API endpoints
+  app.post('/api/admin/send-email', requireAuth, async (req: any, res) => {
+    try {
+      const { to, subject, text, html } = req.body;
+      
+      if (!to || !subject || (!text && !html)) {
+        return res.status(400).json({ message: 'Missing required email fields' });
+      }
+
+      const success = await sendEmail({
+        to,
+        from: 'noreply@rebornwavegroup.com', // Replace with your verified sender
+        subject,
+        text,
+        html
+      });
+
+      if (success) {
+        res.json({ message: 'Email sent successfully' });
+      } else {
+        res.status(500).json({ message: 'Failed to send email' });
+      }
+    } catch (error) {
+      console.error('Send email error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/send-welcome-email', requireAuth, async (req: any, res) => {
+    try {
+      const { email, name } = req.body;
+      
+      if (!email || !name) {
+        return res.status(400).json({ message: 'Email and name are required' });
+      }
+
+      const success = await sendWelcomeEmail(email, name);
+
+      if (success) {
+        res.json({ message: 'Welcome email sent successfully' });
+      } else {
+        res.status(500).json({ message: 'Failed to send welcome email' });
+      }
+    } catch (error) {
+      console.error('Send welcome email error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/send-evolution-email', requireAuth, async (req: any, res) => {
+    try {
+      const { email, petName, newStage } = req.body;
+      
+      if (!email || !petName || !newStage) {
+        return res.status(400).json({ message: 'Email, pet name, and new stage are required' });
+      }
+
+      const success = await sendPetEvolutionEmail(email, petName, newStage);
+
+      if (success) {
+        res.json({ message: 'Evolution email sent successfully' });
+      } else {
+        res.status(500).json({ message: 'Failed to send evolution email' });
+      }
+    } catch (error) {
+      console.error('Send evolution email error:', error);
+      res.status(500).json({ message: 'Internal server error' });
     }
   });
 
