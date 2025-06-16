@@ -5352,8 +5352,8 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {indonesianBanks.map((bank) => (
-                      <SelectItem key={bank.code} value={bank.code}>
-                        {bank.icon} {bank.name}
+                      <SelectItem key={bank?.code || ''} value={bank?.code || ''}>
+                        {bank?.icon} {bank?.name || 'Unknown Bank'}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -5389,8 +5389,8 @@ export default function CompleteApp() {
                       return (
                         <span className={isValid ? "text-green-600" : "text-red-500"}>
                           {t("cashout.bankValidation", { 
-                            bankName: bank.name,
-                            digits: bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`,
+                            bankName: bank?.name || 'Unknown Bank',
+                            digits: bank?.minDigits === bank?.maxDigits ? bank?.minDigits : `${bank?.minDigits || 0}-${bank?.maxDigits || 0}`,
                             status: isValid ? '✓' : '✗'
                           })}
                         </span>
