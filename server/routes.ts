@@ -2237,7 +2237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2261,7 +2261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create activity record
       await storage.createCareActivity({
         petId,
-        adminUserId,
+        userId: adminUserId,
         activityType: 'energy_potion',
         completedAt: new Date(),
         pointsEarned: 0
@@ -2286,7 +2286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership and get current growth stage
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2314,7 +2314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
