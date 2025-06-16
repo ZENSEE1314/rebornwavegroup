@@ -5383,8 +5383,10 @@ export default function CompleteApp() {
                   <p className="text-xs mt-1">
                     {(() => {
                       const bank = indonesianBanks.find(b => b.code === bankName);
+                      if (!bank) return null;
+                      
                       const isValid = validateAccountNumber(bankName, accountNumber);
-                      return bank ? (
+                      return (
                         <span className={isValid ? "text-green-600" : "text-red-500"}>
                           {t("cashout.bankValidation", { 
                             bankName: bank.name,
@@ -5392,7 +5394,7 @@ export default function CompleteApp() {
                             status: isValid ? '✓' : '✗'
                           })}
                         </span>
-                      ) : null;
+                      );
                     })()}
                   </p>
                 )}
