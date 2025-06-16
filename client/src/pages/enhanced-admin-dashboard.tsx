@@ -103,18 +103,13 @@ function EnhancedAdminDashboard() {
 
   const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
 
-  const [newSeries, setNewSeries] = useState({
-    name: "",
-    seasonId: null as number | null,
-    description: ""
-  });
+
 
   // Simplified bulk generation states
   const [selectedToyForBulk, setSelectedToyForBulk] = useState<number | null>(null);
   const [bulkQuantity, setBulkQuantity] = useState(1);
   const [bulkOverrides, setBulkOverrides] = useState({
     seasonId: null as number | null,
-    seriesId: null as number | null,
     color: null as string | null
   });
   
@@ -818,65 +813,7 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  // Series management mutations
-  const createSeriesMutation = useMutation({
-    mutationFn: async (seriesData: any) => {
-      return apiRequest('POST', '/api/collection-series', seriesData);
-    },
-    onSuccess: () => {
-      toast({ title: "Series created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
-      setShowSectorDialog(false);
-      setEditingSector(null);
-      setSectorForm({
-        seasonId: "",
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#F3F4F6",
-        iconSymbol: "🎯",
-        unlockCondition: "none",
-        isUnlocked: true
-      });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to create series", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
 
-  const deleteSeriesMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest('DELETE', `/api/collection-series/${id}`, {});
-    },
-    onSuccess: () => {
-      toast({ title: "Series deleted successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to delete series", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
-
-  const editSeriesMutation = useMutation({
-    mutationFn: async ({ seriesId, seriesData }: { seriesId: number; seriesData: any }) => {
-      return apiRequest('PUT', `/api/collection-series/${seriesId}`, seriesData);
-    },
-    onSuccess: () => {
-      toast({ title: "Series updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to update series", variant: "destructive" });
-    }
-  });
 
   // Bulk generation mutation
   const bulkGenerationMutation = useMutation({
