@@ -340,16 +340,16 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // Extract data arrays from paginated responses
-  const allUsers = (usersResponse as any)?.data || [];
-  const cashOutRequests = (cashOutResponse as any)?.data || [];
+  // Extract data arrays from responses - handle both direct arrays and paginated responses
+  const allUsers = (usersResponse as any)?.data || usersResponse || [];
+  const cashOutRequests = (cashOutResponse as any)?.data || cashOutResponse || [];
   const topUpRequests = topUpRequestsResponse || [];
-  const allTransactions = (transactionsResponse as any)?.data || [];
-  const allToys = (toysResponse as any)?.data || [];
-  const allAppointments = (appointmentsResponse as any)?.data || [];
-  const activatedPets = (activatedPetsResponse as any)?.data || [];
-  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
-  const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
+  const allTransactions = (transactionsResponse as any)?.data || transactionsResponse || [];
+  const allToys = (toysResponse as any)?.data || toysResponse || [];
+  const allAppointments = (appointmentsResponse as any)?.data || appointmentsResponse || [];
+  const activatedPets = (activatedPetsResponse as any)?.data || activatedPetsResponse || [];
+  const tokenClaims = (tokenClaimsResponse as any)?.data || tokenClaimsResponse || [];
+  const paymentVerifications = (paymentVerificationsResponse as any)?.data || paymentVerificationsResponse || [];
   const pendingPurchases = allPendingPurchases || [];
 
 
