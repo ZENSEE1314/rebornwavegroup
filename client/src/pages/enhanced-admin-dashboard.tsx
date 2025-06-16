@@ -50,7 +50,8 @@ import {
   Camera,
   Star,
   AlertTriangle,
-  Tag
+  Tag,
+  Mail
 } from "lucide-react";
 
 function EnhancedAdminDashboard() {
@@ -2911,6 +2912,128 @@ function EnhancedAdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Email Management Tab */}
+          <TabsContent value="emails">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Email Management</CardTitle>
+                <p className="text-gray-300">Send emails using SendGrid integration</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Custom Email Form */}
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <h3 className="text-white font-semibold">Send Custom Email</h3>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">To (Email Address)</label>
+                        <Input
+                          value={emailData.to}
+                          onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+                          placeholder="recipient@example.com"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                        <Input
+                          value={emailData.subject}
+                          onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                          placeholder="Email subject"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Text Content</label>
+                        <textarea
+                          value={emailData.text}
+                          onChange={(e) => setEmailData({...emailData, text: e.target.value})}
+                          placeholder="Plain text email content"
+                          className="w-full p-3 rounded-md bg-gray-800 border border-gray-600 text-white min-h-[120px]"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => sendEmailMutation.mutate(emailData)}
+                        disabled={sendEmailMutation.isPending || !emailData.to || !emailData.subject || !emailData.text}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Quick Actions */}
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <h3 className="text-white font-semibold">Quick Email Actions</h3>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        <h4 className="text-gray-300 font-medium">Send Welcome Email</h4>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Email address"
+                            value={emailData.to}
+                            onChange={(e) => setEmailData({...emailData, to: e.target.value})}
+                            className="bg-gray-800 border-gray-600 text-white"
+                          />
+                          <Input
+                            placeholder="Name"
+                            className="bg-gray-800 border-gray-600 text-white"
+                            id="welcome-name"
+                          />
+                        </div>
+                        <Button
+                          onClick={() => {
+                            const nameInput = document.getElementById('welcome-name') as HTMLInputElement;
+                            sendWelcomeEmailMutation.mutate({
+                              email: emailData.to,
+                              name: nameInput.value
+                            });
+                          }}
+                          disabled={sendWelcomeEmailMutation.isPending || !emailData.to}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          {sendWelcomeEmailMutation.isPending ? "Sending..." : "Send Welcome Email"}
+                        </Button>
+                      </div>
+
+                      <div className="border-t border-gray-600 pt-4">
+                        <h4 className="text-gray-300 font-medium mb-3">Email Templates</h4>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setEmailData({
+                              ...emailData,
+                              subject: "Account Update Notification",
+                              text: "Your account has been updated successfully. If you did not make this change, please contact support immediately."
+                            })}
+                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                          >
+                            Account Update Template
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setEmailData({
+                              ...emailData,
+                              subject: "Payment Confirmation",
+                              text: "Your payment has been processed successfully. Thank you for your purchase!"
+                            })}
+                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                          >
+                            Payment Confirmation Template
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
