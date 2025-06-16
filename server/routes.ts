@@ -25,25 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // User authentication routes
-  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
+  // User authentication route is handled in multiAuth.ts
 
   // User stats route - return basic stats structure
   app.get("/api/user-stats", isAuthenticated, async (req: any, res) => {
