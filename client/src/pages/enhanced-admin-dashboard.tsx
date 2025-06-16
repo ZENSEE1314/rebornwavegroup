@@ -474,6 +474,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy owner updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
     },
     onError: () => {
       toast({ title: "Failed to update toy owner", variant: "destructive" });
@@ -487,9 +488,15 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
     },
-    onError: () => {
-      toast({ title: "Failed to delete toy", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete toy";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
     }
   });
 
@@ -500,6 +507,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
     },
     onError: () => {
       toast({ title: "Failed to update toy", variant: "destructive" });
@@ -513,6 +521,7 @@ function EnhancedAdminDashboard() {
     onSuccess: () => {
       toast({ title: "Toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
       setNewToy({ name: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
     },
     onError: (error: any) => {
@@ -2500,19 +2509,7 @@ function EnhancedAdminDashboard() {
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            onClick={async () => {
-                              try {
-                                await apiRequest(`/api/admin/toys/${toy.id}`, 'DELETE');
-                                toast({ title: "Success", description: "Toy deleted successfully" });
-                                queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-                              } catch (error: any) {
-                                toast({ 
-                                  title: "Error", 
-                                  description: error.message || "Failed to delete toy",
-                                  variant: "destructive" 
-                                });
-                              }
-                            }}
+                            onClick={() => deleteToyMutation.mutate(toy.id)}
                             size="sm"
                             variant="destructive"
                           >
