@@ -2543,7 +2543,7 @@ function EnhancedAdminDashboard() {
                                   <span className="capitalize">{toy.color}</span>
                                 </>
                               )}
-                              {toy.ownerId || (toy.owner && toy.owner.id) ? (
+                              {(toy.ownerId && toy.ownerId !== 'null' && toy.ownerId !== null) || (toy.owner && toy.owner.id) ? (
                                 <>
                                   <span>•</span>
                                   <span className="text-green-400">Owned</span>
