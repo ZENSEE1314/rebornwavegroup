@@ -3713,8 +3713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         toyData.qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       }
       
-      // Set the owner to the admin who created it (so it shows as "Owned" not "Hardcoded")
-      toyData.ownerId = adminUserId;
+      // Template/avatar toys should have no owner - they are used for bulk creation
+      toyData.ownerId = null;
       
       const newToy = await storage.createToy(toyData);
       res.json(newToy);

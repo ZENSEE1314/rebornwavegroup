@@ -2369,7 +2369,8 @@ function EnhancedAdminDashboard() {
               {/* Enhanced Toy Creation */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Create New Toy</CardTitle>
+                  <CardTitle className="text-white">Create Template Toy</CardTitle>
+                  <p className="text-gray-300 text-sm">Create toy templates/avatars for bulk generation (no owner assigned)</p>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
