@@ -2509,10 +2509,8 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredToys.map((toy: any) => {
-                      console.log(`DEBUG - Toy ${toy.name}: ownerId="${toy.ownerId}", owner=`, toy.owner);
-                      return (
-                        <div key={toy.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
+                    {filteredToys.map((toy: any) => (
+                      <div key={toy.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
                             <img 
@@ -2581,8 +2579,7 @@ function EnhancedAdminDashboard() {
                           </Button>
                         </div>
                       </div>
-                      );
-                    })}
+                    ))}
                     {filteredToys.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         No toys found matching your filters
