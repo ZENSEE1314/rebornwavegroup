@@ -3037,6 +3037,119 @@ function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Pet Management Tab */}
+          <TabsContent value="pets">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Pet Management</CardTitle>
+                  <Button 
+                    onClick={() => downloadCSV(activatedPets, 'pets')}
+                    variant="outline" 
+                    size="sm"
+                    className="bg-white/10 text-white border-white/20"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/20">
+                      <TableHead className="text-blue-200">Pet ID</TableHead>
+                      <TableHead className="text-blue-200">Name</TableHead>
+                      <TableHead className="text-blue-200">Owner</TableHead>
+                      <TableHead className="text-blue-200">Toy ID</TableHead>
+                      <TableHead className="text-blue-200">Growth Stage</TableHead>
+                      <TableHead className="text-blue-200">Gender</TableHead>
+                      <TableHead className="text-blue-200">Stats</TableHead>
+                      <TableHead className="text-blue-200">Created</TableHead>
+                      <TableHead className="text-blue-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activatedPets.map((pet: any) => (
+                      <TableRow key={pet.id} className="border-white/10">
+                        <TableCell className="text-white">{pet.id}</TableCell>
+                        <TableCell className="text-white">{pet.name}</TableCell>
+                        <TableCell className="text-white">
+                          {pet.user ? `${pet.user.firstName} ${pet.user.lastName}` : 'Unknown'}
+                        </TableCell>
+                        <TableCell className="text-white">{pet.toyId}</TableCell>
+                        <TableCell className="text-white">
+                          <Badge className={`${
+                            pet.growthStage === 'baby' ? 'bg-pink-500' :
+                            pet.growthStage === 'teenager' ? 'bg-blue-500' :
+                            pet.growthStage === 'adult' ? 'bg-green-500' :
+                            pet.growthStage === 'grandpa' ? 'bg-yellow-500' :
+                            pet.growthStage === 'death' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          }`}>
+                            {pet.growthStage || 'baby'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-white">
+                          <Badge className={pet.gender === 'male' ? 'bg-blue-500' : 'bg-pink-500'}>
+                            {pet.gender === 'male' ? '♂ Male' : '♀ Female'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-white text-xs">
+                          <div className="space-y-1">
+                            <div>H: {pet.hunger || 0}%</div>
+                            <div>E: {pet.energy || 0}%</div>
+                            <div>C: {pet.cleanliness || 0}%</div>
+                            <div>Hp: {pet.happiness || 0}%</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-white text-xs">
+                          {new Date(pet.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
+                              onClick={() => {
+                                const editData = {
+                                  name: prompt("Edit pet name:", pet.name) || pet.name
+                                };
+                                // Add edit mutation here if needed
+                                toast({ title: "Info", description: "Pet edit functionality coming soon" });
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
+                              onClick={() => {
+                                if (confirm(`Delete pet "${pet.name}"? This action cannot be undone.`)) {
+                                  // Add delete mutation here if needed
+                                  toast({ title: "Info", description: "Pet deletion functionality coming soon" });
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {activatedPets.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    No pets found
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
