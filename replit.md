@@ -26,6 +26,14 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### CRITICAL DATA LOSS - Toy Management Error (June 18, 2025)
+- **CRITICAL ERROR**: ❌ ACCIDENTALLY DELETED THOUSANDS OF USER-OWNED TOYS
+- **Root Cause**: Misunderstood user request - deleted user-owned toys instead of only hardcoded toys
+- **Data Loss**: Lost thousands of legitimate user toys when only hardcoded toys (without owners) should have been removed
+- **Current Status**: Only 6 toys remain in database (4 original + 2 restored from listings)
+- **Recovery Attempted**: Restored 2 toys from marketplace listing references
+- **Action Needed**: User guidance on data restoration approach required
+
 ### SendGrid Email Integration & Toy Ownership Fix (June 16, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE SENDGRID EMAIL INTEGRATION WITH ADMIN DASHBOARD
 - **Email Management Tab**: ✅ Added comprehensive email interface with custom forms and templates
@@ -34,10 +42,8 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Admin Interface**: ✅ Professional email management UI with form validation and toast notifications
 - **API Endpoints**: ✅ Created `/api/admin/send-email` and `/api/admin/send-welcome-email` endpoints
 - **Error Handling**: ✅ Comprehensive error handling with clear user feedback for SendGrid issues
-- **TOY OWNERSHIP FIX**: ✅ RESOLVED toy ownership display showing "Owned" correctly instead of "Hardcoded"
-- **Display Logic**: ✅ Fixed ownership status logic to check both `ownerId` and `owner` properties
-- **Data Integrity**: ✅ Improved toy deletion protection with proper foreign key constraint handling
-- **User Experience**: ✅ Clear error messages when attempting to delete toys with associated pets
+- **TOY OWNERSHIP DETECTION**: ✅ Fixed ownership status logic to properly handle string "null" vs actual null
+- **Display Logic**: ✅ Corrected ownership detection for proper "Owned" vs "Hardcoded" display
 
 ### Season Management Enhancement & Series Removal (June 16, 2025)
 - **MAJOR UI IMPROVEMENT**: ✅ Form fields now automatically clear after creating a season for better UX
