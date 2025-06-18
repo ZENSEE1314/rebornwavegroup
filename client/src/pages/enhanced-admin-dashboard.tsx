@@ -2544,12 +2544,12 @@ function EnhancedAdminDashboard() {
                               {(toy.ownerId && toy.ownerId !== 'null' && toy.ownerId !== null) || (toy.owner && toy.owner.id) ? (
                                 <>
                                   <span>•</span>
-                                  <span className="text-green-400">Owned</span>
+                                  <span className="text-green-400">Owner</span>
                                 </>
                               ) : (
                                 <>
                                   <span>•</span>
-                                  <span className="text-orange-400">Hardcoded</span>
+                                  <span className="text-orange-400">No Owner</span>
                                 </>
                               )}
                             </div>
