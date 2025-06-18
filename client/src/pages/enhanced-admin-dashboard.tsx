@@ -2541,7 +2541,7 @@ function EnhancedAdminDashboard() {
                                   <span className="capitalize">{toy.color}</span>
                                 </>
                               )}
-                              {toy.ownerId ? (
+                              {toy.ownerId || toy.owner ? (
                                 <>
                                   <span>•</span>
                                   <span className="text-green-400">Owned</span>
