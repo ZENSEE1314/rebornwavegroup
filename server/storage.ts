@@ -766,6 +766,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteToy(toyId: number): Promise<void> {
+    // First check if toy has associated pets
+    const associatedPets = await db
+      .select()
+      .from(pets)
+      .where(eq(pets.toyId, toyId));
+    
+    if (associatedPets.length > 0) {
+      throw new Error(`Cannot delete toy: ${associatedPets.length} pet(s) are using this toy. Please reassign or remove the pets first.`);
+    }
+    
+    // Delete the toy if no pets are associated
     await db
       .delete(toys)
       .where(eq(toys.id, toyId));

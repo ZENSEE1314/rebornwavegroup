@@ -4006,9 +4006,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toyId = parseInt(req.params.toyId);
       await storage.deleteToy(toyId);
       res.json({ message: "Toy deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting toy:", error);
-      res.status(500).json({ message: "Failed to delete toy" });
+      
+      // Handle specific constraint errors
+      if (error.message && error.message.includes("pet(s) are using this toy")) {
+        res.status(400).json({ 
+          message: error.message,
+          type: "constraint_error"
+        });
+      } else if (error.code === '23503') {
+        res.status(400).json({ 
+          message: "Cannot delete toy: Active pets are using this toy. Please reassign or remove the pets first.",
+          type: "foreign_key_constraint"
+        });
+      } else {
+        res.status(500).json({ message: "Failed to delete toy" });
+      }
     }
   });
 
