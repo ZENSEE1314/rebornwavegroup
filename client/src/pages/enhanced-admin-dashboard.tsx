@@ -73,6 +73,7 @@ function EnhancedAdminDashboard() {
   const [showTokenDialog, setShowTokenDialog] = useState(false);
   const [selectedUserForTokens, setSelectedUserForTokens] = useState<any>(null);
   const [tokenAmount, setTokenAmount] = useState("");
+  const [showEditPetDialog, setShowEditPetDialog] = useState(false);
   const [newToy, setNewToy] = useState({
     name: "",
     rarity: "common",
@@ -3066,80 +3067,108 @@ function EnhancedAdminDashboard() {
                       <TableHead className="text-blue-200">Growth Stage</TableHead>
                       <TableHead className="text-blue-200">Gender</TableHead>
                       <TableHead className="text-blue-200">Stats</TableHead>
+                      <TableHead className="text-blue-200">Tokens</TableHead>
+                      <TableHead className="text-blue-200">Days Left</TableHead>
                       <TableHead className="text-blue-200">Created</TableHead>
                       <TableHead className="text-blue-200">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activatedPets.map((pet: any) => (
-                      <TableRow key={pet.id} className="border-white/10">
-                        <TableCell className="text-white">{pet.id}</TableCell>
-                        <TableCell className="text-white">{pet.name}</TableCell>
-                        <TableCell className="text-white">
-                          {pet.user ? `${pet.user.firstName} ${pet.user.lastName}` : 'Unknown'}
-                        </TableCell>
-                        <TableCell className="text-white">{pet.toyId}</TableCell>
-                        <TableCell className="text-white">
-                          <Badge className={`${
-                            pet.growthStage === 'baby' ? 'bg-pink-500' :
-                            pet.growthStage === 'teenager' ? 'bg-blue-500' :
-                            pet.growthStage === 'adult' ? 'bg-green-500' :
-                            pet.growthStage === 'grandpa' ? 'bg-yellow-500' :
-                            pet.growthStage === 'death' ? 'bg-red-500' :
-                            'bg-gray-500'
-                          }`}>
-                            {pet.growthStage || 'baby'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-white">
-                          <Badge className={pet.gender === 'male' ? 'bg-blue-500' : 'bg-pink-500'}>
-                            {pet.gender === 'male' ? '♂ Male' : '♀ Female'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-white text-xs">
-                          <div className="space-y-1">
-                            <div>H: {pet.hunger || 0}%</div>
-                            <div>E: {pet.energy || 0}%</div>
-                            <div>C: {pet.cleanliness || 0}%</div>
-                            <div>Hp: {pet.happiness || 0}%</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-white text-xs">
-                          {new Date(pet.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
-                              onClick={() => {
-                                const editData = {
-                                  name: prompt("Edit pet name:", pet.name) || pet.name
-                                };
-                                // Add edit mutation here if needed
-                                toast({ title: "Info", description: "Pet edit functionality coming soon" });
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
-                              onClick={() => {
-                                if (confirm(`Delete pet "${pet.name}"? This action cannot be undone.`)) {
-                                  // Add delete mutation here if needed
-                                  toast({ title: "Info", description: "Pet deletion functionality coming soon" });
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {activatedPets.map((pet: any) => {
+                      // Calculate days since creation
+                      const createdDate = new Date(pet.createdAt);
+                      const now = new Date();
+                      const daysSinceCreation = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                      const maxDays = 30; // Assuming 30 days lifecycle
+                      const daysLeft = Math.max(0, maxDays - daysSinceCreation);
+                      
+                      return (
+                        <TableRow key={pet.id} className="border-white/10">
+                          <TableCell className="text-white">{pet.id}</TableCell>
+                          <TableCell className="text-white">{pet.name}</TableCell>
+                          <TableCell className="text-white">
+                            {pet.user ? `${pet.user.firstName} ${pet.user.lastName}` : 'Unknown'}
+                          </TableCell>
+                          <TableCell className="text-white">{pet.toyId}</TableCell>
+                          <TableCell className="text-white">
+                            <Badge className={`${
+                              pet.growthStage === 'baby' ? 'bg-pink-500' :
+                              pet.growthStage === 'teenager' ? 'bg-blue-500' :
+                              pet.growthStage === 'adult' ? 'bg-green-500' :
+                              pet.growthStage === 'grandpa' ? 'bg-yellow-500' :
+                              pet.growthStage === 'death' ? 'bg-red-500' :
+                              'bg-gray-500'
+                            }`}>
+                              {pet.growthStage || 'baby'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-white">
+                            <Badge className={pet.gender === 'male' ? 'bg-blue-500' : 'bg-pink-500'}>
+                              {pet.gender === 'male' ? '♂ Male' : '♀ Female'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-white text-xs">
+                            <div className="space-y-1">
+                              <div>H: {pet.hunger || 0}%</div>
+                              <div>E: {pet.energy || 0}%</div>
+                              <div>C: {pet.cleanliness || 0}%</div>
+                              <div>Hp: {pet.happiness || 0}%</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-white">
+                            <Badge className="bg-yellow-600">
+                              {pet.tokensEarned || 0} 🪙
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-white">
+                            <Badge className={daysLeft > 7 ? 'bg-green-600' : daysLeft > 3 ? 'bg-yellow-600' : 'bg-red-600'}>
+                              {daysLeft} days
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-white text-xs">
+                            {createdDate.toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
+                                onClick={() => {
+                                  setEditingPet(pet);
+                                  setEditedPetData({
+                                    name: pet.name,
+                                    hunger: pet.hunger || 0,
+                                    energy: pet.energy || 0,
+                                    cleanliness: pet.cleanliness || 0,
+                                    happiness: pet.happiness || 0,
+                                    gender: pet.gender || 'male',
+                                    growthStage: pet.growthStage || 'baby',
+                                    createdAt: pet.createdAt
+                                  });
+                                  setShowEditPetDialog(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
+                                onClick={() => {
+                                  if (confirm(`Delete pet "${pet.name}"? This action cannot be undone.`)) {
+                                    // Add delete mutation here if needed
+                                    toast({ title: "Info", description: "Pet deletion functionality coming soon" });
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 {activatedPets.length === 0 && (
@@ -3152,6 +3181,147 @@ function EnhancedAdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Pet Dialog */}
+      <Dialog open={showEditPetDialog} onOpenChange={setShowEditPetDialog}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Pet: {editingPet?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Pet Name</Label>
+                <Input
+                  value={editedPetData.name || ''}
+                  onChange={(e) => setEditedPetData({ ...editedPetData, name: e.target.value })}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="Pet name"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Gender</Label>
+                <Select 
+                  value={editedPetData.gender || 'male'} 
+                  onValueChange={(value) => setEditedPetData({ ...editedPetData, gender: value })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="male" className="text-white">♂ Male</SelectItem>
+                    <SelectItem value="female" className="text-white">♀ Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Growth Stage</Label>
+              <Select 
+                value={editedPetData.growthStage || 'baby'} 
+                onValueChange={(value) => setEditedPetData({ ...editedPetData, growthStage: value })}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="baby" className="text-white">Baby</SelectItem>
+                  <SelectItem value="teenager" className="text-white">Teenager</SelectItem>
+                  <SelectItem value="adult" className="text-white">Adult</SelectItem>
+                  <SelectItem value="grandpa" className="text-white">Grandpa</SelectItem>
+                  <SelectItem value="death" className="text-white">Death</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Creation Date</Label>
+              <Input
+                type="datetime-local"
+                value={editedPetData.createdAt ? new Date(editedPetData.createdAt).toISOString().slice(0, 16) : ''}
+                onChange={(e) => setEditedPetData({ ...editedPetData, createdAt: e.target.value })}
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-gray-300">Pet Stats</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-400 text-sm">Hunger (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editedPetData.hunger || 0}
+                    onChange={(e) => setEditedPetData({ ...editedPetData, hunger: parseInt(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Energy (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editedPetData.energy || 0}
+                    onChange={(e) => setEditedPetData({ ...editedPetData, energy: parseInt(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Cleanliness (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editedPetData.cleanliness || 0}
+                    onChange={(e) => setEditedPetData({ ...editedPetData, cleanliness: parseInt(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Happiness (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editedPetData.happiness || 0}
+                    onChange={(e) => setEditedPetData({ ...editedPetData, happiness: parseInt(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editingPet) {
+                    editPetMutation.mutate({
+                      petId: editingPet.id,
+                      petData: editedPetData
+                    });
+                    setShowEditPetDialog(false);
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-1"
+                disabled={editPetMutation.isPending}
+              >
+                {editPetMutation.isPending ? "Updating..." : "Update Pet"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEditPetDialog(false)}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Season Dialog */}
       <Dialog open={showEditSeasonDialog} onOpenChange={setShowEditSeasonDialog}>

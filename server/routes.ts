@@ -3989,6 +3989,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update pet (admin only)
+  app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const petId = parseInt(req.params.petId);
+      const petData = req.body;
+      
+      // Update pet in database
+      await db.update(pets)
+        .set({
+          name: petData.name,
+          hunger: petData.hunger,
+          energy: petData.energy,
+          cleanliness: petData.cleanliness,
+          happiness: petData.happiness,
+          gender: petData.gender,
+          growthStage: petData.growthStage,
+          createdAt: petData.createdAt ? new Date(petData.createdAt) : undefined
+        })
+        .where(eq(pets.id, petId));
+      
+      res.json({ message: "Pet updated successfully" });
+    } catch (error) {
+      console.error("Error updating pet:", error);
+      res.status(500).json({ message: "Failed to update pet" });
+    }
+  });
+
   // Delete toy (admin only)
   app.delete('/api/admin/toys/:toyId', isAuthenticated, async (req: any, res) => {
     try {
