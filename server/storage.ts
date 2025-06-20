@@ -1529,8 +1529,21 @@ export class DatabaseStorage implements IStorage {
       templateId: toys.templateId,
       createdAt: toys.createdAt,
       updatedAt: toys.updatedAt,
+      season: {
+        id: seasons.id,
+        name: seasons.name,
+        displayName: seasons.displayName,
+      },
+      owner: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      }
     })
     .from(toys)
+    .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+    .leftJoin(users, eq(toys.ownerId, users.id))
     .where(eq(toys.isTemplate, true))
     .orderBy(desc(toys.createdAt));
   }
