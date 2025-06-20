@@ -2579,7 +2579,7 @@ function EnhancedAdminDashboard() {
                                 name: toy.name,
                                 rarity: toy.rarity,
                                 color: toy.color || '',
-                                price: toy.price || 0,
+                                price: toy.salePrice || 0,
                                 gender: toy.gender || 'male',
                                 seasonId: toy.seasonId || null,
                                 imageUrl: toy.imageUrl || ''

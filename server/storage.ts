@@ -1523,21 +1523,14 @@ export class DatabaseStorage implements IStorage {
       qrCode: toys.qrCode,
       ownerId: toys.ownerId,
       isActivated: toys.isActivated,
-      price: toys.price,
+      salePrice: toys.salePrice,
       originalPrice: toys.originalPrice,
       isTemplate: toys.isTemplate,
       templateId: toys.templateId,
       createdAt: toys.createdAt,
       updatedAt: toys.updatedAt,
-      owner: {
-        id: users.id,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        email: users.email
-      }
     })
     .from(toys)
-    .leftJoin(users, eq(toys.ownerId, users.id))
     .where(eq(toys.isTemplate, true))
     .orderBy(desc(toys.createdAt));
   }
