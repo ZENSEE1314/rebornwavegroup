@@ -2495,30 +2495,10 @@ function EnhancedAdminDashboard() {
               {/* List of Created Toys */}
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center justify-between">
+                  <CardTitle className="text-white">
                     List of Created Toys
-                    <Button
-                      onClick={async () => {
-                        try {
-                          const response = await apiRequest('/api/admin/hardcoded-toys', 'DELETE');
-                          toast({ title: "Success", description: `Deleted hardcoded toys successfully` });
-                          queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-                        } catch (error: any) {
-                          toast({ 
-                            title: "Error", 
-                            description: error.message || "Failed to delete hardcoded toys",
-                            variant: "destructive" 
-                          });
-                        }
-                      }}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Hardcoded Toys
-                    </Button>
                   </CardTitle>
-                  <p className="text-gray-300 text-sm">Manage all created toys and remove hardcoded entries</p>
+                  <p className="text-gray-300 text-sm">Manage all created toy templates</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -2554,17 +2534,7 @@ function EnhancedAdminDashboard() {
                                   <span className="capitalize">{toy.color}</span>
                                 </>
                               )}
-                              {(toy.ownerId && toy.ownerId !== 'null' && toy.ownerId !== null) || (toy.owner && toy.owner.id) ? (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-green-400">Owner</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-orange-400">No Owner</span>
-                                </>
-                              )}
+
                             </div>
                           </div>
                         </div>
