@@ -1544,7 +1544,6 @@ export class DatabaseStorage implements IStorage {
     .from(toys)
     .leftJoin(seasons, eq(toys.seasonId, seasons.id))
     .leftJoin(users, eq(toys.ownerId, users.id))
-    .where(eq(toys.isTemplate, true))
     .orderBy(desc(toys.createdAt));
   }
 

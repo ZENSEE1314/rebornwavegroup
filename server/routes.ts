@@ -3790,6 +3790,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint - Simplified bulk toy generation (creates active toys for current user)
+  app.post('/api/admin/bulk-generate-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { baseToy, quantity, overrides } = req.body;
+
+      if (!baseToy || !quantity || quantity < 1) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      if (quantity > 100) {
+        return res.status(400).json({ message: "Maximum 100 toys can be generated at once" });
+      }
+
+      const createdToys = [];
+      const errors = [];
+      
+      for (let i = 0; i < quantity; i++) {
+        try {
+          // Generate unique QR code
+          const qrCode = `QR-${baseToy.name.replace(/\s+/g, '')}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          const toyData = {
+            name: `${baseToy.name} #${i + 1}`,
+            series: baseToy.series,
+            rarity: overrides?.rarity || baseToy.rarity,
+            color: overrides?.color || baseToy.color,
+            imageUrl: baseToy.imageUrl,
+            qrCode: qrCode,
+            seasonId: overrides?.seasonId || baseToy.seasonId,
+            sectorId: baseToy.sectorId,
+            isSeasonalExclusive: baseToy.isSeasonalExclusive,
+            ownerId: adminUserId, // Assign to current admin user
+            isActivated: false,
+            releaseDate: new Date()
+          };
+          
+          const toy = await storage.createToy(toyData);
+          createdToys.push(toy);
+          
+        } catch (error: any) {
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            errors.push(`Toy ${i + 1}: QR code already exists`);
+          } else {
+            errors.push(`Toy ${i + 1}: ${error.message}`);
+          }
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        toysCreated: createdToys.length,
+        errorCount: errors.length,
+        errors: errors
+      });
+    } catch (error) {
+      console.error('Error bulk generating toys:', error);
+      res.status(500).json({ message: 'Failed to generate toys' });
+    }
+  });
+
   // Admin endpoint - Advanced bulk toy generation
   app.post('/api/admin/toys/bulk-generate', isAuthenticated, async (req: any, res) => {
     try {
@@ -3900,7 +3971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             seasonId: seasonId,
             sectorId: sectorId,
             isSeasonalExclusive: !!(seasonId && sectorId),
-            ownerId: null,
+            ownerId: adminUserId, // Assign to admin user instead of null
             isActivated: false,
             releaseDate: new Date()
           };
