@@ -3832,7 +3832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             seasonId: overrides?.seasonId || baseToy.seasonId,
             sectorId: baseToy.sectorId,
             isSeasonalExclusive: baseToy.isSeasonalExclusive,
-            ownerId: adminUserId, // Assign to current admin user
+            ownerId: null, // Template toys have no owner - users can discover them
             isActivated: false,
             releaseDate: new Date()
           };
@@ -3971,7 +3971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             seasonId: seasonId,
             sectorId: sectorId,
             isSeasonalExclusive: !!(seasonId && sectorId),
-            ownerId: adminUserId, // Assign to admin user instead of null
+            ownerId: null, // Template toys have no owner
             isActivated: false,
             releaseDate: new Date()
           };
