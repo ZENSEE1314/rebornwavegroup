@@ -888,6 +888,10 @@ function EnhancedAdminDashboard() {
     onSuccess: (response: any) => {
       toast({ title: `Successfully generated ${response.toysCreated || 'multiple'} toys` });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      // Reset bulk generation form
+      setSelectedToyForBulk(null);
+      setBulkQuantity(1);
+      setBulkOverrides({ seasonId: null, color: null });
     },
     onError: (error: any) => {
       toast({ 
@@ -3274,13 +3278,50 @@ function EnhancedAdminDashboard() {
             </div>
 
             <div>
-              <Label className="text-gray-300">Image URL</Label>
-              <Input
-                value={editedToyData.imageUrl || ''}
-                onChange={(e) => setEditedToyData({ ...editedToyData, imageUrl: e.target.value })}
-                className="bg-white/10 border-white/20 text-white"
-                placeholder="Image URL"
-              />
+              <Label className="text-gray-300">Image</Label>
+              <div className="space-y-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const formData = new FormData();
+                      formData.append('image', file);
+                      try {
+                        const response = await fetch('/api/upload-image', {
+                          method: 'POST',
+                          body: formData
+                        });
+                        const data = await response.json();
+                        if (response.ok) {
+                          setEditedToyData({ ...editedToyData, imageUrl: data.imageUrl });
+                          toast({ title: "Image uploaded successfully" });
+                        } else {
+                          toast({ title: "Failed to upload image", variant: "destructive" });
+                        }
+                      } catch (error) {
+                        toast({ title: "Failed to upload image", variant: "destructive" });
+                      }
+                    }
+                  }}
+                  className="bg-white/10 border-white/20 text-white"
+                />
+                {editedToyData.imageUrl && (
+                  <div className="flex items-center gap-2">
+                    <img src={editedToyData.imageUrl} alt="Preview" className="w-12 h-12 rounded object-cover" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditedToyData({ ...editedToyData, imageUrl: '' })}
+                      className="bg-red-600/20 border-red-600 text-red-300 hover:bg-red-600/30"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2 pt-4">
