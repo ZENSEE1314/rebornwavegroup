@@ -3207,6 +3207,139 @@ function EnhancedAdminDashboard() {
         </Tabs>
       </div>
 
+      {/* Edit Toy Dialog */}
+      <Dialog open={showEditToyDialog} onOpenChange={setShowEditToyDialog}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Toy: {editingToy?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Toy Name</Label>
+                <Input
+                  value={editedToyData.name || ''}
+                  onChange={(e) => setEditedToyData({ ...editedToyData, name: e.target.value })}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="Toy name"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Rarity</Label>
+                <Select 
+                  value={editedToyData.rarity || 'common'} 
+                  onValueChange={(value) => setEditedToyData({ ...editedToyData, rarity: value })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="common" className="text-white">Common</SelectItem>
+                    <SelectItem value="rare" className="text-white">Rare</SelectItem>
+                    <SelectItem value="epic" className="text-white">Epic</SelectItem>
+                    <SelectItem value="legendary" className="text-white">Legendary</SelectItem>
+                    <SelectItem value="secret" className="text-white">Secret</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Color</Label>
+                <Input
+                  value={editedToyData.color || ''}
+                  onChange={(e) => setEditedToyData({ ...editedToyData, color: e.target.value })}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="Toy color"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Gender</Label>
+                <Select 
+                  value={editedToyData.gender || 'male'} 
+                  onValueChange={(value) => setEditedToyData({ ...editedToyData, gender: value })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="male" className="text-white">♂ Male</SelectItem>
+                    <SelectItem value="female" className="text-white">♀ Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Price (RP)</Label>
+                <Input
+                  type="number"
+                  value={editedToyData.price || 0}
+                  onChange={(e) => setEditedToyData({ ...editedToyData, price: parseFloat(e.target.value) || 0 })}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Season</Label>
+                <Select 
+                  value={editedToyData.seasonId?.toString() || ""} 
+                  onValueChange={(value) => setEditedToyData({ ...editedToyData, seasonId: value ? parseInt(value) : null })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue placeholder="Select Season" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="none" className="text-white">No Season</SelectItem>
+                    {seasonsData.map((season: any) => (
+                      <SelectItem key={season.id} value={season.id.toString()} className="text-white">
+                        {season.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Image URL</Label>
+              <Input
+                value={editedToyData.imageUrl || ''}
+                onChange={(e) => setEditedToyData({ ...editedToyData, imageUrl: e.target.value })}
+                className="bg-white/10 border-white/20 text-white"
+                placeholder="Image URL"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editingToy) {
+                    editToyMutation.mutate({
+                      toyId: editingToy.id,
+                      toyData: editedToyData
+                    });
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-1"
+                disabled={editToyMutation.isPending || !editedToyData.name}
+              >
+                {editToyMutation.isPending ? "Updating..." : "Update Toy"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowEditToyDialog(false)}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Pet Dialog */}
       <Dialog open={showEditPetDialog} onOpenChange={setShowEditPetDialog}>
         <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
