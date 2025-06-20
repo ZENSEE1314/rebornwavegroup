@@ -148,6 +148,8 @@ export const toys = pgTable("toys", {
   isActivated: boolean("is_activated").default(false),
   purchasedBy: varchar("purchased_by"),
   isForSale: boolean("is_for_sale").default(false),
+  isTemplate: boolean("is_template").default(false), // True for template toys used for bulk generation
+  templateId: integer("template_id"), // References the template toy this was created from
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   collectionProgress: integer("collection_progress").default(0), // Progress towards collection completion
   isSeasonalExclusive: boolean("is_seasonal_exclusive").default(false),
