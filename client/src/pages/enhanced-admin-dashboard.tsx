@@ -554,10 +554,14 @@ function EnhancedAdminDashboard() {
     mutationFn: async ({ toyId, toyData }: { toyId: number; toyData: any }) => {
       return apiRequest('PUT', `/api/admin/toys/${toyId}`, toyData);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       toast({ title: "Toy updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      // Only invalidate the specific paginated query that's currently displayed
       queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      // Also invalidate the seasonal collections if the toy was template
+      if (editingToy?.ownerId === null) {
+        queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
+      }
       setShowEditToyDialog(false);
       setEditingToy(null);
       setEditedToyData({});

@@ -683,6 +683,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(toys.id, toyId));
   }
 
+  async getToy(toyId: number): Promise<any> {
+    const [toy] = await db
+      .select()
+      .from(toys)
+      .where(eq(toys.id, toyId));
+    return toy;
+  }
+
   async updateToy(toyId: number, toyData: Partial<InsertToy>): Promise<void> {
     await db
       .update(toys)

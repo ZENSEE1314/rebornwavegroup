@@ -4052,7 +4052,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toyId = parseInt(req.params.toyId);
       const toyData = req.body;
       
+      console.log(`*** TOY UPDATE: Updating toy ID ${toyId} with data:`, toyData);
+      
+      // Get the toy before updating to check if it's a template
+      const toyBefore = await storage.getToy(toyId);
+      if (!toyBefore) {
+        return res.status(404).json({ message: "Toy not found" });
+      }
+      
+      console.log(`*** TOY UPDATE: Found toy "${toyBefore.name}" (ID: ${toyId}, ownerId: ${toyBefore.ownerId}, isTemplate: ${toyBefore.isTemplate})`);
+      
       await storage.updateToy(toyId, toyData);
+      
+      console.log(`*** TOY UPDATE: Successfully updated toy ID ${toyId}`);
+      
       res.json({ message: "Toy updated successfully" });
     } catch (error) {
       console.error("Error updating toy:", error);
