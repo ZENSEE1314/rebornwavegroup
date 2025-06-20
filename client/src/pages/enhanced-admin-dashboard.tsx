@@ -74,6 +74,9 @@ function EnhancedAdminDashboard() {
   const [selectedUserForTokens, setSelectedUserForTokens] = useState<any>(null);
   const [tokenAmount, setTokenAmount] = useState("");
   const [showEditPetDialog, setShowEditPetDialog] = useState(false);
+  const [editingToy, setEditingToy] = useState<any>(null);
+  const [showEditToyDialog, setShowEditToyDialog] = useState(false);
+  const [editedToyData, setEditedToyData] = useState<any>({});
   const [newToy, setNewToy] = useState({
     name: "",
     rarity: "common",
@@ -555,9 +558,17 @@ function EnhancedAdminDashboard() {
       toast({ title: "Toy updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      setShowEditToyDialog(false);
+      setEditingToy(null);
+      setEditedToyData({});
     },
-    onError: () => {
-      toast({ title: "Failed to update toy", variant: "destructive" });
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update toy";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
     }
   });
 
@@ -2563,8 +2574,17 @@ function EnhancedAdminDashboard() {
                           </Badge>
                           <Button
                             onClick={() => {
-                              // Edit functionality can be implemented later
-                              toast({ title: "Info", description: "Edit functionality coming soon" });
+                              setEditingToy(toy);
+                              setEditedToyData({
+                                name: toy.name,
+                                rarity: toy.rarity,
+                                color: toy.color || '',
+                                price: toy.price || 0,
+                                gender: toy.gender || 'male',
+                                seasonId: toy.seasonId || null,
+                                imageUrl: toy.imageUrl || ''
+                              });
+                              setShowEditToyDialog(true);
                             }}
                             size="sm"
                             variant="outline"
@@ -2573,7 +2593,11 @@ function EnhancedAdminDashboard() {
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            onClick={() => deleteToyMutation.mutate(toy.id)}
+                            onClick={() => {
+                              if (confirm(`Delete toy "${toy.name}"? This action cannot be undone.`)) {
+                                deleteToyMutation.mutate(toy.id);
+                              }
+                            }}
                             size="sm"
                             variant="destructive"
                           >
