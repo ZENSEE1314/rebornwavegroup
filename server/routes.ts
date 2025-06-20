@@ -3565,7 +3565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
-      const allToys = await storage.getAllToysWithOwners();
+      const allToys = await storage.getTemplateToys();
       const totalCount = allToys.length;
       const totalPages = Math.ceil(totalCount / limit);
       const paginatedToys = allToys.slice(offset, offset + limit);

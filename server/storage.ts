@@ -198,6 +198,7 @@ export interface IStorage {
   // Admin-specific operations
   getAllTransactions(): Promise<Transaction[]>;
   getAllToysWithOwners(): Promise<any[]>;
+  getTemplateToys(): Promise<any[]>;
   getAllActivatedPetsWithDetails(): Promise<any[]>;
   
   // Promotion banner operations
@@ -1506,6 +1507,38 @@ export class DatabaseStorage implements IStorage {
     })
     .from(toys)
     .leftJoin(users, eq(toys.ownerId, users.id))
+    .orderBy(desc(toys.createdAt));
+  }
+
+  async getTemplateToys(): Promise<any[]> {
+    return await db.select({
+      id: toys.id,
+      name: toys.name,
+      series: toys.series,
+      seasonId: toys.seasonId,
+      rarity: toys.rarity,
+      color: toys.color,
+      gender: toys.gender,
+      imageUrl: toys.imageUrl,
+      qrCode: toys.qrCode,
+      ownerId: toys.ownerId,
+      isActivated: toys.isActivated,
+      price: toys.price,
+      originalPrice: toys.originalPrice,
+      isTemplate: toys.isTemplate,
+      templateId: toys.templateId,
+      createdAt: toys.createdAt,
+      updatedAt: toys.updatedAt,
+      owner: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      }
+    })
+    .from(toys)
+    .leftJoin(users, eq(toys.ownerId, users.id))
+    .where(eq(toys.isTemplate, true))
     .orderBy(desc(toys.createdAt));
   }
 
