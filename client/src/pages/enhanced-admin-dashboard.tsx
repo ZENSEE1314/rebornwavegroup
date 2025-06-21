@@ -199,7 +199,7 @@ function EnhancedAdminDashboard() {
   const updateToyMutation = useMutation({
     mutationFn: async ({ id, ...toyData }: any) => {
       const response = await fetch(`/api/admin/toys/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify(toyData),
         headers: { 'Content-Type': 'application/json' }
       } as RequestInit);
@@ -207,7 +207,7 @@ function EnhancedAdminDashboard() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       toast({ title: "Success", description: "Toy updated successfully" });
       setShowEditToyDialog(false);
       setEditingToy(null);
@@ -226,7 +226,7 @@ function EnhancedAdminDashboard() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       toast({ title: "Success", description: "Toy deleted successfully" });
     },
     onError: (error: any) => {
@@ -245,10 +245,11 @@ function EnhancedAdminDashboard() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       toast({ title: "Success", description: "Toys bulk generated successfully" });
       setShowBulkGenerateDialog(false);
-      setBulkGenerateData({ seasonId: '', quantity: 50, namePrefix: '', rarity: 'common' });
+      setSelectedToyForBulk('');
+      setBulkQuantity(1);
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
