@@ -342,13 +342,9 @@ export default function AdminDashboard() {
               <History className="w-4 h-4 mr-2" />
               Transactions
             </TabsTrigger>
-            <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
-              <Package className="w-4 h-4 mr-2" />
-              Active Toys
-            </TabsTrigger>
             <TabsTrigger value="templates" className="data-[state=active]:bg-white/20">
               <Package className="w-4 h-4 mr-2" />
-              Templates
+              Template Toys
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
               <Award className="w-4 h-4 mr-2" />
