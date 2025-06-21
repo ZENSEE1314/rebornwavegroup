@@ -115,12 +115,10 @@ export default function AdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
-  // Fetch template toys separately
-  const { data: templateToysData } = useQuery({
-    queryKey: ['/api/admin/template-toys'],
-    retry: false,
-  });
-  const templateToys = templateToysData?.data || [];
+  // Extract template toys from allToys data (toys with no owner)
+  const templateToys = Array.isArray(allToys?.data) 
+    ? allToys.data.filter((toy: any) => !toy.ownerId || toy.ownerId === null) 
+    : [];
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
