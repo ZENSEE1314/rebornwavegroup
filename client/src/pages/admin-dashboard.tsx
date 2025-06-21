@@ -120,12 +120,7 @@ export default function AdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
-  // Fetch template toys separately
-  const { data: templateToysData } = useQuery({
-    queryKey: ['/api/admin/template-toys'],
-    retry: false,
-  });
-  const templateToys = templateToysData?.data || [];
+
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
@@ -155,53 +150,7 @@ export default function AdminDashboard() {
     }
   });
 
-  // Create template toy mutation
-  const createTemplateToyMutation = useMutation({
-    mutationFn: async (toyData: any) => {
-      return apiRequest("POST", "/api/admin/toys/create-template", toyData);
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-      toast({
-        title: "Success",
-        description: data.message || "Template toy created successfully"
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create template toy",
-        variant: "destructive"
-      });
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-    }
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create template toy", variant: "destructive" });
-    }
-  });
+
 
   // Update cash out status mutation
   const updateCashOutMutation = useMutation({
@@ -342,9 +291,13 @@ export default function AdminDashboard() {
               <History className="w-4 h-4 mr-2" />
               Transactions
             </TabsTrigger>
+            <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
+              <Package className="w-4 h-4 mr-2" />
+              Active Toys
+            </TabsTrigger>
             <TabsTrigger value="templates" className="data-[state=active]:bg-white/20">
               <Package className="w-4 h-4 mr-2" />
-              Template Toys
+              Templates
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
               <Award className="w-4 h-4 mr-2" />
@@ -567,8 +520,74 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
+          {/* Toys Management */}
+          <TabsContent value="toys">
+            <div className="space-y-6">
+              {/* Template Toy Creation */}
+              <Card className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-green-400" />
+                    Create Template Toys for Seasonal Collections
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm mt-2">Template toys appear in Seasonal Collections for users to discover and collect</p>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template Toy
+                  </Button>
+                </CardContent>
+              </Card>
 
 
+
+              {/* Active Toys (Toys with Owners) */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Active Toys (User-Owned)</CardTitle>
+                  <p className="text-purple-200 text-sm">Toys that have been collected by users</p>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Name</TableHead>
+                        <TableHead className="text-purple-200">Series</TableHead>
+                        <TableHead className="text-purple-200">Rarity</TableHead>
+                        <TableHead className="text-purple-200">Owner</TableHead>
+                        <TableHead className="text-purple-200">QR Code</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allToys.filter((toy: any) => toy.ownerId !== null && toy.ownerId !== "null").map((toy: any) => (
+                        <TableRow key={toy.id}>
+                          <TableCell className="text-white">{toy.name}</TableCell>
+                          <TableCell className="text-purple-200">{toy.series}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              toy.rarity === 'legendary' ? 'default' :
+                              toy.rarity === 'epic' ? 'secondary' : 'outline'
+                            }>
+                              {toy.rarity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unknown User'}
+                          </TableCell>
+                          <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Templates Tab - Template Toys Management */}
           <TabsContent value="templates">
