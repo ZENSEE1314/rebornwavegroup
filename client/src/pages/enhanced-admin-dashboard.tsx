@@ -110,7 +110,7 @@ function EnhancedAdminDashboard() {
   });
 
   const { data: allToys, error: toysError } = useQuery({
-    queryKey: ['/api/admin/toys'],
+    queryKey: ['/api/admin/all-toys'],
     retry: 1
   });
 
@@ -186,7 +186,7 @@ function EnhancedAdminDashboard() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       toast({ title: "Success", description: "Toy created successfully" });
       setShowCreateToyDialog(false);
       setNewToyData({ name: '', description: '', rarity: 'common', seasonId: '', imageUrl: '', gender: 'male' });
