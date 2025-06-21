@@ -277,7 +277,7 @@ function EnhancedAdminDashboard() {
         method: 'PATCH',
         body: JSON.stringify(seasonData),
         headers: { 'Content-Type': 'application/json' }
-      });
+      } as RequestInit);
       if (!response.ok) throw new Error('Failed to update season');
       return response.json();
     },
@@ -296,7 +296,7 @@ function EnhancedAdminDashboard() {
     mutationFn: async (seasonId: string) => {
       const response = await fetch(`/api/admin/seasons/${seasonId}`, {
         method: 'DELETE'
-      });
+      } as RequestInit);
       if (!response.ok) throw new Error('Failed to delete season');
       return response.json();
     },
@@ -315,7 +315,7 @@ function EnhancedAdminDashboard() {
         method: 'POST',
         body: JSON.stringify(emailData),
         headers: { 'Content-Type': 'application/json' }
-      });
+      } as RequestInit);
       if (!response.ok) throw new Error('Failed to send email');
       return response.json();
     },
@@ -335,7 +335,7 @@ function EnhancedAdminDashboard() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
         headers: { 'Content-Type': 'application/json' }
-      });
+      } as RequestInit);
       if (!response.ok) throw new Error('Failed to verify payment');
       return response.json();
     },
@@ -354,7 +354,7 @@ function EnhancedAdminDashboard() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
         headers: { 'Content-Type': 'application/json' }
-      });
+      } as RequestInit);
       if (!response.ok) throw new Error('Failed to process cash out');
       return response.json();
     },
@@ -576,8 +576,24 @@ function EnhancedAdminDashboard() {
           {/* Toys Tab */}
           <TabsContent value="toys">
             <Card className="bg-white/10 backdrop-blur-md border-white/20">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-white">Toy Management</CardTitle>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => setShowCreateToyDialog(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Toy
+                  </Button>
+                  <Button 
+                    onClick={() => setShowBulkGenerateDialog(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    Bulk Generate
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -640,8 +656,15 @@ function EnhancedAdminDashboard() {
           {/* Seasons Tab */}
           <TabsContent value="seasons">
             <Card className="bg-white/10 backdrop-blur-md border-white/20">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-white">Season Management</CardTitle>
+                <Button 
+                  onClick={() => setShowCreateSeasonDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Season
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
