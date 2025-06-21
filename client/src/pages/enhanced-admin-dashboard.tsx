@@ -181,32 +181,32 @@ function EnhancedAdminDashboard() {
     return colors[rarity as keyof typeof colors] || 'bg-gray-500';
   };
 
-  // Safe data extraction with proper array initialization
-  const safeUsers = Array.isArray((usersResponse as any)?.users) ? (usersResponse as any).users : 
-                   Array.isArray((usersResponse as any)?.data) ? (usersResponse as any).data : [];
-  const safeTransactions = Array.isArray((allTransactions as any)?.data) ? (allTransactions as any).data : 
-                          Array.isArray(allTransactions) ? allTransactions : [];
-  const safePaymentVerifications = Array.isArray((paymentVerifications as any)?.data) ? (paymentVerifications as any).data : 
-                                  Array.isArray(paymentVerifications) ? paymentVerifications : [];
-  const safeCashOutRequests = Array.isArray((cashOutRequests as any)?.data) ? (cashOutRequests as any).data : 
-                             Array.isArray(cashOutRequests) ? cashOutRequests : [];
-  const safeAppointments = Array.isArray((allAppointments as any)?.data) ? (allAppointments as any).data : 
-                          Array.isArray(allAppointments) ? allAppointments : [];
-  const safePromotionBanners = Array.isArray((promotionBanners as any)?.data) ? (promotionBanners as any).data : 
-                              Array.isArray(promotionBanners) ? promotionBanners : [];
-  const safeGameLeaderboard = Array.isArray((gameLeaderboard as any)?.data) ? (gameLeaderboard as any).data : 
-                             Array.isArray(gameLeaderboard) ? gameLeaderboard : [];
-  const safePendingPurchases = Array.isArray((pendingPurchases as any)?.data) ? (pendingPurchases as any).data : 
-                              Array.isArray(pendingPurchases) ? pendingPurchases : [];
-  const safeTokenClaims = Array.isArray((tokenClaims as any)?.data) ? (tokenClaims as any).data : 
-                         Array.isArray(tokenClaims) ? tokenClaims : [];
-  const safeTokenTransactions = Array.isArray((tokenTransactions as any)?.data) ? (tokenTransactions as any).data : 
-                               Array.isArray(tokenTransactions) ? tokenTransactions : [];
-  const safeToys = Array.isArray(allToys) ? allToys : [];
-  const safeSeasons = Array.isArray(seasonsData) ? seasonsData : [];
-  const safeDashboardStats = (dashboardStats as any) || {};
-  const safeFeesReport = (feesReport as any) || {};
-  const safeCommissionStats = (commissionStats as any) || {};
+  // Safe data extraction with guaranteed array initialization
+  const safeUsers: any[] = Array.isArray((usersResponse as any)?.users) ? (usersResponse as any).users : 
+                           Array.isArray((usersResponse as any)?.data) ? (usersResponse as any).data : [];
+  const safeTransactions: any[] = Array.isArray((allTransactions as any)?.data) ? (allTransactions as any).data : 
+                                  Array.isArray(allTransactions) ? allTransactions : [];
+  const safePaymentVerifications: any[] = Array.isArray((paymentVerifications as any)?.data) ? (paymentVerifications as any).data : 
+                                          Array.isArray(paymentVerifications) ? paymentVerifications : [];
+  const safeCashOutRequests: any[] = Array.isArray((cashOutRequests as any)?.data) ? (cashOutRequests as any).data : 
+                                     Array.isArray(cashOutRequests) ? cashOutRequests : [];
+  const safeAppointments: any[] = Array.isArray((allAppointments as any)?.data) ? (allAppointments as any).data : 
+                                  Array.isArray(allAppointments) ? allAppointments : [];
+  const safePromotionBanners: any[] = Array.isArray((promotionBanners as any)?.data) ? (promotionBanners as any).data : 
+                                      Array.isArray(promotionBanners) ? promotionBanners : [];
+  const safeGameLeaderboard: any[] = Array.isArray((gameLeaderboard as any)?.data) ? (gameLeaderboard as any).data : 
+                                     Array.isArray(gameLeaderboard) ? gameLeaderboard : [];
+  const safePendingPurchases: any[] = Array.isArray((pendingPurchases as any)?.data) ? (pendingPurchases as any).data : 
+                                      Array.isArray(pendingPurchases) ? pendingPurchases : [];
+  const safeTokenClaims: any[] = Array.isArray((tokenClaims as any)?.data) ? (tokenClaims as any).data : 
+                                 Array.isArray(tokenClaims) ? tokenClaims : [];
+  const safeTokenTransactions: any[] = Array.isArray((tokenTransactions as any)?.data) ? (tokenTransactions as any).data : 
+                                       Array.isArray(tokenTransactions) ? tokenTransactions : [];
+  const safeToys: any[] = Array.isArray(allToys) ? allToys : [];
+  const safeSeasons: any[] = Array.isArray(seasonsData) ? seasonsData : [];
+  const safeDashboardStats: any = (dashboardStats as any) || {};
+  const safeFeesReport: any = (feesReport as any) || {};
+  const safeCommissionStats: any = (commissionStats as any) || {};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
@@ -544,7 +544,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(paymentVerifications || []).map((verification: any) => (
+                    {safePaymentVerifications.map((verification: any) => (
                       <TableRow key={verification.id}>
                         <TableCell className="text-white">{verification.userId}</TableCell>
                         <TableCell className="text-green-300">{formatCurrency(verification.amount)}</TableCell>
@@ -592,7 +592,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(cashOutRequests || []).map((request: any) => (
+                    {safeCashOutRequests.map((request: any) => (
                       <TableRow key={request.id}>
                         <TableCell className="text-white">{request.userId}</TableCell>
                         <TableCell className="text-green-300">{formatCurrency(request.amount)}</TableCell>
@@ -642,7 +642,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allTransactions || []).map((transaction: any) => (
+                    {safeTransactions.map((transaction: any) => (
                       <TableRow key={transaction.id}>
                         <TableCell className="text-white">{transaction.userId}</TableCell>
                         <TableCell className="text-purple-200">{transaction.type}</TableCell>
@@ -697,7 +697,7 @@ function EnhancedAdminDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-purple-200 text-sm">Commission Stats</p>
-                          <p className="text-2xl font-bold text-white">{commissionStats?.totalCommissions || 0}</p>
+                          <p className="text-2xl font-bold text-white">{safeCommissionStats?.totalCommissions || 0}</p>
                         </div>
                         <Award className="h-8 w-8 text-yellow-400" />
                       </div>
@@ -731,7 +731,7 @@ function EnhancedAdminDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(promotionBanners || []).map((banner: any) => (
+                          {safePromotionBanners.map((banner: any) => (
                             <TableRow key={banner.id}>
                               <TableCell className="text-white">{banner.title}</TableCell>
                               <TableCell className="text-purple-200">{banner.description}</TableCell>
@@ -774,7 +774,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(gameLeaderboard || []).map((entry: any, index: number) => (
+                    {safeGameLeaderboard.map((entry: any, index: number) => (
                       <TableRow key={entry.id}>
                         <TableCell className="text-white font-bold">#{index + 1}</TableCell>
                         <TableCell className="text-white">{entry.userId}</TableCell>
