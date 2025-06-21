@@ -3565,7 +3565,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
-      const allToys = await storage.getTemplateToys();
+      // Get all toys including both template and owned toys
+      const allToys = await db.select({
+        id: schema.toys.id,
+        name: schema.toys.name,
+        series: schema.toys.series,
+        seasonId: schema.toys.seasonId,
+        rarity: schema.toys.rarity,
+        color: schema.toys.color,
+        gender: schema.toys.gender,
+        imageUrl: schema.toys.imageUrl,
+        qrCode: schema.toys.qrCode,
+        ownerId: schema.toys.ownerId,
+        isActivated: schema.toys.isActivated,
+        salePrice: schema.toys.salePrice,
+        originalPrice: schema.toys.originalPrice,
+        isTemplate: schema.toys.isTemplate,
+        templateId: schema.toys.templateId,
+        createdAt: schema.toys.createdAt,
+        updatedAt: schema.toys.updatedAt,
+        season: {
+          id: schema.seasons.id,
+          name: schema.seasons.name,
+          displayName: schema.seasons.displayName,
+        },
+        owner: {
+          id: schema.users.id,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+        }
+      })
+      .from(schema.toys)
+      .leftJoin(schema.seasons, eq(schema.toys.seasonId, schema.seasons.id))
+      .leftJoin(schema.users, eq(schema.toys.ownerId, schema.users.id))
+      .orderBy(desc(schema.toys.createdAt));
+
       const totalCount = allToys.length;
       const totalPages = Math.ceil(totalCount / limit);
       const paginatedToys = allToys.slice(offset, offset + limit);
@@ -3584,6 +3619,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching toys:", error);
       res.status(500).json({ message: "Failed to fetch toys" });
+    }
+  });
+
+  // Get only template toys (separate endpoint)
+  app.get('/api/admin/template-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const templateToys = await storage.getTemplateToys();
+      res.json({ data: templateToys });
+    } catch (error) {
+      console.error("Error fetching template toys:", error);
+      res.status(500).json({ message: "Failed to fetch template toys" });
     }
   });
 

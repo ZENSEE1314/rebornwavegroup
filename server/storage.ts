@@ -1552,6 +1552,7 @@ export class DatabaseStorage implements IStorage {
     .from(toys)
     .leftJoin(seasons, eq(toys.seasonId, seasons.id))
     .leftJoin(users, eq(toys.ownerId, users.id))
+    .where(isNull(toys.ownerId)) // Only template toys (no owner)
     .orderBy(desc(toys.createdAt));
   }
 

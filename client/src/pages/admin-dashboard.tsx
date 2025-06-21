@@ -115,6 +115,13 @@ export default function AdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
+  // Fetch template toys separately
+  const { data: templateToysData } = useQuery({
+    queryKey: ['/api/admin/template-toys'],
+    retry: false,
+  });
+  const templateToys = templateToysData?.data || [];
+
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: string }) => {
@@ -179,7 +186,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/template-toys'] });
       queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
       setShowTemplateDialog(false);
       setTemplateToyForm({
