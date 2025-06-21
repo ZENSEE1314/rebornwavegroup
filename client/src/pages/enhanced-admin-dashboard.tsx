@@ -181,19 +181,29 @@ function EnhancedAdminDashboard() {
     return colors[rarity as keyof typeof colors] || 'bg-gray-500';
   };
 
-  // Safe data extraction with proper typing
-  const safeUsers = (usersResponse as any)?.users || (usersResponse as any)?.data || [];
-  const safeTransactions = (allTransactions as any)?.data || (allTransactions as any) || [];
-  const safePaymentVerifications = (paymentVerifications as any)?.data || (paymentVerifications as any) || [];
-  const safeCashOutRequests = (cashOutRequests as any)?.data || (cashOutRequests as any) || [];
-  const safeAppointments = (allAppointments as any)?.data || (allAppointments as any) || [];
-  const safePromotionBanners = (promotionBanners as any)?.data || (promotionBanners as any) || [];
-  const safeGameLeaderboard = (gameLeaderboard as any)?.data || (gameLeaderboard as any) || [];
-  const safePendingPurchases = (pendingPurchases as any)?.data || (pendingPurchases as any) || [];
-  const safeTokenClaims = (tokenClaims as any)?.data || (tokenClaims as any) || [];
-  const safeTokenTransactions = (tokenTransactions as any)?.data || (tokenTransactions as any) || [];
-  const safeToys = (allToys as any) || [];
-  const safeSeasons = (seasonsData as any) || [];
+  // Safe data extraction with proper array initialization
+  const safeUsers = Array.isArray((usersResponse as any)?.users) ? (usersResponse as any).users : 
+                   Array.isArray((usersResponse as any)?.data) ? (usersResponse as any).data : [];
+  const safeTransactions = Array.isArray((allTransactions as any)?.data) ? (allTransactions as any).data : 
+                          Array.isArray(allTransactions) ? allTransactions : [];
+  const safePaymentVerifications = Array.isArray((paymentVerifications as any)?.data) ? (paymentVerifications as any).data : 
+                                  Array.isArray(paymentVerifications) ? paymentVerifications : [];
+  const safeCashOutRequests = Array.isArray((cashOutRequests as any)?.data) ? (cashOutRequests as any).data : 
+                             Array.isArray(cashOutRequests) ? cashOutRequests : [];
+  const safeAppointments = Array.isArray((allAppointments as any)?.data) ? (allAppointments as any).data : 
+                          Array.isArray(allAppointments) ? allAppointments : [];
+  const safePromotionBanners = Array.isArray((promotionBanners as any)?.data) ? (promotionBanners as any).data : 
+                              Array.isArray(promotionBanners) ? promotionBanners : [];
+  const safeGameLeaderboard = Array.isArray((gameLeaderboard as any)?.data) ? (gameLeaderboard as any).data : 
+                             Array.isArray(gameLeaderboard) ? gameLeaderboard : [];
+  const safePendingPurchases = Array.isArray((pendingPurchases as any)?.data) ? (pendingPurchases as any).data : 
+                              Array.isArray(pendingPurchases) ? pendingPurchases : [];
+  const safeTokenClaims = Array.isArray((tokenClaims as any)?.data) ? (tokenClaims as any).data : 
+                         Array.isArray(tokenClaims) ? tokenClaims : [];
+  const safeTokenTransactions = Array.isArray((tokenTransactions as any)?.data) ? (tokenTransactions as any).data : 
+                               Array.isArray(tokenTransactions) ? tokenTransactions : [];
+  const safeToys = Array.isArray(allToys) ? allToys : [];
+  const safeSeasons = Array.isArray(seasonsData) ? seasonsData : [];
   const safeDashboardStats = (dashboardStats as any) || {};
   const safeFeesReport = (feesReport as any) || {};
   const safeCommissionStats = (commissionStats as any) || {};
@@ -254,7 +264,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-purple-200 text-sm font-medium">Revenue</p>
-                      <p className="text-3xl font-bold text-white">{formatCurrency(dashboardStats?.totalRevenue || 0)}</p>
+                      <p className="text-3xl font-bold text-white">{formatCurrency(safeDashboardStats?.totalRevenue || safeFeesReport?.totalRevenue || 0)}</p>
                     </div>
                     <DollarSign className="h-8 w-8 text-yellow-400" />
                   </div>
@@ -266,7 +276,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-purple-200 text-sm font-medium">Active Sessions</p>
-                      <p className="text-3xl font-bold text-white">{dashboardStats?.activeSessions || 0}</p>
+                      <p className="text-3xl font-bold text-white">{safeDashboardStats?.activeSessions || 0}</p>
                     </div>
                     <TrendingUp className="h-8 w-8 text-red-400" />
                   </div>
@@ -295,7 +305,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(usersResponse?.users || []).map((user: any) => (
+                    {safeUsers.map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell className="text-white font-mono text-xs">{user.id}</TableCell>
                         <TableCell className="text-white">{user.email}</TableCell>
@@ -343,7 +353,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allToys || []).map((toy: any) => (
+                    {safeToys.map((toy: any) => (
                       <TableRow key={toy.id}>
                         <TableCell className="text-white">{toy.name}</TableCell>
                         <TableCell>
@@ -408,7 +418,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(seasonsData || []).map((season: any) => (
+                    {safeSeasons.map((season: any) => (
                       <TableRow key={season.id}>
                         <TableCell className="text-white">{season.name}</TableCell>
                         <TableCell className="text-white">{season.displayName}</TableCell>
@@ -455,7 +465,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allAppointments || []).map((appointment: any) => (
+                    {safeAppointments.map((appointment: any) => (
                       <TableRow key={appointment.id}>
                         <TableCell className="text-white">{appointment.userId}</TableCell>
                         <TableCell className="text-purple-200">{formatDate(appointment.date)}</TableCell>
