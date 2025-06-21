@@ -177,13 +177,7 @@ function EnhancedAdminDashboard() {
   // Admin mutations for CRUD operations
   const createToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
-      const response = await fetch('/api/admin/toys', {
-        method: 'POST',
-        body: JSON.stringify(toyData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to create toy');
-      return response.json();
+      return apiRequest('POST', '/api/admin/toys', toyData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
@@ -198,13 +192,7 @@ function EnhancedAdminDashboard() {
 
   const updateToyMutation = useMutation({
     mutationFn: async ({ id, ...toyData }: any) => {
-      const response = await fetch(`/api/admin/toys/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(toyData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to update toy');
-      return response.json();
+      return apiRequest('PUT', `/api/admin/toys/${id}`, toyData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
@@ -219,11 +207,7 @@ function EnhancedAdminDashboard() {
 
   const deleteToyMutation = useMutation({
     mutationFn: async (toyId: string) => {
-      const response = await fetch(`/api/admin/toys/${toyId}`, {
-        method: 'DELETE'
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to delete toy');
-      return response.json();
+      return apiRequest('DELETE', `/api/admin/toys/${toyId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
@@ -236,13 +220,7 @@ function EnhancedAdminDashboard() {
 
   const bulkGenerateToysMutation = useMutation({
     mutationFn: async (bulkData: any) => {
-      const response = await fetch('/api/admin/toys/bulk-generate', {
-        method: 'POST',
-        body: JSON.stringify(bulkData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to bulk generate toys');
-      return response.json();
+      return apiRequest('POST', '/api/admin/toys/bulk-generate', bulkData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
@@ -258,13 +236,7 @@ function EnhancedAdminDashboard() {
 
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
-      const response = await fetch('/api/admin/seasons', {
-        method: 'POST',
-        body: JSON.stringify(seasonData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to create season');
-      return response.json();
+      return apiRequest('POST', '/api/admin/seasons', seasonData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
@@ -279,13 +251,7 @@ function EnhancedAdminDashboard() {
 
   const updateSeasonMutation = useMutation({
     mutationFn: async ({ id, ...seasonData }: any) => {
-      const response = await fetch(`/api/admin/seasons/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(seasonData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to update season');
-      return response.json();
+      return apiRequest('PATCH', `/api/admin/seasons/${id}`, seasonData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
@@ -298,32 +264,64 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  const deleteSeasonMutation = useMutation({
-    mutationFn: async (seasonId: string) => {
-      const response = await fetch(`/api/admin/seasons/${seasonId}`, {
-        method: 'DELETE'
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to delete season');
-      return response.json();
+  // User management mutations
+  const updateUserCreditsMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      return apiRequest('POST', '/api/admin/update-credits', { userId, amount });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
-      toast({ title: "Success", description: "Season deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "Success", description: "User credits updated successfully" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   });
 
+  const updateUserPointsMutation = useMutation({
+    mutationFn: async ({ userId, points }: { userId: string; points: number }) => {
+      return apiRequest('POST', '/api/admin/update-points', { userId, points });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "Success", description: "User points updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Cash-out management mutations
+  const approveCashOutMutation = useMutation({
+    mutationFn: async (cashOutId: number) => {
+      return apiRequest('PUT', `/api/admin/cash-out/${cashOutId}`, { status: 'approved' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cash-outs'] });
+      toast({ title: "Success", description: "Cash-out request approved successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const rejectCashOutMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes: string }) => {
+      return apiRequest('PUT', `/api/admin/cash-out/${id}`, { status: 'rejected', adminNotes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cash-outs'] });
+      toast({ title: "Success", description: "Cash-out request rejected successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Email sending mutation
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
-      const response = await fetch('/api/admin/send-email', {
-        method: 'POST',
-        body: JSON.stringify(emailData),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to send email');
-      return response.json();
+      return apiRequest('POST', '/api/admin/send-email', emailData);
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Email sent successfully" });
@@ -335,15 +333,22 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const deleteSeasonMutation = useMutation({
+    mutationFn: async (seasonId: string) => {
+      return apiRequest('DELETE', `/api/admin/seasons/${seasonId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      toast({ title: "Success", description: "Season deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
   const verifyPaymentMutation = useMutation({
     mutationFn: async ({ id, status }: any) => {
-      const response = await fetch(`/api/admin/payment-verifications/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to verify payment');
-      return response.json();
+      return apiRequest('PATCH', `/api/admin/payment-verifications/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
@@ -356,13 +361,7 @@ function EnhancedAdminDashboard() {
 
   const processCashOutMutation = useMutation({
     mutationFn: async ({ id, status }: any) => {
-      const response = await fetch(`/api/admin/cash-outs/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-        headers: { 'Content-Type': 'application/json' }
-      } as RequestInit);
-      if (!response.ok) throw new Error('Failed to process cash out');
-      return response.json();
+      return apiRequest('PATCH', `/api/admin/cash-outs/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/cash-outs'] });
