@@ -107,6 +107,11 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/template-toys"],
   });
 
+  // Fetch seasons for template toy creation
+  const { data: seasons = [] } = useQuery({
+    queryKey: ["/api/seasons"],
+  });
+
   // Fetch seasons for template creation
   const { data: seasonsRaw } = useQuery({
     queryKey: ['/api/seasons'],
@@ -146,6 +151,30 @@ export default function AdminDashboard() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update points", variant: "destructive" });
+    }
+  });
+
+  // Create template toy mutation
+  const createTemplateToyMutation = useMutation({
+    mutationFn: async (toyData: any) => {
+      return apiRequest("POST", "/api/admin/create-template-toy", toyData);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Template toy created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create template toy", variant: "destructive" });
     }
   });
 
@@ -585,6 +614,93 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
+          {/* Templates Tab - Template Toys Management */}
+          <TabsContent value="templates">
+            <div className="space-y-6">
+              {/* Template Toy Creation */}
+              <Card className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-green-400" />
+                    Create Template Toys for Seasonal Collections
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm mt-2">Template toys appear in Seasonal Collections for users to discover and collect</p>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template Toy
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* List of Template Toys */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Template Toys</CardTitle>
+                  <p className="text-purple-200 text-sm">These are template toys used for seasonal collections (no owners assigned)</p>
+                </CardHeader>
+                <CardContent>
+                  {templateToys.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p>No template toys found</p>
+                      <p className="text-sm">Create template toys for users to discover in seasonal collections</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-purple-200">Name</TableHead>
+                          <TableHead className="text-purple-200">Season</TableHead>
+                          <TableHead className="text-purple-200">Rarity</TableHead>
+                          <TableHead className="text-purple-200">Color</TableHead>
+                          <TableHead className="text-purple-200">Gender</TableHead>
+                          <TableHead className="text-purple-200">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {templateToys.map((toy: any) => (
+                          <TableRow key={toy.id}>
+                            <TableCell className="text-white">{toy.name}</TableCell>
+                            <TableCell className="text-purple-200">
+                              {toy.season ? toy.season.displayName || toy.season.name : 'No Season'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                toy.rarity === 'legendary' ? 'default' :
+                                toy.rarity === 'epic' ? 'secondary' : 'outline'
+                              }>
+                                {toy.rarity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-purple-200 capitalize">{toy.color}</TableCell>
+                            <TableCell className="text-purple-200">
+                              <Badge variant="outline" className={
+                                toy.gender === 'male' ? 'text-blue-400 border-blue-400' : 'text-pink-400 border-pink-400'
+                              }>
+                                {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-green-400 border-green-400">
+                                Template
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* Reports */}
           <TabsContent value="reports">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -751,7 +867,7 @@ export default function AdminDashboard() {
                   <SelectValue placeholder="Select season" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-600">
-                  {seasonsData.map((season: any) => (
+                  {seasons.map((season: any) => (
                     <SelectItem key={season.id} value={season.id.toString()} className="text-white hover:bg-gray-700">
                       {season.displayName || season.name}
                     </SelectItem>
