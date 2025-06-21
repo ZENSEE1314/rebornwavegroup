@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                             <SelectValue placeholder="Select season" />
                           </SelectTrigger>
                           <SelectContent>
-                            {seasons.map((season: any) => (
+                            {((seasons as any) || []).map((season: any) => (
                               <SelectItem key={season.id} value={season.id.toString()}>
                                 {season.displayName}
                               </SelectItem>
