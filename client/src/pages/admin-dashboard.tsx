@@ -150,53 +150,7 @@ export default function AdminDashboard() {
     }
   });
 
-  // Create template toy mutation
-  const createTemplateToyMutation = useMutation({
-    mutationFn: async (toyData: any) => {
-      return apiRequest("POST", "/api/admin/toys/create-template", toyData);
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-      toast({
-        title: "Success",
-        description: data.message || "Template toy created successfully"
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create template toy",
-        variant: "destructive"
-      });
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create template toy", variant: "destructive" });
-    }
-  });
+
 
   // Update cash out status mutation
   const updateCashOutMutation = useMutation({
