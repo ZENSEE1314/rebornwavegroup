@@ -85,6 +85,9 @@ function EnhancedAdminDashboard() {
   const [selectedToyForBulk, setSelectedToyForBulk] = useState<string>('');
   const [bulkQuantity, setBulkQuantity] = useState<number>(1);
   
+  // Additional season editing state
+  const [editedSeasonData, setEditedSeasonData] = useState<any>({});
+  
   // Email management state
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailData, setEmailData] = useState({
