@@ -167,6 +167,18 @@ function EnhancedAdminDashboard() {
   const [defaultImageUrl, setDefaultImageUrl] = useState("");
   const [generateQRImages, setGenerateQRImages] = useState(true);
   const [autoNumbering, setAutoNumbering] = useState(true);
+
+  // Template toy creation states
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [templateToyForm, setTemplateToyForm] = useState({
+    name: "",
+    seasonId: "",
+    rarity: "common",
+    color: "blue",
+    gender: "male",
+    imageUrl: "",
+    quantity: 1
+  });
   
   // Edit toy owner dialog states
   const [editOwnerDialog, setEditOwnerDialog] = useState(false);
@@ -542,6 +554,35 @@ function EnhancedAdminDashboard() {
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete toy";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const createTemplateToyMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/toys/create-template', templateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Template toy created successfully" });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || "Failed to create template toy";
       toast({ 
         title: "Error", 
         description: errorMessage,
@@ -2711,15 +2752,26 @@ function EnhancedAdminDashboard() {
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-white">All Toys</CardTitle>
-                    <Button 
-                      onClick={() => downloadCSV(allToys, 'toys')}
-                      variant="outline" 
-                      size="sm"
-                      className="bg-white/10 text-white border-white/20"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => setShowTemplateDialog(true)}
+                        variant="outline" 
+                        size="sm"
+                        className="bg-green-600/20 text-green-300 border-green-500/30 hover:bg-green-600/40"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Template
+                      </Button>
+                      <Button 
+                        onClick={() => downloadCSV(allToys, 'toys')}
+                        variant="outline" 
+                        size="sm"
+                        className="bg-white/10 text-white border-white/20"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex gap-4 mt-4">
                     <div className="relative flex-1">
@@ -3562,6 +3614,154 @@ function EnhancedAdminDashboard() {
               <Button
                 variant="outline"
                 onClick={() => setShowEditSeasonDialog(false)}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Toy Creation Dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="bg-gradient-to-br from-blue-900 to-purple-900 border-white/20">
+          <DialogHeader>
+            <DialogTitle className="text-white">Create Template Toy</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-white text-sm">Name</label>
+              <Input
+                value={templateToyForm.name}
+                onChange={(e) => setTemplateToyForm({...templateToyForm, name: e.target.value})}
+                placeholder="Enter toy name"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            
+            <div>
+              <label className="text-white text-sm">Season</label>
+              <Select 
+                value={templateToyForm.seasonId} 
+                onValueChange={(value) => setTemplateToyForm({...templateToyForm, seasonId: value})}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Select season" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Season</SelectItem>
+                  {seasonsData.map((season: any) => (
+                    <SelectItem key={season.id} value={season.id.toString()}>
+                      {season.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-white text-sm">Rarity</label>
+                <Select 
+                  value={templateToyForm.rarity} 
+                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, rarity: value})}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="common">Common</SelectItem>
+                    <SelectItem value="rare">Rare</SelectItem>
+                    <SelectItem value="epic">Epic</SelectItem>
+                    <SelectItem value="legendary">Legendary</SelectItem>
+                    <SelectItem value="secret">Secret</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-white text-sm">Color</label>
+                <Select 
+                  value={templateToyForm.color} 
+                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, color: value})}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="red">Red</SelectItem>
+                    <SelectItem value="blue">Blue</SelectItem>
+                    <SelectItem value="green">Green</SelectItem>
+                    <SelectItem value="yellow">Yellow</SelectItem>
+                    <SelectItem value="purple">Purple</SelectItem>
+                    <SelectItem value="orange">Orange</SelectItem>
+                    <SelectItem value="pink">Pink</SelectItem>
+                    <SelectItem value="black">Black</SelectItem>
+                    <SelectItem value="white">White</SelectItem>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="silver">Silver</SelectItem>
+                    <SelectItem value="rainbow">Rainbow</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-white text-sm">Gender</label>
+                <Select 
+                  value={templateToyForm.gender} 
+                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, gender: value})}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-white text-sm">Quantity</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={templateToyForm.quantity}
+                  onChange={(e) => setTemplateToyForm({...templateToyForm, quantity: parseInt(e.target.value) || 1})}
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Image URL (Optional)</label>
+              <Input
+                value={templateToyForm.imageUrl}
+                onChange={(e) => setTemplateToyForm({...templateToyForm, imageUrl: e.target.value})}
+                placeholder="Enter image URL or leave blank for default"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (templateToyForm.name.trim()) {
+                    createTemplateToyMutation.mutate(templateToyForm);
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 flex-1"
+                disabled={!templateToyForm.name.trim() || createTemplateToyMutation.isPending}
+              >
+                {createTemplateToyMutation.isPending ? "Creating..." : "Create Template Toy"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowTemplateDialog(false)}
                 className="border-white/20 text-white hover:bg-white/10"
               >
                 Cancel

@@ -4073,6 +4073,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create template toy (admin only)
+  app.post('/api/admin/toys/create-template', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, seasonId, rarity, color, gender, imageUrl, quantity } = req.body;
+      
+      console.log(`*** TEMPLATE TOY: Creating ${quantity} template toys named "${name}"`);
+      
+      const createdToys = [];
+      
+      for (let i = 0; i < quantity; i++) {
+        const qrCode = `QR-${name.replace(/\s+/g, '')}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const toyData = {
+          name: quantity > 1 ? `${name} #${i + 1}` : name,
+          series: null,
+          seasonId: seasonId ? parseInt(seasonId) : null,
+          rarity: rarity || 'common',
+          color: color || 'blue',
+          gender: gender || 'male',
+          qrCode: qrCode,
+          imageUrl: imageUrl || '/images/default-toy.png',
+          ownerId: null, // Template toys have no owner
+          isActivated: false,
+          isTemplate: true,
+          releaseDate: new Date()
+        };
+        
+        const createdToy = await storage.createToy(toyData);
+        createdToys.push(createdToy);
+      }
+      
+      console.log(`*** TEMPLATE TOY: Successfully created ${createdToys.length} template toys`);
+      
+      res.json({ 
+        message: `Successfully created ${createdToys.length} template toy(s)`,
+        toys: createdToys
+      });
+    } catch (error) {
+      console.error("Error creating template toy:", error);
+      res.status(500).json({ message: "Failed to create template toy" });
+    }
+  });
+
   // Update pet (admin only)
   app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
     try {
