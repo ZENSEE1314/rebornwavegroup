@@ -42,7 +42,7 @@ import {
   commissionHistory,
   referrals,
 } from "@shared/schema";
-import { eq, and, or, like, desc, sql, isNotNull } from "drizzle-orm";
+import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 
 // Enhanced pet evolution utility functions
@@ -3565,7 +3565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
-      // Get only active toys (those with owners, excluding templates)
+      // Get all toys including both template and owned toys
       const allToys = await db.select({
         id: schema.toys.id,
         name: schema.toys.name,
@@ -3599,7 +3599,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .from(schema.toys)
       .leftJoin(schema.seasons, eq(schema.toys.seasonId, schema.seasons.id))
       .leftJoin(schema.users, eq(schema.toys.ownerId, schema.users.id))
-      .where(isNotNull(schema.toys.ownerId)) // Only toys with owners (not templates)
       .orderBy(desc(schema.toys.createdAt));
 
       const totalCount = allToys.length;
