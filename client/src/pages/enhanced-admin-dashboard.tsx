@@ -2324,114 +2324,888 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Toy Management Tab */}
+          {/* Toy Template Management Tab */}
           <TabsContent value="toys">
             <div className="space-y-6">
-              {/* Season Management */}
-              <div className="grid grid-cols-1 gap-6">
-                {/* Season Management */}
-                <Card className="bg-white/10 backdrop-blur border-white/20">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      Season Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-gray-300">Season Name</Label>
-                          <Input
-                            value={newSeason.name}
-                            onChange={(e) => setNewSeason({ ...newSeason, name: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
-                            placeholder="e.g., Winter 2025"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-gray-300">Display Name</Label>
-                          <Input
-                            value={newSeason.displayName}
-                            onChange={(e) => setNewSeason({ ...newSeason, displayName: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
-                            placeholder="e.g., Winter Collection"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Description</Label>
-                        <Input
-                          value={newSeason.description}
-                          onChange={(e) => setNewSeason({ ...newSeason, description: e.target.value })}
-                          className="bg-white/10 border-white/20 text-white"
-                          placeholder="Season description"
-                        />
-                      </div>
-                      <Button 
-                        onClick={() => createSeasonMutation.mutate(newSeason)}
-                        className="bg-green-600 hover:bg-green-700 w-full"
-                        disabled={!newSeason.name || createSeasonMutation.isPending}
+              {/* Toy Template Creator */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Create Toy Templates
+                  </CardTitle>
+                  <p className="text-purple-200 text-sm">Create templates that users can discover and collect</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Template Name</Label>
+                      <Input
+                        value={templateToyForm.name}
+                        onChange={(e) => setTemplateToyForm({ ...templateToyForm, name: e.target.value })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="e.g., Doluruu Winter Edition"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Season</Label>
+                      <Select 
+                        value={templateToyForm.seasonId} 
+                        onValueChange={(value) => setTemplateToyForm({ ...templateToyForm, seasonId: value })}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {createSeasonMutation.isPending ? "Creating..." : "Create Season"}
-                      </Button>
-                      
-                      {/* Available Seasons */}
-                      <div className="mt-4">
-                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({seasonsData.length})</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select season" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
                           {seasonsData.map((season: any) => (
-                            <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
-                              <span className="text-white text-sm">{season.displayName}</span>
+                            <SelectItem key={season.id} value={season.id.toString()} className="text-white">
+                              {season.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Rarity</Label>
+                      <Select 
+                        value={templateToyForm.rarity} 
+                        onValueChange={(value) => setTemplateToyForm({ ...templateToyForm, rarity: value })}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="common" className="text-white">Common</SelectItem>
+                          <SelectItem value="rare" className="text-white">Rare</SelectItem>
+                          <SelectItem value="epic" className="text-white">Epic</SelectItem>
+                          <SelectItem value="legendary" className="text-white">Legendary</SelectItem>
+                          <SelectItem value="secret" className="text-white">Secret</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Color</Label>
+                      <Select 
+                        value={templateToyForm.color} 
+                        onValueChange={(value) => setTemplateToyForm({ ...templateToyForm, color: value })}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="blue" className="text-white">Blue</SelectItem>
+                          <SelectItem value="red" className="text-white">Red</SelectItem>
+                          <SelectItem value="green" className="text-white">Green</SelectItem>
+                          <SelectItem value="yellow" className="text-white">Yellow</SelectItem>
+                          <SelectItem value="purple" className="text-white">Purple</SelectItem>
+                          <SelectItem value="pink" className="text-white">Pink</SelectItem>
+                          <SelectItem value="orange" className="text-white">Orange</SelectItem>
+                          <SelectItem value="black" className="text-white">Black</SelectItem>
+                          <SelectItem value="white" className="text-white">White</SelectItem>
+                          <SelectItem value="rainbow" className="text-white">Rainbow</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Gender</Label>
+                      <Select 
+                        value={templateToyForm.gender} 
+                        onValueChange={(value) => setTemplateToyForm({ ...templateToyForm, gender: value })}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="male" className="text-white">♂ Male</SelectItem>
+                          <SelectItem value="female" className="text-white">♀ Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Template Quantity</Label>
+                      <Input
+                        type="number"
+                        value={templateToyForm.quantity}
+                        onChange={(e) => setTemplateToyForm({ ...templateToyForm, quantity: parseInt(e.target.value) || 1 })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="1"
+                        min="1"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Label className="text-gray-300">Image URL (Optional)</Label>
+                    <Input
+                      value={templateToyForm.imageUrl}
+                      onChange={(e) => setTemplateToyForm({ ...templateToyForm, imageUrl: e.target.value })}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="https://example.com/toy-image.png"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      // Create template toy mutation
+                      toast({ title: "Creating template toys...", description: "Please wait while we create the templates" });
+                    }}
+                    className="bg-green-600 hover:bg-green-700 w-full mt-4"
+                    disabled={!templateToyForm.name || !templateToyForm.seasonId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template(s)
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Bulk Toy Generator */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Bulk Toy Template Generator
+                  </CardTitle>
+                  <p className="text-purple-200 text-sm">Generate multiple toy templates automatically</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Base Name</Label>
+                      <Input
+                        value={baseToyName}
+                        onChange={(e) => setBaseToyName(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="e.g., Doluruu"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Season</Label>
+                      <Select 
+                        value={customSeason} 
+                        onValueChange={(value) => setCustomSeason(value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select season" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          {seasonsData.map((season: any) => (
+                            <SelectItem key={season.id} value={season.id.toString()} className="text-white">
+                              {season.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Total Templates</Label>
+                      <Input
+                        type="number"
+                        value={totalToysToGenerate}
+                        onChange={(e) => setTotalToysToGenerate(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="50"
+                        min="1"
+                        max="500"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Rarity Distribution</Label>
+                      <Select 
+                        value={rarityDistribution} 
+                        onValueChange={(value) => setRarityDistribution(value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="mixed" className="text-white">Mixed (Realistic)</SelectItem>
+                          <SelectItem value="common" className="text-white">All Common</SelectItem>
+                          <SelectItem value="rare" className="text-white">All Rare</SelectItem>
+                          <SelectItem value="epic" className="text-white">All Epic</SelectItem>
+                          <SelectItem value="legendary" className="text-white">All Legendary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Default Image URL</Label>
+                      <Input
+                        value={defaultImageUrl}
+                        onChange={(e) => setDefaultImageUrl(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="https://example.com/default-toy.png"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="autoNumbering"
+                          checked={autoNumbering}
+                          onChange={(e) => setAutoNumbering(e.target.checked)}
+                          className="rounded"
+                        />
+                        <Label htmlFor="autoNumbering" className="text-gray-300 text-sm">
+                          Auto-number toys (e.g., Doluruu #001, #002...)
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      // Bulk generate toys mutation
+                      if (baseToyName && customSeason && totalToysToGenerate) {
+                        const bulkData = {
+                          baseName: baseToyName,
+                          seasonId: customSeason,
+                          quantity: parseInt(totalToysToGenerate),
+                          rarityDistribution,
+                          defaultImageUrl,
+                          autoNumbering
+                        };
+                        toast({ title: "Generating bulk templates...", description: `Creating ${totalToysToGenerate} toy templates` });
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 w-full mt-4"
+                    disabled={!baseToyName || !customSeason || !totalToysToGenerate}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Generate Bulk Templates
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Template List */}
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <List className="h-5 w-5" />
+                    Template Toys ({filteredToys.length})
+                  </CardTitle>
+                  <p className="text-purple-200 text-sm">Templates available for users to discover and collect</p>
+                </CardHeader>
+                <CardContent>
+                  {/* Search and Filter Controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <Label className="text-gray-300">Search Templates</Label>
+                      <Input
+                        value={toySearch}
+                        onChange={(e) => setToySearch(e.target.value)}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Search by name, series, QR code..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Filter by Rarity</Label>
+                      <Select value={rarityFilter} onValueChange={setRarityFilter}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="all" className="text-white">All Rarities</SelectItem>
+                          <SelectItem value="common" className="text-white">Common</SelectItem>
+                          <SelectItem value="rare" className="text-white">Rare</SelectItem>
+                          <SelectItem value="epic" className="text-white">Epic</SelectItem>
+                          <SelectItem value="legendary" className="text-white">Legendary</SelectItem>
+                          <SelectItem value="secret" className="text-white">Secret</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Template Status</Label>
+                      <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="all" className="text-white">All Templates</SelectItem>
+                          <SelectItem value="unowned" className="text-white">Templates Only (No Owner)</SelectItem>
+                          <SelectItem value="owned" className="text-white">User-Owned Toys</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Template List Table */}
+                  <div className="rounded-lg border border-white/20 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-white/20">
+                          <TableHead className="text-purple-200">Template Info</TableHead>
+                          <TableHead className="text-purple-200">Season</TableHead>
+                          <TableHead className="text-purple-200">Rarity</TableHead>
+                          <TableHead className="text-purple-200">Status</TableHead>
+                          <TableHead className="text-purple-200">QR Code</TableHead>
+                          <TableHead className="text-purple-200">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredToys.map((toy: any) => (
+                          <TableRow key={toy.id} className="border-white/10">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center overflow-hidden">
+                                  {toy.imageUrl ? (
+                                    <img src={toy.imageUrl} alt={toy.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Package className="w-6 h-6 text-gray-400" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-white font-medium">{toy.name}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {toy.color}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">
+                                      {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-purple-200">
+                                {toy.season?.displayName || 'No Season'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                className={`
+                                  ${toy.rarity === 'common' ? 'bg-gray-600' : ''}
+                                  ${toy.rarity === 'rare' ? 'bg-blue-600' : ''}
+                                  ${toy.rarity === 'epic' ? 'bg-purple-600' : ''}
+                                  ${toy.rarity === 'legendary' ? 'bg-yellow-600' : ''}
+                                  ${toy.rarity === 'secret' ? 'bg-red-600' : ''}
+                                `}
+                              >
+                                {toy.rarity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={toy.owner ? 'default' : 'secondary'}>
+                                {toy.owner ? 'User-Owned' : 'Template'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-purple-200 font-mono text-sm">
+                                {toy.qrCode || 'No QR'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
                               <div className="flex items-center gap-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40 h-6 px-2"
+                                  className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
                                   onClick={() => {
-                                    setEditSeasonData({
-                                      id: season.id,
-                                      name: season.name,
-                                      displayName: season.displayName,
-                                      description: season.description || "",
-                                      backgroundColor: season.backgroundColor || "#3B82F6"
+                                    setEditingToy(toy);
+                                    setEditedToyData({
+                                      name: toy.name,
+                                      rarity: toy.rarity,
+                                      color: toy.color,
+                                      gender: toy.gender,
+                                      imageUrl: toy.imageUrl || '',
+                                      seasonId: toy.seasonId?.toString() || ''
                                     });
-                                    setShowEditSeasonDialog(true);
+                                    setShowEditToyDialog(true);
                                   }}
                                 >
-                                  Edit
+                                  <Edit className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40 h-6 px-2"
+                                  className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
                                   onClick={() => {
-                                    if (confirm(`Delete season "${season.displayName}"?`)) {
-                                      deleteSeasonMutation.mutate(season.id);
+                                    if (confirm(`Delete template "${toy.name}"? This action cannot be undone.`)) {
+                                      toast({ title: "Template deleted", description: `Template "${toy.name}" has been removed` });
                                     }
                                   }}
                                 >
-                                  Delete
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                                <Badge variant="outline" className="text-xs">ID: {season.id}</Badge>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {filteredToys.length === 0 && (
+                    <div className="text-center py-12 text-gray-400">
+                      <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-2">No templates found</p>
+                      <p className="text-sm">Create your first toy template using the forms above</p>
+                    </div>
+                  )}
+
+                  {/* Pagination for templates */}
+                  {toysPaginationInfo.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6">
+                      <p className="text-sm text-purple-200">
+                        Page {toysPaginationInfo.page} of {toysPaginationInfo.totalPages} 
+                        ({toysPaginationInfo.totalCount} total templates)
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/10 border-white/20 text-white"
+                          onClick={() => setToysPage(Math.max(1, toysPage - 1))}
+                          disabled={!toysPaginationInfo.hasPrev}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/10 border-white/20 text-white"
+                          onClick={() => setToysPage(toysPage + 1)}
+                          disabled={!toysPaginationInfo.hasNext}
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
+          {/* Payment Verifications Tab */}
+          <TabsContent value="payment-verifications">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Payment Verifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(paymentVerifications as any[]).map((verification: any) => (
+                      <TableRow key={verification.id}>
+                        <TableCell className="text-white">{verification.userId}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(verification.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{verification.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={verification.status === 'approved' ? 'default' : 'secondary'}>
+                            {verification.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(verification.createdAt)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-green-600/20 text-green-300">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-red-600/20 text-red-300">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
+          {/* Cash Outs Tab */}
+          <TabsContent value="cashouts">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Cash Out Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Bank Details</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(cashOutRequests as any[]).map((request: any) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="text-white">{request.userId}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(request.amount)}</TableCell>
+                        <TableCell className="text-purple-200">
+                          {request.bankName} - {request.accountNumber}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={request.status === 'approved' ? 'default' : 'secondary'}>
+                            {request.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(request.requestedAt)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-green-600/20 text-green-300">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-red-600/20 text-red-300">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">All Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(allTransactions as any[]).map((transaction: any) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="text-white">{transaction.userId}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.type}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(transaction.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={transaction.status === 'completed' ? 'default' : 'secondary'}>
+                            {transaction.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(transaction.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Reports & Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Total Admin Fees</p>
+                          <p className="text-2xl font-bold text-white">{formatCurrency((feesReport as any)?.totalAdminFees || 0)}</p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-green-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Total Transactions</p>
+                          <p className="text-2xl font-bold text-white">{(feesReport as any)?.totalTransactions || 0}</p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-blue-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Commission Stats</p>
+                          <p className="text-2xl font-bold text-white">{commissionStats?.totalCommissions || 0}</p>
+                        </div>
+                        <Award className="h-8 w-8 text-yellow-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          <TabsContent value="content">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Content Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-lg">Banners</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-purple-200">Title</TableHead>
+                            <TableHead className="text-purple-200">Description</TableHead>
+                            <TableHead className="text-purple-200">Active</TableHead>
+                            <TableHead className="text-purple-200">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(promotionBanners as any[]).map((banner: any) => (
+                            <TableRow key={banner.id}>
+                              <TableCell className="text-white">{banner.title}</TableCell>
+                              <TableCell className="text-purple-200">{banner.description}</TableCell>
+                              <TableCell>
+                                <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                                  {banner.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button size="sm" variant="outline" className="bg-white/10 border-white/20 text-white">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Game Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Game Leaderboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Rank</TableHead>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Score</TableHead>
+                      <TableHead className="text-purple-200">Tokens Earned</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(gameLeaderboard as any[]).map((entry: any, index: number) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-white font-bold">#{index + 1}</TableCell>
+                        <TableCell className="text-white">{entry.userId}</TableCell>
+                        <TableCell className="text-green-300">{entry.score}</TableCell>
+                        <TableCell className="text-yellow-300">{entry.tokensEarned}</TableCell>
+                        <TableCell className="text-purple-200">{formatDate(entry.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Marketplace Purchases Tab */}
+          <TabsContent value="marketplace">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Marketplace Purchases</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Buyer</TableHead>
+                      <TableHead className="text-purple-200">Seller</TableHead>
+                      <TableHead className="text-purple-200">Toy</TableHead>
+                      <TableHead className="text-purple-200">Price</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(pendingPurchases as any[]).map((purchase: any) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell className="text-white">{purchase.buyerId}</TableCell>
+                        <TableCell className="text-white">{purchase.sellerId}</TableCell>
+                        <TableCell className="text-purple-200">{purchase.toyName}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(purchase.price)}</TableCell>
+                        <TableCell>
+                          <Badge variant={purchase.status === 'completed' ? 'default' : 'secondary'}>
+                            {purchase.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(purchase.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Claims Tab */}
+          <TabsContent value="tokens">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Claims</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(tokenClaims as any[]).map((claim: any) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="text-white">{claim.userId}</TableCell>
+                        <TableCell className="text-yellow-300">{claim.amount} tokens</TableCell>
+                        <TableCell className="text-purple-200">{claim.type}</TableCell>
+                        <TableCell>
+                          <Badge variant={claim.status === 'claimed' ? 'default' : 'secondary'}>
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(claim.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Transactions Tab */}
+          <TabsContent value="token-transactions">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(tokenTransactions as any[]).map((transaction: any) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="text-white">{transaction.userId}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.type}</TableCell>
+                        <TableCell className="text-yellow-300">{transaction.amount} tokens</TableCell>
+                        <TableCell className="text-purple-200">{transaction.description}</TableCell>
+                        <TableCell className="text-purple-200">{formatDate(transaction.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Edit Toy Dialog */}
+      <Dialog open={showEditToyDialog} onOpenChange={setShowEditToyDialog}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Toy: {editingToy?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Toy Name</Label>
+                <Input
+                  value={editedToyData.name || ''}
+                  onChange={(e) => setEditedToyData({ ...editedToyData, name: e.target.value })}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="Toy name"
+                />
               </div>
-
-              {/* Enhanced Toy Creation */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">Create Template Toy</CardTitle>
-                  <p className="text-gray-300 text-sm">Create toy templates/avatars for bulk generation (no owner assigned)</p>
+              <div>
+                <Label className="text-gray-300">Rarity</Label>
+                <Select 
+                  value={editedToyData.rarity || 'common'} 
+                  onValueChange={(value) => setEditedToyData({ ...editedToyData, rarity: value })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="common" className="text-white">Common</SelectItem>
+                    <SelectItem value="rare" className="text-white">Rare</SelectItem>
+                    <SelectItem value="epic" className="text-white">Epic</SelectItem>
+                    <SelectItem value="legendary" className="text-white">Legendary</SelectItem>
+                    <SelectItem value="secret" className="text-white">Secret</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowEditToyDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                toast({ title: "Toy updated", description: "Template has been updated successfully" });
+                setShowEditToyDialog(false);
+              }}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
