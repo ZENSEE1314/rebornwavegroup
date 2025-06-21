@@ -62,6 +62,18 @@ export default function AdminDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Template toy creation states
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [templateToyForm, setTemplateToyForm] = useState({
+    name: "",
+    seasonId: "",
+    rarity: "common",
+    color: "blue",
+    gender: "male",
+    imageUrl: "",
+    quantity: 1
+  });
+
   // Check if user is admin
   if (!user || user.role !== 'admin') {
     return (
@@ -95,6 +107,13 @@ export default function AdminDashboard() {
   const { data: allToys = [] } = useQuery({
     queryKey: ["/api/admin/all-toys"],
   });
+
+  // Fetch seasons for template creation
+  const { data: seasonsRaw } = useQuery({
+    queryKey: ['/api/seasons'],
+    retry: false,
+  });
+  const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
@@ -150,6 +169,36 @@ export default function AdminDashboard() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add new toy", variant: "destructive" });
+    }
+  });
+
+  // Create template toy mutation
+  const createTemplateToyMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/toys/create-template', templateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Template toy created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || "Failed to create template toy";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
     }
   });
 
