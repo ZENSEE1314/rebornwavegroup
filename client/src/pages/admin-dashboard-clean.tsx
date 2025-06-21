@@ -16,6 +16,13 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   
+  // State for user management
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [cashOutSearch, setCashOutSearch] = useState("");
+  const [transactionSearch, setTransactionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  
   // Template toy form state
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateToyForm, setTemplateToyForm] = useState({
@@ -29,7 +36,7 @@ export default function AdminDashboard() {
   });
 
   // Check if user is admin
-  if (!user || user.role !== 'admin') {
+  if (!user || (user as any)?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
@@ -43,14 +50,35 @@ export default function AdminDashboard() {
   }
 
   // Fetch template toys
-  const { data: templateToysResponse = { data: [] } } = useQuery({
+  const { data: templateToysResponse } = useQuery({
     queryKey: ["/api/admin/template-toys"],
   });
-  const templateToys = templateToysResponse?.data || [];
+  const templateToys = (templateToysResponse as any)?.data || [];
 
   // Fetch seasons for template toy creation
-  const { data: seasons = [] } = useQuery({
+  const { data: seasons } = useQuery({
     queryKey: ["/api/seasons"],
+  });
+  
+  // Fetch all users with pagination
+  const { data: usersResponse } = useQuery({
+    queryKey: ["/api/admin/users"],
+  });
+  const allUsers = (usersResponse as any)?.data || [];
+
+  // Fetch all cash out requests
+  const { data: cashOutRequests = [] } = useQuery({
+    queryKey: ["/api/admin/cash-outs"],
+  });
+
+  // Fetch all transactions
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["/api/admin/transactions"],
+  });
+
+  // Fetch all toys (active toys with owners)
+  const { data: allToys = [] } = useQuery({
+    queryKey: ["/api/admin/all-toys"],
   });
 
   // Create template toy mutation
