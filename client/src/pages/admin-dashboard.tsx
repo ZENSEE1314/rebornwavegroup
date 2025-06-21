@@ -295,7 +295,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-md">
+          <TabsList className="grid w-full grid-cols-6 bg-white/10 backdrop-blur-md">
             <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -310,7 +310,11 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
               <Package className="w-4 h-4 mr-2" />
-              Toys
+              Active Toys
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="data-[state=active]:bg-white/20">
+              <Package className="w-4 h-4 mr-2" />
+              Templates
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
               <Award className="w-4 h-4 mr-2" />
@@ -712,6 +716,86 @@ export default function AdminDashboard() {
                       </span>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Template Toys */}
+          <TabsContent value="templates">
+            <div className="space-y-6">
+              {/* Create Template Toy Button */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Template Toy Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Template Toy
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Template Toys List */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Template Toys ({templateToys.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {templateToys.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p>No template toys created yet</p>
+                      <p className="text-sm">Create template toys for seasonal collections</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-purple-200">Name</TableHead>
+                          <TableHead className="text-purple-200">Season</TableHead>
+                          <TableHead className="text-purple-200">Rarity</TableHead>
+                          <TableHead className="text-purple-200">Color</TableHead>
+                          <TableHead className="text-purple-200">Gender</TableHead>
+                          <TableHead className="text-purple-200">Created</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {templateToys.map((toy: any) => (
+                          <TableRow key={toy.id}>
+                            <TableCell className="text-white font-medium">{toy.name}</TableCell>
+                            <TableCell className="text-purple-200">
+                              {toy.season ? toy.season.displayName : 'No Season'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                toy.rarity === 'legendary' ? 'default' :
+                                toy.rarity === 'epic' ? 'secondary' : 'outline'
+                              }>
+                                {toy.rarity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-purple-200">{toy.color}</TableCell>
+                            <TableCell className="text-purple-200">
+                              <span className={toy.gender === 'male' ? 'text-blue-400' : 'text-pink-400'}>
+                                {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-purple-200 text-sm">
+                              {new Date(toy.createdAt).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </div>
