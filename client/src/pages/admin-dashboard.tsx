@@ -123,7 +123,7 @@ export default function AdminDashboard() {
   // Ensure all data arrays are properly handled
   const usersArray = Array.isArray(allUsers?.data) ? allUsers.data : [];
   const transactionsArray = Array.isArray(allTransactions?.data) ? allTransactions.data : [];
-  const cashOutArray = Array.isArray(cashOutRequests?.data) ? cashOutRequests.data : [];
+  const cashOutArray = Array.isArray(cashOutRequests) ? cashOutRequests : [];
   const toysArray = Array.isArray(allToys?.data) ? allToys.data : [];
 
   // Update user credits mutation
@@ -516,7 +516,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allTransactions.map((transaction: any) => (
+                    {transactionsArray.map((transaction: any) => (
                       <TableRow key={transaction.id}>
                         <TableCell className="text-white">{transaction.user?.firstName} {transaction.user?.lastName}</TableCell>
                         <TableCell>
@@ -646,18 +646,18 @@ export default function AdminDashboard() {
                     <div className="flex justify-between">
                       <span className="text-purple-200">Total Credits in System:</span>
                       <span className="text-green-300 font-bold">
-                        {formatCurrency(allUsers.reduce((sum: number, user: any) => sum + parseInt(user.credits || 0), 0))}
+                        {formatCurrency(usersArray.reduce((sum: number, user: any) => sum + parseInt(user.credits || 0), 0))}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-200">Total Points in System:</span>
                       <span className="text-blue-300 font-bold">
-                        {allUsers.reduce((sum: number, user: any) => sum + parseInt(user.loyaltyPoints || 0), 0)}
+                        {usersArray.reduce((sum: number, user: any) => sum + parseInt(user.loyaltyPoints || 0), 0)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-200">Active Users:</span>
-                      <span className="text-white font-bold">{allUsers.length}</span>
+                      <span className="text-white font-bold">{usersArray.length}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -671,18 +671,18 @@ export default function AdminDashboard() {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-purple-200">Total Transactions:</span>
-                      <span className="text-white font-bold">{allTransactions.length}</span>
+                      <span className="text-white font-bold">{transactionsArray.length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-200">Pending Cash Outs:</span>
                       <span className="text-yellow-300 font-bold">
-                        {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                        {cashOutArray.filter((req: any) => req.status === 'pending').length}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-purple-200">Total Cash Out Amount:</span>
                       <span className="text-red-300 font-bold">
-                        {formatCurrency(cashOutRequests.reduce((sum: number, req: any) => sum + parseInt(req.amount || 0), 0))}
+                        {formatCurrency(cashOutArray.reduce((sum: number, req: any) => sum + parseInt(req.amount || 0), 0))}
                       </span>
                     </div>
                   </div>
