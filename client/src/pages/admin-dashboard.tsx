@@ -120,6 +120,12 @@ export default function AdminDashboard() {
     ? allToys.data.filter((toy: any) => !toy.ownerId || toy.ownerId === null) 
     : [];
 
+  // Ensure all data arrays are properly handled
+  const usersArray = Array.isArray(allUsers?.data) ? allUsers.data : [];
+  const transactionsArray = Array.isArray(allTransactions?.data) ? allTransactions.data : [];
+  const cashOutArray = Array.isArray(cashOutRequests?.data) ? cashOutRequests.data : [];
+  const toysArray = Array.isArray(allToys?.data) ? allToys.data : [];
+
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: string }) => {
@@ -246,7 +252,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-200 text-sm">Total Users</p>
-                  <p className="text-2xl font-bold text-white">{allUsers.length}</p>
+                  <p className="text-2xl font-bold text-white">{usersArray.length}</p>
                 </div>
                 <Users className="w-8 h-8 text-purple-300" />
               </div>
@@ -259,7 +265,7 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-purple-200 text-sm">Pending Cash Outs</p>
                   <p className="text-2xl font-bold text-white">
-                    {cashOutRequests.filter((req: any) => req.status === 'pending').length}
+                    {cashOutArray.filter((req: any) => req.status === 'pending').length}
                   </p>
                 </div>
                 <CreditCard className="w-8 h-8 text-yellow-300" />
@@ -272,7 +278,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-200 text-sm">Total Transactions</p>
-                  <p className="text-2xl font-bold text-white">{allTransactions.length}</p>
+                  <p className="text-2xl font-bold text-white">{transactionsArray.length}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-300" />
               </div>
@@ -284,7 +290,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-200 text-sm">Total Toys</p>
-                  <p className="text-2xl font-bold text-white">{allToys.length}</p>
+                  <p className="text-2xl font-bold text-white">{toysArray.length}</p>
                 </div>
                 <Package className="w-8 h-8 text-blue-300" />
               </div>
@@ -335,7 +341,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allUsers.map((user: any) => (
+                    {usersArray.map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell className="text-white">
                           {user.firstName} {user.lastName}
@@ -442,7 +448,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cashOutRequests.map((request: any) => (
+                    {cashOutArray.map((request: any) => (
                       <TableRow key={request.id}>
                         <TableCell className="text-white">{request.user?.firstName} {request.user?.lastName}</TableCell>
                         <TableCell className="text-green-300">{formatCurrency(request.amount)}</TableCell>
