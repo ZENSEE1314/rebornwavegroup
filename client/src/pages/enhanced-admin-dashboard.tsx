@@ -51,6 +51,46 @@ function EnhancedAdminDashboard() {
   const [showEditToyDialog, setShowEditToyDialog] = useState(false);
   const [editingToy, setEditingToy] = useState<any>(null);
   const [editedToyData, setEditedToyData] = useState<any>({});
+  
+  // Season management state
+  const [showCreateSeasonDialog, setShowCreateSeasonDialog] = useState(false);
+  const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
+  const [editingSeason, setEditingSeason] = useState<any>(null);
+  const [newSeasonData, setNewSeasonData] = useState({
+    name: '',
+    displayName: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    isActive: true
+  });
+  
+  // Toy management state
+  const [showCreateToyDialog, setShowCreateToyDialog] = useState(false);
+  const [showBulkGenerateDialog, setShowBulkGenerateDialog] = useState(false);
+  const [newToyData, setNewToyData] = useState({
+    name: '',
+    description: '',
+    rarity: 'common',
+    seasonId: '',
+    imageUrl: '',
+    gender: 'male'
+  });
+  const [bulkGenerateData, setBulkGenerateData] = useState({
+    seasonId: '',
+    quantity: 50,
+    namePrefix: '',
+    rarity: 'common'
+  });
+  
+  // Email management state
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailData, setEmailData] = useState({
+    to: '',
+    subject: '',
+    message: '',
+    type: 'custom'
+  });
 
   // Data fetching with error handling
   const { data: dashboardStats, error: dashboardError } = useQuery({
@@ -127,6 +167,204 @@ function EnhancedAdminDashboard() {
   const { data: tokenTransactions, error: tokenTransError } = useQuery({
     queryKey: ['/api/admin/token-transactions'],
     retry: 1
+  });
+
+  // Admin mutations for CRUD operations
+  const createToyMutation = useMutation({
+    mutationFn: async (toyData: any) => {
+      const response = await fetch('/api/admin/toys', {
+        method: 'POST',
+        body: JSON.stringify(toyData),
+        headers: { 'Content-Type': 'application/json' }
+      } as RequestInit);
+      if (!response.ok) throw new Error('Failed to create toy');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      toast({ title: "Success", description: "Toy created successfully" });
+      setShowCreateToyDialog(false);
+      setNewToyData({ name: '', description: '', rarity: 'common', seasonId: '', imageUrl: '', gender: 'male' });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateToyMutation = useMutation({
+    mutationFn: async ({ id, ...toyData }: any) => {
+      const response = await fetch(`/api/admin/toys/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(toyData),
+        headers: { 'Content-Type': 'application/json' }
+      } as RequestInit);
+      if (!response.ok) throw new Error('Failed to update toy');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      toast({ title: "Success", description: "Toy updated successfully" });
+      setShowEditToyDialog(false);
+      setEditingToy(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const deleteToyMutation = useMutation({
+    mutationFn: async (toyId: string) => {
+      const response = await fetch(`/api/admin/toys/${toyId}`, {
+        method: 'DELETE'
+      } as RequestInit);
+      if (!response.ok) throw new Error('Failed to delete toy');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      toast({ title: "Success", description: "Toy deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const bulkGenerateToysMutation = useMutation({
+    mutationFn: async (bulkData: any) => {
+      const response = await fetch('/api/admin/toys/bulk-generate', {
+        method: 'POST',
+        body: JSON.stringify(bulkData),
+        headers: { 'Content-Type': 'application/json' }
+      } as RequestInit);
+      if (!response.ok) throw new Error('Failed to bulk generate toys');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toys'] });
+      toast({ title: "Success", description: "Toys bulk generated successfully" });
+      setShowBulkGenerateDialog(false);
+      setBulkGenerateData({ seasonId: '', quantity: 50, namePrefix: '', rarity: 'common' });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const createSeasonMutation = useMutation({
+    mutationFn: async (seasonData: any) => {
+      const response = await fetch('/api/admin/seasons', {
+        method: 'POST',
+        body: JSON.stringify(seasonData),
+        headers: { 'Content-Type': 'application/json' }
+      } as RequestInit);
+      if (!response.ok) throw new Error('Failed to create season');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      toast({ title: "Success", description: "Season created successfully" });
+      setShowCreateSeasonDialog(false);
+      setNewSeasonData({ name: '', displayName: '', description: '', startDate: '', endDate: '', isActive: true });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateSeasonMutation = useMutation({
+    mutationFn: async ({ id, ...seasonData }: any) => {
+      const response = await fetch(`/api/admin/seasons/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(seasonData),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to update season');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      toast({ title: "Success", description: "Season updated successfully" });
+      setShowEditSeasonDialog(false);
+      setEditingSeason(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const deleteSeasonMutation = useMutation({
+    mutationFn: async (seasonId: string) => {
+      const response = await fetch(`/api/admin/seasons/${seasonId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to delete season');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      toast({ title: "Success", description: "Season deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: any) => {
+      const response = await fetch('/api/admin/send-email', {
+        method: 'POST',
+        body: JSON.stringify(emailData),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to send email');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Email sent successfully" });
+      setShowEmailDialog(false);
+      setEmailData({ to: '', subject: '', message: '', type: 'custom' });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async ({ id, status }: any) => {
+      const response = await fetch(`/api/admin/payment-verifications/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to verify payment');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      toast({ title: "Success", description: "Payment verification updated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const processCashOutMutation = useMutation({
+    mutationFn: async ({ id, status }: any) => {
+      const response = await fetch(`/api/admin/cash-outs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to process cash out');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cash-outs'] });
+      toast({ title: "Success", description: "Cash out request processed" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
   });
 
   // Error handling
