@@ -26,6 +26,12 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Admin Dashboard Rollback (June 21, 2025)
+- **ROLLBACK COMPLETED**: ✅ Successfully reverted to original working admin dashboard
+- **Route Update**: Changed from enhanced-admin-dashboard back to admin-dashboard component
+- **User Request**: Rolled back due to persistent functionality issues with enhanced version
+- **Current Status**: Original admin panel restored and functional
+
 ### Bulk Toy Generation System Fix (June 20, 2025)
 - **MAJOR FIX**: ✅ CORRECTED BULK TOY GENERATION TO CREATE PROPER TEMPLATE TOYS
 - **Template Toy Creation**: Fixed bulk generation to create toys with `ownerId: null` for seasonal collections
