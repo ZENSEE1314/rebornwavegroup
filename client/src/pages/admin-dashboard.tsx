@@ -238,6 +238,48 @@ export default function AdminDashboard() {
     }
   });
 
+  // Bulk toy generation mutation
+  const bulkGenerateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('POST', '/api/admin/toys/bulk-generate', data);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Toys bulk generated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to bulk generate toys", variant: "destructive" });
+    }
+  });
+
+  // Delete toy mutation
+  const deleteToyMutation = useMutation({
+    mutationFn: async (toyId: number) => {
+      return apiRequest('DELETE', `/api/admin/toys/${toyId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Toy deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete toy", variant: "destructive" });
+    }
+  });
+
+  // Edit toy mutation
+  const editToyMutation = useMutation({
+    mutationFn: async ({ id, ...toyData }: any) => {
+      return apiRequest('PUT', `/api/admin/toys/${id}`, toyData);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Toy updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update toy", variant: "destructive" });
+    }
+  });
+
   const handleUpdateCredits = (userId: string, amount: string) => {
     updateCreditsMutation.mutate({ userId, amount });
   };
@@ -594,28 +636,31 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Template Toys List */}
+              {/* All Toys List */}
               <Card className="bg-white/10 backdrop-blur-md border-white/20">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <Package className="h-5 w-5 mr-2 text-blue-400" />
-                    Template Toys ({templateToys.length})
+                    All Toys ({toysArray.length})
                   </CardTitle>
-                  <p className="text-gray-300 text-sm">Template toys available in seasonal collections</p>
+                  <p className="text-gray-300 text-sm">Manage all toys in the system</p>
                 </CardHeader>
                 <CardContent>
-                  {templateToys.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Package className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                      <p className="text-gray-400">No template toys created yet</p>
-                      <p className="text-gray-500 text-sm">Create template toys to populate seasonal collections</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {templateToys.map((toy: any) => (
-                        <div key={toy.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-white font-medium">{toy.name}</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Name</TableHead>
+                        <TableHead className="text-purple-200">Rarity</TableHead>
+                        <TableHead className="text-purple-200">Owner</TableHead>
+                        <TableHead className="text-purple-200">Status</TableHead>
+                        <TableHead className="text-purple-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {toysArray.slice(0, 20).map((toy: any) => (
+                        <TableRow key={toy.id}>
+                          <TableCell className="text-white">{toy.name}</TableCell>
+                          <TableCell>
                             <Badge 
                               variant={
                                 toy.rarity === 'legendary' ? 'default' :
@@ -632,38 +677,46 @@ export default function AdminDashboard() {
                             >
                               {toy.rarity}
                             </Badge>
-                          </div>
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Season:</span>
-                              <span className="text-white">{toy.season?.displayName || 'No Season'}</span>
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {toy.ownerId ? `User: ${toy.ownerId}` : 'Template'}
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {toy.isActivated ? 'Active' : 'Inactive'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const newName = prompt('Edit toy name:', toy.name);
+                                  if (newName && newName !== toy.name) {
+                                    editToyMutation.mutate({ id: toy.id, name: newName });
+                                  }
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${toy.name}"?`)) {
+                                    deleteToyMutation.mutate(toy.id);
+                                  }
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Color:</span>
-                              <span className="text-white capitalize">{toy.color}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Gender:</span>
-                              <span className="text-white capitalize">
-                                {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Created:</span>
-                              <span className="text-white">
-                                {new Date(toy.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </div>
-                  )}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
-
-
             </div>
           </TabsContent>
 
