@@ -103,9 +103,10 @@ export default function AdminDashboard() {
   });
 
   // Fetch template toys (toys without owners)
-  const { data: templateToys = [] } = useQuery({
+  const { data: templateToysResponse = { data: [] } } = useQuery({
     queryKey: ["/api/admin/template-toys"],
   });
+  const templateToys = templateToysResponse?.data || [];
 
   // Fetch seasons for template toy creation
   const { data: seasons = [] } = useQuery({
@@ -157,8 +158,32 @@ export default function AdminDashboard() {
   // Create template toy mutation
   const createTemplateToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
-      return apiRequest("POST", "/api/admin/create-template-toy", toyData);
+      return apiRequest("POST", "/api/admin/toys/create-template", toyData);
     },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+      toast({
+        title: "Success",
+        description: data.message || "Template toy created successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create template toy",
+        variant: "destructive"
+      });
+    }
     onSuccess: () => {
       toast({ title: "Success", description: "Template toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
