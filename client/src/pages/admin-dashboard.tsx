@@ -39,13 +39,7 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [newToy, setNewToy] = useState({
-    name: "",
-    series: "",
-    rarity: "common",
-    imageUrl: "",
-    qrCode: ""
-  });
+
   
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
@@ -103,9 +97,14 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/transactions"],
   });
 
-  // Fetch all toys
+  // Fetch all toys (active toys with owners)
   const { data: allToys = [] } = useQuery({
     queryKey: ["/api/admin/all-toys"],
+  });
+
+  // Fetch template toys (toys without owners)
+  const { data: templateToys = [] } = useQuery({
+    queryKey: ["/api/admin/template-toys"],
   });
 
   // Fetch seasons for template creation
@@ -164,20 +163,7 @@ export default function AdminDashboard() {
     }
   });
 
-  // Add new toy mutation
-  const addToyMutation = useMutation({
-    mutationFn: async (toyData: any) => {
-      return apiRequest("POST", "/api/admin/toys", toyData);
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "New toy added successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/all-toys"] });
-      setNewToy({ name: "", series: "", rarity: "common", imageUrl: "", qrCode: "" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add new toy", variant: "destructive" });
-    }
-  });
+
 
   // Create template toy mutation
   const createTemplateToyMutation = useMutation({
@@ -221,13 +207,7 @@ export default function AdminDashboard() {
     updateCashOutMutation.mutate({ id, status, adminNotes });
   };
 
-  const handleAddToy = () => {
-    if (!newToy.name || !newToy.series) {
-      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
-      return;
-    }
-    addToyMutation.mutate(newToy);
-  };
+
 
   const formatCurrency = (amount: string | number) => {
     return `Rp ${parseInt(amount.toString()).toLocaleString('id-ID')}`;
@@ -561,66 +541,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Add New Toy */}
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">Add New Toy</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-purple-200">Toy Name</Label>
-                      <Input
-                        value={newToy.name}
-                        onChange={(e) => setNewToy({...newToy, name: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter toy name"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-purple-200">Series</Label>
-                      <Input
-                        value={newToy.series}
-                        onChange={(e) => setNewToy({...newToy, series: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter series name"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-purple-200">Rarity</Label>
-                      <Select value={newToy.rarity} onValueChange={(value) => setNewToy({...newToy, rarity: value})}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="common">Common</SelectItem>
-                          <SelectItem value="uncommon">Uncommon</SelectItem>
-                          <SelectItem value="rare">Rare</SelectItem>
-                          <SelectItem value="epic">Epic</SelectItem>
-                          <SelectItem value="legendary">Legendary</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-purple-200">Image URL</Label>
-                      <Input
-                        value={newToy.imageUrl}
-                        onChange={(e) => setNewToy({...newToy, imageUrl: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter image URL"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleAddToy}
-                    className="mt-4 bg-purple-600 hover:bg-purple-700"
-                    disabled={addToyMutation.isPending}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Toy
-                  </Button>
-                </CardContent>
-              </Card>
+
 
               {/* All Toys */}
               <Card className="bg-white/10 backdrop-blur-md border-white/20">
