@@ -300,7 +300,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: feesReport = {} } = useQuery({
+  const { data: feesReport = { totalAdminFees: 0, totalTransactions: 0 } } = useQuery({
     queryKey: ['/api/admin/fees-report'],
     retry: false,
   });
@@ -371,6 +371,7 @@ function EnhancedAdminDashboard() {
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
+  const tokenTransactions = (tokenTransactionsResponse as any)?.data || [];
   const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
@@ -3231,6 +3232,379 @@ function EnhancedAdminDashboard() {
                     No pets found
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payment Verifications Tab */}
+          <TabsContent value="payment-verifications">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Payment Verifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(paymentVerifications as any[]).map((verification: any) => (
+                      <TableRow key={verification.id}>
+                        <TableCell className="text-white">{verification.userId}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(verification.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{verification.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={verification.status === 'approved' ? 'default' : 'secondary'}>
+                            {verification.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(verification.createdAt)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-green-600/20 text-green-300">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-red-600/20 text-red-300">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Cash Outs Tab */}
+          <TabsContent value="cashouts">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Cash Out Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Bank Details</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(cashOutRequests as any[]).map((request: any) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="text-white">{request.userId}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(request.amount)}</TableCell>
+                        <TableCell className="text-purple-200">
+                          {request.bankName} - {request.accountNumber}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={request.status === 'approved' ? 'default' : 'secondary'}>
+                            {request.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(request.requestedAt)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-green-600/20 text-green-300">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-red-600/20 text-red-300">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">All Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(allTransactions as any[]).map((transaction: any) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="text-white">{transaction.userId}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.type}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(transaction.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={transaction.status === 'completed' ? 'default' : 'secondary'}>
+                            {transaction.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(transaction.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Reports & Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Total Admin Fees</p>
+                          <p className="text-2xl font-bold text-white">{formatCurrency(feesReport?.totalAdminFees || 0)}</p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-green-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Total Transactions</p>
+                          <p className="text-2xl font-bold text-white">{feesReport?.totalTransactions || 0}</p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-blue-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-200 text-sm">Commission Stats</p>
+                          <p className="text-2xl font-bold text-white">{commissionStats?.totalCommissions || 0}</p>
+                        </div>
+                        <Award className="h-8 w-8 text-yellow-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          <TabsContent value="content">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Content Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-lg">Banners</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-purple-200">Title</TableHead>
+                            <TableHead className="text-purple-200">Description</TableHead>
+                            <TableHead className="text-purple-200">Active</TableHead>
+                            <TableHead className="text-purple-200">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(promotionBanners as any[]).map((banner: any) => (
+                            <TableRow key={banner.id}>
+                              <TableCell className="text-white">{banner.title}</TableCell>
+                              <TableCell className="text-purple-200">{banner.description}</TableCell>
+                              <TableCell>
+                                <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                                  {banner.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button size="sm" variant="outline" className="bg-white/10 border-white/20 text-white">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Game Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Game Leaderboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Rank</TableHead>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Score</TableHead>
+                      <TableHead className="text-purple-200">Tokens Earned</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(gameLeaderboard as any[]).map((entry: any, index: number) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-white font-bold">#{index + 1}</TableCell>
+                        <TableCell className="text-white">{entry.userId}</TableCell>
+                        <TableCell className="text-green-300">{entry.score}</TableCell>
+                        <TableCell className="text-yellow-300">{entry.tokensEarned}</TableCell>
+                        <TableCell className="text-purple-200">{formatDate(entry.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Marketplace Purchases Tab */}
+          <TabsContent value="marketplace">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Marketplace Purchases</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Buyer</TableHead>
+                      <TableHead className="text-purple-200">Seller</TableHead>
+                      <TableHead className="text-purple-200">Toy</TableHead>
+                      <TableHead className="text-purple-200">Price</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(pendingPurchases as any[]).map((purchase: any) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell className="text-white">{purchase.buyerId}</TableCell>
+                        <TableCell className="text-white">{purchase.sellerId}</TableCell>
+                        <TableCell className="text-purple-200">{purchase.toyName}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(purchase.price)}</TableCell>
+                        <TableCell>
+                          <Badge variant={purchase.status === 'completed' ? 'default' : 'secondary'}>
+                            {purchase.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(purchase.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Claims Tab */}
+          <TabsContent value="tokens">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Claims</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(tokenClaims as any[]).map((claim: any) => (
+                      <TableRow key={claim.id}>
+                        <TableCell className="text-white">{claim.userId}</TableCell>
+                        <TableCell className="text-yellow-300">{claim.amount} tokens</TableCell>
+                        <TableCell className="text-purple-200">{claim.type}</TableCell>
+                        <TableCell>
+                          <Badge variant={claim.status === 'claimed' ? 'default' : 'secondary'}>
+                            {claim.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">{formatDate(claim.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Transactions Tab */}
+          <TabsContent value="token-transactions">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Type</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(tokenTransactions as any[]).map((transaction: any) => (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="text-white">{transaction.userId}</TableCell>
+                        <TableCell className="text-purple-200">{transaction.type}</TableCell>
+                        <TableCell className="text-yellow-300">{transaction.amount} tokens</TableCell>
+                        <TableCell className="text-purple-200">{transaction.description}</TableCell>
+                        <TableCell className="text-purple-200">{formatDate(transaction.createdAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
