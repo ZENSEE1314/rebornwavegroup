@@ -82,6 +82,8 @@ function EnhancedAdminDashboard() {
     namePrefix: '',
     rarity: 'common'
   });
+  const [selectedToyForBulk, setSelectedToyForBulk] = useState<string>('');
+  const [bulkQuantity, setBulkQuantity] = useState<number>(1);
   
   // Email management state
   const [showEmailDialog, setShowEmailDialog] = useState(false);
@@ -638,8 +640,9 @@ function EnhancedAdminDashboard() {
                               variant="outline" 
                               className="bg-red-600/20 text-red-300"
                               onClick={() => {
-                                toast({ title: "Toy deleted", description: `${toy.name} has been removed` });
+                                deleteToyMutation.mutate(toy.id);
                               }}
+                              disabled={deleteToyMutation.isPending}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -1050,6 +1053,240 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Create Toy Dialog */}
+        <Dialog open={showCreateToyDialog} onOpenChange={setShowCreateToyDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New Template Toy</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Toy Name</Label>
+                  <Input
+                    value={newToyData.name || ''}
+                    onChange={(e) => setNewToyData({ ...newToyData, name: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Enter toy name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Rarity</Label>
+                  <Select 
+                    value={newToyData.rarity || 'common'} 
+                    onValueChange={(value) => setNewToyData({ ...newToyData, rarity: value })}
+                  >
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectItem value="common" className="text-white">Common</SelectItem>
+                      <SelectItem value="rare" className="text-white">Rare</SelectItem>
+                      <SelectItem value="epic" className="text-white">Epic</SelectItem>
+                      <SelectItem value="legendary" className="text-white">Legendary</SelectItem>
+                      <SelectItem value="secret" className="text-white">Secret</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-gray-300">Season</Label>
+                <Select 
+                  value={newToyData.seasonId || ''} 
+                  onValueChange={(value) => setNewToyData({ ...newToyData, seasonId: value })}
+                >
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue placeholder="Select season" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    {safeSeasons.map((season: any) => (
+                      <SelectItem key={season.id} value={season.id.toString()} className="text-white">
+                        {season.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setShowCreateToyDialog(false);
+                  setNewToyData({
+                    name: '',
+                    description: '',
+                    rarity: 'common',
+                    seasonId: '',
+                    imageUrl: '',
+                    gender: 'male'
+                  });
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    createToyMutation.mutate({
+                      ...newToyData,
+                      ownerId: null, // Template toy
+                      gender: newToyData.gender || 'male'
+                    });
+                  }}
+                  disabled={createToyMutation.isPending}
+                >
+                  {createToyMutation.isPending ? 'Creating...' : 'Create Template Toy'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Generate Dialog */}
+        <Dialog open={showBulkGenerateDialog} onOpenChange={setShowBulkGenerateDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Bulk Generate Template Toys</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Base Template Toy</Label>
+                  <Select 
+                    value={selectedToyForBulk || ''} 
+                    onValueChange={setSelectedToyForBulk}
+                  >
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue placeholder="Select template toy" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      {safeToys.filter((toy: any) => !toy.ownerId).map((toy: any) => (
+                        <SelectItem key={toy.id} value={toy.id.toString()} className="text-white">
+                          {toy.name} ({toy.rarity})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-gray-300">Quantity</Label>
+                  <Input
+                    type="number"
+                    value={bulkQuantity}
+                    onChange={(e) => setBulkQuantity(parseInt(e.target.value) || 1)}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Number to generate"
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setShowBulkGenerateDialog(false);
+                  setSelectedToyForBulk('');
+                  setBulkQuantity(1);
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (selectedToyForBulk && bulkQuantity > 0) {
+                      bulkGenerateToysMutation.mutate({
+                        templateToyId: selectedToyForBulk,
+                        quantity: bulkQuantity
+                      });
+                    }
+                  }}
+                  disabled={bulkGenerateToysMutation.isPending || !selectedToyForBulk}
+                >
+                  {bulkGenerateToysMutation.isPending ? 'Generating...' : `Generate ${bulkQuantity} Template Toys`}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Season Dialog */}
+        <Dialog open={showCreateSeasonDialog} onOpenChange={setShowCreateSeasonDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New Season</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Season Name</Label>
+                  <Input
+                    value={newSeasonData.name || ''}
+                    onChange={(e) => setNewSeasonData({ ...newSeasonData, name: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Enter season name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Display Name</Label>
+                  <Input
+                    value={newSeasonData.displayName || ''}
+                    onChange={(e) => setNewSeasonData({ ...newSeasonData, displayName: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Enter display name"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={newSeasonData.startDate || ''}
+                    onChange={(e) => setNewSeasonData({ ...newSeasonData, startDate: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">End Date</Label>
+                  <Input
+                    type="date"
+                    value={newSeasonData.endDate || ''}
+                    onChange={(e) => setNewSeasonData({ ...newSeasonData, endDate: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={newSeasonData.isActive || false}
+                  onChange={(e) => setNewSeasonData({ ...newSeasonData, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="isActive" className="text-gray-300">Active Season</Label>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setShowCreateSeasonDialog(false);
+                  setNewSeasonData({
+                    name: '',
+                    displayName: '',
+                    description: '',
+                    startDate: '',
+                    endDate: '',
+                    isActive: false
+                  });
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    createSeasonMutation.mutate(newSeasonData);
+                  }}
+                  disabled={createSeasonMutation.isPending}
+                >
+                  {createSeasonMutation.isPending ? 'Creating...' : 'Create Season'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Toy Dialog */}
         <Dialog open={showEditToyDialog} onOpenChange={setShowEditToyDialog}>
