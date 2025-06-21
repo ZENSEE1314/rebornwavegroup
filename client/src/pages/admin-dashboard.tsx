@@ -533,17 +533,17 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Toys Management */}
+          {/* Template Toys Management */}
           <TabsContent value="toys">
             <div className="space-y-6">
-              {/* Template Toy Creation */}
+              {/* Template Toy Bulk Generator */}
               <Card className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-500/30">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
-                    <Plus className="h-5 w-5 mr-2 text-green-400" />
-                    Create Template Toys for Seasonal Collections
+                    <Package className="h-5 w-5 mr-2 text-green-400" />
+                    Template Toy Bulk Generator
                   </CardTitle>
-                  <p className="text-gray-300 text-sm mt-2">Template toys appear in Seasonal Collections for users to discover and collect</p>
+                  <p className="text-gray-300 text-sm mt-2">Create template toys in bulk for seasonal collections. These toys will appear in the Seasonal Collections tab for users to discover and collect.</p>
                 </CardHeader>
                 <CardContent>
                   <Button 
@@ -552,111 +552,81 @@ export default function AdminDashboard() {
                     size="lg"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Template Toy
+                    Create Template Toys
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Add New Toy */}
+              {/* Template Toys List */}
               <Card className="bg-white/10 backdrop-blur-md border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">Add New Toy</CardTitle>
+                  <CardTitle className="text-white flex items-center">
+                    <Package className="h-5 w-5 mr-2 text-blue-400" />
+                    Template Toys ({templateToys.length})
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Template toys available in seasonal collections</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-purple-200">Toy Name</Label>
-                      <Input
-                        value={newToy.name}
-                        onChange={(e) => setNewToy({...newToy, name: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter toy name"
-                      />
+                  {templateToys.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                      <p className="text-gray-400">No template toys created yet</p>
+                      <p className="text-gray-500 text-sm">Create template toys to populate seasonal collections</p>
                     </div>
-                    <div>
-                      <Label className="text-purple-200">Series</Label>
-                      <Input
-                        value={newToy.series}
-                        onChange={(e) => setNewToy({...newToy, series: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter series name"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-purple-200">Rarity</Label>
-                      <Select value={newToy.rarity} onValueChange={(value) => setNewToy({...newToy, rarity: value})}>
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="common">Common</SelectItem>
-                          <SelectItem value="uncommon">Uncommon</SelectItem>
-                          <SelectItem value="rare">Rare</SelectItem>
-                          <SelectItem value="epic">Epic</SelectItem>
-                          <SelectItem value="legendary">Legendary</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-purple-200">Image URL</Label>
-                      <Input
-                        value={newToy.imageUrl}
-                        onChange={(e) => setNewToy({...newToy, imageUrl: e.target.value})}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Enter image URL"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleAddToy}
-                    className="mt-4 bg-purple-600 hover:bg-purple-700"
-                    disabled={addToyMutation.isPending}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Toy
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* All Toys */}
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">All Toys</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-purple-200">Name</TableHead>
-                        <TableHead className="text-purple-200">Series</TableHead>
-                        <TableHead className="text-purple-200">Rarity</TableHead>
-                        <TableHead className="text-purple-200">Owner</TableHead>
-                        <TableHead className="text-purple-200">QR Code</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allToys.map((toy: any) => (
-                        <TableRow key={toy.id}>
-                          <TableCell className="text-white">{toy.name}</TableCell>
-                          <TableCell className="text-purple-200">{toy.series}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              toy.rarity === 'legendary' ? 'default' :
-                              toy.rarity === 'epic' ? 'secondary' : 'outline'
-                            }>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {templateToys.map((toy: any) => (
+                        <div key={toy.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-white font-medium">{toy.name}</h3>
+                            <Badge 
+                              variant={
+                                toy.rarity === 'legendary' ? 'default' :
+                                toy.rarity === 'epic' ? 'secondary' : 
+                                toy.rarity === 'rare' ? 'outline' : 'secondary'
+                              }
+                              className={
+                                toy.rarity === 'legendary' ? 'bg-yellow-600 text-white' :
+                                toy.rarity === 'epic' ? 'bg-purple-600 text-white' :
+                                toy.rarity === 'rare' ? 'bg-blue-600 text-white' :
+                                toy.rarity === 'uncommon' ? 'bg-green-600 text-white' :
+                                'bg-gray-600 text-white'
+                              }
+                            >
                               {toy.rarity}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-purple-200">
-                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
-                          </TableCell>
-                          <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
-                        </TableRow>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Season:</span>
+                              <span className="text-white">{toy.season?.displayName || 'No Season'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Color:</span>
+                              <span className="text-white capitalize">{toy.color}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Gender:</span>
+                              <span className="text-white capitalize">
+                                {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Created:</span>
+                              <span className="text-white">
+                                {new Date(toy.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+
+
             </div>
           </TabsContent>
 
