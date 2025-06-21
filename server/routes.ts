@@ -4661,6 +4661,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create template toys for seasonal collections
+  app.post('/api/admin/toys/create-template', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, seasonId, rarity, color, gender, imageUrl, quantity } = req.body;
+
+      if (!name || !seasonId || !rarity || !color || !gender) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      if (!quantity || quantity < 1 || quantity > 100) {
+        return res.status(400).json({ message: "Quantity must be between 1 and 100" });
+      }
+
+      // Verify season exists
+      const season = await db.select().from(schema.seasons).where(eq(schema.seasons.id, parseInt(seasonId))).limit(1);
+      if (!season || season.length === 0) {
+        return res.status(404).json({ message: "Season not found" });
+      }
+
+      const createdToys = [];
+
+      // Create multiple template toys based on quantity
+      for (let i = 0; i < quantity; i++) {
+        const toyName = quantity > 1 ? `${name} #${i + 1}` : name;
+        const qrCode = `TEMPLATE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const toyData = {
+          name: toyName,
+          series: `${season[0].name} Collection`,
+          rarity,
+          color,
+          gender,
+          imageUrl: imageUrl || 'placeholder-image-url',
+          qrCode,
+          ownerId: null, // Template toys have no owner
+          seasonId: parseInt(seasonId),
+          isTemplate: true
+        };
+
+        const newToy = await storage.createToy(toyData);
+        createdToys.push(newToy);
+      }
+
+      res.json({ 
+        message: `Successfully created ${quantity} template toy${quantity > 1 ? 's' : ''}`,
+        toys: createdToys
+      });
+    } catch (error) {
+      console.error("Error creating template toys:", error);
+      res.status(500).json({ message: "Failed to create template toys" });
+    }
+  });
+
   // Cancel pending purchase route
   app.post('/api/pending-purchases/:purchaseId/cancel', isAuthenticated, async (req: any, res) => {
     try {
