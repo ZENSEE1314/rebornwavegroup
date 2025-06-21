@@ -115,6 +115,31 @@ export default function AdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
+  // Fetch payment verifications
+  const { data: paymentVerifications = [] } = useQuery({
+    queryKey: ["/api/admin/payment-verifications"],
+  });
+
+  // Fetch appointments
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["/api/admin/appointments"],
+  });
+
+  // Fetch token transactions
+  const { data: tokenTransactions = [] } = useQuery({
+    queryKey: ["/api/admin/token-transactions"],
+  });
+
+  // Fetch admin dashboard stats
+  const { data: dashboardStats = {} } = useQuery({
+    queryKey: ["/api/admin/dashboard-stats"],
+  });
+
+  // Fetch admin seasons
+  const { data: adminSeasons = [] } = useQuery({
+    queryKey: ["/api/admin/seasons"],
+  });
+
   // Extract template toys from allToys data (toys with no owner)
   const templateToys = Array.isArray(allToys?.data) 
     ? allToys.data.filter((toy: any) => !toy.ownerId || toy.ownerId === null) 
@@ -299,7 +324,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-md">
+          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-md">
             <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -316,9 +341,17 @@ export default function AdminDashboard() {
               <Package className="w-4 h-4 mr-2" />
               Toys
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="payments" className="data-[state=active]:bg-white/20">
+              <Check className="w-4 h-4 mr-2" />
+              Payments
+            </TabsTrigger>
+            <TabsTrigger value="appointments" className="data-[state=active]:bg-white/20">
+              <Calendar className="w-4 h-4 mr-2" />
+              Appointments
+            </TabsTrigger>
+            <TabsTrigger value="seasons" className="data-[state=active]:bg-white/20">
               <Award className="w-4 h-4 mr-2" />
-              Reports
+              Seasons
             </TabsTrigger>
           </TabsList>
 
@@ -634,61 +667,140 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Reports */}
-          <TabsContent value="reports">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">User Statistics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Total Credits in System:</span>
-                      <span className="text-green-300 font-bold">
-                        {formatCurrency(usersArray.reduce((sum: number, user: any) => sum + parseInt(user.credits || 0), 0))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Total Points in System:</span>
-                      <span className="text-blue-300 font-bold">
-                        {usersArray.reduce((sum: number, user: any) => sum + parseInt(user.loyaltyPoints || 0), 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Active Users:</span>
-                      <span className="text-white font-bold">{usersArray.length}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Payment Verifications */}
+          <TabsContent value="payments">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Payment Verifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Payment Method</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(paymentVerifications?.data || []).map((payment: any) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="text-white">{payment.user?.firstName} {payment.user?.lastName}</TableCell>
+                        <TableCell className="text-green-300">{formatCurrency(payment.amount)}</TableCell>
+                        <TableCell className="text-purple-200">{payment.paymentMethod}</TableCell>
+                        <TableCell>
+                          <Badge variant={payment.status === 'verified' ? 'default' : 'secondary'}>
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">
+                          {new Date(payment.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <Card className="bg-white/10 backdrop-blur-md border-white/20">
-                <CardHeader>
-                  <CardTitle className="text-white">Transaction Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Total Transactions:</span>
-                      <span className="text-white font-bold">{transactionsArray.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Pending Cash Outs:</span>
-                      <span className="text-yellow-300 font-bold">
-                        {cashOutArray.filter((req: any) => req.status === 'pending').length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-purple-200">Total Cash Out Amount:</span>
-                      <span className="text-red-300 font-bold">
-                        {formatCurrency(cashOutArray.reduce((sum: number, req: any) => sum + parseInt(req.amount || 0), 0))}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Appointments */}
+          <TabsContent value="appointments">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Appointments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Service</TableHead>
+                      <TableHead className="text-purple-200">Date & Time</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(appointments?.data || []).map((appointment: any) => (
+                      <TableRow key={appointment.id}>
+                        <TableCell className="text-white">{appointment.user?.firstName} {appointment.user?.lastName}</TableCell>
+                        <TableCell className="text-purple-200">{appointment.serviceName}</TableCell>
+                        <TableCell className="text-purple-200">
+                          {new Date(appointment.appointmentDate).toLocaleDateString()} {appointment.appointmentTime}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            appointment.status === 'confirmed' ? 'default' :
+                            appointment.status === 'cancelled' ? 'destructive' : 'secondary'
+                          }>
+                            {appointment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Seasons Management */}
+          <TabsContent value="seasons">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Seasons Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Season Name</TableHead>
+                      <TableHead className="text-purple-200">Display Name</TableHead>
+                      <TableHead className="text-purple-200">Description</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(adminSeasons || []).map((season: any) => (
+                      <TableRow key={season.id}>
+                        <TableCell className="text-white">{season.name}</TableCell>
+                        <TableCell className="text-purple-200">{season.displayName}</TableCell>
+                        <TableCell className="text-purple-200">{season.description}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
