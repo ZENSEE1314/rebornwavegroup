@@ -123,7 +123,7 @@ export default function AdminDashboard() {
   // Ensure all data arrays are properly handled
   const usersArray = Array.isArray(allUsers?.data) ? allUsers.data : [];
   const transactionsArray = Array.isArray(allTransactions?.data) ? allTransactions.data : [];
-  const cashOutArray = Array.isArray(cashOutRequests) ? cashOutRequests : [];
+  const cashOutArray = Array.isArray(cashOutRequests?.data) ? cashOutRequests.data : [];
   const toysArray = Array.isArray(allToys?.data) ? allToys.data : [];
 
   // Update user credits mutation
