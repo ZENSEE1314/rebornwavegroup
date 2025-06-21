@@ -120,12 +120,7 @@ export default function AdminDashboard() {
   });
   const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
-  // Fetch template toys separately
-  const { data: templateToysData } = useQuery({
-    queryKey: ['/api/admin/template-toys'],
-    retry: false,
-  });
-  const templateToys = templateToysData?.data || [];
+
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
@@ -183,7 +178,7 @@ export default function AdminDashboard() {
         description: error.message || "Failed to create template toy",
         variant: "destructive"
       });
-    }
+    },
     onSuccess: () => {
       toast({ title: "Success", description: "Template toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
@@ -597,10 +592,11 @@ export default function AdminDashboard() {
 
 
 
-              {/* All Toys */}
+              {/* Active Toys (Toys with Owners) */}
               <Card className="bg-white/10 backdrop-blur-md border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">All Toys</CardTitle>
+                  <CardTitle className="text-white">Active Toys (User-Owned)</CardTitle>
+                  <p className="text-purple-200 text-sm">Toys that have been collected by users</p>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -614,7 +610,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allToys.map((toy: any) => (
+                      {allToys.filter((toy: any) => toy.ownerId !== null && toy.ownerId !== "null").map((toy: any) => (
                         <TableRow key={toy.id}>
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-purple-200">{toy.series}</TableCell>
@@ -627,7 +623,7 @@ export default function AdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-purple-200">
-                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
+                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unknown User'}
                           </TableCell>
                           <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
                         </TableRow>
