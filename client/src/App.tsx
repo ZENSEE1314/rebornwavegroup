@@ -17,6 +17,7 @@ import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
 import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
+import AdminDashboardClean from "@/pages/admin-dashboard-clean";
 import SeasonalCollections from "@/pages/seasonal-collections";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
@@ -89,6 +90,7 @@ function Router() {
           <Route path="/" component={CompleteApp} />
           <Route path="/admin" component={EnhancedAdminDashboard} />
           <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
+          <Route path="/template-toys" component={AdminDashboardClean} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
