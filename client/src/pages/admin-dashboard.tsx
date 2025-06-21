@@ -184,7 +184,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/template-toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
       setShowTemplateDialog(false);
       setTemplateToyForm({
