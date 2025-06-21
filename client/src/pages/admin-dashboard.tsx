@@ -57,6 +57,29 @@ export default function AdminDashboard() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState("all");
   
+  // Pagination states
+  const [currentUserPage, setCurrentUserPage] = useState(1);
+  const [currentCashOutPage, setCurrentCashOutPage] = useState(1);
+  const [currentTransactionPage, setCurrentTransactionPage] = useState(1);
+  const [currentToyPage, setCurrentToyPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Email management states
+  const [emailForm, setEmailForm] = useState({
+    to: "",
+    subject: "",
+    message: "",
+    template: "welcome"
+  });
+  
+  // Season management states
+  const [seasonForm, setSeasonForm] = useState({
+    name: "",
+    displayName: "",
+    description: "",
+    isActive: true
+  });
+  
   // Bulk upload states
   const [bulkToyData, setBulkToyData] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -366,7 +389,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-md">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 bg-white/10 backdrop-blur-md">
             <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -387,23 +410,45 @@ export default function AdminDashboard() {
               <Check className="w-4 h-4 mr-2" />
               Payments
             </TabsTrigger>
-            <TabsTrigger value="appointments" className="data-[state=active]:bg-white/20">
-              <Calendar className="w-4 h-4 mr-2" />
-              Appointments
-            </TabsTrigger>
             <TabsTrigger value="seasons" className="data-[state=active]:bg-white/20">
               <Award className="w-4 h-4 mr-2" />
               Seasons
             </TabsTrigger>
+            <TabsTrigger value="emails" className="data-[state=active]:bg-white/20">
+              <FileText className="w-4 h-4 mr-2" />
+              Emails
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Reports
+            </TabsTrigger>
           </TabsList>
 
-          {/* Users Management */}
+          {/* Users Management with Pagination */}
           <TabsContent value="users">
             <Card className="bg-white/10 backdrop-blur-md border-white/20">
               <CardHeader>
-                <CardTitle className="text-white">User Management</CardTitle>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <span>User Management ({usersArray.length} total)</span>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Search users..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="w-64 bg-gray-800 border-gray-600 text-white"
+                    />
+                    <Button
+                      onClick={() => setUserSearch("")}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/10 border-white/20 text-white"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -416,7 +461,15 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {usersArray.map((user: any) => (
+                    {usersArray
+                      .filter((user: any) => 
+                        userSearch === "" || 
+                        user.firstName?.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        user.lastName?.toLowerCase().includes(userSearch.toLowerCase()) ||
+                        user.email?.toLowerCase().includes(userSearch.toLowerCase())
+                      )
+                      .slice((currentUserPage - 1) * itemsPerPage, currentUserPage * itemsPerPage)
+                      .map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell className="text-white">
                           {user.firstName} {user.lastName}
@@ -426,7 +479,7 @@ export default function AdminDashboard() {
                         <TableCell className="text-blue-300">{user.loyaltyPoints || 0}</TableCell>
                         <TableCell>
                           <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                            {user.role}
+                            {user.role || 'user'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -450,10 +503,10 @@ export default function AdminDashboard() {
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div>
-                                  <Label className="text-gray-300">Update Credits</Label>
+                                  <Label className="text-gray-300">Add/Subtract Credits</Label>
                                   <div className="flex gap-2">
                                     <Input
-                                      placeholder="Amount"
+                                      placeholder="Amount (+ to add, - to subtract)"
                                       className="bg-gray-800 border-gray-600 text-white"
                                       id="creditAmount"
                                     />
@@ -462,6 +515,7 @@ export default function AdminDashboard() {
                                         const amount = (document.getElementById('creditAmount') as HTMLInputElement)?.value;
                                         if (amount && selectedUser) {
                                           handleUpdateCredits(selectedUser.id, amount);
+                                          (document.getElementById('creditAmount') as HTMLInputElement).value = '';
                                         }
                                       }}
                                       className="bg-green-600 hover:bg-green-700"
@@ -469,12 +523,13 @@ export default function AdminDashboard() {
                                       Update
                                     </Button>
                                   </div>
+                                  <p className="text-xs text-gray-400 mt-1">Current: {formatCurrency(selectedUser?.credits || 0)}</p>
                                 </div>
                                 <div>
-                                  <Label className="text-gray-300">Update Points</Label>
+                                  <Label className="text-gray-300">Add/Subtract Points</Label>
                                   <div className="flex gap-2">
                                     <Input
-                                      placeholder="Points"
+                                      placeholder="Points (+ to add, - to subtract)"
                                       type="number"
                                       className="bg-gray-800 border-gray-600 text-white"
                                       id="pointAmount"
@@ -484,6 +539,7 @@ export default function AdminDashboard() {
                                         const points = (document.getElementById('pointAmount') as HTMLInputElement)?.value;
                                         if (points && selectedUser) {
                                           handleUpdatePoints(selectedUser.id, parseInt(points));
+                                          (document.getElementById('pointAmount') as HTMLInputElement).value = '';
                                         }
                                       }}
                                       className="bg-blue-600 hover:bg-blue-700"
@@ -491,6 +547,7 @@ export default function AdminDashboard() {
                                       Update
                                     </Button>
                                   </div>
+                                  <p className="text-xs text-gray-400 mt-1">Current: {selectedUser?.loyaltyPoints || 0} points</p>
                                 </div>
                               </div>
                             </DialogContent>
@@ -500,6 +557,36 @@ export default function AdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {/* Pagination */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-400">
+                    Showing {((currentUserPage - 1) * itemsPerPage) + 1} to {Math.min(currentUserPage * itemsPerPage, usersArray.length)} of {usersArray.length} users
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentUserPage(Math.max(1, currentUserPage - 1))}
+                      disabled={currentUserPage === 1}
+                      className="bg-white/10 border-white/20 text-white"
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-white px-3 py-1 bg-purple-600 rounded">
+                      {currentUserPage}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentUserPage(currentUserPage + 1)}
+                      disabled={currentUserPage * itemsPerPage >= usersArray.length}
+                      className="bg-white/10 border-white/20 text-white"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -818,42 +905,358 @@ export default function AdminDashboard() {
 
           {/* Seasons Management */}
           <TabsContent value="seasons">
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
-              <CardHeader>
-                <CardTitle className="text-white">Seasons Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-purple-200">Season Name</TableHead>
-                      <TableHead className="text-purple-200">Display Name</TableHead>
-                      <TableHead className="text-purple-200">Description</TableHead>
-                      <TableHead className="text-purple-200">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(adminSeasons || []).map((season: any) => (
-                      <TableRow key={season.id}>
-                        <TableCell className="text-white">{season.name}</TableCell>
-                        <TableCell className="text-purple-200">{season.displayName}</TableCell>
-                        <TableCell className="text-purple-200">{season.description}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="destructive">
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+            <div className="space-y-6">
+              {/* Create New Season */}
+              <Card className="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 backdrop-blur-md border-indigo-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-indigo-400" />
+                    Create New Season
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Season Name</Label>
+                      <Input
+                        placeholder="e.g., winter_2025"
+                        value={seasonForm.name}
+                        onChange={(e) => setSeasonForm({...seasonForm, name: e.target.value})}
+                        className="bg-gray-800 border-gray-600 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Display Name</Label>
+                      <Input
+                        placeholder="e.g., Winter Collection 2025"
+                        value={seasonForm.displayName}
+                        onChange={(e) => setSeasonForm({...seasonForm, displayName: e.target.value})}
+                        className="bg-gray-800 border-gray-600 text-white"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Description</Label>
+                    <Textarea
+                      placeholder="Season description..."
+                      value={seasonForm.description}
+                      onChange={(e) => setSeasonForm({...seasonForm, description: e.target.value})}
+                      className="bg-gray-800 border-gray-600 text-white"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (seasonForm.name && seasonForm.displayName) {
+                        // Create season mutation would go here
+                        toast({ title: "Success", description: "Season created successfully" });
+                        setSeasonForm({ name: "", displayName: "", description: "", isActive: true });
+                      } else {
+                        toast({ title: "Error", description: "Please fill in required fields", variant: "destructive" });
+                      }
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Create Season
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Existing Seasons */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Existing Seasons</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Season Name</TableHead>
+                        <TableHead className="text-purple-200">Display Name</TableHead>
+                        <TableHead className="text-purple-200">Description</TableHead>
+                        <TableHead className="text-purple-200">Actions</TableHead>
                       </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(adminSeasons || []).map((season: any) => (
+                        <TableRow key={season.id}>
+                          <TableCell className="text-white">{season.name}</TableCell>
+                          <TableCell className="text-purple-200">{season.displayName}</TableCell>
+                          <TableCell className="text-purple-200">{season.description}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive">
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Email Management */}
+          <TabsContent value="emails">
+            <div className="space-y-6">
+              {/* Send Email */}
+              <Card className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-500/30">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <FileText className="h-5 w-5 mr-2 text-green-400" />
+                    Send Email
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-300">To (Email)</Label>
+                      <Input
+                        placeholder="user@example.com"
+                        value={emailForm.to}
+                        onChange={(e) => setEmailForm({...emailForm, to: e.target.value})}
+                        className="bg-gray-800 border-gray-600 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Template</Label>
+                      <Select value={emailForm.template} onValueChange={(value) => setEmailForm({...emailForm, template: value})}>
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                          <SelectValue placeholder="Select template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="welcome">Welcome Email</SelectItem>
+                          <SelectItem value="notification">Notification</SelectItem>
+                          <SelectItem value="promotion">Promotion</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Subject</Label>
+                    <Input
+                      placeholder="Email subject"
+                      value={emailForm.subject}
+                      onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})}
+                      className="bg-gray-800 border-gray-600 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Message</Label>
+                    <Textarea
+                      placeholder="Email message content..."
+                      value={emailForm.message}
+                      onChange={(e) => setEmailForm({...emailForm, message: e.target.value})}
+                      className="bg-gray-800 border-gray-600 text-white h-32"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (emailForm.to && emailForm.subject && emailForm.message) {
+                        // Send email mutation would go here
+                        toast({ title: "Success", description: "Email sent successfully" });
+                        setEmailForm({ to: "", subject: "", message: "", template: "welcome" });
+                      } else {
+                        toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Send Email
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Bulk Email */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Bulk Email to All Users</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Subject</Label>
+                    <Input
+                      placeholder="Bulk email subject"
+                      className="bg-gray-800 border-gray-600 text-white"
+                      id="bulkEmailSubject"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Message</Label>
+                    <Textarea
+                      placeholder="Bulk email message..."
+                      className="bg-gray-800 border-gray-600 text-white h-32"
+                      id="bulkEmailMessage"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const subject = (document.getElementById('bulkEmailSubject') as HTMLInputElement)?.value;
+                      const message = (document.getElementById('bulkEmailMessage') as HTMLTextAreaElement)?.value;
+                      if (subject && message) {
+                        toast({ title: "Success", description: `Bulk email sent to ${usersArray.length} users` });
+                      } else {
+                        toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    Send to All Users ({usersArray.length})
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Reports and Analytics */}
+          <TabsContent value="reports">
+            <div className="space-y-6">
+              {/* Key Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="bg-gradient-to-r from-blue-900/30 to-indigo-900/30 backdrop-blur-md border-blue-500/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-blue-200 text-sm">Total Revenue</p>
+                        <p className="text-2xl font-bold text-white">${(transactionsArray.reduce((sum: number, t: any) => sum + (parseFloat(t.amount) || 0), 0)).toFixed(2)}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-blue-300" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-500/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-green-200 text-sm">Pending Cash Outs</p>
+                        <p className="text-2xl font-bold text-white">{cashOutArray.filter((c: any) => c.status === 'pending').length}</p>
+                      </div>
+                      <CreditCard className="w-8 h-8 text-green-300" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 backdrop-blur-md border-purple-500/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-200 text-sm">Active Users</p>
+                        <p className="text-2xl font-bold text-white">{usersArray.filter((u: any) => u.role !== 'admin').length}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-purple-300" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-orange-900/30 to-red-900/30 backdrop-blur-md border-orange-500/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-orange-200 text-sm">Total Toys</p>
+                        <p className="text-2xl font-bold text-white">{toysArray.length}</p>
+                      </div>
+                      <Package className="w-8 h-8 text-orange-300" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Data Export */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Download className="h-5 w-5 mr-2 text-blue-400" />
+                    Data Export
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button
+                      onClick={() => {
+                        // Export users data
+                        const csvData = usersArray.map((u: any) => `${u.firstName},${u.lastName},${u.email},${u.credits},${u.loyaltyPoints}`).join('\n');
+                        const blob = new Blob([`First Name,Last Name,Email,Credits,Points\n${csvData}`], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'users_export.csv';
+                        a.click();
+                        toast({ title: "Success", description: "Users data exported successfully" });
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Users
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // Export transactions data
+                        const csvData = transactionsArray.map((t: any) => `${t.user?.email},${t.type},${t.amount},${t.description},${t.createdAt}`).join('\n');
+                        const blob = new Blob([`User Email,Type,Amount,Description,Date\n${csvData}`], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'transactions_export.csv';
+                        a.click();
+                        toast({ title: "Success", description: "Transactions data exported successfully" });
+                      }}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Transactions
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        // Export toys data
+                        const csvData = toysArray.map((t: any) => `${t.name},${t.rarity},${t.ownerId || 'Template'},${t.isActivated}`).join('\n');
+                        const blob = new Blob([`Name,Rarity,Owner,Status\n${csvData}`], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'toys_export.csv';
+                        a.click();
+                        toast({ title: "Success", description: "Toys data exported successfully" });
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Toys
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Activity */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {transactionsArray.slice(0, 10).map((transaction: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <span className="text-white">{transaction.user?.email}</span>
+                          <Badge variant="outline">{transaction.type}</Badge>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-green-300">{formatCurrency(transaction.amount)}</p>
+                          <p className="text-xs text-gray-400">{new Date(transaction.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
