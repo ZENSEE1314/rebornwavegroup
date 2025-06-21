@@ -698,10 +698,27 @@ function EnhancedAdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="bg-white/10 border-white/20 text-white">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="bg-white/10 border-white/20 text-white"
+                              onClick={() => {
+                                setEditingSeason(season);
+                                setEditedSeasonData(season);
+                                setShowEditSeasonDialog(true);
+                              }}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="outline" className="bg-red-600/20 text-red-300">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="bg-red-600/20 text-red-300"
+                              onClick={() => {
+                                deleteSeasonMutation.mutate(season.id);
+                              }}
+                              disabled={deleteSeasonMutation.isPending}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -1291,6 +1308,83 @@ function EnhancedAdminDashboard() {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Season Dialog */}
+        <Dialog open={showEditSeasonDialog} onOpenChange={setShowEditSeasonDialog}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Season: {editingSeason?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Season Name</Label>
+                  <Input
+                    value={editedSeasonData.name || ''}
+                    onChange={(e) => setEditedSeasonData({ ...editedSeasonData, name: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Season name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Display Name</Label>
+                  <Input
+                    value={editedSeasonData.displayName || ''}
+                    onChange={(e) => setEditedSeasonData({ ...editedSeasonData, displayName: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="Display name"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={editedSeasonData.startDate || ''}
+                    onChange={(e) => setEditedSeasonData({ ...editedSeasonData, startDate: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">End Date</Label>
+                  <Input
+                    type="date"
+                    value={editedSeasonData.endDate || ''}
+                    onChange={(e) => setEditedSeasonData({ ...editedSeasonData, endDate: e.target.value })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="editIsActive"
+                  checked={editedSeasonData.isActive || false}
+                  onChange={(e) => setEditedSeasonData({ ...editedSeasonData, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="editIsActive" className="text-gray-300">Active Season</Label>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowEditSeasonDialog(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    updateSeasonMutation.mutate({ 
+                      id: editingSeason?.id, 
+                      ...editedSeasonData 
+                    });
+                  }}
+                  disabled={updateSeasonMutation.isPending}
+                >
+                  {updateSeasonMutation.isPending ? 'Updating...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Toy Dialog */}
         <Dialog open={showEditToyDialog} onOpenChange={setShowEditToyDialog}>
           <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl">
@@ -1332,8 +1426,10 @@ function EnhancedAdminDashboard() {
                   Cancel
                 </Button>
                 <Button onClick={() => {
-                  toast({ title: "Toy updated", description: "Template has been updated successfully" });
-                  setShowEditToyDialog(false);
+                  updateToyMutation.mutate({ 
+                    id: editingToy?.id, 
+                    ...editedToyData 
+                  });
                 }}>
                   Save Changes
                 </Button>
