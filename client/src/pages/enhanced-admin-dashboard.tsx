@@ -52,78 +52,122 @@ function EnhancedAdminDashboard() {
   const [editingToy, setEditingToy] = useState<any>(null);
   const [editedToyData, setEditedToyData] = useState<any>({});
 
-  // Data fetching
-  const { data: dashboardStats } = useQuery({
+  // Data fetching with error handling
+  const { data: dashboardStats, error: dashboardError } = useQuery({
     queryKey: ['/api/admin/dashboard-stats'],
-    refetchInterval: 30000
+    refetchInterval: 30000,
+    retry: 1
   });
 
-  const { data: usersResponse } = useQuery({
+  const { data: usersResponse, error: usersError } = useQuery({
     queryKey: ['/api/admin/users'],
+    retry: 1
   });
 
-  const { data: allToys } = useQuery({
+  const { data: allToys, error: toysError } = useQuery({
     queryKey: ['/api/admin/toys'],
+    retry: 1
   });
 
-  const { data: allTransactions } = useQuery({
+  const { data: allTransactions, error: transactionsError } = useQuery({
     queryKey: ['/api/admin/transactions'],
+    retry: 1
   });
 
-  const { data: paymentVerifications } = useQuery({
+  const { data: paymentVerifications, error: paymentsError } = useQuery({
     queryKey: ['/api/admin/payment-verifications'],
+    retry: 1
   });
 
-  const { data: cashOutRequests } = useQuery({
+  const { data: cashOutRequests, error: cashOutError } = useQuery({
     queryKey: ['/api/admin/cash-outs'],
+    retry: 1
   });
 
-  const { data: allAppointments } = useQuery({
+  const { data: allAppointments, error: appointmentsError } = useQuery({
     queryKey: ['/api/admin/appointments'],
+    retry: 1
   });
 
-  const { data: seasonsData } = useQuery({
+  const { data: seasonsData, error: seasonsError } = useQuery({
     queryKey: ['/api/admin/seasons'],
+    retry: 1
   });
 
-  const { data: feesReport } = useQuery({
+  const { data: feesReport, error: feesError } = useQuery({
     queryKey: ['/api/admin/fees-report'],
+    retry: 1
   });
 
-  const { data: commissionStats } = useQuery({
+  const { data: commissionStats, error: commissionError } = useQuery({
     queryKey: ['/api/admin/commission-stats'],
+    retry: 1
   });
 
-  const { data: promotionBanners } = useQuery({
+  const { data: promotionBanners, error: bannersError } = useQuery({
     queryKey: ['/api/admin/promotion-banners'],
+    retry: 1
   });
 
-  const { data: gameLeaderboard } = useQuery({
+  const { data: gameLeaderboard, error: leaderboardError } = useQuery({
     queryKey: ['/api/admin/game-leaderboard'],
+    retry: 1
   });
 
-  const { data: pendingPurchases } = useQuery({
+  const { data: pendingPurchases, error: purchasesError } = useQuery({
     queryKey: ['/api/admin/pending-purchases'],
+    retry: 1
   });
 
-  const { data: tokenClaims } = useQuery({
+  const { data: tokenClaims, error: claimsError } = useQuery({
     queryKey: ['/api/admin/token-claims'],
+    retry: 1
   });
 
-  const { data: tokenTransactions } = useQuery({
+  const { data: tokenTransactions, error: tokenTransError } = useQuery({
     queryKey: ['/api/admin/token-transactions'],
+    retry: 1
   });
 
-  // Helper functions
-  const formatCurrency = (amount: number) => {
+  // Error handling
+  useEffect(() => {
+    const errors = [
+      dashboardError, usersError, toysError, transactionsError, 
+      paymentsError, cashOutError, appointmentsError, seasonsError,
+      feesError, commissionError, bannersError, leaderboardError,
+      purchasesError, claimsError, tokenTransError
+    ].filter(Boolean);
+    
+    if (errors.length > 0) {
+      console.error('Admin dashboard errors:', errors);
+      toast({
+        title: "Loading Error",
+        description: "Some admin data failed to load. Check console for details.",
+        variant: "destructive"
+      });
+    }
+  }, [dashboardError, usersError, toysError, transactionsError, 
+      paymentsError, cashOutError, appointmentsError, seasonsError,
+      feesError, commissionError, bannersError, leaderboardError,
+      purchasesError, claimsError, tokenTransError, toast]);
+
+  // Helper functions with safe data access
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return '$0.00';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
   const getRarityColor = (rarity: string) => {
@@ -136,6 +180,23 @@ function EnhancedAdminDashboard() {
     };
     return colors[rarity as keyof typeof colors] || 'bg-gray-500';
   };
+
+  // Safe data extraction with proper typing
+  const safeUsers = (usersResponse as any)?.users || (usersResponse as any)?.data || [];
+  const safeTransactions = (allTransactions as any)?.data || (allTransactions as any) || [];
+  const safePaymentVerifications = (paymentVerifications as any)?.data || (paymentVerifications as any) || [];
+  const safeCashOutRequests = (cashOutRequests as any)?.data || (cashOutRequests as any) || [];
+  const safeAppointments = (allAppointments as any)?.data || (allAppointments as any) || [];
+  const safePromotionBanners = (promotionBanners as any)?.data || (promotionBanners as any) || [];
+  const safeGameLeaderboard = (gameLeaderboard as any)?.data || (gameLeaderboard as any) || [];
+  const safePendingPurchases = (pendingPurchases as any)?.data || (pendingPurchases as any) || [];
+  const safeTokenClaims = (tokenClaims as any)?.data || (tokenClaims as any) || [];
+  const safeTokenTransactions = (tokenTransactions as any)?.data || (tokenTransactions as any) || [];
+  const safeToys = (allToys as any) || [];
+  const safeSeasons = (seasonsData as any) || [];
+  const safeDashboardStats = (dashboardStats as any) || {};
+  const safeFeesReport = (feesReport as any) || {};
+  const safeCommissionStats = (commissionStats as any) || {};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
@@ -169,7 +230,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-purple-200 text-sm font-medium">Total Users</p>
-                      <p className="text-3xl font-bold text-white">{dashboardStats?.totalUsers || 0}</p>
+                      <p className="text-3xl font-bold text-white">{safeDashboardStats?.totalUsers || safeUsers.length || 0}</p>
                     </div>
                     <Users className="h-8 w-8 text-blue-400" />
                   </div>
@@ -181,7 +242,7 @@ function EnhancedAdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-purple-200 text-sm font-medium">Total Toys</p>
-                      <p className="text-3xl font-bold text-white">{dashboardStats?.totalToys || 0}</p>
+                      <p className="text-3xl font-bold text-white">{safeDashboardStats?.totalToys || safeToys.length || 0}</p>
                     </div>
                     <Package className="h-8 w-8 text-green-400" />
                   </div>
