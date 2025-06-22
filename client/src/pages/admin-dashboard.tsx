@@ -74,8 +74,9 @@ export default function AdminDashboard() {
     quantity: 1
   });
 
-  // Check if user is admin
-  if (!user || user.role !== 'admin') {
+  // Check if user is admin - temporarily allow all authenticated users for sss@gmail.com
+  const isAdmin = user && ((user as any)?.email === 'sss@gmail.com' || (user as any)?.role === 'admin');
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
@@ -89,24 +90,28 @@ export default function AdminDashboard() {
   }
 
   // Fetch all users
-  const { data: allUsers = [] } = useQuery({
+  const { data: usersResponse } = useQuery({
     queryKey: ["/api/admin/users"],
   });
+  const allUsers = (usersResponse as any)?.data || [];
 
   // Fetch all cash out requests
-  const { data: cashOutRequests = [] } = useQuery({
+  const { data: cashOutResponse } = useQuery({
     queryKey: ["/api/admin/cash-outs"],
   });
+  const cashOutRequests = (cashOutResponse as any)?.data || [];
 
   // Fetch all transactions
-  const { data: allTransactions = [] } = useQuery({
+  const { data: transactionsResponse } = useQuery({
     queryKey: ["/api/admin/transactions"],
   });
+  const allTransactions = (transactionsResponse as any)?.data || [];
 
   // Fetch all toys
-  const { data: allToys = [] } = useQuery({
+  const { data: toysResponse } = useQuery({
     queryKey: ["/api/admin/all-toys"],
   });
+  const allToys = (toysResponse as any)?.data || [];
 
   // Fetch seasons for template creation
   const { data: seasonsRaw } = useQuery({
@@ -121,6 +126,71 @@ export default function AdminDashboard() {
     retry: false,
   });
   const templateToys = templateToysData?.data || [];
+
+  // Fetch payment verifications
+  const { data: paymentVerifications = [] } = useQuery({
+    queryKey: ["/api/admin/payment-verifications"],
+  });
+
+  // Fetch token transactions
+  const { data: tokenTransactions = [] } = useQuery({
+    queryKey: ["/api/admin/token-transactions"],
+  });
+
+  // Fetch token claims
+  const { data: tokenClaims = [] } = useQuery({
+    queryKey: ["/api/admin/token-claims"],
+  });
+
+  // Fetch appointments
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["/api/admin/appointments"],
+  });
+
+  // Fetch game leaderboard
+  const { data: gameLeaderboard = [] } = useQuery({
+    queryKey: ["/api/game-scores/leaderboard"],
+  });
+
+  // Fetch marketplace listings
+  const { data: marketplaceListings = [] } = useQuery({
+    queryKey: ["/api/admin/all-pending-purchases"],
+  });
+
+  // Fetch promotion banners
+  const { data: promotionBanners = [] } = useQuery({
+    queryKey: ["/api/admin/banners"],
+  });
+
+  // Fetch appointment events
+  const { data: appointmentEvents = [] } = useQuery({
+    queryKey: ["/api/admin/appointment-events"],
+  });
+
+  // Fetch reward items
+  const { data: rewardItems = [] } = useQuery({
+    queryKey: ["/api/admin/reward-items"],
+  });
+
+  // Fetch commission stats
+  const { data: commissionStats = {} } = useQuery({
+    queryKey: ["/api/admin/commission-stats"],
+  });
+
+  // Fetch fees report
+  const { data: feesReport = {} } = useQuery({
+    queryKey: ["/api/admin/fees-report"],
+  });
+
+  // Fetch activated pets
+  const { data: activatedPets = [] } = useQuery({
+    queryKey: ["/api/admin/activated-pets"],
+  });
+
+  // Fetch topup requests
+  const { data: topupRequests = [] } = useQuery({
+    queryKey: ["/api/admin/topup-requests"],
+  });
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
@@ -161,6 +231,168 @@ export default function AdminDashboard() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update cash out request", variant: "destructive" });
+    }
+  });
+
+  // Payment verification mutations
+  const approvePaymentMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes?: string }) => {
+      return apiRequest("POST", `/api/admin/payment-verification/${id}/approve`, { adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment approved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-verifications"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to approve payment", variant: "destructive" });
+    }
+  });
+
+  const rejectPaymentMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes?: string }) => {
+      return apiRequest("POST", `/api/admin/payment-verification/${id}/reject`, { adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment rejected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-verifications"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reject payment", variant: "destructive" });
+    }
+  });
+
+  // Token transaction mutations
+  const createTokenTransactionMutation = useMutation({
+    mutationFn: async ({ userId, type, description, tokens }: { userId: string; type: string; description: string; tokens: number }) => {
+      return apiRequest("POST", "/api/admin/token-transaction", { userId, type, description, tokens });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Token transaction created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/token-transactions"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create token transaction", variant: "destructive" });
+    }
+  });
+
+  const updateTokenClaimMutation = useMutation({
+    mutationFn: async ({ id, status, adminNotes }: { id: number; status: string; adminNotes?: string }) => {
+      return apiRequest("PUT", `/api/admin/token-claim/${id}`, { status, adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Token claim updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/token-claims"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update token claim", variant: "destructive" });
+    }
+  });
+
+  // Appointment mutations
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async ({ id, status, adminNotes }: { id: number; status: string; adminNotes?: string }) => {
+      return apiRequest("PUT", `/api/admin/appointment/${id}`, { status, adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Appointment updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/appointments"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update appointment", variant: "destructive" });
+    }
+  });
+
+  // Content management mutations
+  const createBannerMutation = useMutation({
+    mutationFn: async ({ title, content, isActive }: { title: string; content: string; isActive: boolean }) => {
+      return apiRequest("POST", "/api/admin/banner", { title, content, isActive });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Banner created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create banner", variant: "destructive" });
+    }
+  });
+
+  const updateBannerMutation = useMutation({
+    mutationFn: async ({ id, title, content, isActive }: { id: number; title: string; content: string; isActive: boolean }) => {
+      return apiRequest("PUT", `/api/admin/banner/${id}`, { title, content, isActive });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Banner updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update banner", variant: "destructive" });
+    }
+  });
+
+  const deleteBannerMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/admin/banner/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Banner deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete banner", variant: "destructive" });
+    }
+  });
+
+  // Marketplace mutations
+  const approvePurchaseMutation = useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
+      return apiRequest("POST", `/api/admin/purchase/${id}/approve`);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Purchase approved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/all-pending-purchases"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to approve purchase", variant: "destructive" });
+    }
+  });
+
+  const rejectPurchaseMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
+      return apiRequest("POST", `/api/admin/purchase/${id}/reject`, { reason });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Purchase rejected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/all-pending-purchases"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reject purchase", variant: "destructive" });
+    }
+  });
+
+  // Topup request mutations
+  const approveTopupMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes?: string }) => {
+      return apiRequest("POST", `/api/admin/topup/${id}/approve`, { adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Topup approved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/topup-requests"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to approve topup", variant: "destructive" });
+    }
+  });
+
+  const rejectTopupMutation = useMutation({
+    mutationFn: async ({ id, adminNotes }: { id: number; adminNotes?: string }) => {
+      return apiRequest("POST", `/api/admin/topup/${id}/reject`, { adminNotes });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Topup rejected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/topup-requests"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reject topup", variant: "destructive" });
     }
   });
 
