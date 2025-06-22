@@ -65,10 +65,11 @@ export default function CompleteAdminDashboard() {
     retry: false,
   });
 
-  const { data: tokenClaims = [] } = useQuery({
+  const { data: tokenClaimsResponse } = useQuery({
     queryKey: ['/api/admin/token-claims'],
     retry: false,
   });
+  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
   const { data: pendingPurchases = [] } = useQuery({
     queryKey: ['/api/admin/all-pending-purchases'],
@@ -404,7 +405,7 @@ export default function CompleteAdminDashboard() {
                   <CardTitle className="text-white">Transaction Management</CardTitle>
                   <div className="flex items-center gap-4">
                     <div className="text-white">
-                      Total Transactions: <span className="font-semibold">{allTransactions.length}</span>
+                      Total Transactions: <span className="font-semibold">{(allTransactions as any[]).length}</span>
                     </div>
                     <Button 
                       onClick={() => downloadCSV(filteredTransactions, 'transactions')}
@@ -542,7 +543,7 @@ export default function CompleteAdminDashboard() {
                       <CardTitle className="text-white text-sm">Token Claims</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-orange-400">{tokenClaims.length}</div>
+                      <div className="text-2xl font-bold text-orange-400">{(tokenClaims as any[]).length}</div>
                       <p className="text-xs text-gray-400 mt-1">Total claims processed</p>
                     </CardContent>
                   </Card>
