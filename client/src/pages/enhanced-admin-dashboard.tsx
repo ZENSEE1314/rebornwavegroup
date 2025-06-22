@@ -1401,80 +1401,80 @@ function EnhancedAdminDashboard() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Users</p>
-                  <p className="text-3xl font-bold text-white">{(usersResponse as any)?.pagination?.totalCount || filteredUsers.length}</p>
+                  <p className="text-gray-400 text-xs font-medium">Total Users</p>
+                  <p className="text-2xl font-semibold text-white">{(usersResponse as any)?.pagination?.totalCount || filteredUsers.length}</p>
                 </div>
-                <Users className="h-8 w-8 text-gray-300" />
+                <Users className="h-6 w-6 text-blue-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Admin Fees</p>
-                  <p className="text-3xl font-bold text-white">RP {formatMoney((feesReport as any).totalAdminFees || 0)}</p>
+                  <p className="text-gray-400 text-xs font-medium">Admin Fees</p>
+                  <p className="text-2xl font-semibold text-white">RP {formatMoney((feesReport as any).totalAdminFees || 0)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-green-400" />
+                <DollarSign className="h-6 w-6 text-green-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Transactions</p>
-                  <p className="text-3xl font-bold text-white">{(feesReport as any).totalTransactions || 0}</p>
+                  <p className="text-gray-400 text-xs font-medium">Transactions</p>
+                  <p className="text-2xl font-semibold text-white">{(feesReport as any).totalTransactions || 0}</p>
                 </div>
-                <CreditCard className="h-8 w-8 text-purple-400" />
+                <CreditCard className="h-6 w-6 text-purple-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Approved Top-ups (IDR)</p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-gray-400 text-xs font-medium">Top-ups (IDR)</p>
+                  <p className="text-2xl font-semibold text-white">
                     {topUpRequests
                       .filter((req: any) => req.status === 'approved')
                       .reduce((total: number, req: any) => total + parseFloat(req.amount), 0)
                       .toLocaleString()}
                   </p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-400" />
+                <TrendingUp className="h-6 w-6 text-green-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Toys</p>
-                  <p className="text-3xl font-bold text-white">{toysPaginationInfo.totalCount || 0}</p>
+                  <p className="text-gray-400 text-xs font-medium">Total Toys</p>
+                  <p className="text-2xl font-semibold text-white">{toysPaginationInfo.totalCount || 0}</p>
                 </div>
-                <Package className="h-8 w-8 text-blue-400" />
+                <Package className="h-6 w-6 text-blue-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Pets</p>
-                  <p className="text-3xl font-bold text-white">{activatedPets.length}</p>
+                  <p className="text-gray-400 text-xs font-medium">Total Pets</p>
+                  <p className="text-2xl font-semibold text-white">{activatedPets.length}</p>
                 </div>
-                <Heart className="h-8 w-8 text-pink-400" />
+                <Heart className="h-6 w-6 text-pink-400" />
               </div>
             </CardContent>
           </Card>
@@ -1961,22 +1961,22 @@ function EnhancedAdminDashboard() {
 
           {/* Payment Verification Tab */}
           <TabsContent value="payment-verifications">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader className="pb-4">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Payment Verification Management</CardTitle>
+                  <CardTitle className="text-white text-lg font-medium">Payment Verification</CardTitle>
                   <div className="flex items-center gap-4">
-                    <div className="text-white">
-                      Total Verifications: <span className="font-semibold">{paymentVerifications.length}</span>
+                    <div className="text-gray-300 text-sm">
+                      Total: <span className="font-semibold text-white">{paymentVerifications.length}</span>
                     </div>
                     <Button 
                       onClick={() => downloadCSV(paymentVerifications, 'payment-verifications')}
                       variant="outline" 
                       size="sm"
-                      className="bg-white/10 text-white border-white/20"
+                      className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Download
+                      Export
                     </Button>
                   </div>
                 </div>
