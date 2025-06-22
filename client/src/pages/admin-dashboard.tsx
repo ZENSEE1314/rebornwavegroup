@@ -83,24 +83,28 @@ export default function AdminDashboard() {
   }
 
   // Fetch all users
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsersResponse } = useQuery({
     queryKey: ["/api/admin/users"],
   });
+  const allUsers = allUsersResponse?.data || [];
 
   // Fetch all cash out requests
-  const { data: cashOutRequests = [] } = useQuery({
+  const { data: cashOutResponse } = useQuery({
     queryKey: ["/api/admin/cash-outs"],
   });
+  const cashOutRequests = cashOutResponse?.data || [];
 
   // Fetch all transactions
-  const { data: allTransactions = [] } = useQuery({
+  const { data: transactionResponse } = useQuery({
     queryKey: ["/api/admin/transactions"],
   });
+  const allTransactions = transactionResponse?.data || [];
 
   // Fetch all toys (active toys with owners)
-  const { data: allToys = [] } = useQuery({
+  const { data: toyResponse } = useQuery({
     queryKey: ["/api/admin/all-toys"],
   });
+  const allToys = toyResponse?.data || [];
 
   // Fetch template toys (toys without owners)
   const { data: templateToysResponse } = useQuery({
