@@ -125,7 +125,7 @@ export default function AdminDashboard() {
     queryKey: ['/api/admin/template-toys'],
     retry: false,
   });
-  const templateToys = templateToysData?.data || [];
+  const templateToys = (templateToysData as any)?.data || [];
 
   // Fetch payment verifications
   const { data: paymentVerifications = [] } = useQuery({
