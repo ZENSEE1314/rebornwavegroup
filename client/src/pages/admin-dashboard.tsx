@@ -69,7 +69,7 @@ export default function AdminDashboard() {
   });
 
   // Check if user is admin
-  if (!user || (user as any).role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
@@ -83,40 +83,44 @@ export default function AdminDashboard() {
   }
 
   // Fetch all users
-  const { data: allUsersResponse } = useQuery({
+  const { data: allUsers = [] } = useQuery({
     queryKey: ["/api/admin/users"],
   });
-  const allUsers = allUsersResponse?.data || [];
 
   // Fetch all cash out requests
-  const { data: cashOutResponse } = useQuery({
+  const { data: cashOutRequests = [] } = useQuery({
     queryKey: ["/api/admin/cash-outs"],
   });
-  const cashOutRequests = cashOutResponse?.data || [];
 
   // Fetch all transactions
-  const { data: transactionResponse } = useQuery({
+  const { data: allTransactions = [] } = useQuery({
     queryKey: ["/api/admin/transactions"],
   });
-  const allTransactions = transactionResponse?.data || [];
 
   // Fetch all toys (active toys with owners)
-  const { data: toyResponse } = useQuery({
+  const { data: allToys = [] } = useQuery({
     queryKey: ["/api/admin/all-toys"],
   });
-  const allToys = toyResponse?.data || [];
 
   // Fetch template toys (toys without owners)
-  const { data: templateToysResponse } = useQuery({
+  const { data: templateToysResponse = { data: [] } } = useQuery({
     queryKey: ["/api/admin/template-toys"],
   });
-  const templateToys = Array.isArray(templateToysResponse) ? templateToysResponse : [];
+  const templateToys = templateToysResponse?.data || [];
 
   // Fetch seasons for template toy creation
-  const { data: seasonsResponse } = useQuery({
+  const { data: seasons = [] } = useQuery({
     queryKey: ["/api/seasons"],
   });
-  const seasons = Array.isArray(seasonsResponse) ? seasonsResponse : [];
+
+  // Fetch seasons for template creation
+  const { data: seasonsRaw } = useQuery({
+    queryKey: ['/api/seasons'],
+    retry: false,
+  });
+  const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
+
+
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
@@ -146,29 +150,7 @@ export default function AdminDashboard() {
     }
   });
 
-  // Create template toy mutation
-  const createTemplateToyMutation = useMutation({
-    mutationFn: async (toyData: any) => {
-      return apiRequest("POST", "/api/admin/create-template-toy", toyData);
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/template-toys"] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create template toy", variant: "destructive" });
-    }
-  });
+
 
   // Update cash out status mutation
   const updateCashOutMutation = useMutation({
@@ -186,6 +168,35 @@ export default function AdminDashboard() {
 
 
 
+  // Create template toy mutation
+  const createTemplateToyMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/toys/create-template', templateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Template toy created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/template-toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || "Failed to create template toy";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
+    }
+  });
 
   const handleUpdateCredits = (userId: string, amount: string) => {
     updateCreditsMutation.mutate({ userId, amount });
@@ -535,10 +546,11 @@ export default function AdminDashboard() {
 
 
 
-              {/* All Toys */}
+              {/* Active Toys (Toys with Owners) */}
               <Card className="bg-white/10 backdrop-blur-md border-white/20">
                 <CardHeader>
-                  <CardTitle className="text-white">All Toys</CardTitle>
+                  <CardTitle className="text-white">Active Toys (User-Owned)</CardTitle>
+                  <p className="text-purple-200 text-sm">Toys that have been collected by users</p>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -552,7 +564,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allToys.map((toy: any) => (
+                      {allToys.filter((toy: any) => toy.ownerId !== null && toy.ownerId !== "null").map((toy: any) => (
                         <TableRow key={toy.id}>
                           <TableCell className="text-white">{toy.name}</TableCell>
                           <TableCell className="text-purple-200">{toy.series}</TableCell>
@@ -565,7 +577,7 @@ export default function AdminDashboard() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-purple-200">
-                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
+                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unknown User'}
                           </TableCell>
                           <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
                         </TableRow>
