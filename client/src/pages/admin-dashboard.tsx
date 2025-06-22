@@ -26,7 +26,6 @@ import {
   ShoppingCart,
   History,
   Package,
-  ShoppingCart,
   Calendar,
   Award,
   Search,
@@ -36,7 +35,7 @@ import {
   Filter
 } from "lucide-react";
 
-export default function AdminDashboard() {
+function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -1215,7 +1214,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paymentVerifications.map((payment: any) => (
+                    {(paymentVerifications as any[]).map((payment: any) => (
                       <TableRow key={payment.id}>
                         <TableCell className="text-white">{payment.userId}</TableCell>
                         <TableCell className="text-white">{formatCurrency(payment.amount)}</TableCell>
@@ -1271,7 +1270,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {marketplaceListings.map((purchase: any) => (
+                    {(marketplaceListings as any[]).map((purchase: any) => (
                       <TableRow key={purchase.id}>
                         <TableCell className="text-white">#{purchase.id}</TableCell>
                         <TableCell className="text-white">{purchase.buyerId}</TableCell>
@@ -1505,7 +1504,7 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
-      </Dialog>
+      </div>
     </div>
   );
 }
