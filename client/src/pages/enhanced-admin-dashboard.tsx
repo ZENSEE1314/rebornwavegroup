@@ -373,6 +373,8 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+
+
   // Extract data arrays from paginated responses
   const allUsers = (usersResponse as any)?.data || [];
   const cashOutRequests = (cashOutResponse as any)?.data || [];
@@ -384,6 +386,7 @@ function EnhancedAdminDashboard() {
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
   const pendingPurchases = allPendingPurchases || [];
+  const tokenTransactions = (tokenTransactionsResponse as any)?.data || [];
 
 
 
@@ -1173,6 +1176,28 @@ function EnhancedAdminDashboard() {
       deleteRewardMutation.mutate(id);
     }
   };
+
+  // Cash out management mutation
+  const updateCashOutMutation = useMutation({
+    mutationFn: async ({ id, status, adminNotes }: { id: string; status: string; adminNotes: string }) => {
+      return apiRequest(`/api/admin/cashouts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, adminNotes }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/cashouts'] });
+      toast({ title: "Cash out request updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update cash out request", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
 
 
 
@@ -2604,6 +2629,702 @@ function EnhancedAdminDashboard() {
                         )}
                       </PaginationContent>
                     </Pagination>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Cash Outs Tab */}
+          <TabsContent value="cashouts">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Cash Out Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Requests: <span className="font-semibold">{cashOutRequests.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(filteredCashOuts, 'cashouts')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search cash outs..."
+                      value={cashOutSearch}
+                      onChange={(e) => setCashOutSearch(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Amount</TableHead>
+                        <TableHead className="text-gray-300">Bank Details</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Requested</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCashOuts.map((cashOut: any) => (
+                        <TableRow key={cashOut.id}>
+                          <TableCell className="text-white">
+                            {cashOut.user?.firstName} {cashOut.user?.lastName}
+                            <div className="text-sm text-gray-400">{cashOut.user?.email}</div>
+                          </TableCell>
+                          <TableCell className="text-green-300 font-semibold">
+                            IDR {parseFloat(cashOut.amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <div className="text-sm">
+                              <div>{cashOut.bankName}</div>
+                              <div>{cashOut.accountNumber}</div>
+                              <div>{cashOut.accountHolderName}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={cashOut.status === 'approved' ? 'default' : 
+                                     cashOut.status === 'rejected' ? 'destructive' : 'secondary'}
+                            >
+                              {cashOut.status.charAt(0).toUpperCase() + cashOut.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(cashOut.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            {cashOut.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="default" 
+                                  size="sm"
+                                  onClick={() => {
+                                    updateCashOutMutation.mutate({ 
+                                      id: cashOut.id, 
+                                      status: 'approved', 
+                                      adminNotes: '' 
+                                    });
+                                  }}
+                                  disabled={updateCashOutMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => {
+                                    updateCashOutMutation.mutate({ 
+                                      id: cashOut.id, 
+                                      status: 'rejected', 
+                                      adminNotes: 'Rejected by admin' 
+                                    });
+                                  }}
+                                  disabled={updateCashOutMutation.isPending}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">
+                                {cashOut.status === 'approved' ? 'Approved' : 'Rejected'}
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Transaction Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Transactions: <span className="font-semibold">{allTransactions.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(filteredTransactions, 'transactions')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search transactions..."
+                      value={transactionSearch}
+                      onChange={(e) => setTransactionSearch(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
+                    />
+                  </div>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="purchase">Purchase</SelectItem>
+                      <SelectItem value="sale">Sale</SelectItem>
+                      <SelectItem value="topup">Top-up</SelectItem>
+                      <SelectItem value="cashout">Cash Out</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Type</TableHead>
+                        <TableHead className="text-gray-300">Amount</TableHead>
+                        <TableHead className="text-gray-300">Description</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTransactions.map((transaction: any) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="text-white">
+                            {transaction.user?.firstName} {transaction.user?.lastName}
+                            <div className="text-sm text-gray-400">{transaction.user?.email}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-blue-400 text-blue-300">
+                              {transaction.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-green-300 font-semibold">
+                            IDR {parseFloat(transaction.amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {transaction.description}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={transaction.status === 'completed' ? 'default' : 
+                                     transaction.status === 'failed' ? 'destructive' : 'secondary'}
+                            >
+                              {transaction.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(transaction.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Reports & Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Total Revenue</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-400">
+                        IDR {allTransactions
+                          .filter((t: any) => t.type === 'purchase' && t.status === 'completed')
+                          .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0)
+                          .toLocaleString()}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">From completed purchases</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Active Users</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-400">{allUsers.length}</div>
+                      <p className="text-xs text-gray-400 mt-1">Total registered users</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Pending Cashouts</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-yellow-400">
+                        {cashOutRequests.filter((c: any) => c.status === 'pending').length}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Awaiting approval</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Total Toys</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-purple-400">{allToys.length}</div>
+                      <p className="text-xs text-gray-400 mt-1">In the system</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Active Pets</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-pink-400">{activatedPets.length}</div>
+                      <p className="text-xs text-gray-400 mt-1">Currently active</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <CardTitle className="text-white text-sm">Token Claims</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-orange-400">{tokenClaims.length}</div>
+                      <p className="text-xs text-gray-400 mt-1">Total claims processed</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          <TabsContent value="content">
+            <div className="space-y-6">
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Promotion Banners</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {promotionBanners?.map((banner: any) => (
+                      <div key={banner.id} className="p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="text-white font-semibold">{banner.title}</h3>
+                            <p className="text-gray-300 text-sm mt-1">{banner.description}</p>
+                            <div className="flex gap-2 mt-2">
+                              <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                                {banner.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                              <Badge variant="outline" className="border-blue-400 text-blue-300">
+                                {banner.type}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="border-white/20 text-white">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/10 backdrop-blur border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Reward Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {rewardItems?.map((reward: any) => (
+                      <div key={reward.id} className="p-4 bg-white/5 rounded-lg border border-white/10">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="text-white font-semibold">{reward.name}</h3>
+                            <p className="text-gray-300 text-sm mt-1">{reward.description}</p>
+                            <div className="flex gap-2 mt-2">
+                              <Badge variant="outline" className="border-green-400 text-green-300">
+                                {reward.pointsCost} points
+                              </Badge>
+                              <Badge variant={reward.isAvailable ? 'default' : 'secondary'}>
+                                {reward.isAvailable ? 'Available' : 'Unavailable'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="border-white/20 text-white"
+                              onClick={() => handleEditReward(reward)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Game Leaderboard Tab */}
+          <TabsContent value="leaderboard">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Game Leaderboard Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">Rank</TableHead>
+                        <TableHead className="text-gray-300">Player</TableHead>
+                        <TableHead className="text-gray-300">Score</TableHead>
+                        <TableHead className="text-gray-300">Tokens Earned</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gameLeaderboard?.map((entry: any, index: number) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="text-white font-semibold">
+                            #{index + 1}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {entry.user?.firstName} {entry.user?.lastName}
+                            <div className="text-sm text-gray-400">{entry.user?.email}</div>
+                          </TableCell>
+                          <TableCell className="text-blue-300 font-semibold">
+                            {entry.score.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-green-300">
+                            {entry.tokensEarned || 0}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(entry.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Marketplace Purchases Tab */}
+          <TabsContent value="marketplace">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Marketplace Purchase Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">Buyer</TableHead>
+                        <TableHead className="text-gray-300">Seller</TableHead>
+                        <TableHead className="text-gray-300">Toy</TableHead>
+                        <TableHead className="text-gray-300">Price</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingPurchases?.map((purchase: any) => (
+                        <TableRow key={purchase.id}>
+                          <TableCell className="text-white">
+                            {purchase.buyer?.firstName} {purchase.buyer?.lastName}
+                            <div className="text-sm text-gray-400">{purchase.buyer?.email}</div>
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {purchase.seller?.firstName} {purchase.seller?.lastName}
+                            <div className="text-sm text-gray-400">{purchase.seller?.email}</div>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {purchase.listing?.toy?.name}
+                            <div className="text-sm text-gray-400">
+                              {purchase.listing?.toy?.rarity} • {purchase.listing?.toy?.color}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-green-300 font-semibold">
+                            IDR {parseFloat(purchase.listing?.price || '0').toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={purchase.status === 'completed' ? 'default' : 
+                                     purchase.status === 'failed' ? 'destructive' : 'secondary'}
+                            >
+                              {purchase.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(purchase.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            {purchase.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Complete
+                                </Button>
+                                <Button variant="destructive" size="sm">
+                                  <X className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Claims Tab */}
+          <TabsContent value="tokens">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Token Claims Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Tokens Awarded</TableHead>
+                        <TableHead className="text-gray-300">Reward Date</TableHead>
+                        <TableHead className="text-gray-300">Pet Count</TableHead>
+                        <TableHead className="text-gray-300">All Pets Healthy</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tokenClaims?.map((claim: any) => (
+                        <TableRow key={claim.id}>
+                          <TableCell className="text-white">
+                            {claim.user?.firstName} {claim.user?.lastName}
+                            <div className="text-sm text-gray-400">{claim.user?.email}</div>
+                          </TableCell>
+                          <TableCell className="text-green-300 font-semibold">
+                            {claim.tokensAwarded}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(claim.rewardDate)}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {claim.petCount || 0}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={claim.allPetsHealthy ? 'default' : 'secondary'}>
+                              {claim.allPetsHealthy ? 'Yes' : 'No'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="default">
+                              Processed
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Token Transactions Tab */}
+          <TabsContent value="token-transactions">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Token Transaction Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Transactions: <span className="font-semibold">{tokenTransactions.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(tokenTransactions, 'token-transactions')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Type</TableHead>
+                        <TableHead className="text-gray-300">Tokens</TableHead>
+                        <TableHead className="text-gray-300">Description</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tokenTransactions
+                        .slice((tokenTransactionsPage - 1) * tokenTransactionsPerPage, tokenTransactionsPage * tokenTransactionsPerPage)
+                        .map((transaction: any) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="text-white">
+                            {transaction.user?.firstName} {transaction.user?.lastName}
+                            <div className="text-sm text-gray-400">{transaction.user?.email}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={transaction.type === 'earned' ? 'default' : 'secondary'}
+                              className={transaction.type === 'earned' ? 'bg-green-600' : 'bg-red-600'}
+                            >
+                              {transaction.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-yellow-300 font-semibold">
+                            {transaction.tokens > 0 ? '+' : ''}{transaction.tokens}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {transaction.description}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="default">
+                              {transaction.status || 'completed'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(transaction.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Token Transactions Pagination */}
+                {tokenTransactions.length > tokenTransactionsPerPage && (
+                  <div className="flex items-center justify-between mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTokenTransactionsPage(Math.max(1, tokenTransactionsPage - 1))}
+                      disabled={tokenTransactionsPage === 1}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex gap-2">
+                      {Array.from({ 
+                        length: Math.min(10, Math.ceil(tokenTransactions.length / tokenTransactionsPerPage)) 
+                      }, (_, i) => {
+                        const totalPages = Math.ceil(tokenTransactions.length / tokenTransactionsPerPage);
+                        const currentPage = tokenTransactionsPage;
+                        const maxPagesToShow = 10;
+                        
+                        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                        
+                        if (endPage - startPage + 1 < maxPagesToShow) {
+                          startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                        }
+                        
+                        return startPage + i;
+                      }).filter(page => page <= Math.ceil(tokenTransactions.length / tokenTransactionsPerPage)).map((page) => (
+                        <Button
+                          key={page}
+                          variant={page === tokenTransactionsPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setTokenTransactionsPage(page)}
+                          className={`${
+                            page === tokenTransactionsPage 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTokenTransactionsPage(Math.min(Math.ceil(tokenTransactions.length / tokenTransactionsPerPage), tokenTransactionsPage + 1))}
+                      disabled={tokenTransactionsPage === Math.ceil(tokenTransactions.length / tokenTransactionsPerPage)}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Next
+                    </Button>
                   </div>
                 )}
               </CardContent>
