@@ -182,35 +182,6 @@ export default function AdminDashboard() {
 
 
 
-  // Create template toy mutation
-  const createTemplateToyMutation = useMutation({
-    mutationFn: async (templateData: any) => {
-      return apiRequest('POST', '/api/admin/toys/create-template', templateData);
-    },
-    onSuccess: () => {
-      toast({ title: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/template-toys'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || "Failed to create template toy";
-      toast({ 
-        title: "Error", 
-        description: errorMessage,
-        variant: "destructive" 
-      });
-    }
-  });
 
   const handleUpdateCredits = (userId: string, amount: string) => {
     updateCreditsMutation.mutate({ userId, amount });
