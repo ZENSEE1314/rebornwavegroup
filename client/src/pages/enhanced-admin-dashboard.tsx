@@ -1543,130 +1543,113 @@ function EnhancedAdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="overflow-x-auto scrollbar-hide">
-            <TabsList className="bg-white/20 backdrop-blur border-gray-300/30 flex min-w-max">
-              <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Users className="h-4 w-4 mr-2" />
-                User Management
+          <div className="bg-white/5 rounded-lg p-3">
+            <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-15 gap-1 bg-transparent">
+              <TabsTrigger value="users" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Users
               </TabsTrigger>
-              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Camera className="h-4 w-4 mr-2" />
-                Payment Verification
+              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Payments
               </TabsTrigger>
-              <TabsTrigger value="appointments" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Calendar className="h-4 w-4 mr-2" />
-                Appointments
+              <TabsTrigger value="appointments" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Events
               </TabsTrigger>
-              <TabsTrigger value="topups" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <ArrowUp className="h-4 w-4 mr-2" />
+              <TabsTrigger value="topups" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
                 Top-ups
               </TabsTrigger>
-              <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <CreditCard className="h-4 w-4 mr-2" />
+              <TabsTrigger value="cashouts" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
                 Cash Outs
               </TabsTrigger>
-              <TabsTrigger value="transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <History className="h-4 w-4 mr-2" />
-                Transactions
+              <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Finance
               </TabsTrigger>
-              <TabsTrigger value="toys" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Package className="h-4 w-4 mr-2" />
-                Toy Management
+              <TabsTrigger value="toys" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Toys
               </TabsTrigger>
-              <TabsTrigger value="reports" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <FileText className="h-4 w-4 mr-2" />
+              <TabsTrigger value="reports" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="content" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Settings className="h-4 w-4 mr-2" />
-                Content Management
+              <TabsTrigger value="content" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Content
               </TabsTrigger>
-              <TabsTrigger value="pets" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Heart className="h-4 w-4 mr-2" />
-                Pet Management
+              <TabsTrigger value="pets" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Pets
               </TabsTrigger>
-              <TabsTrigger value="leaderboard" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Trophy className="h-4 w-4 mr-2" />
-                Game Leaderboard
+              <TabsTrigger value="leaderboard" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Games
               </TabsTrigger>
-              <TabsTrigger value="marketplace" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Marketplace Purchases
+              <TabsTrigger value="marketplace" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Market
               </TabsTrigger>
-              <TabsTrigger value="tokens" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Gift className="h-4 w-4 mr-2" />
-                Token Claims
+              <TabsTrigger value="tokens" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Claims
               </TabsTrigger>
-              <TabsTrigger value="token-transactions" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Trophy className="h-4 w-4 mr-2" />
-                Token Transactions
+              <TabsTrigger value="token-transactions" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Tokens
               </TabsTrigger>
-              <TabsTrigger value="emails" className="data-[state=active]:bg-white/30 text-white whitespace-nowrap">
-                <Mail className="h-4 w-4 mr-2" />
-                Email Management
+              <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+                Emails
               </TabsTrigger>
             </TabsList>
           </div>
 
           {/* User Management Tab */}
           <TabsContent value="users">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
+            <Card className="bg-white/5 border-white/10">
+              <CardHeader className="pb-4">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">User Management</CardTitle>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => downloadCSV(filteredUsers, 'users')}
-                      variant="outline" 
-                      size="sm"
-                      className="bg-white/10 text-white border-white/20"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
+                  <CardTitle className="text-white text-lg font-medium">User Management</CardTitle>
+                  <Button 
+                    onClick={() => downloadCSV(filteredUsers, 'users')}
+                    variant="outline" 
+                    size="sm"
+                    className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
                 </div>
-                <div className="flex gap-4 mt-4">
+                <div className="flex gap-3 mt-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Search users..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
-                      className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
+                      className="pl-10 bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-400"
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {/* User Management Table */}
-                <div>
+                <div className="bg-gray-800/30 rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <Table className="min-w-full">
                       <TableHeader>
-                        <TableRow className="border-white/20">
-                          <TableHead className="text-blue-200 min-w-[150px]">User</TableHead>
-                          <TableHead className="text-blue-200 min-w-[180px]">Email</TableHead>
-                          <TableHead className="text-blue-200 min-w-[140px]">Phone</TableHead>
-                          <TableHead className="text-blue-200 min-w-[100px]">Gender</TableHead>
-                          <TableHead className="text-blue-200 min-w-[120px]">Date of Birth</TableHead>
-                          <TableHead className="text-blue-200 min-w-[100px]">Credits</TableHead>
-                          <TableHead className="text-blue-200 min-w-[80px]">Points</TableHead>
-                          <TableHead className="text-blue-200 min-w-[80px]">Tokens</TableHead>
-                          <TableHead className="text-blue-200 min-w-[80px]">Role</TableHead>
-                          <TableHead className="text-blue-200 min-w-[120px]">Join Date</TableHead>
-                          <TableHead className="text-blue-200 min-w-[150px]">Actions</TableHead>
+                        <TableRow className="border-gray-600/30 bg-gray-700/30">
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[150px]">User</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[180px]">Email</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[140px]">Phone</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[100px]">Gender</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[120px]">Date of Birth</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[100px]">Credits</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Points</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Tokens</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Role</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[120px]">Join Date</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[150px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user: any) => (
                       <TableRow 
                         key={user.id} 
-                        className={`border-white/10 transition-colors ${
+                        className={`border-gray-600/20 transition-colors hover:bg-gray-700/30 ${
                           highlightedUserId === user.id ? 'bg-blue-500/20 border-blue-400/50' : ''
                         }`}
                       >
-                        <TableCell className="text-white">
+                        <TableCell className="text-white py-3 px-4">
                 {editingUser?.id === user.id ? (
                             <div className="flex flex-col sm:flex-row gap-1 min-w-0">
                               <Input
