@@ -1180,11 +1180,7 @@ function EnhancedAdminDashboard() {
   // Cash out management mutation
   const updateCashOutMutation = useMutation({
     mutationFn: async ({ id, status, adminNotes }: { id: string; status: string; adminNotes: string }) => {
-      return apiRequest(`/api/admin/cashouts/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status, adminNotes }),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest(`/api/admin/cashouts/${id}`, 'PATCH', { status, adminNotes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/cashouts'] });
@@ -2954,7 +2950,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {promotionBanners?.map((banner: any) => (
+                    {Array.isArray(promotionBanners) ? promotionBanners.map((banner: any) => (
                       <div key={banner.id} className="p-4 bg-white/5 rounded-lg border border-white/10">
                         <div className="flex justify-between items-start">
                           <div>
@@ -2979,7 +2975,7 @@ function EnhancedAdminDashboard() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : <div className="text-gray-400">No banners available</div>}
                   </div>
                 </CardContent>
               </Card>
@@ -2990,7 +2986,7 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {rewardItems?.map((reward: any) => (
+                    {Array.isArray(rewardItems) ? rewardItems.map((reward: any) => (
                       <div key={reward.id} className="p-4 bg-white/5 rounded-lg border border-white/10">
                         <div className="flex justify-between items-start">
                           <div>
@@ -3017,7 +3013,7 @@ function EnhancedAdminDashboard() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : <div className="text-gray-400">No reward items available</div>}
                   </div>
                 </CardContent>
               </Card>
