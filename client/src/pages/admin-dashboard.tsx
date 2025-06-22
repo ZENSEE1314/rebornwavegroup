@@ -23,6 +23,7 @@ import {
   X, 
   Plus,
   Edit,
+  ShoppingCart,
   History,
   Package,
   ShoppingCart,
@@ -61,6 +62,9 @@ export default function AdminDashboard() {
   const [bulkToyData, setBulkToyData] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Tab state management
+  const [activeTab, setActiveTab] = useState("users");
 
   // Template toy creation states
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -526,11 +530,15 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white/10 backdrop-blur-md">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 bg-white/10 backdrop-blur-md">
             <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
               <Users className="w-4 h-4 mr-2" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="data-[state=active]:bg-white/20">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Payments
             </TabsTrigger>
             <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/20">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -540,16 +548,20 @@ export default function AdminDashboard() {
               <History className="w-4 h-4 mr-2" />
               Transactions
             </TabsTrigger>
-            <TabsTrigger value="toys" className="data-[state=active]:bg-white/20">
-              <Package className="w-4 h-4 mr-2" />
-              Active Toys
+            <TabsTrigger value="marketplace" className="data-[state=active]:bg-white/20">
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Marketplace
             </TabsTrigger>
-            <TabsTrigger value="templates" className="data-[state=active]:bg-white/20">
-              <Package className="w-4 h-4 mr-2" />
-              Templates
+            <TabsTrigger value="tokens" className="data-[state=active]:bg-white/20">
+              <Award className="w-4 h-4 mr-2" />
+              Tokens
+            </TabsTrigger>
+            <TabsTrigger value="content" className="data-[state=active]:bg-white/20">
+              <Edit className="w-4 h-4 mr-2" />
+              Content
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
-              <Award className="w-4 h-4 mr-2" />
+              <TrendingUp className="w-4 h-4 mr-2" />
               Reports
             </TabsTrigger>
           </TabsList>
@@ -1183,6 +1195,316 @@ export default function AdminDashboard() {
             </div>
           </div>
         </DialogContent>
+      </Dialog>
+
+          {/* Payment Verifications Tab */}
+          <TabsContent value="payments">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Payment Verifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">User</TableHead>
+                      <TableHead className="text-purple-200">Amount</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Date</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentVerifications.map((payment: any) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="text-white">{payment.userId}</TableCell>
+                        <TableCell className="text-white">{formatCurrency(payment.amount)}</TableCell>
+                        <TableCell>
+                          <Badge variant={payment.status === 'approved' ? 'default' : payment.status === 'rejected' ? 'destructive' : 'secondary'}>
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-purple-200">
+                          {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => approvePaymentMutation.mutate({ id: payment.id })}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => rejectPaymentMutation.mutate({ id: payment.id })}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Marketplace Tab */}
+          <TabsContent value="marketplace">
+            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">Marketplace Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-purple-200">Purchase ID</TableHead>
+                      <TableHead className="text-purple-200">Buyer</TableHead>
+                      <TableHead className="text-purple-200">Listing</TableHead>
+                      <TableHead className="text-purple-200">Status</TableHead>
+                      <TableHead className="text-purple-200">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {marketplaceListings.map((purchase: any) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell className="text-white">#{purchase.id}</TableCell>
+                        <TableCell className="text-white">{purchase.buyerId}</TableCell>
+                        <TableCell className="text-white">Listing #{purchase.listingId}</TableCell>
+                        <TableCell>
+                          <Badge variant={purchase.status === 'completed' ? 'default' : 'secondary'}>
+                            {purchase.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => approvePurchaseMutation.mutate({ id: purchase.id })}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => rejectPurchaseMutation.mutate({ id: purchase.id })}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tokens Tab */}
+          <TabsContent value="tokens">
+            <div className="space-y-6">
+              {/* Token Transactions */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Token Transactions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">User</TableHead>
+                        <TableHead className="text-purple-200">Type</TableHead>
+                        <TableHead className="text-purple-200">Tokens</TableHead>
+                        <TableHead className="text-purple-200">Description</TableHead>
+                        <TableHead className="text-purple-200">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tokenTransactions.map((transaction: any) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="text-white">{transaction.userId}</TableCell>
+                          <TableCell className="text-white">{transaction.type}</TableCell>
+                          <TableCell className="text-white">{transaction.tokens}</TableCell>
+                          <TableCell className="text-white">{transaction.description}</TableCell>
+                          <TableCell className="text-purple-200">
+                            {transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Token Claims */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Token Claims</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">User</TableHead>
+                        <TableHead className="text-purple-200">Tokens Awarded</TableHead>
+                        <TableHead className="text-purple-200">Status</TableHead>
+                        <TableHead className="text-purple-200">Date</TableHead>
+                        <TableHead className="text-purple-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tokenClaims.map((claim: any) => (
+                        <TableRow key={claim.id}>
+                          <TableCell className="text-white">{claim.userId}</TableCell>
+                          <TableCell className="text-white">{claim.tokensAwarded}</TableCell>
+                          <TableCell>
+                            <Badge variant={claim.status === 'approved' ? 'default' : claim.status === 'rejected' ? 'destructive' : 'secondary'}>
+                              {claim.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-purple-200">
+                            {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => updateTokenClaimMutation.mutate({ id: claim.id, status: 'approved' })}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => updateTokenClaimMutation.mutate({ id: claim.id, status: 'rejected' })}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Content Management Tab */}
+          <TabsContent value="content">
+            <div className="space-y-6">
+              {/* Promotion Banners */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Promotion Banners</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Button
+                      onClick={() => createBannerMutation.mutate({ 
+                        title: "New Banner", 
+                        content: "Banner content", 
+                        isActive: true 
+                      })}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Banner
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Title</TableHead>
+                        <TableHead className="text-purple-200">Content</TableHead>
+                        <TableHead className="text-purple-200">Status</TableHead>
+                        <TableHead className="text-purple-200">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {promotionBanners.map((banner: any) => (
+                        <TableRow key={banner.id}>
+                          <TableCell className="text-white">{banner.title}</TableCell>
+                          <TableCell className="text-white">{banner.content}</TableCell>
+                          <TableCell>
+                            <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                              {banner.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => updateBannerMutation.mutate({ 
+                                  id: banner.id, 
+                                  title: banner.title, 
+                                  content: banner.content, 
+                                  isActive: !banner.isActive 
+                                })}
+                                variant="outline"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteBannerMutation.mutate(banner.id)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Game Leaderboard */}
+              <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Game Leaderboard</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-purple-200">Rank</TableHead>
+                        <TableHead className="text-purple-200">User</TableHead>
+                        <TableHead className="text-purple-200">Score</TableHead>
+                        <TableHead className="text-purple-200">Tokens Earned</TableHead>
+                        <TableHead className="text-purple-200">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gameLeaderboard.map((entry: any, index: number) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="text-white">#{index + 1}</TableCell>
+                          <TableCell className="text-white">{entry.userId}</TableCell>
+                          <TableCell className="text-white">{entry.score}</TableCell>
+                          <TableCell className="text-white">{entry.tokensEarned}</TableCell>
+                          <TableCell className="text-purple-200">
+                            {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </Dialog>
     </div>
   );
