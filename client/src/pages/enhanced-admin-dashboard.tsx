@@ -1481,62 +1481,62 @@ function EnhancedAdminDashboard() {
         </div>
 
         {/* Additional Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Total Cash-Outs (IDR)</p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-gray-400 text-xs font-medium">Cash-Outs (IDR)</p>
+                  <p className="text-2xl font-semibold text-white">
                     {cashOutRequests
                       .filter((req: any) => req.status === 'approved')
                       .reduce((total: number, req: any) => total + parseFloat(req.amount || '0'), 0)
                       .toLocaleString()}
                   </p>
                 </div>
-                <TrendingDown className="h-8 w-8 text-red-400" />
+                <TrendingDown className="h-6 w-6 text-red-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Pending Cash-Outs</p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-gray-400 text-xs font-medium">Pending Cash-Outs</p>
+                  <p className="text-2xl font-semibold text-white">
                     {cashOutRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-yellow-400" />
+                <Clock className="h-6 w-6 text-yellow-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Pending Top-Ups</p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-gray-400 text-xs font-medium">Pending Top-Ups</p>
+                  <p className="text-2xl font-semibold text-white">
                     {topUpRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-orange-400" />
+                <Clock className="h-6 w-6 text-orange-400" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/20 backdrop-blur border-gray-300/30">
-            <CardContent className="p-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-200 text-sm">Active Appointments</p>
-                  <p className="text-3xl font-bold text-white">
+                  <p className="text-gray-400 text-xs font-medium">Active Events</p>
+                  <p className="text-2xl font-semibold text-white">
                     {allAppointments.filter((apt: any) => apt.status === 'confirmed').length}
                   </p>
                 </div>
-                <Calendar className="h-8 w-8 text-blue-400" />
+                <Calendar className="h-6 w-6 text-blue-400" />
               </div>
             </CardContent>
           </Card>
