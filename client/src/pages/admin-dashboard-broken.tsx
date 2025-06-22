@@ -1044,10 +1044,9 @@ function AdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
 
-      {/* Template Toy Creation Dialog */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        {/* Template Toy Creation Dialog */}
+        <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-green-400">Create Template Toy</DialogTitle>
