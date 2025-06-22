@@ -1326,7 +1326,7 @@ function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {tokenTransactions.map((transaction: any) => (
+                      {(tokenTransactions as any[]).map((transaction: any) => (
                         <TableRow key={transaction.id}>
                           <TableCell className="text-white">{transaction.userId}</TableCell>
                           <TableCell className="text-white">{transaction.type}</TableCell>
@@ -1359,7 +1359,7 @@ function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {tokenClaims.map((claim: any) => (
+                      {(tokenClaims as any[]).map((claim: any) => (
                         <TableRow key={claim.id}>
                           <TableCell className="text-white">{claim.userId}</TableCell>
                           <TableCell className="text-white">{claim.tokensAwarded}</TableCell>
@@ -1430,7 +1430,7 @@ function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {promotionBanners.map((banner: any) => (
+                      {(promotionBanners as any[]).map((banner: any) => (
                         <TableRow key={banner.id}>
                           <TableCell className="text-white">{banner.title}</TableCell>
                           <TableCell className="text-white">{banner.content}</TableCell>
@@ -1486,7 +1486,7 @@ function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gameLeaderboard.map((entry: any, index: number) => (
+                      {(gameLeaderboard as any[]).map((entry: any, index: number) => (
                         <TableRow key={entry.id}>
                           <TableCell className="text-white">#{index + 1}</TableCell>
                           <TableCell className="text-white">{entry.userId}</TableCell>
@@ -1508,3 +1508,5 @@ function AdminDashboard() {
     </div>
   );
 }
+
+export default AdminDashboard;
