@@ -4127,7 +4127,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get template toys (admin only)
+  app.get('/api/admin/template-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const templateToys = await storage.getTemplateToys();
+      res.json(templateToys);
+    } catch (error) {
+      console.error("Error fetching template toys:", error);
+      res.status(500).json({ message: "Failed to fetch template toys" });
+    }
+  });
+
   // Create template toy (admin only)
+  app.post('/api/admin/create-template-toy', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(adminUserId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, seasonId, rarity, color, gender, imageUrl, quantity } = req.body;
+      
+      if (!name || !seasonId) {
+        return res.status(400).json({ message: "Name and season are required" });
+      }
+
+      const templateToys = [];
+      for (let i = 0; i < (quantity || 1); i++) {
+        const qrCode = `QR-${name.replace(/\s+/g, '')}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const toyData = {
+          name: quantity > 1 ? `${name} #${i + 1}` : name,
+          seasonId: parseInt(seasonId),
+          rarity: rarity || 'common',
+          color: color || 'blue',
+          gender: gender || 'male',
+          imageUrl: imageUrl || null,
+          qrCode: qrCode,
+          ownerId: null, // Template toys have no owner
+          isActivated: false,
+          isTemplate: true,
+          releaseDate: new Date()
+        };
+
+        const templateToy = await storage.createToy(toyData);
+        templateToys.push(templateToy);
+      }
+
+      res.json({ 
+        message: `Created ${templateToys.length} template toy(s)`,
+        toys: templateToys 
+      });
+    } catch (error) {
+      console.error("Error creating template toy:", error);
+      res.status(500).json({ message: "Failed to create template toy" });
+    }
+  });
+
+  // Create template toy (admin only) - Legacy endpoint
   app.post('/api/admin/toys/create-template', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);

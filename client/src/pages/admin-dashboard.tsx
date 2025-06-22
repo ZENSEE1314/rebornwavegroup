@@ -69,7 +69,7 @@ export default function AdminDashboard() {
   });
 
   // Check if user is admin
-  if (!user || user.role !== 'admin') {
+  if (!user || (user as any).role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
@@ -103,21 +103,16 @@ export default function AdminDashboard() {
   });
 
   // Fetch template toys (toys without owners)
-  const { data: templateToys = [] } = useQuery({
+  const { data: templateToysResponse } = useQuery({
     queryKey: ["/api/admin/template-toys"],
   });
+  const templateToys = Array.isArray(templateToysResponse) ? templateToysResponse : [];
 
   // Fetch seasons for template toy creation
-  const { data: seasons = [] } = useQuery({
+  const { data: seasonsResponse } = useQuery({
     queryKey: ["/api/seasons"],
   });
-
-  // Fetch template toys separately
-  const { data: templateToysData } = useQuery({
-    queryKey: ['/api/admin/template-toys'],
-    retry: false,
-  });
-  const templateToys = templateToysData?.data || [];
+  const seasons = Array.isArray(seasonsResponse) ? seasonsResponse : [];
 
   // Update user credits mutation
   const updateCreditsMutation = useMutation({
