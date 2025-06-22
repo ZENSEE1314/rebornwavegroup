@@ -112,13 +112,6 @@ export default function AdminDashboard() {
     queryKey: ["/api/seasons"],
   });
 
-  // Fetch seasons for template creation
-  const { data: seasonsRaw } = useQuery({
-    queryKey: ['/api/seasons'],
-    retry: false,
-  });
-  const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
-
   // Fetch template toys separately
   const { data: templateToysData } = useQuery({
     queryKey: ['/api/admin/template-toys'],
