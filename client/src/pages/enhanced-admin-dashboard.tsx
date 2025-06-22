@@ -137,6 +137,13 @@ function EnhancedAdminDashboard() {
   const usersPerPage = 10;
   const [openApproveDialog, setOpenApproveDialog] = useState<number | null>(null);
   const [openRejectDialog, setOpenRejectDialog] = useState<number | null>(null);
+  const [approveForm, setApproveForm] = useState({
+    pointsAwarded: 0,
+    adminNotes: ''
+  });
+  const [rejectForm, setRejectForm] = useState({
+    adminNotes: ''
+  });
   
   // Search and filter states
   const [userSearch, setUserSearch] = useState("");
@@ -1942,6 +1949,286 @@ function EnhancedAdminDashboard() {
                       {Math.min(usersPage * usersPerPage, (usersResponse as any)?.pagination?.totalCount || usersResponse?.data?.length || 0)} of{' '}
                       {(usersResponse as any)?.pagination?.totalCount || usersResponse?.data?.length || 0} users
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payment Verification Tab */}
+          <TabsContent value="payment-verifications">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Payment Verification Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Verifications: <span className="font-semibold">{paymentVerifications.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(paymentVerifications, 'payment-verifications')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">User</TableHead>
+                        <TableHead className="text-gray-300">Amount</TableHead>
+                        <TableHead className="text-gray-300">Description</TableHead>
+                        <TableHead className="text-gray-300">Receipt</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Points Awarded</TableHead>
+                        <TableHead className="text-gray-300">Submitted</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentVerifications
+                        .slice((paymentVerificationsPage - 1) * paymentVerificationsPerPage, paymentVerificationsPage * paymentVerificationsPerPage)
+                        .map((verification: any) => (
+                        <TableRow key={verification.id}>
+                          <TableCell className="text-white">
+                            {verification.userFirstName} {verification.userLastName}
+                            <div className="text-sm text-gray-400">{verification.userEmail}</div>
+                          </TableCell>
+                          <TableCell className="text-green-300 font-semibold">
+                            IDR {parseFloat(verification.amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {verification.description || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {verification.receiptImageUrl ? (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="bg-white/10 text-white border-white/20">
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View Receipt
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                                  <DialogHeader>
+                                    <DialogTitle>Payment Receipt</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="flex-1 overflow-y-auto">
+                                    <img 
+                                      src={verification.receiptImageUrl} 
+                                      alt="Payment receipt" 
+                                      className="w-full h-auto object-contain max-h-[70vh]"
+                                    />
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            ) : (
+                              <span className="text-gray-400">No receipt</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={verification.status === 'approved' ? 'default' : 
+                                     verification.status === 'rejected' ? 'destructive' : 'secondary'}
+                            >
+                              {verification.status.charAt(0).toUpperCase() + verification.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {verification.pointsAwarded || 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {formatDate(verification.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            {verification.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Dialog open={openApproveDialog === verification.id} onOpenChange={(open) => setOpenApproveDialog(open ? verification.id : null)}>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      variant="default" 
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Check className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="bg-gray-900 border-gray-700">
+                                    <DialogHeader>
+                                      <DialogTitle className="text-white">Approve Payment Verification</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <Label className="text-gray-300">Points to Award</Label>
+                                        <Input
+                                          type="number"
+                                          value={approveForm.pointsAwarded}
+                                          onChange={(e) => setApproveForm({...approveForm, pointsAwarded: parseInt(e.target.value) || 0})}
+                                          className="bg-gray-800 border-gray-600 text-white"
+                                          placeholder="Enter points to award"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-gray-300">Admin Notes</Label>
+                                        <Textarea
+                                          value={approveForm.adminNotes}
+                                          onChange={(e) => setApproveForm({...approveForm, adminNotes: e.target.value})}
+                                          className="bg-gray-800 border-gray-600 text-white"
+                                          placeholder="Add notes (optional)"
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          onClick={() => {
+                                            approvePaymentVerificationMutation.mutate({
+                                              id: verification.id,
+                                              pointsAwarded: approveForm.pointsAwarded,
+                                              adminNotes: approveForm.adminNotes
+                                            });
+                                          }}
+                                          disabled={approvePaymentVerificationMutation.isPending}
+                                          className="bg-green-600 hover:bg-green-700"
+                                        >
+                                          {approvePaymentVerificationMutation.isPending ? "Approving..." : "Approve"}
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          onClick={() => setOpenApproveDialog(null)}
+                                          className="border-gray-600 text-white"
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                
+                                <Dialog open={openRejectDialog === verification.id} onOpenChange={(open) => setOpenRejectDialog(open ? verification.id : null)}>
+                                  <DialogTrigger asChild>
+                                    <Button variant="destructive" size="sm">
+                                      <X className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="bg-gray-900 border-gray-700">
+                                    <DialogHeader>
+                                      <DialogTitle className="text-white">Reject Payment Verification</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <Label className="text-gray-300">Rejection Reason</Label>
+                                        <Textarea
+                                          value={rejectForm.adminNotes}
+                                          onChange={(e) => setRejectForm({...rejectForm, adminNotes: e.target.value})}
+                                          className="bg-gray-800 border-gray-600 text-white"
+                                          placeholder="Explain why this verification is being rejected"
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          onClick={() => {
+                                            rejectPaymentVerificationMutation.mutate({
+                                              id: verification.id,
+                                              adminNotes: rejectForm.adminNotes
+                                            });
+                                          }}
+                                          disabled={rejectPaymentVerificationMutation.isPending}
+                                          variant="destructive"
+                                        >
+                                          {rejectPaymentVerificationMutation.isPending ? "Rejecting..." : "Reject"}
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          onClick={() => setOpenRejectDialog(null)}
+                                          className="border-gray-600 text-white"
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-400">
+                                {verification.status === 'approved' ? 'Approved' : 'Rejected'}
+                                {verification.adminNotes && (
+                                  <div className="mt-1 text-xs text-gray-500 max-w-[200px] truncate" title={verification.adminNotes}>
+                                    {verification.adminNotes}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Payment Verifications Pagination */}
+                {paymentVerifications.length > paymentVerificationsPerPage && (
+                  <div className="flex items-center justify-between mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPaymentVerificationsPage(Math.max(1, paymentVerificationsPage - 1))}
+                      disabled={paymentVerificationsPage === 1}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex gap-2">
+                      {Array.from({ 
+                        length: Math.min(10, Math.ceil(paymentVerifications.length / paymentVerificationsPerPage)) 
+                      }, (_, i) => {
+                        const totalPages = Math.ceil(paymentVerifications.length / paymentVerificationsPerPage);
+                        const currentPage = paymentVerificationsPage;
+                        const maxPagesToShow = 10;
+                        
+                        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+                        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                        
+                        if (endPage - startPage + 1 < maxPagesToShow) {
+                          startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                        }
+                        
+                        return startPage + i;
+                      }).filter(page => page <= Math.ceil(paymentVerifications.length / paymentVerificationsPerPage)).map((page) => (
+                        <Button
+                          key={page}
+                          variant={page === paymentVerificationsPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPaymentVerificationsPage(page)}
+                          className={`${
+                            page === paymentVerificationsPage 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPaymentVerificationsPage(Math.min(Math.ceil(paymentVerifications.length / paymentVerificationsPerPage), paymentVerificationsPage + 1))}
+                      disabled={paymentVerificationsPage === Math.ceil(paymentVerifications.length / paymentVerificationsPerPage)}
+                      className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                    >
+                      Next
+                    </Button>
                   </div>
                 )}
               </CardContent>
