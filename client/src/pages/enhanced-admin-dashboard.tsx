@@ -3039,7 +3039,7 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gameLeaderboard?.map((entry: any, index: number) => (
+                      {Array.isArray(gameLeaderboard) ? gameLeaderboard.map((entry: any, index: number) => (
                         <TableRow key={entry.id}>
                           <TableCell className="text-white font-semibold">
                             #{index + 1}
@@ -3058,7 +3058,13 @@ function EnhancedAdminDashboard() {
                             {formatDate(entry.createdAt)}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-400">
+                            No leaderboard data available
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -3087,7 +3093,7 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingPurchases?.map((purchase: any) => (
+                      {Array.isArray(pendingPurchases) ? pendingPurchases.map((purchase: any) => (
                         <TableRow key={purchase.id}>
                           <TableCell className="text-white">
                             {purchase.buyer?.firstName} {purchase.buyer?.lastName}
@@ -3132,7 +3138,13 @@ function EnhancedAdminDashboard() {
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-gray-400">
+                            No marketplace purchases available
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
