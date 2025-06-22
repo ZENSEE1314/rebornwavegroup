@@ -1402,11 +1402,11 @@ function EnhancedAdminDashboard() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Total Users</p>
+                  <p className="text-slate-400 text-xs font-medium">Total Users</p>
                   <p className="text-2xl font-semibold text-white">{(usersResponse as any)?.pagination?.totalCount || filteredUsers.length}</p>
                 </div>
                 <Users className="h-6 w-6 text-blue-400" />
@@ -1414,11 +1414,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Admin Fees</p>
+                  <p className="text-slate-400 text-xs font-medium">Admin Fees</p>
                   <p className="text-2xl font-semibold text-white">RP {formatMoney((feesReport as any).totalAdminFees || 0)}</p>
                 </div>
                 <DollarSign className="h-6 w-6 text-green-400" />
@@ -1426,11 +1426,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Transactions</p>
+                  <p className="text-slate-400 text-xs font-medium">Transactions</p>
                   <p className="text-2xl font-semibold text-white">{(feesReport as any).totalTransactions || 0}</p>
                 </div>
                 <CreditCard className="h-6 w-6 text-purple-400" />
@@ -1438,11 +1438,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Top-ups (IDR)</p>
+                  <p className="text-slate-400 text-xs font-medium">Top-ups (IDR)</p>
                   <p className="text-2xl font-semibold text-white">
                     {topUpRequests
                       .filter((req: any) => req.status === 'approved')
@@ -1455,11 +1455,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Total Toys</p>
+                  <p className="text-slate-400 text-xs font-medium">Total Toys</p>
                   <p className="text-2xl font-semibold text-white">{toysPaginationInfo.totalCount || 0}</p>
                 </div>
                 <Package className="h-6 w-6 text-blue-400" />
@@ -1467,11 +1467,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Total Pets</p>
+                  <p className="text-slate-400 text-xs font-medium">Total Pets</p>
                   <p className="text-2xl font-semibold text-white">{activatedPets.length}</p>
                 </div>
                 <Heart className="h-6 w-6 text-pink-400" />
@@ -1482,11 +1482,11 @@ function EnhancedAdminDashboard() {
 
         {/* Additional Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Cash-Outs (IDR)</p>
+                  <p className="text-slate-400 text-xs font-medium">Cash-Outs (IDR)</p>
                   <p className="text-2xl font-semibold text-white">
                     {cashOutRequests
                       .filter((req: any) => req.status === 'approved')
@@ -1499,11 +1499,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Pending Cash-Outs</p>
+                  <p className="text-slate-400 text-xs font-medium">Pending Cash-Outs</p>
                   <p className="text-2xl font-semibold text-white">
                     {cashOutRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
@@ -1513,11 +1513,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Pending Top-Ups</p>
+                  <p className="text-slate-400 text-xs font-medium">Pending Top-Ups</p>
                   <p className="text-2xl font-semibold text-white">
                     {topUpRequests.filter((req: any) => req.status === 'pending').length}
                   </p>
@@ -1527,11 +1527,11 @@ function EnhancedAdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10">
+          <Card className="bg-slate-800/60 border-slate-700/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-xs font-medium">Active Events</p>
+                  <p className="text-slate-400 text-xs font-medium">Active Events</p>
                   <p className="text-2xl font-semibold text-white">
                     {allAppointments.filter((apt: any) => apt.status === 'confirmed').length}
                   </p>
@@ -1543,51 +1543,51 @@ function EnhancedAdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="bg-white/5 rounded-lg p-3">
-            <TabsList className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-15 gap-1 bg-transparent">
-              <TabsTrigger value="users" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 overflow-x-auto">
+            <TabsList className="bg-slate-700/30 rounded-lg p-1 flex flex-wrap gap-1 min-w-max">
+              <TabsTrigger value="users" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Users
               </TabsTrigger>
-              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="payment-verifications" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Payments
               </TabsTrigger>
-              <TabsTrigger value="appointments" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="appointments" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Events
               </TabsTrigger>
-              <TabsTrigger value="topups" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="topups" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Top-ups
               </TabsTrigger>
-              <TabsTrigger value="cashouts" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="cashouts" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Cash Outs
               </TabsTrigger>
-              <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="transactions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Finance
               </TabsTrigger>
-              <TabsTrigger value="toys" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="toys" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Toys
               </TabsTrigger>
-              <TabsTrigger value="reports" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="reports" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="content" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="content" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Content
               </TabsTrigger>
-              <TabsTrigger value="pets" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="pets" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Pets
               </TabsTrigger>
-              <TabsTrigger value="leaderboard" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="leaderboard" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Games
               </TabsTrigger>
-              <TabsTrigger value="marketplace" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="marketplace" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Market
               </TabsTrigger>
-              <TabsTrigger value="tokens" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="tokens" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Claims
               </TabsTrigger>
-              <TabsTrigger value="token-transactions" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="token-transactions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Tokens
               </TabsTrigger>
-              <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600/80 data-[state=active]:text-white text-white/70 text-xs px-2 py-1 rounded">
+              <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Emails
               </TabsTrigger>
             </TabsList>
@@ -1595,7 +1595,7 @@ function EnhancedAdminDashboard() {
 
           {/* User Management Tab */}
           <TabsContent value="users">
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white text-lg font-medium">User Management</CardTitle>
@@ -1961,12 +1961,12 @@ function EnhancedAdminDashboard() {
 
           {/* Payment Verification Tab */}
           <TabsContent value="payment-verifications">
-            <Card className="bg-white/5 border-white/10">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white text-lg font-medium">Payment Verification</CardTitle>
                   <div className="flex items-center gap-4">
-                    <div className="text-gray-300 text-sm">
+                    <div className="text-slate-300 text-sm">
                       Total: <span className="font-semibold text-white">{paymentVerifications.length}</span>
                     </div>
                     <Button 
