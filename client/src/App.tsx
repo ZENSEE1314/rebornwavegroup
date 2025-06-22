@@ -16,7 +16,7 @@ import Referrals from "@/pages/referrals-working";
 import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
-import AdminDashboard from "@/pages/admin-dashboard";
+import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
 import SeasonalCollections from "@/pages/seasonal-collections";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
@@ -87,8 +87,8 @@ function Router() {
         <>
           {/* Default route - both admin and regular users can access main app */}
           <Route path="/" component={CompleteApp} />
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin-dashboard" component={AdminDashboard} />
+          <Route path="/admin" component={EnhancedAdminDashboard} />
+          <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
