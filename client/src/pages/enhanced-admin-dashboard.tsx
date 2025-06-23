@@ -360,7 +360,7 @@ function EnhancedAdminDashboard() {
 
   // New queries for pet management and token claims with pagination
   const { data: activatedPetsResponse }: any = useQuery({
-    queryKey: ['/api/admin/activated-pets'],
+    queryKey: [`/api/admin/activated-pets?page=${petCurrentPage}&limit=10`],
     retry: false,
   });
 
@@ -436,12 +436,9 @@ function EnhancedAdminDashboard() {
     return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredToys, toyCurrentPage]);
 
-  // Paginate pets
-  const totalPetPages = Math.ceil(filteredPets.length / ITEMS_PER_PAGE);
-  const currentPagePets = useMemo(() => {
-    const startIndex = (petCurrentPage - 1) * ITEMS_PER_PAGE;
-    return filteredPets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredPets, petCurrentPage]);
+  // Paginate pets - use server-side pagination
+  const totalPetPages = activatedPetsResponse?.pagination?.totalPages || 1;
+  const currentPagePets = filteredPets;
 
 
 
@@ -4219,8 +4216,8 @@ function EnhancedAdminDashboard() {
                                 variant={toyCurrentPage === pageNum ? "default" : "outline"}
                                 onClick={() => setToyCurrentPage(pageNum)}
                                 className={toyCurrentPage === pageNum 
-                                  ? "bg-yellow-600 text-white" 
-                                  : "text-white border-white/20 hover:bg-white/10"
+                                  ? "bg-yellow-600 text-white font-bold min-w-[40px]" 
+                                  : "text-white border-white/40 hover:bg-white/20 bg-white/10 font-medium min-w-[40px]"
                                 }
                               >
                                 {pageNum}
@@ -4289,7 +4286,7 @@ function EnhancedAdminDashboard() {
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
                                       <span className="text-gray-400">Owner:</span>
-                                      <span className="text-blue-300 font-mono">{pet.userId || 'Unassigned'}</span>
+                                      <span className="text-blue-300 font-mono">{pet.userId || pet.ownerId || 'Unassigned'}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -4405,8 +4402,8 @@ function EnhancedAdminDashboard() {
                                 variant={petCurrentPage === pageNum ? "default" : "outline"}
                                 onClick={() => setPetCurrentPage(pageNum)}
                                 className={petCurrentPage === pageNum 
-                                  ? "bg-green-600 text-white" 
-                                  : "text-white border-white/20 hover:bg-white/10"
+                                  ? "bg-green-600 text-white font-bold min-w-[40px]" 
+                                  : "text-white border-white/40 hover:bg-white/20 bg-white/10 font-medium min-w-[40px]"
                                 }
                               >
                                 {pageNum}
