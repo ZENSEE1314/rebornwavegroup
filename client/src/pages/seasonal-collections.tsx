@@ -120,6 +120,16 @@ export default function SeasonalCollections() {
     enabled: !!selectedSeason && sectors.length === 0 && !loadingSectors,
   });
 
+  // Debug logs
+  console.log('*** COLLECTIONS DEBUG:', {
+    selectedSeason,
+    sectors: sectors.length,
+    loadingSectors,
+    seasonToys: seasonToys.length,
+    loadingSeasonToys,
+    queryEnabled: !!selectedSeason && sectors.length === 0 && !loadingSectors
+  });
+
   // Fetch user's collection progress
   const { data: userProgress = [] } = useQuery<UserCollectionProgress[]>({
     queryKey: ['/api/user/collection-progress'],
