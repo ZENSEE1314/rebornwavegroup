@@ -4595,9 +4595,9 @@ function EnhancedAdminDashboard() {
                               subject: "Account Update Notification",
                               text: "Your account has been updated successfully. If you did not make this change, please contact support immediately."
                             })}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
                           >
-                            Account Update Template
+                            📧 Account Update Template
                           </Button>
                           <Button
                             variant="outline"
@@ -4606,9 +4606,9 @@ function EnhancedAdminDashboard() {
                               subject: "Payment Confirmation",
                               text: "Your payment has been processed successfully. Thank you for your purchase!"
                             })}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
                           >
-                            Payment Confirmation Template
+                            💳 Payment Confirmation Template
                           </Button>
                         </div>
                       </div>
@@ -4633,7 +4633,7 @@ function EnhancedAdminDashboard() {
                         </div>
                         <div className="bg-green-600/10 p-3 rounded border border-green-600/20">
                           <p className="text-green-300 text-sm">
-                            📱 Users with mobile numbers: {allUsers.filter((user: any) => user.phoneNumber).length}
+                            📱 Users with mobile numbers: {allUsers.filter((user: any) => user.phoneNumber && user.phoneNumber.trim() !== '').length}
                           </p>
                           <p className="text-gray-400 text-xs mt-1">
                             Only users who have provided mobile numbers will receive the message
