@@ -6232,5 +6232,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all toys (templates + generated toys + live toys) for admin dashboard
+  app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = req.user?.id;
+      const user = await storage.getUser(adminUserId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      // Get all toys with owner information
+      const allToys = await db.select({
+        id: toys.id,
+        name: toys.name,
+        ownerId: toys.ownerId,
+        ownerEmail: users.email,
+        rarity: toys.rarity,
+        color: toys.color,
+        gender: toys.gender,
+        imageUrl: toys.imageUrl,
+        basePrice: toys.basePrice,
+        isActivated: toys.isActivated,
+        isListed: toys.isListed,
+        seasonId: toys.seasonId,
+        createdAt: toys.createdAt
+      })
+      .from(toys)
+      .leftJoin(users, eq(toys.ownerId, users.id))
+      .orderBy(desc(toys.createdAt));
+
+      // Also get toy templates
+      const templates = await db.select().from(toyTemplates);
+
+      // Combine toys and templates with proper categorization
+      const combinedResults = [
+        ...templates.map(template => ({
+          ...template,
+          ownerId: null,
+          ownerEmail: null,
+          isActivated: false,
+          isListed: false
+        })),
+        ...allToys
+      ];
+
+      res.json(combinedResults);
+    } catch (error) {
+      console.error('Error fetching all toys:', error);
+      res.status(500).json({ message: 'Failed to fetch toys data' });
+    }
+  });
+
   return httpServer;
 }

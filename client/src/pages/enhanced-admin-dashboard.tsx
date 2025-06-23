@@ -238,6 +238,9 @@ function EnhancedAdminDashboard() {
     isActive: true
   });
 
+  // All toys list filter states
+  const [filterStatus, setFilterStatus] = useState("all");
+  
   // Season and sector management states
   const [showSeasonDialog, setShowSeasonDialog] = useState(false);
   const [showSectorDialog, setShowSectorDialog] = useState(false);
@@ -364,6 +367,12 @@ function EnhancedAdminDashboard() {
 
   const { data: topUpRequestsResponse }: any = useQuery({
     queryKey: ['/api/admin/topup-requests'],
+    retry: false,
+  });
+
+  // All toys query for comprehensive toy list
+  const allToysQuery = useQuery({
+    queryKey: ['/api/admin/all-toys'],
     retry: false,
   });
 
@@ -3893,6 +3902,147 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Comprehensive Toys Overview */}
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white">All Toys Database</CardTitle>
+                <p className="text-gray-300 text-sm">Complete overview of templates, generated toys, and live toys in the system</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Quick Stats Overview */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-300">
+                        {filteredToyTemplates?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">Templates</div>
+                      <div className="text-xs text-gray-400 mt-1">Design blueprints</div>
+                    </div>
+                    <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-300">
+                        {toysResponse?.data?.filter((toy: any) => toy.ownerId && !toy.isActivated)?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">Generated</div>
+                      <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
+                    </div>
+                    <div className="bg-green-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-300">
+                        {activatedPetsResponse?.data?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">Active Pets</div>
+                      <div className="text-xs text-gray-400 mt-1">Being cared for</div>
+                    </div>
+                    <div className="bg-purple-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-purple-300">
+                        {toysResponse?.data?.filter((toy: any) => toy.isListed)?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">On Market</div>
+                      <div className="text-xs text-gray-400 mt-1">For sale</div>
+                    </div>
+                  </div>
+
+                  {/* Templates Section */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                      Toy Templates ({filteredToyTemplates?.length || 0})
+                    </h3>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {filteredToyTemplates && filteredToyTemplates.length > 0 ? (
+                        filteredToyTemplates.slice(0, 10).map((template: any) => (
+                          <div key={template.id} className="bg-blue-600/10 rounded-lg p-3 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              {template.imageUrl && template.imageUrl !== 'placeholder-image-url' ? (
+                                <img src={template.imageUrl} alt={template.name} className="w-10 h-10 rounded object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">📋</span>
+                                </div>
+                              )}
+                              <div>
+                                <div className="text-white font-medium">{template.name}</div>
+                                <div className="text-xs text-gray-400">
+                                  {template.rarity} • {template.gender} • {template.color || 'No color'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-blue-300">Template #{template.id}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-4 text-gray-400">No templates created yet</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Generated Toys Section */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                      Generated Toys ({toysResponse?.data?.filter((toy: any) => toy.ownerId && !toy.isActivated)?.length || 0})
+                    </h3>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {toysResponse?.data?.filter((toy: any) => toy.ownerId && !toy.isActivated)?.slice(0, 10).map((toy: any) => (
+                        <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
+                              <img src={toy.imageUrl} alt={toy.name} className="w-10 h-10 rounded object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
+                                <span className="text-xs text-gray-400">📦</span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-white font-medium">{toy.name}</div>
+                              <div className="text-xs text-gray-400">
+                                Owner: {toy.ownerEmail || 'Unknown'} • QR: {toy.qrCode || 'Not set'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-yellow-300">Toy #{toy.id}</div>
+                        </div>
+                      )) || (
+                        <div className="text-center py-4 text-gray-400">No generated toys yet</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Active Pets Section */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                      Active Pets ({activatedPetsResponse?.data?.length || 0})
+                    </h3>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {activatedPetsResponse?.data?.slice(0, 10).map((pet: any) => (
+                        <div key={pet.id} className="bg-green-600/10 rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {pet.imageUrl && pet.imageUrl !== 'placeholder-image-url' ? (
+                              <img src={pet.imageUrl} alt={pet.name} className="w-10 h-10 rounded object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
+                                <span className="text-xs text-gray-400">🎮</span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-white font-medium">{pet.name}</div>
+                              <div className="text-xs text-gray-400">
+                                Owner: {pet.ownerEmail || 'Unknown'} • Stage: {pet.currentStage} • Age: {pet.currentAge}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-green-300">Pet #{pet.id}</div>
+                        </div>
+                      )) || (
+                        <div className="text-center py-4 text-gray-400">No active pets yet</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Appointments Tab */}
