@@ -47,14 +47,17 @@ A comprehensive digital financial management and collectible toy platform that c
 - **MAJOR REDESIGN**: ✅ COMPLETE REPLACEMENT OF COMPLEX TOY MANAGEMENT WITH STREAMLINED TEMPLATE SYSTEM
 - **Removed Complex Sections**: Eliminated error-prone bulk generator and overwhelming toy list table
 - **Clean Template Interface**: Created season management-style interface for toy template creation and management
-- **Template Creation Fix**: Fixed frontend mutation to properly create toys with `ownerId: null` for templates
+- **Template Creation Fix**: ✅ Fixed frontend mutation to properly create toys with `ownerId: null` for templates
 - **Proper Filtering**: Template library now correctly shows only unowned toys (templates) separate from user collections
-- **Integrated Bulk Generation**: Streamlined bulk generation directly within template management workflow
+- **Integrated Bulk Generation**: ✅ Streamlined bulk generation directly within template management workflow
 - **Purple Theme Consistency**: Maintained requested purple background with slate card styling throughout
 - **User Experience**: Simple create → select → generate workflow replaces complex multi-section interface
 - **Species Field Removal**: ✅ Eliminated unnecessary species field since user has only "Doluruu" species - form now automatically defaults to "Doluruu"
-- **Mutation Fix**: ✅ Corrected template creation button to use proper `createToyMutation` instead of non-existent `createToyTemplateMutation`
+- **Mutation Fix**: ✅ Corrected template creation button to use proper `createToyTemplateMutation` instead of non-existent mutation
 - **Form Simplification**: ✅ Streamlined template form to only essential fields (Name, Color, Rarity, Gender, Season, Price)
+- **Data Validation Fix**: ✅ Fixed template creation validation error by properly transforming data types (seasonId null conversion, basePrice string format)
+- **Bulk Generation Integration**: ✅ Fixed bulk generation dropdown to use toy templates instead of old toys table
+- **API Endpoint Correction**: ✅ Updated bulk generation mutation to use correct `/api/admin/generate-toys-from-template` endpoint
 
 ### CRITICAL DATA LOSS - Toy Management Error (June 18, 2025)
 - **CRITICAL ERROR**: ❌ ACCIDENTALLY DELETED THOUSANDS OF USER-OWNED TOYS

@@ -921,11 +921,16 @@ function EnhancedAdminDashboard() {
 
   const bulkGenerationMutation = useMutation({
     mutationFn: async (bulkData: any) => {
-      return apiRequest('/api/admin/toys/bulk-generate', 'POST', bulkData);
+      const { baseToy, quantity } = bulkData;
+      return apiRequest('POST', '/api/admin/generate-toys-from-template', {
+        templateId: baseToy.id,
+        quantity: quantity
+      });
     },
     onSuccess: () => {
       toast({ title: "Toys generated successfully from template" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
       setSelectedToyForBulk(null);
       setBulkQuantity(1);
       setBulkOverrides({ seasonId: null, color: null });
@@ -3726,9 +3731,9 @@ function EnhancedAdminDashboard() {
                             <SelectValue placeholder="Choose existing toy" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(allToys || []).slice(0, 50).filter((toy: any) => toy && toy.id).map((toy: any) => (
-                              <SelectItem key={toy.id} value={toy.id.toString()}>
-                                {toy.name} - {toy.rarity} ({toy.color || 'No color'})
+                            {(filteredToyTemplates || []).slice(0, 50).filter((template: any) => template && template.id).map((template: any) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name} - {template.rarity} ({template.color || 'No color'})
                               </SelectItem>
                             ))}
                           </SelectContent>
