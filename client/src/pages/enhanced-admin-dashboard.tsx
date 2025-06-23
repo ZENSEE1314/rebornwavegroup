@@ -675,7 +675,7 @@ function EnhancedAdminDashboard() {
       toast({ title: "Template toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
-      setNewToy({ name: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
+      setNewToy({ name: "", species: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female", description: "" });
     },
     onError: (error: any) => {
       const errorMessage = error.message || "Failed to create template toy";
@@ -3612,7 +3612,7 @@ function EnhancedAdminDashboard() {
                             imageUrl: newToy.imageUrl || '',
                             basePrice: newToy.price || 0,
                             description: newToy.description || '',
-                            seasonId: newToy.seasonId ? parseInt(newToy.seasonId) : null,
+                            seasonId: newToy.seasonId || undefined,
                             isActive: true
                           });
                         }}
