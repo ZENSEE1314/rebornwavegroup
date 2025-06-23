@@ -430,11 +430,16 @@ function EnhancedAdminDashboard() {
   // Filter toy templates (design blueprints) - completely separate from real toys
   const filteredToyTemplates = (() => {
     try {
-      const templates = (toyTemplatesResponse?.data || []) as any[];
-      console.log('*** FILTERING TOY TEMPLATES DEBUG:', { templates: templates.length });
+      if (!toyTemplatesResponse || !toyTemplatesResponse.data) {
+        console.log('*** TOY TEMPLATES: No data available yet');
+        return [];
+      }
+      
+      const templates = (toyTemplatesResponse.data || []) as any[];
+      console.log('*** FILTERING TOY TEMPLATES DEBUG:', { templates: templates.length, templateData: templates });
       
       return templates.filter((template: any) => {
-        if (!template) return false;
+        if (!template || !template.id) return false;
         
         const searchMatch = !toySearch || 
           template.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
