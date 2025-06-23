@@ -3953,13 +3953,7 @@ function EnhancedAdminDashboard() {
                       <div className="text-sm text-gray-300">Active Pets</div>
                       <div className="text-xs text-gray-400 mt-1">Being cared for</div>
                     </div>
-                    <div className="bg-orange-600/20 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-orange-300">
-                        {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && !toy.templateId)?.length || 0}
-                      </div>
-                      <div className="text-sm text-gray-300">Legacy Toys</div>
-                      <div className="text-xs text-gray-400 mt-1">No template</div>
-                    </div>
+
                     <div className="bg-purple-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-purple-300">
                         {toysResponse?.data?.filter((toy: any) => toy.isListed)?.length || 0}
@@ -4009,28 +4003,125 @@ function EnhancedAdminDashboard() {
                       <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                       Generated Toys ({allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0})
                     </h3>
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    <div className="max-h-96 overflow-y-auto space-y-3">
                       {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.map((toy: any) => (
-                        <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-3 flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
-                              <img src={toy.imageUrl} alt={toy.name} className="w-10 h-10 rounded object-cover" />
-                            ) : (
-                              <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
-                                <span className="text-xs text-gray-400">📦</span>
+                        <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-600/20">
+                          <div className="flex items-start gap-4">
+                            {/* QR Code */}
+                            <div className="flex-shrink-0">
+                              {toy.qrCode ? (
+                                <div className="relative group">
+                                  <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(toy.qrCode)}`}
+                                    alt="QR Code"
+                                    className="w-20 h-20 rounded border-2 border-gray-600"
+                                  />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
+                                    <span className="text-xs text-white text-center px-1">Scan to activate</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">No QR</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Toy Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="text-white font-semibold text-lg">{toy.name}</h4>
+                                  <div className="mt-1 space-y-1">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">ID:</span>
+                                      <span className="text-yellow-300 font-mono">#{toy.id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">Owner:</span>
+                                      <span className="text-gray-300">{toy.ownerId || 'null'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-yellow-300 border-yellow-600/50 hover:bg-yellow-600/20"
+                                >
+                                  Edit
+                                </Button>
                               </div>
-                            )}
-                            <div>
-                              <div className="text-white font-medium">{toy.name}</div>
-                              <div className="text-xs text-gray-400">
-                                Owner: {toy.ownerEmail || 'Unknown'} • QR: {toy.qrCode || 'Not set'}
+
+                              {/* Toy Properties */}
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Gender</div>
+                                  <div className="text-sm text-white flex items-center gap-1">
+                                    {toy.gender === 'male' ? '♂' : '♀'}
+                                    <span className={toy.gender === 'male' ? 'text-blue-400' : 'text-pink-400'}>
+                                      {toy.gender}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Color</div>
+                                  <div className="text-sm text-white flex items-center gap-2">
+                                    <div 
+                                      className="w-3 h-3 rounded-full border border-gray-600"
+                                      style={{ backgroundColor: toy.color }}
+                                    ></div>
+                                    <span>{toy.color}</span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Rarity</div>
+                                  <div className={`text-sm font-medium ${
+                                    toy.rarity === 'legendary' ? 'text-orange-400' :
+                                    toy.rarity === 'epic' ? 'text-purple-400' :
+                                    toy.rarity === 'rare' ? 'text-blue-400' :
+                                    toy.rarity === 'uncommon' ? 'text-green-400' :
+                                    'text-gray-400'
+                                  }`}>
+                                    {toy.rarity}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Price</div>
+                                  <div className="text-sm text-white">
+                                    ${toy.basePrice || 'N/A'}
+                                  </div>
+                                </div>
                               </div>
+
+                              {/* QR Code Details */}
+                              {toy.qrCode && (
+                                <div className="mt-3 bg-slate-800/30 rounded p-2">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="text-xs text-gray-400">QR Code</div>
+                                      <div className="text-sm text-white font-mono break-all">{toy.qrCode}</div>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-gray-400 hover:text-white p-2"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(toy.qrCode);
+                                        // Could add toast notification here
+                                      }}
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                      </svg>
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-xs text-yellow-300">Toy #{toy.id}</div>
                         </div>
                       )) || (
-                        <div className="text-center py-4 text-gray-400">No generated toys yet</div>
+                        <div className="text-center py-8 text-gray-400">No generated toys yet</div>
                       )}
                     </div>
                   </div>
@@ -4067,37 +4158,7 @@ function EnhancedAdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Legacy Toys Section */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
-                      Legacy Toys ({allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && !toy.templateId)?.length || 0})
-                    </h3>
-                    <div className="max-h-48 overflow-y-auto space-y-2">
-                      {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && !toy.templateId)?.map((toy: any) => (
-                        <div key={toy.id} className="bg-orange-600/10 rounded-lg p-3 flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
-                              <img src={toy.imageUrl} alt={toy.name} className="w-10 h-10 rounded object-cover" />
-                            ) : (
-                              <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
-                                <span className="text-xs text-gray-400">🧸</span>
-                              </div>
-                            )}
-                            <div>
-                              <div className="text-white font-medium">{toy.name}</div>
-                              <div className="text-xs text-gray-400">
-                                No template • Created: {new Date(toy.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-xs text-orange-300">Toy #{toy.id}</div>
-                        </div>
-                      )) || (
-                        <div className="text-center py-4 text-gray-400">No legacy toys</div>
-                      )}
-                    </div>
-                  </div>
+
                 </div>
               </CardContent>
             </Card>
