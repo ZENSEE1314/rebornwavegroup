@@ -184,9 +184,69 @@ function SeasonalCollectionsTab() {
         </div>
       )}
 
+      {/* Show toys directly when no sectors exist */}
       {selectedSeason && sectors.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No sectors available for this season.</p>
+        <div className="space-y-4">
+          <div className="text-center">
+            <h4 className="text-xl font-bold text-slate-900">
+              {selectedSeason.displayName || selectedSeason.name} Collection
+            </h4>
+            <p className="text-gray-600">Seasonal toys available in this collection</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {seasonalToys.map((toy) => (
+              <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="text-center">
+                    <div className="mb-4">
+                      <img 
+                        src={toy.imageUrl || '/images/default-toy.png'} 
+                        alt={toy.name} 
+                        className="w-24 h-24 mx-auto object-contain"
+                        onError={(e) => {
+                          e.currentTarget.src = '/images/default-toy.png';
+                        }}
+                      />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                    <Badge className={getRarityColor(toy.rarity)} variant="secondary">
+                      {toy.rarity}
+                    </Badge>
+                    {toy.gender && (
+                      <Badge 
+                        className={`ml-2 ${toy.gender === 'male' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-pink-100 text-pink-800 border-pink-300'}`}
+                        variant="secondary"
+                      >
+                        {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                      </Badge>
+                    )}
+                    <p className="text-sm text-gray-600 mt-2">{toy.color}</p>
+                    
+                    {toy.isOwned ? (
+                      <Badge className="mt-3 w-full bg-green-100 text-green-800 border-green-300">
+                        ✓ Collected
+                      </Badge>
+                    ) : toy.isTemplate ? (
+                      <Badge className="mt-3 w-full bg-blue-100 text-blue-800 border-blue-300">
+                        Template Design
+                      </Badge>
+                    ) : (
+                      <Badge className="mt-3 w-full bg-gray-100 text-gray-600 border-gray-300">
+                        Not Collected
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {seasonalToys.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No toys available for this season yet.</p>
+            </div>
+          )}
         </div>
       )}
     </div>
