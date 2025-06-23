@@ -4244,7 +4244,7 @@ function EnhancedAdminDashboard() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                         <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                        Active Pets ({filteredPets.length})
+                        Active Pets ({totalPetCount}) - Page {petCurrentPage} of {totalPetPages}
                       </h3>
                       <div className="flex items-center gap-2">
                         <Input
