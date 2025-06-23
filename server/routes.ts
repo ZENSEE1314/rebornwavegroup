@@ -3556,6 +3556,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/toy-templates', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {

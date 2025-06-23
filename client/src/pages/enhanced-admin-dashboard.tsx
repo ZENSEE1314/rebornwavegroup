@@ -4651,13 +4651,13 @@ function EnhancedAdminDashboard() {
               <Button
                 onClick={() => {
                   if (templateToyForm.name.trim()) {
-                    createTemplateToyMutation.mutate(templateToyForm);
+                    createToyTemplateMutation.mutate(templateToyForm);
                   }
                 }}
                 className="bg-green-600 hover:bg-green-700 flex-1"
-                disabled={!templateToyForm.name.trim() || createTemplateToyMutation.isPending}
+                disabled={!templateToyForm.name.trim() || createToyTemplateMutation.isPending}
               >
-                {createTemplateToyMutation.isPending ? "Creating..." : "Create Template Toy"}
+                {createToyTemplateMutation.isPending ? "Creating..." : "Create Template Toy"}
               </Button>
               <Button
                 variant="outline"
