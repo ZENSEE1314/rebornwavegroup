@@ -194,58 +194,19 @@ function SeasonalCollectionsTab() {
             <p className="text-gray-600">Seasonal toys available in this collection</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {seasonalToys.map((toy) => (
-              <Card key={toy.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <div className="mb-4">
-                      <img 
-                        src={toy.imageUrl || '/images/default-toy.png'} 
-                        alt={toy.name} 
-                        className="w-24 h-24 mx-auto object-contain"
-                        onError={(e) => {
-                          e.currentTarget.src = '/images/default-toy.png';
-                        }}
-                      />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                    <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                      {toy.rarity}
-                    </Badge>
-                    {toy.gender && (
-                      <Badge 
-                        className={`ml-2 ${toy.gender === 'male' ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-pink-100 text-pink-800 border-pink-300'}`}
-                        variant="secondary"
-                      >
-                        {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
-                      </Badge>
-                    )}
-                    <p className="text-sm text-gray-600 mt-2">{toy.color}</p>
-                    
-                    <div className="mt-3 flex flex-col gap-2">
-                      {toy.isTemplate ? (
-                        <Badge className="w-full bg-blue-100 text-blue-800 border-blue-300">
-                          Available Design
-                        </Badge>
-                      ) : toy.isOwned ? (
-                        <Badge className="w-full bg-green-100 text-green-800 border-green-300">
-                          ✓ In Your Collection
-                        </Badge>
-                      ) : (
-                        <Badge className="w-full bg-orange-100 text-orange-800 border-orange-300">
-                          Available to Collect
-                        </Badge>
-                      )}
-                      {toy.basePrice && (
-                        <div className="text-sm text-gray-600">
-                          Price: ${toy.basePrice}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={toy.id} className="text-center">
+                <img 
+                  src={toy.imageUrl || '/images/default-toy.png'} 
+                  alt={toy.name} 
+                  className="w-full aspect-square object-cover rounded-lg hover:scale-105 transition-transform cursor-pointer"
+                  onError={(e) => {
+                    e.currentTarget.src = '/images/default-toy.png';
+                  }}
+                />
+                <p className="text-sm font-medium mt-2 truncate">{toy.name}</p>
+              </div>
             ))}
           </div>
 
