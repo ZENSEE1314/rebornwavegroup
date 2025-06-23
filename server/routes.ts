@@ -5171,7 +5171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seasonal Collections API endpoints
-  app.get('/api/seasons', requireAuth, async (req: any, res) => {
+  app.get('/api/seasons', async (req: any, res) => {
     try {
       const seasons = await db.select({
         id: schema.seasons.id,
@@ -5193,7 +5193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/seasons/:seasonId/sectors', requireAuth, async (req: any, res) => {
+  app.get('/api/seasons/:seasonId/sectors', async (req: any, res) => {
     try {
       const { seasonId } = req.params;
       const sectors = await db.select({
