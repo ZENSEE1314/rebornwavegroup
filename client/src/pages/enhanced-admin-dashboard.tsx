@@ -4659,9 +4659,9 @@ function EnhancedAdminDashboard() {
                               subject: "Account Update Notification",
                               text: "Your account has been updated successfully. If you did not make this change, please contact support immediately."
                             })}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
+                            className="w-full border-blue-500 bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 hover:text-white font-bold text-sm py-3"
                           >
-                            📧 Account Update Template
+                            USE ACCOUNT UPDATE EMAIL TEMPLATE
                           </Button>
                           <Button
                             variant="outline"
@@ -4670,9 +4670,9 @@ function EnhancedAdminDashboard() {
                               subject: "Payment Confirmation",
                               text: "Your payment has been processed successfully. Thank you for your purchase!"
                             })}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
+                            className="w-full border-green-500 bg-green-600/20 text-green-300 hover:bg-green-600/40 hover:text-white font-bold text-sm py-3"
                           >
-                            💳 Payment Confirmation Template
+                            USE PAYMENT CONFIRMATION TEMPLATE
                           </Button>
                         </div>
                       </div>
@@ -4775,9 +4775,9 @@ function EnhancedAdminDashboard() {
                               const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
                               messageInput.value = "🎮 New exciting features are now available in Reborn Wave Group! Check out the latest updates in your pet care dashboard.";
                             }}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
+                            className="w-full border-purple-500 bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 hover:text-white font-bold text-sm py-3"
                           >
-                            🎮 Feature Update Template
+                            USE FEATURE UPDATE WHATSAPP TEMPLATE
                           </Button>
                           <Button
                             variant="outline"
@@ -4785,9 +4785,9 @@ function EnhancedAdminDashboard() {
                               const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
                               messageInput.value = "🏆 Don't forget to claim your daily rewards! Your pets are waiting for you in Reborn Wave Group.";
                             }}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
+                            className="w-full border-orange-500 bg-orange-600/20 text-orange-300 hover:bg-orange-600/40 hover:text-white font-bold text-sm py-3"
                           >
-                            🏆 Daily Reminder Template
+                            USE DAILY REMINDER WHATSAPP TEMPLATE
                           </Button>
                         </div>
                       </div>

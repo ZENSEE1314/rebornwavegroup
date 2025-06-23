@@ -6256,17 +6256,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SendGrid Email API endpoints
   app.post('/api/admin/send-email', requireAuth, async (req: any, res) => {
     try {
+      console.log('*** EMAIL ENDPOINT: Request received:', req.body);
+      console.log('*** EMAIL ENDPOINT: User:', req.user?.email);
+      
       const { to, subject, text, html, sendToAll } = req.body;
       
       if (!subject || (!text && !html)) {
+        console.log('*** EMAIL ENDPOINT: Missing required fields');
         return res.status(400).json({ message: 'Missing required email fields' });
       }
 
+      // Check if SendGrid API key is configured
+      if (!process.env.SENDGRID_API_KEY) {
+        console.log('*** EMAIL ENDPOINT: SendGrid API key not configured');
+        return res.status(500).json({ message: 'SendGrid API key not configured' });
+      }
+
       if (sendToAll) {
+        console.log('*** EMAIL ENDPOINT: Sending to all users');
         // Send to all users
         const users = await db.select({ email: schema.users.email })
           .from(schema.users)
           .where(isNotNull(schema.users.email));
+        
+        console.log(`*** EMAIL ENDPOINT: Found ${users.length} users with email addresses`);
         
         let successCount = 0;
         let failureCount = 0;
@@ -6274,6 +6287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const user of users) {
           if (user.email && user.email.trim() !== '') {
             try {
+              console.log(`*** EMAIL ENDPOINT: Sending to ${user.email}`);
               const success = await sendEmail({
                 to: user.email,
                 from: 'noreply@rebornwavegroup.com',
@@ -6284,15 +6298,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               if (success) {
                 successCount++;
+                console.log(`*** EMAIL ENDPOINT: Success for ${user.email}`);
               } else {
                 failureCount++;
+                console.log(`*** EMAIL ENDPOINT: Failed for ${user.email}`);
               }
             } catch (error) {
-              console.error(`Email send error for ${user.email}:`, error);
+              console.error(`*** EMAIL ENDPOINT: Error for ${user.email}:`, error);
               failureCount++;
             }
           }
         }
+        
+        console.log(`*** EMAIL ENDPOINT: Completed - Success: ${successCount}, Failed: ${failureCount}`);
         
         res.json({ 
           message: `Email blast completed`,
@@ -6329,9 +6347,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp messaging via Twilio
   app.post('/api/admin/send-whatsapp', requireAuth, async (req: any, res) => {
     try {
+      console.log('*** WHATSAPP ENDPOINT: Request received:', req.body);
+      console.log('*** WHATSAPP ENDPOINT: User:', req.user?.email);
+      
       const { message, sendToAll } = req.body;
       
       if (!message) {
+        console.log('*** WHATSAPP ENDPOINT: Message is required');
         return res.status(400).json({ message: 'Message is required' });
       }
 
@@ -6339,17 +6361,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authToken = process.env.TWILIO_AUTH_TOKEN;
       const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
+      console.log('*** WHATSAPP ENDPOINT: Checking credentials...');
+      console.log('*** WHATSAPP ENDPOINT: AccountSid exists:', !!accountSid);
+      console.log('*** WHATSAPP ENDPOINT: AuthToken exists:', !!authToken);
+      console.log('*** WHATSAPP ENDPOINT: FromNumber exists:', !!fromNumber);
+
       if (!accountSid || !authToken || !fromNumber) {
+        console.log('*** WHATSAPP ENDPOINT: Twilio credentials not configured');
         return res.status(500).json({ message: 'Twilio credentials not configured' });
       }
 
       const twilio = require('twilio')(accountSid, authToken);
 
       if (sendToAll) {
+        console.log('*** WHATSAPP ENDPOINT: Sending to all users with phone numbers');
         // Send to all users with mobile numbers
         const users = await db.select({ phoneNumber: schema.users.phoneNumber })
           .from(schema.users)
           .where(isNotNull(schema.users.phoneNumber));
+        
+        console.log(`*** WHATSAPP ENDPOINT: Found ${users.length} users with phone numbers`);
         
         let successCount = 0;
         let failureCount = 0;
@@ -6357,18 +6388,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const user of users) {
           if (user.phoneNumber && user.phoneNumber.trim() !== '') {
             try {
+              console.log(`*** WHATSAPP ENDPOINT: Sending to ${user.phoneNumber}`);
               await twilio.messages.create({
                 body: message,
                 from: `whatsapp:${fromNumber}`,
                 to: `whatsapp:${user.phoneNumber}`
               });
               successCount++;
+              console.log(`*** WHATSAPP ENDPOINT: Success for ${user.phoneNumber}`);
             } catch (error) {
-              console.error(`WhatsApp send error for ${user.phoneNumber}:`, error);
+              console.error(`*** WHATSAPP ENDPOINT: Error for ${user.phoneNumber}:`, error);
               failureCount++;
             }
           }
         }
+        
+        console.log(`*** WHATSAPP ENDPOINT: Completed - Success: ${successCount}, Failed: ${failureCount}`);
         
         res.json({ 
           message: `WhatsApp blast completed`,
@@ -6380,8 +6415,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ message: 'Individual WhatsApp sending not implemented' });
       }
     } catch (error) {
-      console.error("WhatsApp send error:", error);
-      res.status(500).json({ message: "Failed to send WhatsApp message" });
+      console.error("*** WHATSAPP ENDPOINT: Error:", error);
+      res.status(500).json({ message: "Failed to send WhatsApp message", error: error.message });
     }
   });
 
