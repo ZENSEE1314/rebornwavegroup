@@ -953,21 +953,25 @@ function EnhancedAdminDashboard() {
     mutationFn: async (bulkData: any) => {
       const { baseToy, quantity } = bulkData;
       console.log('*** FRONTEND: Starting bulk generation for', quantity, 'toys from template', baseToy.name);
-      return apiRequest('POST', '/api/admin/generate-toys-from-template', {
+      const response = await apiRequest('POST', '/api/admin/generate-toys-from-template', {
         templateId: baseToy.id,
         quantity: quantity
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
       console.log('*** FRONTEND: Bulk generation successful:', data);
-      toast({ title: "Toys generated successfully from template" });
+      toast({ 
+        title: "Success", 
+        description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
+      });
       
-      // Invalidate all toys-related queries with proper prefixes
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
+      // Comprehensive cache invalidation
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
       
-      // Force refresh the current toys page
-      queryClient.refetchQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
-      
+      // Reset form state
       setSelectedToyForBulk(null);
       setBulkQuantity(1);
       setBulkOverrides({ seasonId: null, color: null });

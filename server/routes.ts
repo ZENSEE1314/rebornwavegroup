@@ -3691,8 +3691,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/generate-toys-from-template', isAuthenticated, async (req: any, res) => {
     try {
       console.log('*** BULK GENERATION DEBUG: Starting toy generation from template');
+      console.log('*** BULK GENERATION DEBUG: Request body:', req.body);
       const adminUserId = getUserId(req);
+      console.log('*** BULK GENERATION DEBUG: Admin user ID:', adminUserId);
       const currentUser = await storage.getUser(adminUserId);
+      console.log('*** BULK GENERATION DEBUG: Current user:', currentUser?.email);
       
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
