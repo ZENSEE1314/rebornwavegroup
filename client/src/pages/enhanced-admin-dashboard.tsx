@@ -2464,7 +2464,7 @@ function EnhancedAdminDashboard() {
 
           {/* Appointments Tab */}
           <TabsContent value="appointments">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Appointment Management</CardTitle>
@@ -2616,7 +2616,7 @@ function EnhancedAdminDashboard() {
 
           {/* Cash Outs Tab */}
           <TabsContent value="cashouts">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Cash Out Management</CardTitle>
@@ -2751,7 +2751,7 @@ function EnhancedAdminDashboard() {
 
           {/* Transactions Tab */}
           <TabsContent value="transactions">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Transaction Management</CardTitle>
@@ -2847,7 +2847,7 @@ function EnhancedAdminDashboard() {
 
           {/* Reports Tab */}
           <TabsContent value="reports">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Reports & Analytics</CardTitle>
               </CardHeader>
@@ -2927,7 +2927,7 @@ function EnhancedAdminDashboard() {
           {/* Content Management Tab */}
           <TabsContent value="content">
             <div className="space-y-6">
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Promotion Banners</CardTitle>
                 </CardHeader>
@@ -2963,7 +2963,7 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Reward Items</CardTitle>
                 </CardHeader>
