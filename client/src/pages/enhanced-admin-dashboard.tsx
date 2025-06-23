@@ -906,7 +906,7 @@ function EnhancedAdminDashboard() {
         species: "",
         rarity: "common",
         imageUrl: "",
-        seasonId: null,
+        seasonId: "",
         gender: "male",
         description: ""
       });
@@ -929,7 +929,7 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       setSelectedToyForBulk(null);
       setBulkQuantity(1);
-      setBulkOverrides({});
+      setBulkOverrides({ seasonId: null, color: null });
     },
     onError: (error: any) => {
       toast({ 
