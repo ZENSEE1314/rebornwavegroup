@@ -33,6 +33,16 @@ export default function SimpleCollections() {
   // Fetch toys for selected season
   const { data: seasonToys = [], isLoading: loadingSeasonToys } = useQuery<SeasonalToy[]>({
     queryKey: ['/api/seasons', selectedSeason, 'toys'],
+    queryFn: async () => {
+      console.log('*** FETCHING TOYS for season:', selectedSeason);
+      const response = await fetch(`/api/seasons/${selectedSeason}/toys`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch toys');
+      }
+      const data = await response.json();
+      console.log('*** TOYS RESPONSE:', data);
+      return data;
+    },
     enabled: !!selectedSeason,
   });
 
