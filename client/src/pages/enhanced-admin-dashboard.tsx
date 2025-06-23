@@ -4309,7 +4309,7 @@ function EnhancedAdminDashboard() {
                                       health: pet.health,
                                       happiness: pet.happiness,
                                       energy: pet.energy,
-                                      experience: pet.experience
+                                      tokens: pet.totalTokensEarned
                                     });
                                     setShowEditPetDialog(true);
                                   }}
@@ -4373,8 +4373,8 @@ function EnhancedAdminDashboard() {
                                     </span>
                                   </div>
                                   <div>
-                                    <span className="text-gray-400">Experience:</span>
-                                    <span className="text-green-300 ml-2 font-medium">{pet.experience || 150} XP</span>
+                                    <span className="text-gray-400">Tokens:</span>
+                                    <span className="text-green-300 ml-2 font-medium">{pet.totalTokensEarned || 0}</span>
                                   </div>
                                 </div>
                               </div>

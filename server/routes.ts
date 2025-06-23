@@ -6256,28 +6256,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SendGrid Email API endpoints
   app.post('/api/admin/send-email', requireAuth, async (req: any, res) => {
     try {
-      const { to, subject, text, html } = req.body;
+      const { to, subject, text, html, sendToAll } = req.body;
       
-      if (!to || !subject || (!text && !html)) {
+      if (!subject || (!text && !html)) {
         return res.status(400).json({ message: 'Missing required email fields' });
       }
 
-      const success = await sendEmail({
-        to,
-        from: 'noreply@rebornwavegroup.com', // Replace with your verified sender
-        subject,
-        text,
-        html
-      });
-
-      if (success) {
-        res.json({ message: 'Email sent successfully' });
+      if (sendToAll) {
+        // Send to all users
+        const users = await db.select({ email: schema.users.email })
+          .from(schema.users)
+          .where(isNotNull(schema.users.email));
+        
+        let successCount = 0;
+        let failureCount = 0;
+        
+        for (const user of users) {
+          const success = await sendEmail({
+            to: user.email,
+            from: 'noreply@rebornwavegroup.com',
+            subject,
+            text,
+            html
+          });
+          
+          if (success) {
+            successCount++;
+          } else {
+            failureCount++;
+          }
+        }
+        
+        res.json({ 
+          message: `Email blast completed`,
+          successCount,
+          failureCount,
+          totalUsers: users.length
+        });
       } else {
-        res.status(500).json({ message: 'Failed to send email' });
+        // Send to specific recipient
+        if (!to) {
+          return res.status(400).json({ message: 'Recipient email is required' });
+        }
+        
+        const success = await sendEmail({
+          to,
+          from: 'noreply@rebornwavegroup.com',
+          subject,
+          text,
+          html
+        });
+
+        if (success) {
+          res.json({ message: 'Email sent successfully' });
+        } else {
+          res.status(500).json({ message: 'Failed to send email' });
+        }
       }
     } catch (error) {
       console.error('Send email error:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // WhatsApp messaging via Twilio
+  app.post('/api/admin/send-whatsapp', requireAuth, async (req: any, res) => {
+    try {
+      const { message, sendToAll } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: 'Message is required' });
+      }
+
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+      if (!accountSid || !authToken || !fromNumber) {
+        return res.status(500).json({ message: 'Twilio credentials not configured' });
+      }
+
+      const twilio = require('twilio')(accountSid, authToken);
+
+      if (sendToAll) {
+        // Send to all users with mobile numbers
+        const users = await db.select({ phoneNumber: schema.users.phoneNumber })
+          .from(schema.users)
+          .where(isNotNull(schema.users.phoneNumber));
+        
+        let successCount = 0;
+        let failureCount = 0;
+        
+        for (const user of users) {
+          if (user.phoneNumber && user.phoneNumber.trim() !== '') {
+            try {
+              await twilio.messages.create({
+                body: message,
+                from: `whatsapp:${fromNumber}`,
+                to: `whatsapp:${user.phoneNumber}`
+              });
+              successCount++;
+            } catch (error) {
+              console.error(`WhatsApp send error for ${user.phoneNumber}:`, error);
+              failureCount++;
+            }
+          }
+        }
+        
+        res.json({ 
+          message: `WhatsApp blast completed`,
+          successCount,
+          failureCount,
+          totalUsers: users.filter(u => u.phoneNumber && u.phoneNumber.trim() !== '').length
+        });
+      } else {
+        res.status(400).json({ message: 'Individual WhatsApp sending not implemented' });
+      }
+    } catch (error) {
+      console.error("WhatsApp send error:", error);
+      res.status(500).json({ message: "Failed to send WhatsApp message" });
     }
   });
 
