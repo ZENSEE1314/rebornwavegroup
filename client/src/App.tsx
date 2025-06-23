@@ -17,7 +17,7 @@ import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
 import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
-import SeasonalCollections from "@/pages/seasonal-collections";
+import SimpleCollections from "@/pages/simple-collections";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
 import PetCareWithEnergy from "@/pages/pet-care-with-energy";
@@ -98,7 +98,7 @@ function Router() {
           <Route path="/referrals" component={Referrals} />
           <Route path="/my-referral" component={MyReferral} />
           <Route path="/loyalty-program" component={LoyaltyProgram} />
-          <Route path="/seasonal-collections" component={SeasonalCollections} />
+          <Route path="/seasonal-collections" component={SimpleCollections} />
           <Route path="/profile" component={Profile} />
         </>
       )}
