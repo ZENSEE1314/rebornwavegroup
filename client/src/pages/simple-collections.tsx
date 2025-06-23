@@ -45,7 +45,9 @@ export default function SimpleCollections() {
     loadingSeasons,
     seasonToys: seasonToys.length,
     toyTemplates: toyTemplates.length,
-    loadingSeasonToys
+    loadingSeasonToys,
+    queryEnabled: !!selectedSeason,
+    actualSeasonToys: seasonToys
   });
 
   const selectedSeasonData = seasons.find(s => s.id === selectedSeason);
