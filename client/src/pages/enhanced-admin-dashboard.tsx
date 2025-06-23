@@ -892,6 +892,54 @@ function EnhancedAdminDashboard() {
     }
   };
 
+  // Toy Template mutations
+  const createToyTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('/api/admin/toy-templates', 'POST', templateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Toy template created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
+      setShowTemplateDialog(false);
+      setTemplateToyForm({
+        name: "",
+        species: "",
+        rarity: "common",
+        imageUrl: "",
+        seasonId: null,
+        gender: "male",
+        description: ""
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create template", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const bulkGenerationMutation = useMutation({
+    mutationFn: async (bulkData: any) => {
+      return apiRequest('/api/admin/toys/bulk-generate', 'POST', bulkData);
+    },
+    onSuccess: () => {
+      toast({ title: "Toys generated successfully from template" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      setSelectedToyForBulk(null);
+      setBulkQuantity(1);
+      setBulkOverrides({});
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to generate toys", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
   // Season management mutations
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
@@ -973,27 +1021,7 @@ function EnhancedAdminDashboard() {
 
 
 
-  // Bulk generation mutation
-  const bulkGenerationMutation = useMutation({
-    mutationFn: async (generationData: any) => {
-      return apiRequest('POST', '/api/admin/bulk-generate-toys', generationData);
-    },
-    onSuccess: (response: any) => {
-      toast({ title: `Successfully generated ${response.toysCreated || 'multiple'} toys` });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      // Reset bulk generation form
-      setSelectedToyForBulk(null);
-      setBulkQuantity(1);
-      setBulkOverrides({ seasonId: null, color: null });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to generate toys", 
-        description: error.response?.data?.message || "An error occurred",
-        variant: "destructive" 
-      });
-    }
-  });
+
 
   // Reset leaderboard mutation
   const resetLeaderboardMutation = useMutation({
@@ -3625,20 +3653,20 @@ function EnhancedAdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge className={getRarityColor(toy.rarity)}>
-                            {toy.rarity}
+                          <Badge className={getRarityColor(template.rarity)}>
+                            {template.rarity}
                           </Badge>
                           <Button
                             onClick={() => {
-                              setEditingToy(toy);
+                              setEditingToy(template);
                               setEditedToyData({
-                                name: toy.name,
-                                rarity: toy.rarity,
-                                color: toy.color || '',
-                                price: toy.salePrice || 0,
-                                gender: toy.gender || 'male',
-                                seasonId: toy.seasonId || null,
-                                imageUrl: toy.imageUrl || ''
+                                name: template.name,
+                                rarity: template.rarity,
+                                color: template.color || '',
+                                price: template.basePrice || 0,
+                                gender: template.gender || 'male',
+                                seasonId: template.seasonId || null,
+                                imageUrl: template.imageUrl || ''
                               });
                               setShowEditToyDialog(true);
                             }}
@@ -3650,8 +3678,8 @@ function EnhancedAdminDashboard() {
                           </Button>
                           <Button
                             onClick={() => {
-                              if (confirm(`Delete toy "${toy.name}"? This action cannot be undone.`)) {
-                                deleteToyMutation.mutate(toy.id);
+                              if (confirm(`Delete template "${template.name}"? This action cannot be undone.`)) {
+                                deleteToyMutation.mutate(template.id);
                               }
                             }}
                             size="sm"
@@ -3662,9 +3690,9 @@ function EnhancedAdminDashboard() {
                         </div>
                       </div>
                     ))}
-                    {filteredToys.length === 0 && (
+                    {filteredToyTemplates.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
-                        No toys found matching your filters
+                        No toy templates found matching your filters
                       </div>
                     )}
                   </div>
@@ -3712,7 +3740,7 @@ function EnhancedAdminDashboard() {
 
                     {/* Selected Toy Preview */}
                     {selectedToyForBulk && (() => {
-                      const selectedToy = filteredToys.find((toy: any) => toy.id === selectedToyForBulk);
+                      const selectedToy = filteredToyTemplates.find((template: any) => template.id === selectedToyForBulk);
                       return selectedToy ? (
                         <div className="bg-white/5 rounded-lg p-4">
                           <h4 className="text-white font-medium mb-3">Selected Toy Preview</h4>
@@ -3759,14 +3787,14 @@ function EnhancedAdminDashboard() {
                             toast({ title: "Error", description: "Please select a toy and specify quantity", variant: "destructive" });
                             return;
                           }
-                          const toyToClone = filteredToys.find((toy: any) => toy.id === selectedToyForBulk);
-                          if (!toyToClone) {
+                          const templateToClone = filteredToyTemplates.find((template: any) => template.id === selectedToyForBulk);
+                          if (!templateToClone) {
                             toast({ title: "Error", description: "Selected template not found", variant: "destructive" });
                             return;
                           }
                           
                           const bulkData = {
-                            baseToy: toyToClone,
+                            baseToy: templateToClone,
                             quantity: bulkQuantity,
                             overrides: bulkOverrides
                           };
