@@ -3634,7 +3634,7 @@ function EnhancedAdminDashboard() {
               </Card>
 
               {/* Simplified Bulk Toy Generator */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Bulk Toy Generator</CardTitle>
                   <p className="text-gray-300 text-sm">Select existing toys and specify quantities to generate</p>
@@ -3747,7 +3747,7 @@ function EnhancedAdminDashboard() {
               </Card>
 
               {/* Toy List */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-white">All Toys</CardTitle>
@@ -3973,7 +3973,7 @@ function EnhancedAdminDashboard() {
 
           {/* Email Management Tab */}
           <TabsContent value="emails">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Email Management</CardTitle>
                 <p className="text-gray-300">Send emails using SendGrid integration</p>
@@ -4095,7 +4095,7 @@ function EnhancedAdminDashboard() {
 
           {/* Pet Management Tab */}
           <TabsContent value="pets">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Pet Management</CardTitle>
