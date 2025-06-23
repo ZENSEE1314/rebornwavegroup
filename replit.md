@@ -35,6 +35,8 @@ A comprehensive digital financial management and collectible toy platform that c
 - **List Display Fix**: Removed artificial limits to show all generated toys (40+) in scrollable list instead of just 10
 - **User Experience**: Admin dashboard now correctly shows actual count of generated toys (40) and displays all toys with QR codes and IDs
 - **Complete Resolution**: Both count display and toy list section work perfectly with proper pagination and cache management
+- **Comprehensive Toy Categorization**: Added Legacy Toys section to account for all 52 toys (40 generated + 7 legacy + 5 pets)
+- **Complete Inventory Visibility**: Admin dashboard now shows all toy categories with accurate counts and detailed listings
 
 ### Toy Template Display System Implementation (June 23, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE TOY TEMPLATE DISPLAY SYSTEM IN COLLECTIONS TAB
