@@ -421,22 +421,27 @@ function EnhancedAdminDashboard() {
   const filteredToys = (() => {
     try {
       const toys = (allToys || []) as any[];
-      console.log('*** FILTERING TOYS DEBUG:', { allToys: toys.length, toySearch, rarityFilter, ownerFilter });
+      console.log('*** FILTERING TEMPLATE TOYS DEBUG:', { allToys: toys.length, templateToys: toys.filter(t => !t.owner || t.ownerId === null || t.ownerId === "null").length });
       
+      // Only show template toys (toys without owners) in the new streamlined interface
       return toys.filter((toy: any) => {
         if (!toy) return false;
+        
+        // Template toys are those without owners (ownerId is null, "null", or undefined)
+        const isTemplate = !toy.owner && (!toy.ownerId || toy.ownerId === null || toy.ownerId === "null");
+        
+        if (!isTemplate) return false;
+        
         const searchMatch = !toySearch || 
           toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
           toy.series?.toLowerCase().includes(toySearch.toLowerCase()) ||
           toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
         const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
-        const ownerMatch = ownerFilter === "all" || 
-          (ownerFilter === "owned" && toy.owner) ||
-          (ownerFilter === "unowned" && !toy.owner);
-        return searchMatch && rarityMatch && ownerMatch;
+        
+        return searchMatch && rarityMatch;
       });
     } catch (error) {
-      console.error('*** TOY FILTERING ERROR:', error);
+      console.error('*** TEMPLATE TOY FILTERING ERROR:', error);
       return [];
     }
   })();
@@ -3674,7 +3679,7 @@ function EnhancedAdminDashboard() {
 
                     {/* Selected Toy Preview */}
                     {selectedToyForBulk && (() => {
-                      const selectedToy = (allToys || []).find((toy: any) => toy.id === selectedToyForBulk);
+                      const selectedToy = filteredToys.find((toy: any) => toy.id === selectedToyForBulk);
                       return selectedToy ? (
                         <div className="bg-white/5 rounded-lg p-4">
                           <h4 className="text-white font-medium mb-3">Selected Toy Preview</h4>
@@ -3721,9 +3726,9 @@ function EnhancedAdminDashboard() {
                             toast({ title: "Error", description: "Please select a toy and specify quantity", variant: "destructive" });
                             return;
                           }
-                          const toyToClone = allToys?.find((toy: any) => toy.id === selectedToyForBulk);
-                          if (!toyToClone || !allToys || allToys.length === 0) {
-                            toast({ title: "Error", description: "Selected toy not found or toys not loaded", variant: "destructive" });
+                          const toyToClone = filteredToys.find((toy: any) => toy.id === selectedToyForBulk);
+                          if (!toyToClone) {
+                            toast({ title: "Error", description: "Selected template not found", variant: "destructive" });
                             return;
                           }
                           
