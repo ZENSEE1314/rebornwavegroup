@@ -51,7 +51,9 @@ import {
   Star,
   AlertTriangle,
   Tag,
-  Mail
+  Mail,
+  MessageCircle,
+  ImageIcon
 } from "lucide-react";
 
 function EnhancedAdminDashboard() {
@@ -117,6 +119,13 @@ function EnhancedAdminDashboard() {
     html: ''
   });
   const [emailSending, setEmailSending] = useState(false);
+
+  // Communication system state
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailText, setEmailText] = useState('');
+  const [sendEmailToAll, setSendEmailToAll] = useState(true);
+  const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [sendWhatsAppToAll, setSendWhatsAppToAll] = useState(true);
 
 
 
@@ -3118,9 +3127,175 @@ function EnhancedAdminDashboard() {
           {/* Content Management Tab */}
           <TabsContent value="content">
             <div className="space-y-6">
+              {/* Communication System */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Email Management */}
+                <Card className="bg-slate-800/60 border-slate-700/50">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-blue-400" />
+                      Email Communication
+                    </CardTitle>
+                    <p className="text-gray-300 text-sm">Send emails to all users or specific individuals</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300">Email Subject</Label>
+                        <Input
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="Enter email subject..."
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Email Message</Label>
+                        <textarea
+                          value={emailText}
+                          onChange={(e) => setEmailText(e.target.value)}
+                          placeholder="Enter your email message..."
+                          rows={4}
+                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-gray-400 resize-none"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="sendToAllUsers"
+                          checked={sendEmailToAll}
+                          onChange={(e) => setSendEmailToAll(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor="sendToAllUsers" className="text-gray-300">
+                          Send to all users ({usersResponse?.pagination?.totalCount || 0} users)
+                        </Label>
+                      </div>
+                      <Button 
+                        onClick={handleSendEmail}
+                        disabled={!emailSubject || !emailText || sendEmailMutation.isPending}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* WhatsApp Management */}
+                <Card className="bg-slate-800/60 border-slate-700/50">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-green-400" />
+                      WhatsApp Communication
+                    </CardTitle>
+                    <p className="text-gray-300 text-sm">Send WhatsApp messages to users with mobile numbers</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300">WhatsApp Message</Label>
+                        <textarea
+                          value={whatsappMessage}
+                          onChange={(e) => setWhatsappMessage(e.target.value)}
+                          placeholder="Enter your WhatsApp message..."
+                          rows={4}
+                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-gray-400 resize-none"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="sendWhatsAppToAll"
+                          checked={sendWhatsAppToAll}
+                          onChange={(e) => setSendWhatsAppToAll(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor="sendWhatsAppToAll" className="text-gray-300">
+                          Send to all users with mobile numbers (18 users)
+                        </Label>
+                      </div>
+                      <Button 
+                        onClick={handleSendWhatsApp}
+                        disabled={!whatsappMessage || sendWhatsAppMutation.isPending}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        {sendWhatsAppMutation.isPending ? "Sending..." : "Send WhatsApp"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Content Templates */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
-                  <CardTitle className="text-white">Promotion Banners</CardTitle>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-purple-400" />
+                    Message Templates
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Pre-built templates for common communications</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button
+                      onClick={() => {
+                        setEmailSubject("Welcome to Reborn Wave Group!");
+                        setEmailText("Welcome to our digital pet care platform! We're excited to have you join our community. Start caring for your digital pets and earn rewards today!");
+                      }}
+                      variant="outline"
+                      className="bg-blue-600/20 border-blue-400 text-blue-300 hover:bg-blue-600/30 p-4 h-auto flex-col items-start"
+                    >
+                      <Users className="h-6 w-6 mb-2" />
+                      <div className="text-left">
+                        <div className="font-semibold">Welcome Email</div>
+                        <div className="text-xs opacity-80">New user greeting</div>
+                      </div>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => {
+                        setEmailSubject("Pet Evolution Celebration!");
+                        setEmailText("Congratulations! Your digital pet has evolved to a new stage. Keep caring for them to unlock more rewards and achievements!");
+                      }}
+                      variant="outline"
+                      className="bg-green-600/20 border-green-400 text-green-300 hover:bg-green-600/30 p-4 h-auto flex-col items-start"
+                    >
+                      <Trophy className="h-6 w-6 mb-2" />
+                      <div className="text-left">
+                        <div className="font-semibold">Evolution Alert</div>
+                        <div className="text-xs opacity-80">Pet milestone notification</div>
+                      </div>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => {
+                        setEmailSubject("Daily Token Reward Available!");
+                        setEmailText("Your daily token reward is ready! Log in now to claim your tokens and continue your pet care journey.");
+                      }}
+                      variant="outline"
+                      className="bg-yellow-600/20 border-yellow-400 text-yellow-300 hover:bg-yellow-600/30 p-4 h-auto flex-col items-start"
+                    >
+                      <Gift className="h-6 w-6 mb-2" />
+                      <div className="text-left">
+                        <div className="font-semibold">Token Reminder</div>
+                        <div className="text-xs opacity-80">Daily reward notification</div>
+                      </div>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Promotion Banners */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Image className="h-5 w-5 text-orange-400" />
+                    Promotion Banners
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Manage promotional content and announcements</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -3134,13 +3309,13 @@ function EnhancedAdminDashboard() {
                               <Badge variant={banner.isActive ? 'default' : 'secondary'}>
                                 {banner.isActive ? 'Active' : 'Inactive'}
                               </Badge>
-                              <Badge variant="outline" className="border-blue-400 text-blue-300">
+                              <Badge variant="outline" className="border-orange-400 text-orange-300">
                                 {banner.type}
                               </Badge>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="border-white/20 text-white">
+                            <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button variant="destructive" size="sm">
@@ -3154,9 +3329,14 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
+              {/* Reward Items */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
-                  <CardTitle className="text-white">Reward Items</CardTitle>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Award className="h-5 w-5 text-pink-400" />
+                    Reward Items
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Manage available rewards and point costs</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -3167,7 +3347,7 @@ function EnhancedAdminDashboard() {
                             <h3 className="text-white font-semibold">{reward.name}</h3>
                             <p className="text-gray-300 text-sm mt-1">{reward.description}</p>
                             <div className="flex gap-2 mt-2">
-                              <Badge variant="outline" className="border-green-400 text-green-300">
+                              <Badge variant="outline" className="border-pink-400 text-pink-300">
                                 {reward.pointsCost} points
                               </Badge>
                               <Badge variant={reward.isAvailable ? 'default' : 'secondary'}>
@@ -3179,7 +3359,7 @@ function EnhancedAdminDashboard() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="border-white/20 text-white"
+                              className="border-white/20 text-white hover:bg-white/10"
                               onClick={() => handleEditReward(reward)}
                             >
                               <Edit className="h-4 w-4" />
