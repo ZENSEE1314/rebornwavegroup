@@ -952,20 +952,28 @@ function EnhancedAdminDashboard() {
   const bulkGenerationMutation = useMutation({
     mutationFn: async (bulkData: any) => {
       const { baseToy, quantity } = bulkData;
+      console.log('*** FRONTEND: Starting bulk generation for', quantity, 'toys from template', baseToy.name);
       return apiRequest('POST', '/api/admin/generate-toys-from-template', {
         templateId: baseToy.id,
         quantity: quantity
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      console.log('*** FRONTEND: Bulk generation successful:', data);
       toast({ title: "Toys generated successfully from template" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      
+      // Invalidate all toys-related queries with proper prefixes
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
+      
+      // Force refresh the current toys page
+      queryClient.refetchQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
+      
       setSelectedToyForBulk(null);
       setBulkQuantity(1);
       setBulkOverrides({ seasonId: null, color: null });
     },
     onError: (error: any) => {
+      console.error('*** FRONTEND: Bulk generation failed:', error);
       toast({ 
         title: "Failed to generate toys", 
         description: error?.message || "Please try again",

@@ -3690,6 +3690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk generate real toys from template
   app.post('/api/admin/generate-toys-from-template', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('*** BULK GENERATION DEBUG: Starting toy generation from template');
       const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
@@ -3698,6 +3699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { templateId, quantity } = req.body;
+      console.log('*** BULK GENERATION DEBUG: Request data:', { templateId, quantity });
 
       if (!templateId || !quantity || quantity <= 0) {
         return res.status(400).json({ error: "Template ID and valid quantity required" });
@@ -3714,6 +3716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const templateData = template[0];
+      console.log('*** BULK GENERATION DEBUG: Found template:', templateData.name);
 
       // Generate QR codes and create toys
       const toys = [];
@@ -3737,11 +3740,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log('*** BULK GENERATION DEBUG: Creating toys:', toys.length);
       const createdToys = await db.insert(schema.toys).values(toys).returning();
+      console.log('*** BULK GENERATION DEBUG: Successfully created toys:', createdToys.length);
 
       res.json({ 
         message: `Successfully generated ${quantity} toys from template`,
-        toys: createdToys
+        toys: createdToys,
+        success: true
       });
     } catch (error) {
       console.error("Error generating toys from template:", error);
