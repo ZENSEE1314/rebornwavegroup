@@ -222,15 +222,30 @@ function SeasonalCollectionsTab() {
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {toyTemplates.map((toy) => (
-              <div key={toy.id}>
+              <div key={toy.id} className="text-center">
                 <img 
                   src={toy.imageUrl || '/images/default-toy.png'} 
                   alt={toy.name} 
-                  className="w-full aspect-square object-cover rounded-lg hover:scale-105 transition-transform cursor-pointer"
+                  className="w-full aspect-square object-cover rounded-lg hover:scale-105 transition-transform cursor-pointer mb-2"
                   onError={(e) => {
                     e.currentTarget.src = '/images/default-toy.png';
                   }}
                 />
+                <div className="text-sm">
+                  <div className="font-semibold text-slate-800 mb-1">{toy.name}</div>
+                  <div className="flex justify-center items-center gap-2 text-xs">
+                    <span className={`px-2 py-1 rounded-full ${
+                      toy.gender === 'male' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-pink-100 text-pink-800'
+                    }`}>
+                      {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
+                    </span>
+                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
+                      {toy.color}
+                    </span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
