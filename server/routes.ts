@@ -3620,6 +3620,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
+      console.log("*** TOY TEMPLATE CREATION: Request body:", JSON.stringify(req.body, null, 2));
+      console.log("*** TOY TEMPLATE CREATION: Request body types:", Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]}`));
+
       const validatedData = schema.insertToyTemplateSchema.parse(req.body);
       
       const newTemplate = await db.insert(schema.toyTemplates).values({

@@ -672,12 +672,37 @@ function EnhancedAdminDashboard() {
   // Proper toy template creation mutation for toy_templates table
   const createToyTemplateMutation = useMutation({
     mutationFn: async (templateData: any) => {
-      return apiRequest('POST', '/api/admin/toy-templates', templateData);
+      // Transform data to match schema requirements
+      const transformedData = {
+        name: templateData.name,
+        rarity: templateData.rarity || 'common',
+        color: templateData.color || 'blue',
+        gender: templateData.gender || 'male',
+        imageUrl: templateData.imageUrl || null,
+        basePrice: templateData.basePrice ? String(templateData.basePrice) : '0.00',
+        description: templateData.description || null,
+        // Convert empty string seasonId to null for proper validation
+        seasonId: templateData.seasonId && templateData.seasonId !== "" ? parseInt(templateData.seasonId) : null,
+        isActive: templateData.isActive !== false
+      };
+      
+      console.log("*** FRONTEND: Sending template data:", transformedData);
+      return apiRequest('POST', '/api/admin/toy-templates', transformedData);
     },
     onSuccess: () => {
       toast({ title: "Template created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
       setNewToy({ name: "", species: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female", description: "" });
+      setTemplateToyForm({
+        name: "",
+        seasonId: "",
+        rarity: "common",
+        color: "blue",
+        gender: "male",
+        imageUrl: "",
+        quantity: 1
+      });
+      setShowTemplateDialog(false);
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || "Failed to create template";
