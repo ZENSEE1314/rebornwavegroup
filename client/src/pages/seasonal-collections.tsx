@@ -47,6 +47,7 @@ interface SeasonalToy {
   isSeasonalExclusive: boolean;
   releaseDate: string;
   isOwned: boolean;
+  isTemplate: boolean;
 }
 
 interface UserCollectionProgress {
@@ -255,7 +256,7 @@ export default function SeasonalCollections() {
             </CardHeader>
           </Card>
 
-          {/* Collection Sectors or Direct Season Display */}
+          {/* Collection Sectors */}
           {loadingSectors ? (
             <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2].map(i => (
@@ -305,8 +306,10 @@ export default function SeasonalCollections() {
                 );
               })}
             </div>
-          ) : (
-            // Show season-wide toys when no sectors exist
+          ) : null}
+
+          {/* Show toys directly when no sectors exist */}
+          {!loadingSectors && sectors.length === 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold">Season Collection</h3>
