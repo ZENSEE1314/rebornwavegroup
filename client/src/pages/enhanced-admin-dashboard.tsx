@@ -3595,24 +3595,25 @@ function EnhancedAdminDashboard() {
                     <div className="flex items-end">
                       <Button 
                         onClick={() => {
-                          createToyTemplateMutation.mutate({
+                          createToyMutation.mutate({
                             name: newToy.name,
                             species: 'Doluruu', // Default species since you only have one
                             rarity: newToy.rarity || 'common',
                             color: newToy.color || 'blue',
                             gender: newToy.gender || 'male',
                             imageUrl: newToy.imageUrl || '',
-                            basePrice: newToy.price || 0,
+                            price: newToy.price || 0,
                             description: newToy.description || '',
                             seasonId: newToy.seasonId || undefined,
-                            isActive: true
+                            qrCode: '',
+                            isSeasonalExclusive: false
                           });
                         }}
                         className="bg-blue-600 hover:bg-blue-700 w-full"
-                        disabled={!newToy.name || createToyTemplateMutation.isPending}
+                        disabled={!newToy.name || createToyMutation.isPending}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        {createToyTemplateMutation.isPending ? "Creating..." : "Create Template"}
+                        {createToyMutation.isPending ? "Creating..." : "Create Template"}
                       </Button>
                     </div>
                   </div>

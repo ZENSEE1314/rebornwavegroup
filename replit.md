@@ -52,6 +52,9 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Integrated Bulk Generation**: Streamlined bulk generation directly within template management workflow
 - **Purple Theme Consistency**: Maintained requested purple background with slate card styling throughout
 - **User Experience**: Simple create → select → generate workflow replaces complex multi-section interface
+- **Species Field Removal**: ✅ Eliminated unnecessary species field since user has only "Doluruu" species - form now automatically defaults to "Doluruu"
+- **Mutation Fix**: ✅ Corrected template creation button to use proper `createToyMutation` instead of non-existent `createToyTemplateMutation`
+- **Form Simplification**: ✅ Streamlined template form to only essential fields (Name, Color, Rarity, Gender, Season, Price)
 
 ### CRITICAL DATA LOSS - Toy Management Error (June 18, 2025)
 - **CRITICAL ERROR**: ❌ ACCIDENTALLY DELETED THOUSANDS OF USER-OWNED TOYS
