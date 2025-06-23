@@ -615,8 +615,6 @@ function EnhancedAdminDashboard() {
         subject, 
         text, 
         sendToAll
-      }, {
-        credentials: 'include'
       });
     },
     onSuccess: (data: any) => {
@@ -3242,11 +3240,11 @@ function EnhancedAdminDashboard() {
                       </div>
                       <Button 
                         onClick={handleSendEmail}
-                        disabled={!emailSubject || !emailText || sendEmailMutation.isPending}
+                        disabled={!emailSubject || !emailText || sendBulkEmailMutation.isPending}
                         className="w-full bg-blue-600 hover:bg-blue-700"
                       >
                         <Mail className="h-4 w-4 mr-2" />
-                        {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                        {sendBulkEmailMutation.isPending ? "Sending..." : "Send Email"}
                       </Button>
                     </div>
                   </CardContent>
@@ -4795,11 +4793,15 @@ function EnhancedAdminDashboard() {
                         />
                       </div>
                       <Button
-                        onClick={() => sendEmailMutation.mutate(emailData)}
-                        disabled={sendEmailMutation.isPending || !emailData.to || !emailData.subject || !emailData.text}
+                        onClick={() => sendBulkEmailMutation.mutate({
+                          subject: emailData.subject,
+                          text: emailData.text,
+                          sendToAll: false
+                        })}
+                        disabled={sendBulkEmailMutation.isPending || !emailData.to || !emailData.subject || !emailData.text}
                         className="w-full bg-blue-600 hover:bg-blue-700"
                       >
-                        {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                        {sendBulkEmailMutation.isPending ? "Sending..." : "Send Email"}
                       </Button>
                       
                       <Button
