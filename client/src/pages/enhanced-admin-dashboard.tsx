@@ -79,6 +79,7 @@ function EnhancedAdminDashboard() {
   const [editedToyData, setEditedToyData] = useState<any>({});
   const [newToy, setNewToy] = useState({
     name: "",
+    species: "",
     rarity: "common",
     color: "",
     imageUrl: "",
@@ -86,7 +87,8 @@ function EnhancedAdminDashboard() {
     price: 0,
     seasonId: null as number | null,
     isSeasonalExclusive: false,
-    gender: "male" as "male" | "female"
+    gender: "male" as "male" | "female",
+    description: ""
   });
 
   // Season and Series management states
@@ -3509,6 +3511,15 @@ function EnhancedAdminDashboard() {
                       />
                     </div>
                     <div>
+                      <Label className="text-gray-300">Species</Label>
+                      <Input
+                        value={newToy.species}
+                        onChange={(e) => setNewToy({ ...newToy, species: e.target.value })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Animal species (e.g., Dragon, Cat, Dog)"
+                      />
+                    </div>
+                    <div>
                       <Label className="text-gray-300">Color</Label>
                       <div className="flex gap-2">
                         <Input
@@ -3592,14 +3603,24 @@ function EnhancedAdminDashboard() {
                     <div className="flex items-end">
                       <Button 
                         onClick={() => {
-                          const qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                          createToyMutation.mutate({ ...newToy, qrCode });
+                          createToyTemplateMutation.mutate({
+                            name: newToy.name,
+                            species: newToy.species || '',
+                            rarity: newToy.rarity || 'common',
+                            color: newToy.color || 'blue',
+                            gender: newToy.gender || 'male',
+                            imageUrl: newToy.imageUrl || '',
+                            basePrice: newToy.price || 0,
+                            description: newToy.description || '',
+                            seasonId: newToy.seasonId ? parseInt(newToy.seasonId) : null,
+                            isActive: true
+                          });
                         }}
                         className="bg-blue-600 hover:bg-blue-700 w-full"
-                        disabled={!newToy.name || createToyMutation.isPending}
+                        disabled={!newToy.name || createToyTemplateMutation.isPending}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        {createToyMutation.isPending ? "Creating..." : "Create Toy"}
+                        {createToyTemplateMutation.isPending ? "Creating..." : "Create Template"}
                       </Button>
                     </div>
                   </div>
