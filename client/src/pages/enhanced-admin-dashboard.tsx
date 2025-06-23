@@ -605,34 +605,7 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  const createTemplateToyMutation = useMutation({
-    mutationFn: async (templateData: any) => {
-      return apiRequest('POST', '/api/admin/toys/create-template', templateData);
-    },
-    onSuccess: () => {
-      toast({ title: "Template toy created successfully" });
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/seasonal-toys'] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        seasonId: "",
-        rarity: "common",
-        color: "blue",
-        gender: "male",
-        imageUrl: "",
-        quantity: 1
-      });
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || "Failed to create template toy";
-      toast({ 
-        title: "Error", 
-        description: errorMessage,
-        variant: "destructive" 
-      });
-    }
-  });
+
 
   const editToyMutation = useMutation({
     mutationFn: async ({ toyId, toyData }: { toyId: number; toyData: any }) => {
@@ -688,6 +661,26 @@ function EnhancedAdminDashboard() {
       } else {
         toast({ title: errorMessage, variant: "destructive" });
       }
+    }
+  });
+
+  // Proper toy template creation mutation for toy_templates table
+  const createToyTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/toy-templates', templateData);
+    },
+    onSuccess: () => {
+      toast({ title: "Template created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
+      setNewToy({ name: "", species: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female", description: "" });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to create template";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
     }
   });
 
@@ -894,33 +887,7 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // Toy Template mutations
-  const createToyTemplateMutation = useMutation({
-    mutationFn: async (templateData: any) => {
-      return apiRequest('/api/admin/toy-templates', 'POST', templateData);
-    },
-    onSuccess: () => {
-      toast({ title: "Toy template created successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
-      setShowTemplateDialog(false);
-      setTemplateToyForm({
-        name: "",
-        species: "",
-        rarity: "common",
-        imageUrl: "",
-        seasonId: "",
-        gender: "male",
-        description: ""
-      });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to create template", 
-        description: error?.message || "Please try again",
-        variant: "destructive" 
-      });
-    }
-  });
+  // Toy Template mutations (duplicate removed)
 
   const bulkGenerationMutation = useMutation({
     mutationFn: async (bulkData: any) => {
@@ -3595,18 +3562,17 @@ function EnhancedAdminDashboard() {
                     <div className="flex items-end">
                       <Button 
                         onClick={() => {
-                          createToyMutation.mutate({
+                          createToyTemplateMutation.mutate({
                             name: newToy.name,
                             species: 'Doluruu', // Default species since you only have one
                             rarity: newToy.rarity || 'common',
                             color: newToy.color || 'blue',
                             gender: newToy.gender || 'male',
                             imageUrl: newToy.imageUrl || '',
-                            price: newToy.price || 0,
+                            basePrice: newToy.price || 0,
                             description: newToy.description || '',
                             seasonId: newToy.seasonId || undefined,
-                            qrCode: '',
-                            isSeasonalExclusive: false
+                            isActive: true
                           });
                         }}
                         className="bg-blue-600 hover:bg-blue-700 w-full"
