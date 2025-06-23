@@ -113,6 +113,12 @@ export default function SeasonalCollections() {
     enabled: !!selectedSeason,
   });
 
+  // Fetch all toys for season when no sectors exist
+  const { data: seasonToys = [], isLoading: loadingSeasonToys } = useQuery<SeasonalToy[]>({
+    queryKey: ['/api/seasons', selectedSeason, 'toys'],
+    enabled: !!selectedSeason && sectors.length === 0 && !loadingSectors,
+  });
+
   // Fetch user's collection progress
   const { data: userProgress = [] } = useQuery<UserCollectionProgress[]>({
     queryKey: ['/api/user/collection-progress'],
@@ -249,14 +255,14 @@ export default function SeasonalCollections() {
             </CardHeader>
           </Card>
 
-          {/* Collection Sectors */}
+          {/* Collection Sectors or Direct Season Display */}
           {loadingSectors ? (
             <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2].map(i => (
                 <div key={i} className="h-24 bg-gray-200 rounded"></div>
               ))}
             </div>
-          ) : (
+          ) : sectors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sectors.map((sector) => {
                 const progress = getSectorProgress(sector.id);
@@ -298,6 +304,97 @@ export default function SeasonalCollections() {
                   </Card>
                 );
               })}
+            </div>
+          ) : (
+            // Show season-wide toys when no sectors exist
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Season Collection</h3>
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {seasonToys.filter(t => t.isOwned).length} / {seasonToys.length} Available
+                </Badge>
+              </div>
+
+              {loadingSeasonToys ? (
+                <div className="animate-pulse grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="aspect-square bg-gray-200 rounded-lg"></div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {seasonToys.map((toy) => (
+                    <Card 
+                      key={toy.id}
+                      className={`relative transition-all duration-200 hover:shadow-lg ${
+                        toy.isOwned ? 'ring-2 ring-green-400' : 'opacity-60 grayscale'
+                      }`}
+                    >
+                      <CardContent className="p-3 space-y-2">
+                        <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-100">
+                          {toy.imageUrl ? (
+                            <img 
+                              src={toy.imageUrl} 
+                              alt={toy.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
+                              🧸
+                            </div>
+                          )}
+                          
+                          {/* Ownership indicator */}
+                          {toy.isOwned && (
+                            <div className="absolute top-1 right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+
+                          {/* Template badge */}
+                          {toy.isTemplate && (
+                            <div className="absolute top-1 left-1">
+                              <Badge variant="secondary" className="text-xs px-1 py-0">
+                                <Sparkles className="w-2 h-2 mr-1" />
+                                Template
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-medium line-clamp-1">{toy.name}</h4>
+                          <div className="flex items-center justify-between">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${getRarityColor(toy.rarity)}`}
+                            >
+                              {getRarityIcon(toy.rarity)}
+                              <span className="ml-1 capitalize">{toy.rarity.replace('_', ' ')}</span>
+                            </Badge>
+                            {toy.color && (
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: toy.color }}
+                                title={toy.color}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {seasonToys.length === 0 && !loadingSeasonToys && (
+                <div className="text-center py-12 text-gray-500">
+                  <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No collectibles found in this season yet.</p>
+                  <p className="text-sm">Check back later for new additions!</p>
+                </div>
+              )}
             </div>
           )}
 

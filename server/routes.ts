@@ -5292,28 +5292,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const regularToys = await toysQuery.orderBy(schema.toys.rarity, schema.toys.name);
 
-      // Get toy templates for the season
-      const templateToys = await db.select({
-        id: schema.toyTemplates.id,
-        name: schema.toyTemplates.name,
-        series: sql<string>`null`,
-        rarity: schema.toyTemplates.rarity,
-        color: schema.toyTemplates.color,
-        imageUrl: schema.toyTemplates.imageUrl,
-        ownerId: sql<string>`null`,
-        isActivated: sql<boolean>`false`,
-        seasonId: schema.toyTemplates.seasonId,
-        sectorId: sql<number>`null`,
-        collectionProgress: sql<number>`null`,
-        isSeasonalExclusive: sql<boolean>`true`,
-        releaseDate: schema.toyTemplates.createdAt,
-        isOwned: sql<boolean>`false`,
-        isTemplate: sql<boolean>`true`,
-        basePrice: schema.toyTemplates.basePrice,
-        gender: schema.toyTemplates.gender
-      }).from(schema.toyTemplates)
-        .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
-        .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
+      // Get toy templates for the season (only if no specific sector is selected)
+      let templateToys: any[] = [];
+      if (!sectorId) {
+        templateToys = await db.select({
+          id: schema.toyTemplates.id,
+          name: schema.toyTemplates.name,
+          series: sql<string>`null`,
+          rarity: schema.toyTemplates.rarity,
+          color: schema.toyTemplates.color,
+          imageUrl: schema.toyTemplates.imageUrl,
+          ownerId: sql<string>`null`,
+          isActivated: sql<boolean>`false`,
+          seasonId: schema.toyTemplates.seasonId,
+          sectorId: sql<number>`null`,
+          collectionProgress: sql<number>`null`,
+          isSeasonalExclusive: sql<boolean>`true`,
+          releaseDate: schema.toyTemplates.createdAt,
+          isOwned: sql<boolean>`false`,
+          isTemplate: sql<boolean>`true`,
+          basePrice: schema.toyTemplates.basePrice,
+          gender: schema.toyTemplates.gender
+        }).from(schema.toyTemplates)
+          .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
+          .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
+      }
 
       // Combine regular toys and templates
       const allToys = [...regularToys, ...templateToys];
@@ -5329,6 +5332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return a.name.localeCompare(b.name);
       });
+
+      console.log(`*** SEASONAL TOYS DEBUG: Season ${seasonId}, Sector ${sectorId || 'all'}, Found ${regularToys.length} toys + ${templateToys.length} templates`);
 
       res.json(allToys);
     } catch (error) {
