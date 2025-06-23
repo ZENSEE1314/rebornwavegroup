@@ -5334,6 +5334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log(`*** SEASONAL TOYS DEBUG: Season ${seasonId}, Sector ${sectorId || 'all'}, Found ${regularToys.length} toys + ${templateToys.length} templates`);
+      console.log(`*** SEASONAL TOYS RESULT:`, JSON.stringify(allToys, null, 2));
 
       res.json(allToys);
     } catch (error) {
