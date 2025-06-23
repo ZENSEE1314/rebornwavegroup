@@ -2241,7 +2241,7 @@ function EnhancedAdminDashboard() {
 
           {/* Top-ups Tab */}
           <TabsContent value="topups">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Credit Top-up Management</CardTitle>
