@@ -430,6 +430,10 @@ function EnhancedAdminDashboard() {
         // Template toys are those without owners (ownerId is null, "null", or undefined)
         const isTemplate = !toy.owner && (!toy.ownerId || toy.ownerId === null || toy.ownerId === "null");
         
+        if (toy.name && toy.name.toLowerCase().includes('debug')) {
+          console.log('*** TOY DEBUG:', { name: toy.name, owner: toy.owner, ownerId: toy.ownerId, isTemplate });
+        }
+        
         if (!isTemplate) return false;
         
         const searchMatch = !toySearch || 
@@ -634,16 +638,23 @@ function EnhancedAdminDashboard() {
 
   const createToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
-      return apiRequest('POST', '/api/admin/create-toy', toyData);
+      // Ensure template toys are created without an owner
+      const templateToyData = {
+        ...toyData,
+        ownerId: null,
+        ownerType: null,
+        isTemplate: true
+      };
+      return apiRequest('POST', '/api/admin/create-toy', templateToyData);
     },
     onSuccess: () => {
-      toast({ title: "Toy created successfully" });
+      toast({ title: "Template toy created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
       queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
       setNewToy({ name: "", rarity: "common", color: "", imageUrl: "", qrCode: "", price: 0, seasonId: null, isSeasonalExclusive: false, gender: "male" as "male" | "female" });
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "Failed to create toy";
+      const errorMessage = error.message || "Failed to create template toy";
       if (errorMessage.includes("QR code already exists")) {
         toast({ 
           title: "QR Code Error", 
