@@ -223,19 +223,26 @@ function SeasonalCollectionsTab() {
                     )}
                     <p className="text-sm text-gray-600 mt-2">{toy.color}</p>
                     
-                    {toy.isOwned ? (
-                      <Badge className="mt-3 w-full bg-green-100 text-green-800 border-green-300">
-                        ✓ Collected
-                      </Badge>
-                    ) : toy.isTemplate ? (
-                      <Badge className="mt-3 w-full bg-blue-100 text-blue-800 border-blue-300">
-                        Template Design
-                      </Badge>
-                    ) : (
-                      <Badge className="mt-3 w-full bg-gray-100 text-gray-600 border-gray-300">
-                        Not Collected
-                      </Badge>
-                    )}
+                    <div className="mt-3 flex flex-col gap-2">
+                      {toy.isTemplate ? (
+                        <Badge className="w-full bg-blue-100 text-blue-800 border-blue-300">
+                          Available Design
+                        </Badge>
+                      ) : toy.isOwned ? (
+                        <Badge className="w-full bg-green-100 text-green-800 border-green-300">
+                          ✓ In Your Collection
+                        </Badge>
+                      ) : (
+                        <Badge className="w-full bg-orange-100 text-orange-800 border-orange-300">
+                          Available to Collect
+                        </Badge>
+                      )}
+                      {toy.basePrice && (
+                        <div className="text-sm text-gray-600">
+                          Price: ${toy.basePrice}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
