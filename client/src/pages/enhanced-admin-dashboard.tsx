@@ -4552,6 +4552,63 @@ function EnhancedAdminDashboard() {
                       >
                         {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
                       </Button>
+                      
+                      <Button
+                        onClick={() => {
+                          if (emailData.subject.trim() && emailData.text.trim()) {
+                            const confirmed = window.confirm(
+                              `Send this email to all users?\n\nSubject: ${emailData.subject}\n\nThis action cannot be undone.`
+                            );
+                            
+                            if (confirmed) {
+                              fetch('/api/admin/send-email', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                  subject: emailData.subject,
+                                  html: emailData.text.replace(/\n/g, '<br>'),
+                                  sendToAll: true
+                                })
+                              })
+                              .then(response => response.json())
+                              .then(data => {
+                                if (data.successCount !== undefined) {
+                                  toast({
+                                    title: "Email Blast Completed",
+                                    description: `Sent to: ${data.successCount} users, Failed: ${data.failureCount}, Total: ${data.totalUsers}`,
+                                  });
+                                  setEmailData({...emailData, subject: '', text: ''});
+                                } else {
+                                  toast({
+                                    title: "Error",
+                                    description: data.message || 'Failed to send email blast',
+                                    variant: "destructive"
+                                  });
+                                }
+                              })
+                              .catch(error => {
+                                console.error('Error:', error);
+                                toast({
+                                  title: "Error",
+                                  description: 'Error sending email blast',
+                                  variant: "destructive"
+                                });
+                              });
+                            }
+                          } else {
+                            toast({
+                              title: "Error",
+                              description: "Please fill in both subject and text content",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                      >
+                        📧 Email Blast to All Users
+                      </Button>
                     </CardContent>
                   </Card>
 
@@ -4657,12 +4714,41 @@ function EnhancedAdminDashboard() {
                               );
                               
                               if (confirmed) {
-                                // In a real implementation, this would call a WhatsApp API
-                                toast({
-                                  title: "WhatsApp Blast Sent",
-                                  description: `Message sent to ${usersWithMobile.length} users via WhatsApp`,
+                                // Call WhatsApp API
+                                fetch('/api/admin/send-whatsapp', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    message: messageInput.value,
+                                    sendToAll: true
+                                  })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                  if (data.successCount !== undefined) {
+                                    toast({
+                                      title: "WhatsApp Blast Completed",
+                                      description: `Sent to: ${data.successCount} users, Failed: ${data.failureCount}, Total: ${data.totalUsers}`,
+                                    });
+                                    messageInput.value = '';
+                                  } else {
+                                    toast({
+                                      title: "Error",
+                                      description: data.message || 'Failed to send WhatsApp message',
+                                      variant: "destructive"
+                                    });
+                                  }
+                                })
+                                .catch(error => {
+                                  console.error('Error:', error);
+                                  toast({
+                                    title: "Error",
+                                    description: 'Error sending WhatsApp message',
+                                    variant: "destructive"
+                                  });
                                 });
-                                messageInput.value = '';
                               }
                             } else {
                               toast({
