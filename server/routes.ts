@@ -5258,11 +5258,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/seasons/:seasonId/toys', requireAuth, async (req: any, res) => {
+  app.get('/api/seasons/:seasonId/toys', async (req: any, res) => {
     try {
       const { seasonId } = req.params;
       const { sectorId } = req.query;
-      const userId = getUserId(req);
+      const userId = getUserId(req) || null;
 
       // Get regular toys from the season
       let toysQuery = db.select({

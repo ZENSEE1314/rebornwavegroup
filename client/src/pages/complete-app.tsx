@@ -52,6 +52,12 @@ function SeasonalCollectionsTab() {
   const { data: seasonalToys = [] } = useQuery({
     queryKey: ['/api/seasons', selectedSeason?.id, 'toys', selectedSector?.id],
     enabled: !!selectedSeason,
+    onSuccess: (data) => {
+      console.log(`*** FRONTEND SEASONAL TOYS: Season ${selectedSeason?.id}, Sector ${selectedSector?.id}, Data:`, data);
+    },
+    onError: (error) => {
+      console.error(`*** FRONTEND SEASONAL TOYS ERROR: Season ${selectedSeason?.id}, Sector ${selectedSector?.id}, Error:`, error);
+    }
   });
 
   // Set default season when seasons load
