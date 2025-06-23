@@ -5260,62 +5260,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/seasons/:seasonId/toys', async (req: any, res) => {
     try {
+      console.log(`*** SEASONAL TOYS API: Starting request for season ${req.params.seasonId}`);
       const { seasonId } = req.params;
       const { sectorId } = req.query;
       const userId = getUserId(req) || null;
+      console.log(`*** SEASONAL TOYS API: userId=${userId}, sectorId=${sectorId}`);
 
       // Get regular toys from the season
-      let toysQuery = db.select({
-        id: schema.toys.id,
-        name: schema.toys.name,
-        series: schema.toys.series,
-        rarity: schema.toys.rarity,
-        color: schema.toys.color,
-        imageUrl: schema.toys.imageUrl,
-        ownerId: schema.toys.ownerId,
-        isActivated: schema.toys.isActivated,
-        seasonId: schema.toys.seasonId,
-        sectorId: schema.toys.sectorId,
-        collectionProgress: schema.toys.collectionProgress,
-        isSeasonalExclusive: schema.toys.isSeasonalExclusive,
-        releaseDate: schema.toys.releaseDate,
-        isOwned: sql<boolean>`CASE WHEN ${schema.toys.ownerId} = ${userId} THEN true ELSE false END`,
-        isTemplate: sql<boolean>`false`,
-        basePrice: schema.toys.basePrice,
-        gender: schema.toys.gender
-      }).from(schema.toys)
-        .where(eq(schema.toys.seasonId, parseInt(seasonId)));
+      let regularToys: any[] = [];
+      try {
+        let toysWhere = eq(schema.toys.seasonId, parseInt(seasonId));
+        if (sectorId) {
+          toysWhere = and(toysWhere, eq(schema.toys.sectorId, parseInt(sectorId as string)));
+        }
 
-      if (sectorId) {
-        toysQuery = toysQuery.where(eq(schema.toys.sectorId, parseInt(sectorId as string)));
+        regularToys = await db.select().from(schema.toys)
+          .where(toysWhere)
+          .orderBy(schema.toys.rarity, schema.toys.name);
+        
+        // Transform regular toys to match expected format
+        regularToys = regularToys.map(toy => ({
+          ...toy,
+          isOwned: userId && toy.ownerId === userId,
+          isTemplate: false
+        }));
+      } catch (error) {
+        console.error("Error fetching regular toys:", error);
       }
-
-      const regularToys = await toysQuery.orderBy(schema.toys.rarity, schema.toys.name);
 
       // Get toy templates for the season (only if no specific sector is selected)
       let templateToys: any[] = [];
       if (!sectorId) {
-        templateToys = await db.select({
-          id: schema.toyTemplates.id,
-          name: schema.toyTemplates.name,
-          series: sql<string>`null`,
-          rarity: schema.toyTemplates.rarity,
-          color: schema.toyTemplates.color,
-          imageUrl: schema.toyTemplates.imageUrl,
-          ownerId: sql<string>`null`,
-          isActivated: sql<boolean>`false`,
-          seasonId: schema.toyTemplates.seasonId,
-          sectorId: sql<number>`null`,
-          collectionProgress: sql<number>`null`,
-          isSeasonalExclusive: sql<boolean>`true`,
-          releaseDate: schema.toyTemplates.createdAt,
-          isOwned: sql<boolean>`false`,
-          isTemplate: sql<boolean>`true`,
-          basePrice: schema.toyTemplates.basePrice,
-          gender: schema.toyTemplates.gender
-        }).from(schema.toyTemplates)
+        templateToys = await db.select().from(schema.toyTemplates)
           .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
           .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
+        
+        // Transform template toys to match expected format
+        templateToys = templateToys.map(template => ({
+          id: template.id,
+          name: template.name,
+          series: null,
+          rarity: template.rarity,
+          color: template.color,
+          imageUrl: template.imageUrl,
+          ownerId: null,
+          isActivated: false,
+          seasonId: template.seasonId,
+          sectorId: null,
+          collectionProgress: null,
+          isSeasonalExclusive: true,
+          releaseDate: template.createdAt,
+          isOwned: false,
+          isTemplate: true,
+          basePrice: template.basePrice,
+          gender: template.gender
+        }));
       }
 
       // Combine regular toys and templates
