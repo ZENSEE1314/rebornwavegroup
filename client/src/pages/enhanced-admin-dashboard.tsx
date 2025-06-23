@@ -425,42 +425,49 @@ function EnhancedAdminDashboard() {
   // Use server-side pagination for toys
   const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
-  const filteredToys = (() => {
+  // Filter toy templates (design blueprints) - completely separate from real toys
+  const filteredToyTemplates = (() => {
     try {
-      const toys = (allToys || []) as any[];
-      console.log('*** FILTERING TEMPLATE TOYS DEBUG:', { allToys: toys.length, templateToys: toys.filter(t => !t.owner || t.ownerId === null || t.ownerId === "null").length });
+      const templates = (toyTemplatesResponse?.data || []) as any[];
+      console.log('*** FILTERING TOY TEMPLATES DEBUG:', { templates: templates.length });
       
-      // Only show template toys (toys without owners) in the new streamlined interface
-      return toys.filter((toy: any) => {
-        if (!toy) return false;
-        
-        // Template toys are those without owners (owner_id/ownerId is null, "null", or undefined)
-        const isTemplate = !toy.owner && (
-          !toy.ownerId || toy.ownerId === null || toy.ownerId === "null" ||
-          !toy.owner_id || toy.owner_id === null || toy.owner_id === "null" || toy.owner_id === ""
-        );
-        
-        // Debug only template toys to reduce console spam
-        if (isTemplate) {
-          console.log('*** TEMPLATE TOY FOUND:', { 
-            id: toy.id, 
-            name: toy.name, 
-            owner_id: toy.owner_id
-          });
-        }
-        
-        if (!isTemplate) return false;
+      return templates.filter((template: any) => {
+        if (!template) return false;
         
         const searchMatch = !toySearch || 
-          toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
-          toy.series?.toLowerCase().includes(toySearch.toLowerCase()) ||
-          toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
-        const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
+          template.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
+          template.description?.toLowerCase().includes(toySearch.toLowerCase());
+        const rarityMatch = rarityFilter === "all" || template.rarity === rarityFilter;
         
         return searchMatch && rarityMatch;
       });
     } catch (error) {
-      console.error('*** TEMPLATE TOY FILTERING ERROR:', error);
+      console.error('Error filtering toy templates:', error);
+      return [];
+    }
+  })();
+
+  // Filter real toys (collectibles) - completely separate from templates
+  const filteredRealToys = (() => {
+    try {
+      const toys = (toysResponse?.data || []) as any[];
+      console.log('*** FILTERING REAL TOYS DEBUG:', { toys: toys.length });
+      
+      return toys.filter((toy: any) => {
+        if (!toy) return false;
+        
+        const searchMatch = !toySearch || 
+          toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
+          toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
+        const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
+        const ownerMatch = ownerFilter === "all" || 
+          (ownerFilter === "owned" && toy.ownerId) ||
+          (ownerFilter === "unowned" && !toy.ownerId);
+        
+        return searchMatch && rarityMatch && ownerMatch;
+      });
+    } catch (error) {
+      console.error('Error filtering real toys:', error);
       return [];
     }
   })();
@@ -3581,13 +3588,13 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredToys.map((toy: any) => (
-                      <div key={toy.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
+                    {filteredToyTemplates.map((template: any) => (
+                      <div key={template.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                          {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
+                          {template.imageUrl && template.imageUrl !== 'placeholder-image-url' ? (
                             <img 
-                              src={toy.imageUrl} 
-                              alt={toy.name} 
+                              src={template.imageUrl} 
+                              alt={template.name} 
                               className="w-12 h-12 rounded object-cover"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
@@ -3600,17 +3607,17 @@ function EnhancedAdminDashboard() {
                             </div>
                           )}
                           <div>
-                            <h4 className="text-white font-medium">{toy.name}</h4>
+                            <h4 className="text-white font-medium">{template.name}</h4>
                             <div className="flex items-center space-x-2 text-sm text-gray-300">
-                              <span>ID: {toy.id}</span>
+                              <span>ID: {template.id}</span>
                               <span>•</span>
-                              <span className="capitalize">{toy.rarity}</span>
+                              <span className="capitalize">{template.rarity}</span>
                               <span>•</span>
-                              <span className="capitalize">{toy.gender || 'male'}</span>
-                              {toy.color && (
+                              <span className="capitalize">{template.gender || 'male'}</span>
+                              {template.color && (
                                 <>
                                   <span>•</span>
-                                  <span className="capitalize">{toy.color}</span>
+                                  <span className="capitalize">{template.color}</span>
                                 </>
                               )}
 
