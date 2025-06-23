@@ -5264,7 +5264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sectorId } = req.query;
       const userId = getUserId(req);
 
-      let query = db.select({
+      // Get regular toys from the season
+      let toysQuery = db.select({
         id: schema.toys.id,
         name: schema.toys.name,
         series: schema.toys.series,
@@ -5279,15 +5280,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isSeasonalExclusive: schema.toys.isSeasonalExclusive,
         releaseDate: schema.toys.releaseDate,
         isOwned: sql<boolean>`CASE WHEN ${schema.toys.ownerId} = ${userId} THEN true ELSE false END`,
+        isTemplate: sql<boolean>`false`,
+        basePrice: schema.toys.basePrice,
+        gender: schema.toys.gender
       }).from(schema.toys)
         .where(eq(schema.toys.seasonId, parseInt(seasonId)));
 
       if (sectorId) {
-        query = query.where(eq(schema.toys.sectorId, parseInt(sectorId as string)));
+        toysQuery = toysQuery.where(eq(schema.toys.sectorId, parseInt(sectorId as string)));
       }
 
-      const toys = await query.orderBy(schema.toys.rarity, schema.toys.name);
-      res.json(toys);
+      const regularToys = await toysQuery.orderBy(schema.toys.rarity, schema.toys.name);
+
+      // Get toy templates for the season
+      const templateToys = await db.select({
+        id: schema.toyTemplates.id,
+        name: schema.toyTemplates.name,
+        series: sql<string>`null`,
+        rarity: schema.toyTemplates.rarity,
+        color: schema.toyTemplates.color,
+        imageUrl: schema.toyTemplates.imageUrl,
+        ownerId: sql<string>`null`,
+        isActivated: sql<boolean>`false`,
+        seasonId: schema.toyTemplates.seasonId,
+        sectorId: sql<number>`null`,
+        collectionProgress: sql<number>`null`,
+        isSeasonalExclusive: sql<boolean>`true`,
+        releaseDate: schema.toyTemplates.createdAt,
+        isOwned: sql<boolean>`false`,
+        isTemplate: sql<boolean>`true`,
+        basePrice: schema.toyTemplates.basePrice,
+        gender: schema.toyTemplates.gender
+      }).from(schema.toyTemplates)
+        .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
+        .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
+
+      // Combine regular toys and templates
+      const allToys = [...regularToys, ...templateToys];
+
+      // Sort by rarity and name
+      allToys.sort((a, b) => {
+        const rarityOrder = { 'common': 1, 'rare': 2, 'epic': 3, 'legendary': 4, 'secret': 5 };
+        const aRarity = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
+        const bRarity = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
+        
+        if (aRarity !== bRarity) {
+          return aRarity - bRarity;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      res.json(allToys);
     } catch (error) {
       console.error("Error fetching seasonal toys:", error);
       res.status(500).json({ message: "Failed to fetch seasonal toys" });
