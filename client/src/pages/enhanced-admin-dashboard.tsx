@@ -3425,7 +3425,7 @@ function EnhancedAdminDashboard() {
 
               </div>
 
-              {/* Enhanced Toy Creation */}
+              {/* Toy Template Management */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Create Template Toy</CardTitle>
@@ -3633,7 +3633,7 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Simplified Bulk Toy Generator */}
+              {/* Bulk Generator */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Bulk Toy Generator</CardTitle>
@@ -3735,171 +3735,21 @@ function EnhancedAdminDashboard() {
                           
                           bulkGenerationMutation.mutate(bulkData);
                         }}
-                        className="bg-purple-600 hover:bg-purple-700"
+                        className="bg-purple-600 hover:bg-purple-700 w-full"
                         disabled={!selectedToyForBulk || bulkQuantity < 1 || bulkGenerationMutation.isPending}
                       >
                         <Package className="h-4 w-4 mr-2" />
                         {bulkGenerationMutation.isPending ? "Generating..." : `Generate ${bulkQuantity} Toys`}
                       </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Toy List */}
-              <Card className="bg-slate-800/60 border-slate-700/50">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-white">All Toys</CardTitle>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => setShowTemplateDialog(true)}
-                        variant="outline" 
-                        size="sm"
-                        className="bg-green-600/20 text-green-300 border-green-500/30 hover:bg-green-600/40"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Template
-                      </Button>
-                      <Button 
-                        onClick={() => downloadCSV(allToys, 'toys')}
-                        variant="outline" 
-                        size="sm"
-                        className="bg-white/10 text-white border-white/20"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
+                      {selectedToyForBulk && bulkQuantity > 0 && (
+                        <div className="text-xs text-slate-400 bg-white/5 rounded p-3 border border-white/10 mt-4">
+                          <div className="font-medium text-slate-300 mb-1">What this does:</div>
+                          Creates {bulkQuantity} individual collectible toys from the selected template. Each toy will have a unique QR code and be available for users to discover and collect.
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-4 mt-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search toys..."
-                        value={toySearch}
-                        onChange={(e) => setToySearch(e.target.value)}
-                        className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
-                      />
-                    </div>
-                    <Select value={rarityFilter} onValueChange={setRarityFilter}>
-                      <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
-                        <SelectValue placeholder="Filter by rarity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Rarities</SelectItem>
-                        <SelectItem value="common">Common</SelectItem>
-                        <SelectItem value="rare">Rare</SelectItem>
-                        <SelectItem value="epic">Epic</SelectItem>
-                        <SelectItem value="legendary">Legendary</SelectItem>
-                        <SelectItem value="secret">Secret</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/20">
-                        <TableHead className="text-blue-200">Image</TableHead>
-                        <TableHead className="text-blue-200">Name</TableHead>
-                        <TableHead className="text-blue-200">Color</TableHead>
-
-                        <TableHead className="text-blue-200">Rarity</TableHead>
-                        <TableHead className="text-blue-200">Season</TableHead>
-                        <TableHead className="text-blue-200">Owner</TableHead>
-                        <TableHead className="text-blue-200">QR Code</TableHead>
-                        <TableHead className="text-blue-200">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredToys.map((toy: any) => (
-                        <TableRow key={toy.id} className="border-white/10">
-                          <TableCell>
-                            <img 
-                              src={toy.imageUrl} 
-                              alt={toy.name}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                          </TableCell>
-                          <TableCell className="text-white">{toy.name}</TableCell>
-                          <TableCell className="text-white">
-                            <div className="flex items-center gap-2">
-                              {toy.color && (
-                                <div className={`w-3 h-3 rounded-full ${
-                                  toy.color === 'red' ? 'bg-red-500' :
-                                  toy.color === 'blue' ? 'bg-blue-500' :
-                                  toy.color === 'green' ? 'bg-green-500' :
-                                  toy.color === 'yellow' ? 'bg-yellow-500' :
-                                  toy.color === 'purple' ? 'bg-purple-500' :
-                                  toy.color === 'orange' ? 'bg-orange-500' :
-                                  toy.color === 'pink' ? 'bg-pink-500' :
-                                  toy.color === 'black' ? 'bg-black border border-white/20' :
-                                  toy.color === 'white' ? 'bg-white' :
-                                  toy.color === 'gold' ? 'bg-yellow-400' :
-                                  toy.color === 'silver' ? 'bg-gray-400' :
-                                  'bg-gradient-to-r from-red-500 to-purple-500'
-                                }`}></div>
-                              )}
-                              <span className="capitalize">{toy.color || 'No color'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-white">{toy.series}</TableCell>
-                          <TableCell>
-                            <Badge className={`${
-                              toy.rarity === 'common' ? 'bg-gray-500' :
-                              toy.rarity === 'rare' ? 'bg-blue-500' :
-                              toy.rarity === 'epic' ? 'bg-purple-500' :
-                              toy.rarity === 'legendary' ? 'bg-yellow-500' :
-                              toy.rarity === 'secret' ? 'bg-red-500' :
-                              'bg-gray-500'
-                            }`}>
-                              {toy.rarity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            {toy.season?.displayName || 'No season'}
-                          </TableCell>
-                          <TableCell className="text-purple-200">
-                            {toy.owner ? `${toy.owner.firstName} ${toy.owner.lastName}` : 'Unowned'}
-                          </TableCell>
-                          <TableCell className="text-purple-200 font-mono text-xs">{toy.qrCode}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="bg-blue-600/20 text-blue-300 border-blue-500/30 hover:bg-blue-600/40"
-                                onClick={() => {
-                                  // Edit toy functionality
-                                  const editData = {
-                                    name: prompt("Edit toy name:", toy.name) || toy.name,
-                                    color: prompt("Edit toy color:", toy.color) || toy.color,
-                                    rarity: prompt("Edit toy rarity:", toy.rarity) || toy.rarity
-                                  };
-                                  editToyMutation.mutate({ toyId: toy.id, toyData: editData });
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="bg-red-600/20 text-red-300 border-red-500/30 hover:bg-red-600/40"
-                                onClick={() => {
-                                  if (confirm(`Delete toy "${toy.name}"?`)) {
-                                    deleteToyMutation.mutate(toy.id);
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
                 </CardContent>
               </Card>
             </div>
