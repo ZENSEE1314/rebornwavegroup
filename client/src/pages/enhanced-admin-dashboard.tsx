@@ -591,23 +591,6 @@ function EnhancedAdminDashboard() {
   });
 
   // SendGrid email mutations
-  const sendEmailMutation = useMutation({
-    mutationFn: async (emailData: { to: string; subject: string; text?: string; html?: string }) => {
-      return apiRequest('POST', '/api/admin/send-email', emailData);
-    },
-    onSuccess: () => {
-      toast({ title: "Email sent successfully" });
-      setShowEmailForm(false);
-      setEmailData({ to: '', subject: '', text: '', html: '' });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to send email", 
-        description: error.message || "Please check your email configuration",
-        variant: "destructive" 
-      });
-    }
-  });
 
   const sendWelcomeEmailMutation = useMutation({
     mutationFn: async ({ email, name }: { email: string; name: string }) => {
@@ -620,6 +603,58 @@ function EnhancedAdminDashboard() {
       toast({ 
         title: "Failed to send welcome email", 
         description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Communication system mutations
+  const sendBulkEmailMutation = useMutation({
+    mutationFn: async ({ subject, text, sendToAll }: { subject: string; text: string; sendToAll: boolean }) => {
+      return apiRequest('POST', '/api/admin/send-email', { 
+        subject, 
+        text, 
+        sendToAll
+      }, {
+        credentials: 'include'
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Email sent successfully", 
+        description: `Sent to ${data.successCount} recipients`
+      });
+      setEmailSubject('');
+      setEmailText('');
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to send email", 
+        description: error.message || "Please check your email configuration",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const sendWhatsAppMutation = useMutation({
+    mutationFn: async ({ message, sendToAll }: { message: string; sendToAll: boolean }) => {
+      return apiRequest('POST', '/api/admin/send-whatsapp', { 
+        message, 
+        sendToAll,
+        credentials: 'include'
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "WhatsApp messages sent successfully", 
+        description: `Sent to ${data.successCount} recipients`
+      });
+      setWhatsappMessage('');
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to send WhatsApp messages", 
+        description: error.message || "Please check your Twilio configuration",
         variant: "destructive" 
       });
     }
@@ -1010,6 +1045,40 @@ function EnhancedAdminDashboard() {
         toast({ title: "Failed to delete event", variant: "destructive" });
       }
     }
+  };
+
+  // Communication handler functions
+  const handleSendEmail = async () => {
+    if (!emailSubject.trim() || !emailText.trim()) {
+      toast({ 
+        title: "Missing information", 
+        description: "Please provide both subject and message",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    sendBulkEmailMutation.mutate({
+      subject: emailSubject,
+      text: emailText,
+      sendToAll: sendEmailToAll
+    });
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!whatsappMessage.trim()) {
+      toast({ 
+        title: "Missing message", 
+        description: "Please provide a WhatsApp message",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    sendWhatsAppMutation.mutate({
+      message: whatsappMessage,
+      sendToAll: sendWhatsAppToAll
+    });
   };
 
   // Toy Template mutations (duplicate removed)
@@ -3292,7 +3361,7 @@ function EnhancedAdminDashboard() {
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Image className="h-5 w-5 text-orange-400" />
+                    <FileText className="h-5 w-5 text-orange-400" />
                     Promotion Banners
                   </CardTitle>
                   <p className="text-gray-300 text-sm">Manage promotional content and announcements</p>
