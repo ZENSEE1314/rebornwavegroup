@@ -5291,30 +5291,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get toy templates for the season (only if no specific sector is selected)
       let templateToys: any[] = [];
       if (!sectorId) {
-        templateToys = await db.select().from(schema.toyTemplates)
-          .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
-          .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
-        
-        // Transform template toys to match expected format
-        templateToys = templateToys.map(template => ({
-          id: template.id,
-          name: template.name,
-          series: null,
-          rarity: template.rarity,
-          color: template.color,
-          imageUrl: template.imageUrl,
-          ownerId: null,
-          isActivated: false,
-          seasonId: template.seasonId,
-          sectorId: null,
-          collectionProgress: null,
-          isSeasonalExclusive: true,
-          releaseDate: template.createdAt,
-          isOwned: false,
-          isTemplate: true,
-          basePrice: template.basePrice,
-          gender: template.gender
-        }));
+        try {
+          console.log(`*** SEASONAL TOYS API: Fetching toy templates for season ${seasonId}`);
+          templateToys = await db.select().from(schema.toyTemplates)
+            .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
+            .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
+          
+          console.log(`*** SEASONAL TOYS API: Found ${templateToys.length} toy templates`);
+          console.log("*** SEASONAL TOYS API: Template toys:", JSON.stringify(templateToys, null, 2));
+          
+          // Transform template toys to match expected format
+          templateToys = templateToys.map(template => ({
+            id: template.id,
+            name: template.name,
+            series: null,
+            rarity: template.rarity,
+            color: template.color,
+            imageUrl: template.imageUrl,
+            ownerId: null,
+            isActivated: false,
+            seasonId: template.seasonId,
+            sectorId: null,
+            collectionProgress: null,
+            isSeasonalExclusive: true,
+            releaseDate: template.createdAt,
+            isOwned: false,
+            isTemplate: true,
+            basePrice: template.basePrice,
+            gender: template.gender
+          }));
+        } catch (error) {
+          console.error("Error fetching toy templates:", error);
+        }
       }
 
       // Combine regular toys and templates

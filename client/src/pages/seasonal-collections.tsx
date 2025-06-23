@@ -328,65 +328,19 @@ export default function SeasonalCollections() {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   {seasonToys.map((toy) => (
-                    <Card 
-                      key={toy.id}
-                      className={`relative transition-all duration-200 hover:shadow-lg ${
-                        toy.isOwned ? 'ring-2 ring-green-400' : 'opacity-60 grayscale'
-                      }`}
-                    >
-                      <CardContent className="p-3 space-y-2">
-                        <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-100">
-                          {toy.imageUrl ? (
-                            <img 
-                              src={toy.imageUrl} 
-                              alt={toy.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
-                              🧸
-                            </div>
-                          )}
-                          
-                          {/* Ownership indicator */}
-                          {toy.isOwned && (
-                            <div className="absolute top-1 right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                              <CheckCircle2 className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-
-                          {/* Template badge */}
-                          {toy.isTemplate && (
-                            <div className="absolute top-1 left-1">
-                              <Badge variant="secondary" className="text-xs px-1 py-0">
-                                <Sparkles className="w-2 h-2 mr-1" />
-                                Template
-                              </Badge>
-                            </div>
-                          )}
+                    <div key={toy.id} className="aspect-square relative">
+                      {toy.imageUrl ? (
+                        <img 
+                          src={toy.imageUrl} 
+                          alt=""
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl bg-gray-100 rounded-lg">
+                          🧸
                         </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-medium line-clamp-1">{toy.name}</h4>
-                          <div className="flex items-center justify-between">
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${getRarityColor(toy.rarity)}`}
-                            >
-                              {getRarityIcon(toy.rarity)}
-                              <span className="ml-1 capitalize">{toy.rarity.replace('_', ' ')}</span>
-                            </Badge>
-                            {toy.color && (
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: toy.color }}
-                                title={toy.color}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
