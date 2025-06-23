@@ -83,7 +83,10 @@ export default function SimpleCollections() {
             <Card 
               key={season.id} 
               className="cursor-pointer transition-transform hover:scale-105"
-              onClick={() => setSelectedSeason(season.id)}
+              onClick={() => {
+                console.log('*** SEASON CLICKED:', season.id, season.name);
+                setSelectedSeason(season.id);
+              }}
             >
               <CardHeader>
                 <CardTitle className="text-xl">{season.displayName}</CardTitle>
