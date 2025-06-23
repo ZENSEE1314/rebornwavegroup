@@ -4053,7 +4053,7 @@ function EnhancedAdminDashboard() {
                               </div>
 
                               {/* Toy Properties */}
-                              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2">
                                 <div className="bg-slate-800/50 rounded p-2">
                                   <div className="text-xs text-gray-400">Gender</div>
                                   <div className="text-sm text-white flex items-center gap-1">
@@ -4086,6 +4086,12 @@ function EnhancedAdminDashboard() {
                                   </div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Season</div>
+                                  <div className="text-sm text-white">
+                                    {toy.season?.name || toy.seasonName || 'N/A'}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
                                   <div className="text-xs text-gray-400">Price</div>
                                   <div className="text-sm text-white">
                                     ${toy.basePrice || 'N/A'}
@@ -4107,7 +4113,11 @@ function EnhancedAdminDashboard() {
                                       className="text-gray-400 hover:text-white p-2"
                                       onClick={() => {
                                         navigator.clipboard.writeText(toy.qrCode);
-                                        // Could add toast notification here
+                                        toast({
+                                          title: "QR Code Copied!",
+                                          description: "The QR code has been copied to your clipboard.",
+                                          duration: 2000,
+                                        });
                                       }}
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
