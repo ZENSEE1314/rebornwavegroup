@@ -427,11 +427,19 @@ function EnhancedAdminDashboard() {
       return toys.filter((toy: any) => {
         if (!toy) return false;
         
-        // Template toys are those without owners (ownerId is null, "null", or undefined)
-        const isTemplate = !toy.owner && (!toy.ownerId || toy.ownerId === null || toy.ownerId === "null");
+        // Template toys are those without owners (owner_id/ownerId is null, "null", or undefined)
+        const isTemplate = !toy.owner && (
+          !toy.ownerId || toy.ownerId === null || toy.ownerId === "null" ||
+          !toy.owner_id || toy.owner_id === null || toy.owner_id === "null" || toy.owner_id === ""
+        );
         
-        if (toy.name && toy.name.toLowerCase().includes('debug')) {
-          console.log('*** TOY DEBUG:', { name: toy.name, owner: toy.owner, ownerId: toy.ownerId, isTemplate });
+        // Debug only template toys to reduce console spam
+        if (isTemplate) {
+          console.log('*** TEMPLATE TOY FOUND:', { 
+            id: toy.id, 
+            name: toy.name, 
+            owner_id: toy.owner_id
+          });
         }
         
         if (!isTemplate) return false;

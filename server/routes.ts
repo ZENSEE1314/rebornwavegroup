@@ -3565,7 +3565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
-      // Get only active toys (those with owners, excluding templates)
+      // Get all toys (both templates and owned toys) for admin management
       const allToys = await db.select({
         id: schema.toys.id,
         name: schema.toys.name,
@@ -3577,6 +3577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageUrl: schema.toys.imageUrl,
         qrCode: schema.toys.qrCode,
         ownerId: schema.toys.ownerId,
+        owner_id: schema.toys.ownerId, // Add both field names for frontend compatibility
         isActivated: schema.toys.isActivated,
         salePrice: schema.toys.salePrice,
         originalPrice: schema.toys.originalPrice,
@@ -3599,7 +3600,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .from(schema.toys)
       .leftJoin(schema.seasons, eq(schema.toys.seasonId, schema.seasons.id))
       .leftJoin(schema.users, eq(schema.toys.ownerId, schema.users.id))
-      .where(isNotNull(schema.toys.ownerId)) // Only toys with owners (not templates)
       .orderBy(desc(schema.toys.createdAt));
 
       const totalCount = allToys.length;
