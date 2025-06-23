@@ -6371,7 +6371,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Twilio credentials not configured' });
       }
 
-      const twilio = require('twilio')(accountSid, authToken);
+      const twilio = await import('twilio');
+      const client = twilio.default(accountSid, authToken);
 
       if (sendToAll) {
         console.log('*** WHATSAPP ENDPOINT: Sending to all users with phone numbers');
@@ -6389,7 +6390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (user.phoneNumber && user.phoneNumber.trim() !== '') {
             try {
               console.log(`*** WHATSAPP ENDPOINT: Sending to ${user.phoneNumber}`);
-              await twilio.messages.create({
+              await client.messages.create({
                 body: message,
                 from: `whatsapp:${fromNumber}`,
                 to: `whatsapp:${user.phoneNumber}`
