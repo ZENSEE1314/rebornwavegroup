@@ -4566,6 +4566,7 @@ function EnhancedAdminDashboard() {
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
+                                credentials: 'include',
                                 body: JSON.stringify({
                                   subject: emailData.subject,
                                   html: emailData.text.replace(/\n/g, '<br>'),
@@ -4720,6 +4721,7 @@ function EnhancedAdminDashboard() {
                                   headers: {
                                     'Content-Type': 'application/json',
                                   },
+                                  credentials: 'include',
                                   body: JSON.stringify({
                                     message: messageInput.value,
                                     sendToAll: true

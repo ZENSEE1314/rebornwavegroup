@@ -6272,18 +6272,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let failureCount = 0;
         
         for (const user of users) {
-          const success = await sendEmail({
-            to: user.email,
-            from: 'noreply@rebornwavegroup.com',
-            subject,
-            text,
-            html
-          });
-          
-          if (success) {
-            successCount++;
-          } else {
-            failureCount++;
+          if (user.email && user.email.trim() !== '') {
+            try {
+              const success = await sendEmail({
+                to: user.email,
+                from: 'noreply@rebornwavegroup.com',
+                subject,
+                text,
+                html
+              });
+              
+              if (success) {
+                successCount++;
+              } else {
+                failureCount++;
+              }
+            } catch (error) {
+              console.error(`Email send error for ${user.email}:`, error);
+              failureCount++;
+            }
           }
         }
         
@@ -6291,7 +6298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Email blast completed`,
           successCount,
           failureCount,
-          totalUsers: users.length
+          totalUsers: users.filter(u => u.email && u.email.trim() !== '').length
         });
       } else {
         // Send to specific recipient
