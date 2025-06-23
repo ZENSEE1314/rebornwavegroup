@@ -3510,15 +3510,7 @@ function EnhancedAdminDashboard() {
                         placeholder="Toy name"
                       />
                     </div>
-                    <div>
-                      <Label className="text-gray-300">Species</Label>
-                      <Input
-                        value={newToy.species}
-                        onChange={(e) => setNewToy({ ...newToy, species: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white"
-                        placeholder="Animal species (e.g., Dragon, Cat, Dog)"
-                      />
-                    </div>
+
                     <div>
                       <Label className="text-gray-300">Color</Label>
                       <div className="flex gap-2">
@@ -3605,7 +3597,7 @@ function EnhancedAdminDashboard() {
                         onClick={() => {
                           createToyTemplateMutation.mutate({
                             name: newToy.name,
-                            species: newToy.species || '',
+                            species: 'Doluruu', // Default species since you only have one
                             rarity: newToy.rarity || 'common',
                             color: newToy.color || 'blue',
                             gender: newToy.gender || 'male',
