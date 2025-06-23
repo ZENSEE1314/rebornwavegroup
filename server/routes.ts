@@ -3638,6 +3638,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update toy template
+  app.put('/api/admin/toy-templates/:templateId', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const templateId = parseInt(req.params.templateId);
+      const updateData = req.body;
+
+      console.log(`*** TEMPLATE UPDATE: Updating template ID ${templateId} with data:`, updateData);
+
+      // Transform data to match schema requirements
+      const transformedData = {
+        name: updateData.name,
+        rarity: updateData.rarity || 'common',
+        color: updateData.color || 'blue',
+        gender: updateData.gender || 'male',
+        imageUrl: updateData.imageUrl || null,
+        basePrice: updateData.price ? String(updateData.price) : '0.00',
+        description: updateData.description || null,
+        seasonId: updateData.seasonId && updateData.seasonId !== "" ? parseInt(updateData.seasonId) : null,
+        isActive: updateData.isActive !== false,
+        updatedAt: new Date()
+      };
+
+      const updatedTemplate = await db.update(schema.toyTemplates)
+        .set(transformedData)
+        .where(eq(schema.toyTemplates.id, templateId))
+        .returning();
+
+      if (updatedTemplate.length === 0) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      console.log(`*** TEMPLATE UPDATE: Successfully updated template ID ${templateId}`);
+      res.json(updatedTemplate[0]);
+    } catch (error) {
+      console.error("Error updating toy template:", error);
+      res.status(500).json({ error: "Failed to update toy template" });
+    }
+  });
+
   // Bulk generate real toys from template
   app.post('/api/admin/generate-toys-from-template', isAuthenticated, async (req: any, res) => {
     try {

@@ -638,6 +638,27 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const editToyTemplateMutation = useMutation({
+    mutationFn: async ({ templateId, templateData }: { templateId: number; templateData: any }) => {
+      return apiRequest('PUT', `/api/admin/toy-templates/${templateId}`, templateData);
+    },
+    onSuccess: (data, variables) => {
+      toast({ title: "Template updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
+      setShowEditToyDialog(false);
+      setEditingToy(null);
+      setEditedToyData({});
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update template";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
+    }
+  });
+
   const createToyMutation = useMutation({
     mutationFn: async (toyData: any) => {
       // Ensure template toys are created without an owner
@@ -4314,16 +4335,26 @@ function EnhancedAdminDashboard() {
               <Button
                 onClick={() => {
                   if (editingToy) {
-                    editToyMutation.mutate({
-                      toyId: editingToy.id,
-                      toyData: editedToyData
-                    });
+                    // Check if this is a template (from toy_templates table) or regular toy
+                    const isTemplate = editingToy.basePrice !== undefined; // Templates have basePrice, toys have originalPrice
+                    
+                    if (isTemplate) {
+                      editToyTemplateMutation.mutate({
+                        templateId: editingToy.id,
+                        templateData: editedToyData
+                      });
+                    } else {
+                      editToyMutation.mutate({
+                        toyId: editingToy.id,
+                        toyData: editedToyData
+                      });
+                    }
                   }
                 }}
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
-                disabled={editToyMutation.isPending || !editedToyData.name}
+                disabled={(editToyMutation.isPending || editToyTemplateMutation.isPending) || !editedToyData.name}
               >
-                {editToyMutation.isPending ? "Updating..." : "Update Toy"}
+                {(editToyMutation.isPending || editToyTemplateMutation.isPending) ? "Updating..." : "Update"}
               </Button>
               <Button
                 variant="outline"

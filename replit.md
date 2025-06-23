@@ -58,6 +58,9 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Data Validation Fix**: ✅ Fixed template creation validation error by properly transforming data types (seasonId null conversion, basePrice string format)
 - **Bulk Generation Integration**: ✅ Fixed bulk generation dropdown to use toy templates instead of old toys table
 - **API Endpoint Correction**: ✅ Updated bulk generation mutation to use correct `/api/admin/generate-toys-from-template` endpoint
+- **Template Editing Fix**: ✅ Created dedicated template update endpoint `/api/admin/toy-templates/:templateId` for proper template editing
+- **Frontend Mutation Enhancement**: ✅ Added intelligent detection to use appropriate mutation (template vs toy) based on object properties
+- **Complete Template CRUD**: ✅ Template system now supports full Create, Read, Update, Delete operations with proper API separation
 
 ### CRITICAL DATA LOSS - Toy Management Error (June 18, 2025)
 - **CRITICAL ERROR**: ❌ ACCIDENTALLY DELETED THOUSANDS OF USER-OWNED TOYS
