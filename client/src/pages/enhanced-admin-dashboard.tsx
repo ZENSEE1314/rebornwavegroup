@@ -1405,13 +1405,29 @@ function EnhancedAdminDashboard() {
     setSelectedFile(file);
     setUploading(true);
     
-    // Here you would typically upload to a file storage service
-    // For now, we'll simulate with a placeholder URL
-    const imageUrl = `/uploaded-images/${file.name}`;
-    setNewToy({ ...newToy, imageUrl });
-    setUploading(false);
-    
-    toast({ title: "Image uploaded successfully" });
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNewToy({ ...newToy, imageUrl: data.imageUrl });
+        toast({ title: "Image uploaded successfully" });
+      } else {
+        toast({ title: "Failed to upload image", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const getRarityColor = (rarity: string) => {
@@ -3591,7 +3607,29 @@ function EnhancedAdminDashboard() {
                         accept="image/*"
                         onChange={handleFileUpload}
                         className="bg-white/10 border-white/20 text-white"
+                        disabled={uploading}
                       />
+                      {uploading && (
+                        <div className="text-sm text-blue-300 mt-1">Uploading...</div>
+                      )}
+                      {newToy.imageUrl && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <img 
+                            src={newToy.imageUrl} 
+                            alt="Preview" 
+                            className="w-12 h-12 rounded object-cover border border-white/20"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setNewToy({ ...newToy, imageUrl: '' })}
+                            className="bg-red-600/20 border-red-600 text-red-300 hover:bg-red-600/30"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Label className="text-gray-300">Gender</Label>
