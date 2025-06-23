@@ -4681,9 +4681,9 @@ function EnhancedAdminDashboard() {
                               const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
                               messageInput.value = "🎮 New exciting features are now available in Reborn Wave Group! Check out the latest updates in your pet care dashboard.";
                             }}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
                           >
-                            Feature Update Template
+                            🎮 Feature Update Template
                           </Button>
                           <Button
                             variant="outline"
@@ -4691,9 +4691,9 @@ function EnhancedAdminDashboard() {
                               const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
                               messageInput.value = "🏆 Don't forget to claim your daily rewards! Your pets are waiting for you in Reborn Wave Group.";
                             }}
-                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                            className="w-full border-gray-600 text-white hover:bg-gray-800 bg-gray-700/50 font-medium"
                           >
-                            Daily Reminder Template
+                            🏆 Daily Reminder Template
                           </Button>
                         </div>
                       </div>

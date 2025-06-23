@@ -4727,17 +4727,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint - Update user profile (PATCH)
   app.patch('/api/admin/users/:adminUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(adminUserId);
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       
+      const currentUser = await storage.getUser(adminUserId);
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { adminUserId: targetUserId } = req.params;
       const { firstName, lastName, email, phoneNumber, gender, dateOfBirth, role } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(targetUserId, {
         firstName,
         lastName,
         email,
