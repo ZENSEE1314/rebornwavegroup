@@ -379,6 +379,12 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Query for ALL users (not paginated) for WhatsApp blast count
+  const { data: allUsersData }: any = useQuery({
+    queryKey: ['/api/admin/all-users'],
+    retry: false,
+  });
+
   // All toys query for comprehensive toy list
   const allToysQuery = useQuery({
     queryKey: ['/api/admin/all-toys'],
@@ -4633,7 +4639,7 @@ function EnhancedAdminDashboard() {
                         </div>
                         <div className="bg-green-600/10 p-3 rounded border border-green-600/20">
                           <p className="text-green-300 text-sm">
-                            📱 Users with mobile numbers: {allUsers.filter((user: any) => user.phoneNumber && user.phoneNumber.trim() !== '').length}
+                            📱 Users with mobile numbers: {allUsersData?.filter((user: any) => user.phoneNumber && user.phoneNumber.trim() !== '').length || 0}
                           </p>
                           <p className="text-gray-400 text-xs mt-1">
                             Only users who have provided mobile numbers will receive the message
@@ -4642,7 +4648,7 @@ function EnhancedAdminDashboard() {
                         <Button
                           onClick={() => {
                             const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
-                            const usersWithMobile = allUsers.filter((user: any) => user.phoneNumber);
+                            const usersWithMobile = allUsersData?.filter((user: any) => user.phoneNumber) || [];
                             
                             if (messageInput.value.trim() && usersWithMobile.length > 0) {
                               // Show confirmation
