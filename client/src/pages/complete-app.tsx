@@ -196,7 +196,7 @@ function SeasonalCollectionsTab() {
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {seasonalToys.map((toy) => (
-              <div key={toy.id} className="text-center">
+              <div key={toy.id}>
                 <img 
                   src={toy.imageUrl || '/images/default-toy.png'} 
                   alt={toy.name} 
@@ -205,7 +205,6 @@ function SeasonalCollectionsTab() {
                     e.currentTarget.src = '/images/default-toy.png';
                   }}
                 />
-                <p className="text-sm font-medium mt-2 truncate">{toy.name}</p>
               </div>
             ))}
           </div>
