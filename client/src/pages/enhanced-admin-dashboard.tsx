@@ -4007,6 +4007,21 @@ function EnhancedAdminDashboard() {
                       {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.map((toy: any) => (
                         <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-600/20">
                           <div className="flex items-start gap-4">
+                            {/* Toy Image */}
+                            <div className="flex-shrink-0">
+                              {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
+                                <img 
+                                  src={toy.imageUrl} 
+                                  alt={toy.name}
+                                  className="w-20 h-20 rounded object-cover border-2 border-gray-600"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">📦</span>
+                                </div>
+                              )}
+                            </div>
+
                             {/* QR Code */}
                             <div className="flex-shrink-0">
                               {toy.qrCode ? (
@@ -4014,10 +4029,23 @@ function EnhancedAdminDashboard() {
                                   <img 
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(toy.qrCode)}`}
                                     alt="QR Code"
-                                    className="w-20 h-20 rounded border-2 border-gray-600"
+                                    className="w-20 h-20 rounded border-2 border-gray-600 cursor-pointer"
+                                    onClick={() => {
+                                      const link = document.createElement('a');
+                                      link.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(toy.qrCode)}`;
+                                      link.download = `toy-${toy.id}-qr.png`;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      toast({
+                                        title: "QR Code Downloaded!",
+                                        description: "QR code image has been downloaded.",
+                                        duration: 2000,
+                                      });
+                                    }}
                                   />
                                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                    <span className="text-xs text-white text-center px-1">Scan to activate</span>
+                                    <span className="text-xs text-white text-center px-1">Click to download</span>
                                   </div>
                                 </div>
                               ) : (
@@ -4047,6 +4075,18 @@ function EnhancedAdminDashboard() {
                                   size="sm"
                                   variant="outline"
                                   className="text-yellow-300 border-yellow-600/50 hover:bg-yellow-600/20"
+                                  onClick={() => {
+                                    setEditingToy(toy);
+                                    setEditedToyData({
+                                      name: toy.name,
+                                      gender: toy.gender,
+                                      color: toy.color,
+                                      rarity: toy.rarity,
+                                      basePrice: toy.basePrice || 0,
+                                      qrCode: toy.qrCode
+                                    });
+                                    setShowEditToyDialog(true);
+                                  }}
                                 >
                                   Edit
                                 </Button>
@@ -4142,28 +4182,108 @@ function EnhancedAdminDashboard() {
                       <div className="w-3 h-3 bg-green-400 rounded-full"></div>
                       Active Pets ({activatedPetsResponse?.data?.length || 0})
                     </h3>
-                    <div className="max-h-48 overflow-y-auto space-y-2">
+                    <div className="max-h-96 overflow-y-auto space-y-3">
                       {activatedPetsResponse?.data?.slice(0, 10).map((pet: any) => (
-                        <div key={pet.id} className="bg-green-600/10 rounded-lg p-3 flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {pet.imageUrl && pet.imageUrl !== 'placeholder-image-url' ? (
-                              <img src={pet.imageUrl} alt={pet.name} className="w-10 h-10 rounded object-cover" />
-                            ) : (
-                              <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
-                                <span className="text-xs text-gray-400">🎮</span>
+                        <div key={pet.id} className="bg-green-600/10 rounded-lg p-4 border border-green-600/20">
+                          <div className="flex items-start gap-4">
+                            {/* Pet Image */}
+                            <div className="flex-shrink-0">
+                              {pet.imageUrl && pet.imageUrl !== 'placeholder-image-url' ? (
+                                <img 
+                                  src={pet.imageUrl} 
+                                  alt={pet.name}
+                                  className="w-20 h-20 rounded object-cover border-2 border-gray-600"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">🎮</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Pet Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="text-white font-semibold text-lg">{pet.name}</h4>
+                                  <div className="mt-1 space-y-1">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">ID:</span>
+                                      <span className="text-green-300 font-mono">#{pet.id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">Owner:</span>
+                                      <span className="text-gray-300">{pet.userId || 'null'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-300 border-green-600/50 hover:bg-green-600/20"
+                                  onClick={() => {
+                                    setEditingPet(pet);
+                                    setEditedPetData({
+                                      name: pet.name,
+                                      currentStage: pet.currentStage,
+                                      health: pet.health,
+                                      happiness: pet.happiness,
+                                      energy: pet.energy,
+                                      experience: pet.experience
+                                    });
+                                    setShowEditPetDialog(true);
+                                  }}
+                                >
+                                  Edit
+                                </Button>
                               </div>
-                            )}
-                            <div>
-                              <div className="text-white font-medium">{pet.name}</div>
-                              <div className="text-xs text-gray-400">
-                                Owner: {pet.ownerEmail || 'Unknown'} • Stage: {pet.currentStage} • Age: {pet.currentAge}
+
+                              {/* Pet Stats */}
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Stage</div>
+                                  <div className="text-sm text-white font-medium">
+                                    {pet.currentStage}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Health</div>
+                                  <div className="text-sm text-white">
+                                    {pet.health}%
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Happiness</div>
+                                  <div className="text-sm text-white">
+                                    {pet.happiness}%
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Energy</div>
+                                  <div className="text-sm text-white">
+                                    {pet.energy}%
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Additional Pet Info */}
+                              <div className="mt-3 bg-slate-800/30 rounded p-2">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-400">Age:</span>
+                                    <span className="text-white ml-2">{pet.currentAge} days</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Experience:</span>
+                                    <span className="text-white ml-2">{pet.experience} XP</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <div className="text-xs text-green-300">Pet #{pet.id}</div>
                         </div>
                       )) || (
-                        <div className="text-center py-4 text-gray-400">No active pets yet</div>
+                        <div className="text-center py-8 text-gray-400">No active pets yet</div>
                       )}
                     </div>
                   </div>
