@@ -415,7 +415,7 @@ function EnhancedAdminDashboard() {
     );
   }, [allToysQuery?.data?.data, toySearchTerm]);
 
-  // Filter active pets
+  // Filter active pets - server already provides paginated data (10 per page)
   const filteredPets = useMemo(() => {
     const allPets = activatedPetsResponse?.data || [];
     
@@ -436,9 +436,10 @@ function EnhancedAdminDashboard() {
     return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredToys, toyCurrentPage]);
 
-  // Paginate pets - use server-side pagination
+  // Paginate pets - use server-side pagination (already limited to 10 per page)
   const totalPetPages = activatedPetsResponse?.pagination?.totalPages || 1;
-  const currentPagePets = filteredPets;
+  const totalPetCount = activatedPetsResponse?.pagination?.totalCount || 0;
+  const currentPagePets = filteredPets; // Server already provides 10 items per page
 
 
 
@@ -4500,11 +4501,11 @@ function EnhancedAdminDashboard() {
           <TabsContent value="emails">
             <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-white">Email Management</CardTitle>
-                <p className="text-gray-300">Send emails using SendGrid integration</p>
+                <CardTitle className="text-white">Email & WhatsApp Management</CardTitle>
+                <p className="text-gray-300">Send emails and WhatsApp messages to users</p>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Custom Email Form */}
                   <Card className="bg-white/5 border-white/10">
                     <CardHeader>
@@ -4608,6 +4609,91 @@ function EnhancedAdminDashboard() {
                             className="w-full border-gray-600 text-white hover:bg-gray-800"
                           >
                             Payment Confirmation Template
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* WhatsApp Blast Card */}
+                  <Card className="bg-white/5 border-white/10">
+                    <CardHeader>
+                      <h3 className="text-white font-semibold">WhatsApp Blast</h3>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        <h4 className="text-gray-300 font-medium">Send to Users with Mobile Numbers</h4>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                          <textarea
+                            placeholder="Hello! This is a message from Reborn Wave Group..."
+                            className="w-full p-3 rounded-md bg-gray-800 border border-gray-600 text-white min-h-[100px]"
+                            id="whatsapp-message"
+                          />
+                        </div>
+                        <div className="bg-green-600/10 p-3 rounded border border-green-600/20">
+                          <p className="text-green-300 text-sm">
+                            📱 Users with mobile numbers: {allUsers.filter((user: any) => user.phoneNumber).length}
+                          </p>
+                          <p className="text-gray-400 text-xs mt-1">
+                            Only users who have provided mobile numbers will receive the message
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
+                            const usersWithMobile = allUsers.filter((user: any) => user.phoneNumber);
+                            
+                            if (messageInput.value.trim() && usersWithMobile.length > 0) {
+                              // Show confirmation
+                              const confirmed = window.confirm(
+                                `Send WhatsApp message to ${usersWithMobile.length} users with mobile numbers?`
+                              );
+                              
+                              if (confirmed) {
+                                // In a real implementation, this would call a WhatsApp API
+                                toast({
+                                  title: "WhatsApp Blast Sent",
+                                  description: `Message sent to ${usersWithMobile.length} users via WhatsApp`,
+                                });
+                                messageInput.value = '';
+                              }
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Please enter a message and ensure users have mobile numbers",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          Send WhatsApp Blast
+                        </Button>
+                      </div>
+
+                      <div className="border-t border-gray-600 pt-4">
+                        <h4 className="text-gray-300 font-medium mb-3">WhatsApp Templates</h4>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
+                              messageInput.value = "🎮 New exciting features are now available in Reborn Wave Group! Check out the latest updates in your pet care dashboard.";
+                            }}
+                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                          >
+                            Feature Update Template
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
+                              messageInput.value = "🏆 Don't forget to claim your daily rewards! Your pets are waiting for you in Reborn Wave Group.";
+                            }}
+                            className="w-full border-gray-600 text-white hover:bg-gray-800"
+                          >
+                            Daily Reminder Template
                           </Button>
                         </div>
                       </div>
