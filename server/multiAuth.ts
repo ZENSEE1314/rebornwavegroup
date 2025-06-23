@@ -692,9 +692,17 @@ If you didn't request this password reset, please ignore this email.
 
 // Authentication middleware
 export function requireAuth(req: Request, res: Response, next: Function) {
+  console.log("*** REQUIRE AUTH DEBUG: Method:", req.method, "Path:", req.path);
+  console.log("*** REQUIRE AUTH DEBUG: isAuthenticated():", req.isAuthenticated());
+  console.log("*** REQUIRE AUTH DEBUG: req.user:", req.user);
+  console.log("*** REQUIRE AUTH DEBUG: session:", req.session);
+  
   if (!req.isAuthenticated() || !req.user) {
-    return res.status(401).json({ message: 'User not authenticated' });
+    console.log("*** REQUIRE AUTH DEBUG: Authentication failed");
+    return res.status(401).json({ message: 'Unauthorized' });
   }
+  
+  console.log("*** REQUIRE AUTH DEBUG: Authentication successful");
   next();
 }
 
