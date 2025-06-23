@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -240,6 +240,56 @@ function EnhancedAdminDashboard() {
 
   // All toys list filter states
   const [filterStatus, setFilterStatus] = useState("all");
+  
+  // Search and pagination states for toys and pets
+  const [toySearchTerm, setToySearchTerm] = useState("");
+  const [petSearchTerm, setPetSearchTerm] = useState("");
+  const [toyCurrentPage, setToyCurrentPage] = useState(1);
+  const [petCurrentPage, setPetCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Filter toys (exclude templates, only generated toys)
+  const filteredToys = useMemo(() => {
+    const allToys = allToysQuery?.data?.data || [];
+    const generatedToys = allToys.filter((toy: any) => !toy.ownerId && toy.templateId);
+    
+    if (!toySearchTerm) return generatedToys;
+    
+    return generatedToys.filter((toy: any) => 
+      toy.name?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
+      toy.id?.toString().includes(toySearchTerm) ||
+      toy.rarity?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
+      toy.gender?.toLowerCase().includes(toySearchTerm.toLowerCase())
+    );
+  }, [allToysQuery?.data?.data, toySearchTerm]);
+
+  // Filter active pets
+  const filteredPets = useMemo(() => {
+    const allPets = activatedPetsResponse?.data || [];
+    
+    if (!petSearchTerm) return allPets;
+    
+    return allPets.filter((pet: any) => 
+      pet.name?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.id?.toString().includes(petSearchTerm) ||
+      pet.currentStage?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.userId?.toString().includes(petSearchTerm)
+    );
+  }, [activatedPetsResponse?.data, petSearchTerm]);
+
+  // Paginate toys
+  const totalToyPages = Math.ceil(filteredToys.length / ITEMS_PER_PAGE);
+  const currentPageToys = useMemo(() => {
+    const startIndex = (toyCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredToys, toyCurrentPage]);
+
+  // Paginate pets
+  const totalPetPages = Math.ceil(filteredPets.length / ITEMS_PER_PAGE);
+  const currentPagePets = useMemo(() => {
+    const startIndex = (petCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredPets, petCurrentPage]);
   
   // Season and sector management states
   const [showSeasonDialog, setShowSeasonDialog] = useState(false);
@@ -3922,28 +3972,21 @@ function EnhancedAdminDashboard() {
               </Card>
             </div>
 
-            {/* Comprehensive Toys Overview */}
+            {/* All Toys Database */}
             <Card className="bg-white/10 backdrop-blur border-white/20">
               <CardHeader>
                 <CardTitle className="text-white">All Toys Database</CardTitle>
-                <p className="text-gray-300 text-sm">Complete overview of templates, generated toys, and live toys in the system</p>
+                <p className="text-gray-300 text-sm">Complete overview of generated toys and active pets in the system</p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   {/* Quick Stats Overview */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-600/20 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-blue-300">
-                        {filteredToyTemplates?.length || 0}
-                      </div>
-                      <div className="text-sm text-gray-300">Templates</div>
-                      <div className="text-xs text-gray-400 mt-1">Design blueprints</div>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-300">
                         {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0}
                       </div>
-                      <div className="text-sm text-gray-300">Generated</div>
+                      <div className="text-sm text-gray-300">Generated Toys</div>
                       <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
                     </div>
                     <div className="bg-green-600/20 rounded-lg p-4 text-center">
@@ -3953,47 +3996,12 @@ function EnhancedAdminDashboard() {
                       <div className="text-sm text-gray-300">Active Pets</div>
                       <div className="text-xs text-gray-400 mt-1">Being cared for</div>
                     </div>
-
                     <div className="bg-purple-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-purple-300">
                         {toysResponse?.data?.filter((toy: any) => toy.isListed)?.length || 0}
                       </div>
                       <div className="text-sm text-gray-300">On Market</div>
                       <div className="text-xs text-gray-400 mt-1">For sale</div>
-                    </div>
-                  </div>
-
-                  {/* Templates Section */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                      Toy Templates ({filteredToyTemplates?.length || 0})
-                    </h3>
-                    <div className="max-h-48 overflow-y-auto space-y-2">
-                      {filteredToyTemplates && filteredToyTemplates.length > 0 ? (
-                        filteredToyTemplates.slice(0, 10).map((template: any) => (
-                          <div key={template.id} className="bg-blue-600/10 rounded-lg p-3 flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              {template.imageUrl && template.imageUrl !== 'placeholder-image-url' ? (
-                                <img src={template.imageUrl} alt={template.name} className="w-10 h-10 rounded object-cover" />
-                              ) : (
-                                <div className="w-10 h-10 rounded bg-gray-600 flex items-center justify-center">
-                                  <span className="text-xs text-gray-400">📋</span>
-                                </div>
-                              )}
-                              <div>
-                                <div className="text-white font-medium">{template.name}</div>
-                                <div className="text-xs text-gray-400">
-                                  {template.rarity} • {template.gender} • {template.color || 'No color'}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-xs text-blue-300">Template #{template.id}</div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-gray-400">No templates created yet</div>
-                      )}
                     </div>
                   </div>
 
