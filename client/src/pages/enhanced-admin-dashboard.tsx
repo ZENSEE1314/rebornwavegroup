@@ -297,6 +297,13 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Query for toy templates (design blueprints)
+  const { data: toyTemplatesResponse }: any = useQuery({
+    queryKey: ['/api/admin/toy-templates'],
+    retry: false,
+  });
+
+  // Query for real toys (collectibles)
   const { data: toysResponse }: any = useQuery({
     queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
     retry: false,

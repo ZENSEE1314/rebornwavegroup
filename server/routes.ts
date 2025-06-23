@@ -3552,6 +3552,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get toy templates for admin management
+  app.get('/api/admin/toy-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const templates = await db.select({
+        id: schema.toyTemplates.id,
+        name: schema.toyTemplates.name,
+        seasonId: schema.toyTemplates.seasonId,
+        rarity: schema.toyTemplates.rarity,
+        color: schema.toyTemplates.color,
+        gender: schema.toyTemplates.gender,
+        imageUrl: schema.toyTemplates.imageUrl,
+        basePrice: schema.toyTemplates.basePrice,
+        description: schema.toyTemplates.description,
+        isActive: schema.toyTemplates.isActive,
+        createdAt: schema.toyTemplates.createdAt,
+        updatedAt: schema.toyTemplates.updatedAt,
+        season: {
+          id: schema.seasons.id,
+          name: schema.seasons.name,
+          displayName: schema.seasons.displayName,
+        }
+      })
+      .from(schema.toyTemplates)
+      .leftJoin(schema.seasons, eq(schema.toyTemplates.seasonId, schema.seasons.id))
+      .where(eq(schema.toyTemplates.isActive, true))
+      .orderBy(desc(schema.toyTemplates.createdAt));
+
+      res.json({ data: templates });
+    } catch (error) {
+      console.error("Error fetching toy templates:", error);
+      res.status(500).json({ error: "Failed to fetch toy templates" });
+    }
+  });
+
+  // Create new toy template
+  app.post('/api/admin/toy-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const validatedData = schema.insertToyTemplateSchema.parse(req.body);
+      
+      const newTemplate = await db.insert(schema.toyTemplates).values({
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+
+      res.json(newTemplate[0]);
+    } catch (error) {
+      console.error("Error creating toy template:", error);
+      res.status(500).json({ error: "Failed to create toy template" });
+    }
+  });
+
+  // Bulk generate real toys from template
+  app.post('/api/admin/generate-toys-from-template', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { templateId, quantity } = req.body;
+
+      if (!templateId || !quantity || quantity <= 0) {
+        return res.status(400).json({ error: "Template ID and valid quantity required" });
+      }
+
+      // Get the template
+      const template = await db.select()
+        .from(schema.toyTemplates)
+        .where(eq(schema.toyTemplates.id, templateId))
+        .limit(1);
+
+      if (template.length === 0) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+
+      const templateData = template[0];
+
+      // Generate QR codes and create toys
+      const toys = [];
+      for (let i = 0; i < quantity; i++) {
+        const qrCode = `TOY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        toys.push({
+          name: templateData.name,
+          seasonId: templateData.seasonId,
+          rarity: templateData.rarity,
+          color: templateData.color,
+          gender: templateData.gender,
+          imageUrl: templateData.imageUrl,
+          originalPrice: templateData.basePrice,
+          templateId: templateData.id,
+          qrCode: qrCode,
+          ownerId: null, // Available for discovery
+          isActivated: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      const createdToys = await db.insert(schema.toys).values(toys).returning();
+
+      res.json({ 
+        message: `Successfully generated ${quantity} toys from template`,
+        toys: createdToys
+      });
+    } catch (error) {
+      console.error("Error generating toys from template:", error);
+      res.status(500).json({ error: "Failed to generate toys from template" });
+    }
+  });
+
   app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
@@ -3565,7 +3693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit) || 1000;
       const offset = (page - 1) * limit;
 
-      // Get all toys (both templates and owned toys) for admin management
+      // Get only real toys (not templates) for admin management
       const allToys = await db.select({
         id: schema.toys.id,
         name: schema.toys.name,
@@ -3581,7 +3709,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActivated: schema.toys.isActivated,
         salePrice: schema.toys.salePrice,
         originalPrice: schema.toys.originalPrice,
-        isTemplate: schema.toys.isTemplate,
         templateId: schema.toys.templateId,
         createdAt: schema.toys.createdAt,
         updatedAt: schema.toys.updatedAt,
