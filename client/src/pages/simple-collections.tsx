@@ -37,7 +37,13 @@ export default function SimpleCollections() {
   });
 
   // Filter only toy templates
-  const toyTemplates = seasonToys.filter(toy => toy.isTemplate);
+  const toyTemplates = seasonToys.filter(toy => toy.isTemplate === true);
+  
+  // Debug template filtering
+  console.log('*** TEMPLATE FILTERING DEBUG:', {
+    allToys: seasonToys.map(t => ({ id: t.id, name: t.name, isTemplate: t.isTemplate })),
+    templatesFound: toyTemplates.map(t => ({ id: t.id, name: t.name, isTemplate: t.isTemplate }))
+  });
 
   console.log('*** SIMPLE COLLECTIONS DEBUG:', {
     selectedSeason,
