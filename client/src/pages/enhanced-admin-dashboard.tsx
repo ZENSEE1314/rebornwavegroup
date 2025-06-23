@@ -3005,7 +3005,7 @@ function EnhancedAdminDashboard() {
 
           {/* Game Leaderboard Tab */}
           <TabsContent value="leaderboard">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Game Leaderboard Management</CardTitle>
               </CardHeader>
@@ -3057,7 +3057,7 @@ function EnhancedAdminDashboard() {
 
           {/* Marketplace Purchases Tab */}
           <TabsContent value="marketplace">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Marketplace Purchase Management</CardTitle>
               </CardHeader>
@@ -3137,7 +3137,7 @@ function EnhancedAdminDashboard() {
 
           {/* Token Claims Tab */}
           <TabsContent value="tokens">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Token Claims Management</CardTitle>
               </CardHeader>
@@ -3191,7 +3191,7 @@ function EnhancedAdminDashboard() {
 
           {/* Token Transactions Tab */}
           <TabsContent value="token-transactions">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Token Transaction Management</CardTitle>
@@ -3328,7 +3328,7 @@ function EnhancedAdminDashboard() {
               {/* Season Management */}
               <div className="grid grid-cols-1 gap-6">
                 {/* Season Management */}
-                <Card className="bg-white/10 backdrop-blur border-white/20">
+                <Card className="bg-slate-800/60 border-slate-700/50">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
@@ -3426,7 +3426,7 @@ function EnhancedAdminDashboard() {
               </div>
 
               {/* Enhanced Toy Creation */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">Create Template Toy</CardTitle>
                   <p className="text-gray-300 text-sm">Create toy templates/avatars for bulk generation (no owner assigned)</p>
