@@ -3758,7 +3758,7 @@ function EnhancedAdminDashboard() {
               </Card>
 
               {/* List of Created Toys */}
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
                   <CardTitle className="text-white">
                     List of Created Toys
@@ -3972,7 +3972,7 @@ function EnhancedAdminDashboard() {
             </div>
 
             {/* All Toys Database */}
-            <Card className="bg-white/10 backdrop-blur border-white/20">
+            <Card className="bg-slate-800/60 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">All Toys Database</CardTitle>
                 <p className="text-gray-300 text-sm">Complete overview of generated toys and active pets in the system</p>
@@ -4201,9 +4201,9 @@ function EnhancedAdminDashboard() {
                           variant="outline"
                           onClick={() => setToyCurrentPage(Math.max(1, toyCurrentPage - 1))}
                           disabled={toyCurrentPage === 1}
-                          className="text-white border-white/20 hover:bg-white/10"
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
                         >
-                          Previous
+                          ← Previous
                         </Button>
                         <div className="flex items-center gap-1">
                           {Array.from({ length: Math.min(5, totalToyPages) }, (_, i) => {
@@ -4230,9 +4230,9 @@ function EnhancedAdminDashboard() {
                           variant="outline"
                           onClick={() => setToyCurrentPage(Math.min(totalToyPages, toyCurrentPage + 1))}
                           disabled={toyCurrentPage === totalToyPages}
-                          className="text-white border-white/20 hover:bg-white/10"
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
                         >
-                          Next
+                          Next →
                         </Button>
                       </div>
                     )}
@@ -4387,9 +4387,9 @@ function EnhancedAdminDashboard() {
                           variant="outline"
                           onClick={() => setPetCurrentPage(Math.max(1, petCurrentPage - 1))}
                           disabled={petCurrentPage === 1}
-                          className="text-white border-white/20 hover:bg-white/10"
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
                         >
-                          Previous
+                          ← Previous
                         </Button>
                         <div className="flex items-center gap-1">
                           {Array.from({ length: Math.min(5, totalPetPages) }, (_, i) => {
@@ -4416,9 +4416,9 @@ function EnhancedAdminDashboard() {
                           variant="outline"
                           onClick={() => setPetCurrentPage(Math.min(totalPetPages, petCurrentPage + 1))}
                           disabled={petCurrentPage === totalPetPages}
-                          className="text-white border-white/20 hover:bg-white/10"
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
                         >
-                          Next
+                          Next →
                         </Button>
                       </div>
                     )}
