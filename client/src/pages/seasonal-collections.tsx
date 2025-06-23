@@ -327,7 +327,7 @@ export default function SeasonalCollections() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {seasonToys.map((toy) => (
+                  {seasonToys.filter(toy => toy.isTemplate).map((toy) => (
                     <div key={toy.id} className="aspect-square relative">
                       {toy.imageUrl ? (
                         <img 

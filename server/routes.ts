@@ -5170,9 +5170,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Seasonal Collections API endpoints
+  // Seasonal Collections API endpoints - PUBLIC ACCESS
   app.get('/api/seasons', async (req: any, res) => {
     try {
+      console.log('*** PUBLIC SEASONS API: Fetching all active seasons');
       const seasons = await db.select({
         id: schema.seasons.id,
         name: schema.seasons.name,
@@ -5186,6 +5187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(schema.seasons.isActive, true))
         .orderBy(schema.seasons.displayOrder);
 
+      console.log(`*** PUBLIC SEASONS API: Found ${seasons.length} active seasons`);
       res.json(seasons);
     } catch (error) {
       console.error("Error fetching seasons:", error);
@@ -5260,11 +5262,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/seasons/:seasonId/toys', async (req: any, res) => {
     try {
-      console.log(`*** SEASONAL TOYS API: Starting request for season ${req.params.seasonId}`);
+      console.log(`*** PUBLIC SEASONAL TOYS API: Starting request for season ${req.params.seasonId}`);
       const { seasonId } = req.params;
       const { sectorId } = req.query;
       const userId = getUserId(req) || null;
-      console.log(`*** SEASONAL TOYS API: userId=${userId}, sectorId=${sectorId}`);
+      console.log(`*** PUBLIC SEASONAL TOYS API: userId=${userId}, sectorId=${sectorId}`);
 
       // Get regular toys from the season
       let regularToys: any[] = [];
