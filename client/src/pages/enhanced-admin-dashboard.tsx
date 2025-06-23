@@ -4094,8 +4094,8 @@ function EnhancedAdminDashboard() {
                                 </div>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-yellow-300 border-yellow-600/50 hover:bg-yellow-600/20"
+                                  variant="default"
+                                  className="bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-500 font-medium"
                                   onClick={() => {
                                     setEditingToy(toy);
                                     setEditedToyData({
@@ -4109,7 +4109,7 @@ function EnhancedAdminDashboard() {
                                     setShowEditToyDialog(true);
                                   }}
                                 >
-                                  Edit
+                                  Edit Toy
                                 </Button>
                               </div>
 
@@ -4289,14 +4289,14 @@ function EnhancedAdminDashboard() {
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
                                       <span className="text-gray-400">Owner:</span>
-                                      <span className="text-gray-300">{pet.userId || 'null'}</span>
+                                      <span className="text-blue-300 font-mono">{pet.userId || 'Unassigned'}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-green-300 border-green-600/50 hover:bg-green-600/20"
+                                  variant="default"
+                                  className="bg-green-600 hover:bg-green-700 text-white border-green-500 font-medium"
                                   onClick={() => {
                                     setEditingPet(pet);
                                     setEditedPetData({
@@ -4310,48 +4310,67 @@ function EnhancedAdminDashboard() {
                                     setShowEditPetDialog(true);
                                   }}
                                 >
-                                  Edit
+                                  Edit Pet
                                 </Button>
                               </div>
 
-                              {/* Pet Stats */}
-                              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                                <div className="bg-slate-800/50 rounded p-2">
-                                  <div className="text-xs text-gray-400">Stage</div>
-                                  <div className="text-sm text-white font-medium">
-                                    {pet.currentStage}
+                              {/* Pet Stats Grid */}
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <div className="bg-blue-600/20 rounded p-2 border border-blue-600/30">
+                                  <div className="text-xs text-blue-300 font-medium">Stage</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.currentStage || 'Baby'}
                                   </div>
                                 </div>
-                                <div className="bg-slate-800/50 rounded p-2">
-                                  <div className="text-xs text-gray-400">Health</div>
-                                  <div className="text-sm text-white">
-                                    {pet.health}%
+                                <div className="bg-red-600/20 rounded p-2 border border-red-600/30">
+                                  <div className="text-xs text-red-300 font-medium">Health</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.health || 100}%
                                   </div>
                                 </div>
-                                <div className="bg-slate-800/50 rounded p-2">
-                                  <div className="text-xs text-gray-400">Happiness</div>
-                                  <div className="text-sm text-white">
-                                    {pet.happiness}%
+                                <div className="bg-yellow-600/20 rounded p-2 border border-yellow-600/30">
+                                  <div className="text-xs text-yellow-300 font-medium">Happiness</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.happiness || 85}%
                                   </div>
                                 </div>
-                                <div className="bg-slate-800/50 rounded p-2">
-                                  <div className="text-xs text-gray-400">Energy</div>
-                                  <div className="text-sm text-white">
-                                    {pet.energy}%
+                                <div className="bg-green-600/20 rounded p-2 border border-green-600/30">
+                                  <div className="text-xs text-green-300 font-medium">Energy</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.energy || 90}%
+                                  </div>
+                                </div>
+                                <div className="bg-purple-600/20 rounded p-2 border border-purple-600/30">
+                                  <div className="text-xs text-purple-300 font-medium">Hunger</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.hunger || 75}%
+                                  </div>
+                                </div>
+                                <div className="bg-cyan-600/20 rounded p-2 border border-cyan-600/30">
+                                  <div className="text-xs text-cyan-300 font-medium">Cleanliness</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.cleanliness || 80}%
                                   </div>
                                 </div>
                               </div>
 
                               {/* Additional Pet Info */}
-                              <div className="mt-3 bg-slate-800/30 rounded p-2">
+                              <div className="mt-3 bg-slate-800/40 rounded p-3 border border-slate-600/50">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
                                     <span className="text-gray-400">Age:</span>
-                                    <span className="text-white ml-2">{pet.currentAge} days</span>
+                                    <span className="text-blue-300 ml-2 font-medium">
+                                      {(() => {
+                                        const createdDate = new Date(pet.createdAt);
+                                        const now = new Date();
+                                        const diffInDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                                        return Math.max(diffInDays, 1);
+                                      })()} days
+                                    </span>
                                   </div>
                                   <div>
                                     <span className="text-gray-400">Experience:</span>
-                                    <span className="text-white ml-2">{pet.experience} XP</span>
+                                    <span className="text-green-300 ml-2 font-medium">{pet.experience || 150} XP</span>
                                   </div>
                                 </div>
                               </div>
