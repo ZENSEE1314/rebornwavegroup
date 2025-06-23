@@ -131,7 +131,23 @@ export const collectionSeries = pgTable("collection_series", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Soft toys table - enhanced with seasonal collections
+// Toy templates table - design blueprints for creating actual toys
+export const toyTemplates = pgTable("toy_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  seasonId: integer("season_id"), // Link to seasonal collection
+  rarity: varchar("rarity").notNull(), // 'common' | 'rare' | 'epic' | 'legendary' | 'secret'
+  color: varchar("color"), // Design color
+  gender: varchar("gender").default("male").notNull(), // 'male' | 'female'
+  imageUrl: varchar("image_url"),
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }).default("0.00"),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Actual toys table - collectible items created from templates
 export const toys = pgTable("toys", {
   id: serial("id").primaryKey(),
   name: varchar("name").notNull(),
@@ -144,12 +160,11 @@ export const toys = pgTable("toys", {
   qrCode: varchar("qr_code").unique().notNull(),
   imageUrl: varchar("image_url"),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
-  ownerId: varchar("owner_id"),
+  ownerId: varchar("owner_id"), // null = available for discovery, set = owned by user
   isActivated: boolean("is_activated").default(false),
   purchasedBy: varchar("purchased_by"),
   isForSale: boolean("is_for_sale").default(false),
-  isTemplate: boolean("is_template").default(false), // True for template toys used for bulk generation
-  templateId: integer("template_id"), // References the template toy this was created from
+  templateId: integer("template_id"), // References the template this toy was created from
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   collectionProgress: integer("collection_progress").default(0), // Progress towards collection completion
   isSeasonalExclusive: boolean("is_seasonal_exclusive").default(false),
@@ -985,3 +1000,12 @@ export const insertPetEvolutionImageSchema = createInsertSchema(petEvolutionImag
   createdAt: true,
 });
 export type InsertPetEvolutionImage = z.infer<typeof insertPetEvolutionImageSchema>;
+
+// Toy template types and schemas
+export type ToyTemplate = typeof toyTemplates.$inferSelect;
+export const insertToyTemplateSchema = createInsertSchema(toyTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertToyTemplate = z.infer<typeof insertToyTemplateSchema>;
