@@ -966,10 +966,18 @@ function EnhancedAdminDashboard() {
         description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
       });
       
-      // Comprehensive cache invalidation
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/toy-templates'] });
+      // Reset to page 1 to show newest toys immediately
+      setToysPage(1);
+      
+      // Comprehensive cache invalidation with forced refresh
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
+      queryClient.removeQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
+      
+      // Force immediate refresh of page 1 to show new toys
+      queryClient.refetchQueries({ 
+        queryKey: [`/api/admin/all-toys?page=1&limit=10`],
+        type: 'active'
+      });
       
       // Reset form state
       setSelectedToyForBulk(null);
