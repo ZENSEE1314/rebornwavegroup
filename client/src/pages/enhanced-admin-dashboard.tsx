@@ -248,48 +248,7 @@ function EnhancedAdminDashboard() {
   const [petCurrentPage, setPetCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Filter toys (exclude templates, only generated toys)
-  const filteredToys = useMemo(() => {
-    const allToys = allToysQuery?.data?.data || [];
-    const generatedToys = allToys.filter((toy: any) => !toy.ownerId && toy.templateId);
-    
-    if (!toySearchTerm) return generatedToys;
-    
-    return generatedToys.filter((toy: any) => 
-      toy.name?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
-      toy.id?.toString().includes(toySearchTerm) ||
-      toy.rarity?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
-      toy.gender?.toLowerCase().includes(toySearchTerm.toLowerCase())
-    );
-  }, [allToysQuery?.data?.data, toySearchTerm]);
 
-  // Filter active pets
-  const filteredPets = useMemo(() => {
-    const allPets = activatedPetsResponse?.data || [];
-    
-    if (!petSearchTerm) return allPets;
-    
-    return allPets.filter((pet: any) => 
-      pet.name?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
-      pet.id?.toString().includes(petSearchTerm) ||
-      pet.currentStage?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
-      pet.userId?.toString().includes(petSearchTerm)
-    );
-  }, [activatedPetsResponse?.data, petSearchTerm]);
-
-  // Paginate toys
-  const totalToyPages = Math.ceil(filteredToys.length / ITEMS_PER_PAGE);
-  const currentPageToys = useMemo(() => {
-    const startIndex = (toyCurrentPage - 1) * ITEMS_PER_PAGE;
-    return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredToys, toyCurrentPage]);
-
-  // Paginate pets
-  const totalPetPages = Math.ceil(filteredPets.length / ITEMS_PER_PAGE);
-  const currentPagePets = useMemo(() => {
-    const startIndex = (petCurrentPage - 1) * ITEMS_PER_PAGE;
-    return filteredPets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredPets, petCurrentPage]);
   
   // Season and sector management states
   const [showSeasonDialog, setShowSeasonDialog] = useState(false);
@@ -440,6 +399,49 @@ function EnhancedAdminDashboard() {
     queryKey: ['/api/admin/commission-stats'],
     retry: false,
   });
+
+  // Filter toys (exclude templates, only generated toys)
+  const filteredToys = useMemo(() => {
+    const allToys = allToysQuery?.data?.data || [];
+    const generatedToys = allToys.filter((toy: any) => !toy.ownerId && toy.templateId);
+    
+    if (!toySearchTerm) return generatedToys;
+    
+    return generatedToys.filter((toy: any) => 
+      toy.name?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
+      toy.id?.toString().includes(toySearchTerm) ||
+      toy.rarity?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
+      toy.gender?.toLowerCase().includes(toySearchTerm.toLowerCase())
+    );
+  }, [allToysQuery?.data?.data, toySearchTerm]);
+
+  // Filter active pets
+  const filteredPets = useMemo(() => {
+    const allPets = activatedPetsResponse?.data || [];
+    
+    if (!petSearchTerm) return allPets;
+    
+    return allPets.filter((pet: any) => 
+      pet.name?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.id?.toString().includes(petSearchTerm) ||
+      pet.currentStage?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.userId?.toString().includes(petSearchTerm)
+    );
+  }, [activatedPetsResponse?.data, petSearchTerm]);
+
+  // Paginate toys
+  const totalToyPages = Math.ceil(filteredToys.length / ITEMS_PER_PAGE);
+  const currentPageToys = useMemo(() => {
+    const startIndex = (toyCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredToys, toyCurrentPage]);
+
+  // Paginate pets
+  const totalPetPages = Math.ceil(filteredPets.length / ITEMS_PER_PAGE);
+  const currentPagePets = useMemo(() => {
+    const startIndex = (petCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPets.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredPets, petCurrentPage]);
 
 
 
@@ -4007,12 +4009,23 @@ function EnhancedAdminDashboard() {
 
                   {/* Generated Toys Section */}
                   <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                      Generated Toys ({allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0})
-                    </h3>
-                    <div className="max-h-96 overflow-y-auto space-y-3">
-                      {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.map((toy: any) => (
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                        Generated Toys ({filteredToys.length})
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Search toys..."
+                          value={toySearchTerm}
+                          onChange={(e) => setToySearchTerm(e.target.value)}
+                          className="w-48 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {currentPageToys.map((toy: any) => (
                         <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-600/20">
                           <div className="flex items-start gap-4">
                             {/* Toy Image */}
@@ -4179,19 +4192,74 @@ function EnhancedAdminDashboard() {
                           </div>
                         </div>
                       )) || (
-                        <div className="text-center py-8 text-gray-400">No generated toys yet</div>
+                        <div className="text-center py-8 text-gray-400">No generated toys found</div>
                       )}
                     </div>
+                    
+                    {/* Toy Pagination */}
+                    {totalToyPages > 1 && (
+                      <div className="flex justify-center gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setToyCurrentPage(Math.max(1, toyCurrentPage - 1))}
+                          disabled={toyCurrentPage === 1}
+                          className="text-white border-white/20 hover:bg-white/10"
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalToyPages) }, (_, i) => {
+                            const pageNum = toyCurrentPage <= 3 ? i + 1 : toyCurrentPage - 2 + i;
+                            if (pageNum > totalToyPages) return null;
+                            return (
+                              <Button
+                                key={pageNum}
+                                size="sm"
+                                variant={toyCurrentPage === pageNum ? "default" : "outline"}
+                                onClick={() => setToyCurrentPage(pageNum)}
+                                className={toyCurrentPage === pageNum 
+                                  ? "bg-yellow-600 text-white" 
+                                  : "text-white border-white/20 hover:bg-white/10"
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setToyCurrentPage(Math.min(totalToyPages, toyCurrentPage + 1))}
+                          disabled={toyCurrentPage === totalToyPages}
+                          className="text-white border-white/20 hover:bg-white/10"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Active Pets Section */}
                   <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                      Active Pets ({activatedPetsResponse?.data?.length || 0})
-                    </h3>
-                    <div className="max-h-96 overflow-y-auto space-y-3">
-                      {activatedPetsResponse?.data?.slice(0, 10).map((pet: any) => (
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                        Active Pets ({filteredPets.length})
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Search pets..."
+                          value={petSearchTerm}
+                          onChange={(e) => setPetSearchTerm(e.target.value)}
+                          className="w-48 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {currentPagePets.map((pet: any) => (
                         <div key={pet.id} className="bg-green-600/10 rounded-lg p-4 border border-green-600/20">
                           <div className="flex items-start gap-4">
                             {/* Pet Image */}
@@ -4291,9 +4359,53 @@ function EnhancedAdminDashboard() {
                           </div>
                         </div>
                       )) || (
-                        <div className="text-center py-8 text-gray-400">No active pets yet</div>
+                        <div className="text-center py-8 text-gray-400">No active pets found</div>
                       )}
                     </div>
+                    
+                    {/* Pet Pagination */}
+                    {totalPetPages > 1 && (
+                      <div className="flex justify-center gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPetCurrentPage(Math.max(1, petCurrentPage - 1))}
+                          disabled={petCurrentPage === 1}
+                          className="text-white border-white/20 hover:bg-white/10"
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPetPages) }, (_, i) => {
+                            const pageNum = petCurrentPage <= 3 ? i + 1 : petCurrentPage - 2 + i;
+                            if (pageNum > totalPetPages) return null;
+                            return (
+                              <Button
+                                key={pageNum}
+                                size="sm"
+                                variant={petCurrentPage === pageNum ? "default" : "outline"}
+                                onClick={() => setPetCurrentPage(pageNum)}
+                                className={petCurrentPage === pageNum 
+                                  ? "bg-green-600 text-white" 
+                                  : "text-white border-white/20 hover:bg-white/10"
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPetCurrentPage(Math.min(totalPetPages, petCurrentPage + 1))}
+                          disabled={petCurrentPage === totalPetPages}
+                          className="text-white border-white/20 hover:bg-white/10"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
 
