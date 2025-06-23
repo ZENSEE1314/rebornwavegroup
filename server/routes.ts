@@ -3553,7 +3553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get toy templates for admin management
-  app.get('/api/admin/toy-templates', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/toy-templates', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -3598,12 +3598,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new toy template
-  app.post('/api/admin/toy-templates', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/toy-templates', requireAuth, async (req: any, res) => {
     try {
+      console.log("*** TOY TEMPLATE CREATION: Starting authentication check");
+      console.log("*** Session user:", req.user);
+      console.log("*** Session:", req.session);
+      
       const adminUserId = getUserId(req);
+      console.log("*** Admin User ID:", adminUserId);
+      
+      if (!adminUserId) {
+        console.log("*** Authentication failed: No user ID");
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const currentUser = await storage.getUser(adminUserId);
+      console.log("*** Current user from storage:", currentUser);
       
       if (!currentUser || currentUser.role !== 'admin') {
+        console.log("*** Access denied: Not admin user");
         return res.status(403).json({ message: "Admin access required" });
       }
 
