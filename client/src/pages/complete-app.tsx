@@ -50,14 +50,18 @@ function SeasonalCollectionsTab() {
   });
 
   const { data: seasonalToys = [] } = useQuery({
-    queryKey: ['/api/seasons', selectedSeason?.id, 'toys', selectedSector?.id],
-    enabled: !!selectedSeason,
-    onSuccess: (data) => {
-      console.log(`*** FRONTEND SEASONAL TOYS: Season ${selectedSeason?.id}, Sector ${selectedSector?.id}, Data:`, data);
+    queryKey: ['/api/seasons', selectedSeason?.id, 'toys'],
+    queryFn: async () => {
+      console.log('*** FETCHING TOYS for season:', selectedSeason?.id);
+      const response = await fetch(`/api/seasons/${selectedSeason?.id}/toys`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch toys');
+      }
+      const data = await response.json();
+      console.log('*** TOYS RESPONSE:', data);
+      return data;
     },
-    onError: (error) => {
-      console.error(`*** FRONTEND SEASONAL TOYS ERROR: Season ${selectedSeason?.id}, Sector ${selectedSector?.id}, Error:`, error);
-    }
+    enabled: !!selectedSeason,
   });
 
   // Set default season when seasons load
@@ -73,6 +77,19 @@ function SeasonalCollectionsTab() {
       setSelectedSector(sectors[0]);
     }
   }, [sectors, selectedSector]);
+
+  // Filter only toy templates for display
+  const toyTemplates = seasonalToys.filter(toy => toy.isTemplate === true);
+  
+  console.log('*** COLLECTIONS TAB DEBUG:', {
+    selectedSeason: selectedSeason?.id,
+    selectedSeasonName: selectedSeason?.name,
+    sectorsCount: sectors.length,
+    allToysCount: seasonalToys.length,
+    toyTemplatesCount: toyTemplates.length,
+    allToys: seasonalToys.map(t => ({ id: t.id, name: t.name, isTemplate: t.isTemplate })),
+    templates: toyTemplates.map(t => ({ id: t.id, name: t.name, imageUrl: t.imageUrl }))
+  });
 
   const getUserProgress = (sectorId) => {
     const progress = userProgress.find(p => p.sectorId === sectorId);
@@ -101,7 +118,10 @@ function SeasonalCollectionsTab() {
             <Button
               key={season.id}
               variant={selectedSeason?.id === season.id ? "default" : "outline"}
-              onClick={() => setSelectedSeason(season)}
+              onClick={() => {
+                console.log('*** SEASON BUTTON CLICKED:', season.id, season.name);
+                setSelectedSeason(season);
+              }}
               className="mb-2"
             >
               {season.name}
@@ -201,7 +221,7 @@ function SeasonalCollectionsTab() {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {seasonalToys.map((toy) => (
+            {toyTemplates.map((toy) => (
               <div key={toy.id}>
                 <img 
                   src={toy.imageUrl || '/images/default-toy.png'} 
