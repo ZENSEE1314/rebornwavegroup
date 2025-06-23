@@ -969,15 +969,14 @@ function EnhancedAdminDashboard() {
       // Reset to page 1 to show newest toys immediately
       setToysPage(1);
       
-      // Comprehensive cache invalidation with forced refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
-      queryClient.removeQueries({ queryKey: ['/api/admin/all-toys'], exact: false });
+      // Complete cache clearing and refresh
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/all-toys'] });
       
-      // Force immediate refresh of page 1 to show new toys
-      queryClient.refetchQueries({ 
-        queryKey: [`/api/admin/all-toys?page=1&limit=10`],
-        type: 'active'
-      });
+      // Small delay to ensure state update, then force refresh
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['/api/admin/all-toys'] });
+      }, 100);
       
       // Reset form state
       setSelectedToyForBulk(null);
@@ -3942,7 +3941,7 @@ function EnhancedAdminDashboard() {
                     </div>
                     <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-300">
-                        {toysResponse?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0}
+                        {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0}
                       </div>
                       <div className="text-sm text-gray-300">Generated</div>
                       <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
@@ -4001,7 +4000,7 @@ function EnhancedAdminDashboard() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                       <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                      Generated Toys ({toysResponse?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0})
+                      Generated Toys ({allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0})
                     </h3>
                     <div className="max-h-48 overflow-y-auto space-y-2">
                       {toysResponse?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.slice(0, 10).map((toy: any) => (

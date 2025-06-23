@@ -26,6 +26,14 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Admin Bulk Generation Display Fix (June 23, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED BULK GENERATION DISPLAY ISSUE - toys were being created but not showing in admin interface
+- **Root Cause Identified**: Filtering logic incorrectly looked for toys with `ownerId && !isActivated` when bulk generated toys have `ownerId: null` and `templateId` set
+- **Fix Applied**: Updated filtering logic to `!toy.ownerId && toy.templateId` for generated toys detection
+- **Cache Enhancement**: Improved cache invalidation to reset to page 1 after generation, ensuring new toys appear immediately
+- **User Experience**: Admin dashboard now correctly shows actual count of generated toys (10+) instead of 0
+- **Complete Resolution**: Both count display and toy list section now work properly with proper toy details (QR codes, IDs, etc.)
+
 ### Toy Template Display System Implementation (June 23, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE TOY TEMPLATE DISPLAY SYSTEM IN COLLECTIONS TAB
 - **Frontend Integration**: Fixed Collections tab in main app to properly fetch and display toy templates
