@@ -3767,35 +3767,56 @@ export default function CompleteApp() {
       // Import QR scanner dynamically
       const QrScanner = (await import('qr-scanner')).default;
       
-      // Scan for QR code
-      const result = await QrScanner.scanImage(videoElement);
+      // Create canvas to capture current video frame
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
       
-      console.log('QR Code detected:', result);
+      if (!context) {
+        throw new Error('Cannot create canvas context');
+      }
       
-      // Set the detected QR code
-      setNewToyCode(result);
+      // Set canvas size to match video
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      
+      // Draw current video frame to canvas
+      context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      
+      // Scan the canvas for QR code
+      const result = await QrScanner.scanImage(canvas, { returnDetailedScanResult: true });
+      
+      console.log('QR Code detected:', result.data);
+      
+      // Set the detected QR code in the input field
+      setNewToyCode(result.data);
       
       // Stop camera
       stopCamera();
       
       toast({
-        title: t('qr.codeDetected') || 'QR Code Detected!',
-        description: `QR Code: ${result}`,
+        title: 'QR Code Detected!',
+        description: `Code: ${result.data}`,
+        duration: 3000,
       });
       
-      // Automatically try to activate the toy
+      // Automatically try to activate the toy after a short delay
       setTimeout(() => {
         addToyByCode();
-      }, 1000);
+      }, 1500);
       
     } catch (error) {
-      // Silently fail if no QR code found, only show error for real issues
-      if (error && typeof error === 'object' && 'message' in error && error.message !== 'No QR code found') {
+      // Only show error if it's not the common "No QR code found" message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (!errorMessage.includes('No QR code found') && 
+          !errorMessage.includes('QR code not found') &&
+          !errorMessage.includes('Could not find')) {
         console.error('QR scan error:', error);
         toast({
-          title: t('qr.scanFailed') || 'Scan Failed',
-          description: t('qr.tryManual') || 'Please try manual entry or ensure QR code is clearly visible',
+          title: 'Scan Failed',
+          description: 'Please ensure QR code is clearly visible and try again',
           variant: "destructive",
+          duration: 3000,
         });
       }
     }
@@ -8664,7 +8685,11 @@ export default function CompleteApp() {
                     ref={(video) => {
                       if (video && cameraStream) {
                         video.srcObject = cameraStream;
-                        video.play();
+                        video.play().then(() => {
+                          console.log('Video playing, dimensions:', video.videoWidth, 'x', video.videoHeight);
+                        }).catch(err => {
+                          console.error('Video play error:', err);
+                        });
                       }
                     }}
                     className="w-full h-64 bg-gray-200 rounded-lg object-cover"
@@ -8713,7 +8738,7 @@ export default function CompleteApp() {
             
             <div className="mt-2 text-center">
               <p className="text-xs text-purple-600">
-                Point camera at QR code and click "Detect QR Code"
+                Point camera at QR code and click "Detect QR Code". The code will auto-fill below.
               </p>
             </div>
 
