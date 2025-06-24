@@ -3446,7 +3446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("*** PETS ENDPOINT: Fetching pets for user:", userId);
-      const pets = await storage.getUserPets(userId);
+      const pets = await storage.getPetsByUserId(userId);
       console.log("*** PETS ENDPOINT: Found pets:", pets?.length || 0);
       
       res.json(pets);

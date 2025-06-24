@@ -7504,17 +7504,22 @@ export default function CompleteApp() {
                               {toy.gender === 'male' ? '♂ Male' : '♀ Female'}
                             </Badge>
                           )}
-                          <Badge variant={toy.isActivated ? "default" : "outline"} className={
-                            toy.isActivated 
-                              ? "bg-purple-600 hover:bg-purple-700 text-white" 
-                              : "border-purple-300 text-purple-700"
-                          }>
-                            <Heart className="w-3 h-3 mr-1" />
-                            {toy.isActivated 
-                              ? t('pet.active')
-                              : t('pet.notActivated')
-                            }
-                          </Badge>
+                          {toy.isActivated ? (
+                            <Badge className="w-full bg-purple-600 text-white">
+                              <Heart className="w-3 h-3 mr-1" />
+                              {t('pet.active')}
+                            </Badge>
+                          ) : (
+                            <Button 
+                              onClick={() => activateToyAsPet(toy)}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white"
+                              size="sm"
+                              disabled={activateToyAsPetMutation.isPending}
+                            >
+                              <Heart className="w-4 h-4 mr-2" />
+                              {activateToyAsPetMutation.isPending ? 'Activating...' : t('pet.activateAsPet')}
+                            </Button>
+                          )}
                         </div>
                         <div className="mt-4 space-y-2">
                           <p className="text-sm text-slate-600">
