@@ -3799,38 +3799,34 @@ export default function CompleteApp() {
         duration: 3000,
       });
       
-      // Automatically try to activate the toy after a short delay
-      setTimeout(() => {
-        addToyByCode();
-      }, 1500);
+      // Show success but don't auto-activate to let user confirm
+      console.log('QR Code successfully set to input field:', result.data);
       
     } catch (error) {
-      // Only show error if it's not the common "No QR code found" message
+      console.log('QR scan attempt failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      if (!errorMessage.includes('No QR code found') && 
-          !errorMessage.includes('QR code not found') &&
-          !errorMessage.includes('Could not find')) {
-        console.error('QR scan error:', error);
-        toast({
-          title: 'Scan Failed',
-          description: 'Please ensure QR code is clearly visible and try again',
-          variant: "destructive",
-          duration: 3000,
-        });
-      }
+      // Always show feedback to user
+      toast({
+        title: 'No QR Code Found',
+        description: 'Try positioning the QR code clearly in the camera view',
+        variant: "destructive",
+        duration: 2000,
+      });
     }
   };
 
   const simulateQRDetection = () => {
     const videoElement = document.querySelector('video') as HTMLVideoElement;
-    if (videoElement && cameraStream) {
+    if (videoElement && cameraStream && videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+      console.log('Starting QR scan with video dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
       scanQRCode(videoElement);
     } else {
       toast({
-        title: t('qr.cameraNotReady'),
-        description: t('qr.ensureCameraActive'),
+        title: 'Camera Not Ready',
+        description: 'Please wait for camera to fully load and try again',
         variant: "destructive",
+        duration: 3000,
       });
     }
   };
