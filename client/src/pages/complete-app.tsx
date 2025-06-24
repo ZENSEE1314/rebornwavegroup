@@ -902,15 +902,14 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     retry: 1,
   });
 
-  // Fetch user's pets with real-time updates
+  // Fetch user's pets - removed auto-refresh for better performance
   const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
     queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
-    staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 0, // Don't cache data (TanStack Query v5 property)
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Disabled auto-refresh
+    refetchOnMount: false, // Disabled auto-refresh
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
@@ -953,37 +952,37 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   }, [safePets, currentPetIndex]);
 
-  // Auto decay system - runs every 3 minutes for all pets
-  useEffect(() => {
-    if (pets && Array.isArray(pets) && pets.length > 0) {
-      const decayInterval = setInterval(async () => {
-        for (const pet of pets) {
-          if (!pet?.id) continue;
-          
-          try {
-            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log(`Decay applied to pet ${pet.name}:`, data.message);
-              
-              // Refresh pets to get updated stats
-              refetchPets();
-            }
-          } catch (error) {
-            console.error(`Error applying decay to pet ${pet.name}:`, error);
-          }
-        }
-      }, 180000); // Run every 3 minutes (180,000 milliseconds)
+  // Auto decay system - disabled for better performance
+  // useEffect(() => {
+  //   if (pets && Array.isArray(pets) && pets.length > 0) {
+  //     const decayInterval = setInterval(async () => {
+  //       for (const pet of pets) {
+  //         if (!pet?.id) continue;
+  //         
+  //         try {
+  //           const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+  //             method: 'POST',
+  //             headers: {
+  //               'Content-Type': 'application/json',
+  //             },
+  //           });
+  //           
+  //           if (response.ok) {
+  //             const data = await response.json();
+  //             console.log(`Decay applied to pet ${pet.name}:`, data.message);
+  //             
+  //             // Refresh pets to get updated stats
+  //             refetchPets();
+  //           }
+  //         } catch (error) {
+  //           console.error(`Error applying decay to pet ${pet.name}:`, error);
+  //         }
+  //       }
+  //     }, 180000); // Run every 3 minutes (180,000 milliseconds)
 
-      return () => clearInterval(decayInterval);
-    }
-  }, [pets]);
+  //     return () => clearInterval(decayInterval);
+  //   }
+  // }, [pets]);
   
   // Get current pet from pets array
   const currentPet = safePets[currentPetIndex];
@@ -1192,11 +1191,9 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       
       // Removed local state clearing to prevent conflicts
       
-      // Force refresh pets data from server
+      // Refresh pets data only when care activity completes
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user-stats"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/pets"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/user-stats"] });
       
       toast({
         title: t('common.success'),
@@ -1273,7 +1270,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: t('common.success'),
         description: t('petCare.sleeping'),
@@ -1295,7 +1291,6 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
-      queryClient.refetchQueries({ queryKey: ["/api/pets"] });
       toast({
         title: t('common.success'),
         description: t('petCare.awake'),
