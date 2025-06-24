@@ -33,6 +33,7 @@ export function setupSession(app: Express) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: sessionTtl,
+      sameSite: 'lax',
     },
   }));
 }
