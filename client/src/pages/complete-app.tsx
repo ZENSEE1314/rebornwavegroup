@@ -3779,7 +3779,7 @@ export default function CompleteApp() {
       stopCamera();
       
       toast({
-        title: t('qr.codeDetected'),
+        title: t('qr.codeDetected') || 'QR Code Detected!',
         description: `QR Code: ${result}`,
       });
       
@@ -3789,12 +3789,15 @@ export default function CompleteApp() {
       }, 1000);
       
     } catch (error) {
-      console.error('QR scan error:', error);
-      toast({
-        title: t('qr.scanFailed'),
-        description: t('qr.tryManual'),
-        variant: "destructive",
-      });
+      // Silently fail if no QR code found, only show error for real issues
+      if (error && typeof error === 'object' && 'message' in error && error.message !== 'No QR code found') {
+        console.error('QR scan error:', error);
+        toast({
+          title: t('qr.scanFailed') || 'Scan Failed',
+          description: t('qr.tryManual') || 'Please try manual entry or ensure QR code is clearly visible',
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -8662,18 +8665,6 @@ export default function CompleteApp() {
                       if (video && cameraStream) {
                         video.srcObject = cameraStream;
                         video.play();
-                        
-                        // Auto-scan every 2 seconds
-                        const scanInterval = setInterval(() => {
-                          if (video && cameraStream) {
-                            scanQRCode(video);
-                          } else {
-                            clearInterval(scanInterval);
-                          }
-                        }, 2000);
-                        
-                        // Clear interval when component unmounts or camera stops
-                        video.addEventListener('pause', () => clearInterval(scanInterval));
                       }
                     }}
                     className="w-full h-64 bg-gray-200 rounded-lg object-cover"
@@ -8722,7 +8713,7 @@ export default function CompleteApp() {
             
             <div className="mt-2 text-center">
               <p className="text-xs text-purple-600">
-                Auto-scanning active - point camera at QR code
+                Point camera at QR code and click "Detect QR Code"
               </p>
             </div>
 
