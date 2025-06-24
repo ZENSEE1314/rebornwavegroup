@@ -5,14 +5,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/lib/i18n';
 import petGuideImage from '@assets/Doluruu Grandpa_1749903476706.png';
 
-// Arrow Pointer Component
-interface ArrowPointerProps {
+// Finger Pointer Component with Bubble Text
+interface FingerPointerProps {
   targetElement: string;
   position: string;
+  bubbleText: string;
 }
 
-function ArrowPointer({ targetElement, position }: ArrowPointerProps) {
-  const [arrowPosition, setArrowPosition] = useState({ top: 0, left: 0 });
+function FingerPointer({ targetElement, position, bubbleText }: FingerPointerProps) {
+  const [pointerPosition, setPointerPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const updatePosition = () => {
@@ -22,26 +23,26 @@ function ArrowPointer({ targetElement, position }: ArrowPointerProps) {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
-        let arrowX = centerX;
-        let arrowY = centerY;
+        let fingerX = centerX;
+        let fingerY = centerY;
         
-        // Adjust position based on arrow direction
+        // Adjust position based on direction
         switch (position) {
           case 'top':
-            arrowY = rect.top - 40;
+            fingerY = rect.top - 60;
             break;
           case 'bottom':
-            arrowY = rect.bottom + 40;
+            fingerY = rect.bottom + 60;
             break;
           case 'left':
-            arrowX = rect.left - 40;
+            fingerX = rect.left - 60;
             break;
           case 'right':
-            arrowX = rect.right + 40;
+            fingerX = rect.right + 60;
             break;
         }
         
-        setArrowPosition({ top: arrowY, left: arrowX });
+        setPointerPosition({ top: fingerY, left: fingerX });
       }
     };
 
@@ -55,18 +56,33 @@ function ArrowPointer({ targetElement, position }: ArrowPointerProps) {
     };
   }, [targetElement, position]);
 
-  const getArrowIcon = () => {
+  const getFingerDirection = () => {
     switch (position) {
       case 'top':
-        return <ChevronUp className="w-8 h-8 text-yellow-400 animate-bounce" />;
+        return 'rotate-180';
       case 'bottom':
-        return <ChevronDown className="w-8 h-8 text-yellow-400 animate-bounce" />;
+        return 'rotate-0';
       case 'left':
-        return <ChevronLeft className="w-8 h-8 text-yellow-400 animate-bounce" />;
+        return 'rotate-90';
       case 'right':
-        return <ChevronRight className="w-8 h-8 text-yellow-400 animate-bounce" />;
+        return '-rotate-90';
       default:
-        return null;
+        return 'rotate-0';
+    }
+  };
+
+  const getBubblePosition = () => {
+    switch (position) {
+      case 'top':
+        return 'bottom-full mb-2';
+      case 'bottom':
+        return 'top-full mt-2';
+      case 'left':
+        return 'right-full mr-2';
+      case 'right':
+        return 'left-full ml-2';
+      default:
+        return 'top-full mt-2';
     }
   };
 
@@ -74,14 +90,35 @@ function ArrowPointer({ targetElement, position }: ArrowPointerProps) {
     <div 
       className="fixed z-45 pointer-events-none"
       style={{ 
-        top: arrowPosition.top, 
-        left: arrowPosition.left, 
+        top: pointerPosition.top, 
+        left: pointerPosition.left, 
         transform: 'translate(-50%, -50%)' 
       }}
     >
-      <div className="relative">
-        {getArrowIcon()}
-        <div className="absolute -inset-2 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
+      <div className="relative flex items-center justify-center">
+        {/* Finger pointing animation */}
+        <div className={`text-6xl ${getFingerDirection()} animate-bounce`}>
+          👆
+        </div>
+        
+        {/* Bubble text */}
+        <div className={`absolute ${getBubblePosition()} z-50`}>
+          <div className="bg-white border-2 border-yellow-400 rounded-lg px-3 py-2 shadow-lg max-w-xs sm:max-w-sm whitespace-nowrap">
+            <div className="text-sm font-medium text-gray-800 text-center">
+              {bubbleText}
+            </div>
+            {/* Bubble arrow */}
+            <div className={`absolute w-3 h-3 bg-white border-yellow-400 transform rotate-45 ${
+              position === 'top' ? 'top-full left-1/2 -translate-x-1/2 -mt-1.5 border-b-2 border-r-2' :
+              position === 'bottom' ? 'bottom-full left-1/2 -translate-x-1/2 -mb-1.5 border-t-2 border-l-2' :
+              position === 'left' ? 'left-full top-1/2 -translate-y-1/2 -ml-1.5 border-t-2 border-r-2' :
+              'right-full top-1/2 -translate-y-1/2 -mr-1.5 border-b-2 border-l-2'
+            }`}></div>
+          </div>
+        </div>
+        
+        {/* Pulsing glow effect */}
+        <div className="absolute -inset-4 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
       </div>
     </div>
   );
@@ -95,6 +132,7 @@ interface OnboardingStep {
   position: 'top' | 'bottom' | 'left' | 'right' | 'center';
   petMessage: string;
   petAnimation: 'idle' | 'excited' | 'pointing' | 'celebrating';
+  bubbleText?: string;
 }
 
 interface OnboardingWalkthroughProps {
@@ -124,7 +162,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '.stats-grid',
       position: 'bottom',
       petMessage: t('onboarding.dashboard.petMessage'),
-      petAnimation: 'pointing'
+      petAnimation: 'pointing',
+      bubbleText: 'Check your stats here!'
     },
     {
       id: 'credits',
@@ -133,7 +172,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '.credits-card',
       position: 'right',
       petMessage: t('onboarding.credits.petMessage'),
-      petAnimation: 'excited'
+      petAnimation: 'excited',
+      bubbleText: 'Your credits'
     },
     {
       id: 'loyalty',
@@ -142,7 +182,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '.loyalty-card',
       position: 'right',
       petMessage: t('onboarding.loyalty.petMessage'),
-      petAnimation: 'pointing'
+      petAnimation: 'pointing',
+      bubbleText: 'Loyalty points'
     },
     {
       id: 'tokens',
@@ -151,7 +192,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '.tokens-card',
       position: 'right',
       petMessage: t('onboarding.tokens.petMessage'),
-      petAnimation: 'excited'
+      petAnimation: 'excited',
+      bubbleText: 'Game tokens'
     },
     {
       id: 'petcare-tab',
@@ -160,7 +202,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '[data-tab="petcare"]',
       position: 'bottom',
       petMessage: t('onboarding.petcare.petMessage'),
-      petAnimation: 'pointing'
+      petAnimation: 'pointing',
+      bubbleText: 'Take care of pets'
     },
     {
       id: 'marketplace-tab',
@@ -169,7 +212,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '[data-tab="marketplace"]',
       position: 'bottom',
       petMessage: t('onboarding.marketplace.petMessage'),
-      petAnimation: 'excited'
+      petAnimation: 'excited',
+      bubbleText: 'Buy & sell toys'
     },
     {
       id: 'loyalty-tab',
@@ -178,7 +222,8 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       targetElement: '[data-tab="loyalty"]',
       position: 'bottom',
       petMessage: t('onboarding.loyaltyTab.petMessage'),
-      petAnimation: 'celebrating'
+      petAnimation: 'celebrating',
+      bubbleText: 'Earn rewards'
     },
     {
       id: 'complete',
@@ -261,13 +306,13 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
       {/* Lighter Overlay */}
       <div className="fixed inset-0 bg-black bg-opacity-20 z-40" />
       
-      {/* Virtual Pet Guide */}
+      {/* Virtual Pet Guide - Mobile Friendly */}
       {petVisible && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-purple-200 shadow-lg max-w-xs">
-            <CardContent className="p-4">
-              <div className="flex items-start space-x-3">
-                <div className={`w-16 h-16 flex items-center justify-center ${
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs sm:max-w-sm">
+          <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-purple-200 shadow-lg">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start space-x-2 sm:space-x-3">
+                <div className={`w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center flex-shrink-0 ${
                   currentStepData.petAnimation === 'excited' ? 'animate-bounce' :
                   currentStepData.petAnimation === 'pointing' ? 'animate-pulse' :
                   currentStepData.petAnimation === 'celebrating' ? 'animate-spin' : ''
@@ -278,16 +323,18 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <div className="flex-1">
-                  <div className="bg-white rounded-lg p-2 shadow-sm">
-                    <p className="text-sm text-gray-700">{currentStepData.petMessage}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="bg-white rounded-lg p-2 sm:p-3 shadow-sm">
+                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed break-words">
+                      {currentStepData.petMessage}
+                    </p>
                   </div>
-                  <div className="flex justify-end mt-2">
+                  <div className="flex justify-end mt-1 sm:mt-2">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setPetVisible(false)}
-                      className="text-purple-600 hover:text-purple-700"
+                      className="text-purple-600 hover:text-purple-700 p-1"
                     >
                       <X className="w-3 h-3" />
                     </Button>
@@ -299,37 +346,38 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
         </div>
       )}
 
-      {/* Dynamic Arrow Pointer */}
-      {currentStepData.targetElement && currentStepData.position !== 'center' && (
-        <ArrowPointer 
+      {/* Dynamic Finger Pointer with Bubble */}
+      {currentStepData.targetElement && currentStepData.position !== 'center' && currentStepData.bubbleText && (
+        <FingerPointer 
           targetElement={currentStepData.targetElement}
           position={currentStepData.position}
+          bubbleText={currentStepData.bubbleText}
         />
       )}
 
-      {/* Onboarding Modal */}
-      <div className={`fixed inset-0 flex ${getModalPosition()} z-50 p-4`}>
-        <Card className="bg-white shadow-2xl max-w-lg w-full animate-in fade-in-0 zoom-in-95 duration-300">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center animate-pulse">
-                  <Star className="w-4 h-4 text-white" />
+      {/* Onboarding Modal - Mobile Responsive */}
+      <div className={`fixed inset-0 flex ${getModalPosition()} z-50 p-2 sm:p-4`}>
+        <Card className="bg-white shadow-2xl max-w-sm sm:max-w-lg w-full animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex justify-between items-start mb-3 sm:mb-4">
+              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center animate-pulse flex-shrink-0">
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">{currentStepData.title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{currentStepData.title}</h2>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={skipOnboarding}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0 p-1"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
-            <div className="mb-6">
-              <p className="text-gray-600 leading-relaxed">{currentStepData.description}</p>
+            <div className="mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{currentStepData.description}</p>
             </div>
 
             {/* Progress Bar */}
@@ -346,33 +394,36 @@ export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: Onboardin
               </div>
             </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between">
+            {/* Navigation Buttons - Mobile Responsive */}
+            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
               <Button
                 variant="outline"
                 onClick={prevStep}
                 disabled={currentStep === 0}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-2 order-2 sm:order-1"
+                size="sm"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>{t('onboarding.previous')}</span>
+                <span className="text-sm">{t('onboarding.previous')}</span>
               </Button>
 
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 order-1 sm:order-2">
                 <Button
                   variant="ghost"
                   onClick={skipOnboarding}
-                  className="text-gray-500"
+                  className="text-gray-500 flex-1 sm:flex-none"
+                  size="sm"
                 >
-                  {t('onboarding.skip')}
+                  <span className="text-sm">{t('onboarding.skip')}</span>
                 </Button>
                 <Button
                   onClick={nextStep}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 flex items-center space-x-2 transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 flex items-center justify-center space-x-2 transition-all duration-200 flex-1 sm:flex-none"
+                  size="sm"
                 >
-                  <span>
+                  <span className="text-sm">
                     {currentStep === onboardingSteps.length - 1 
-                      ? 'Complete Tour'
+                      ? 'Complete'
                       : t('onboarding.next')
                     }
                   </span>
