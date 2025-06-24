@@ -1704,14 +1704,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toy routes
-  app.get('/api/toys', isAuthenticated, async (req: any, res) => {
+  app.get('/api/toys', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub || req.user?.id;
-      if (!adminUserId) {
+      const userId = getUserId(req);
+      if (!userId) {
         return res.status(401).json({ message: "User ID not found" });
       }
-      const toys = await storage.getToysByOwnerId(adminUserId);
-      console.log("*** TOYS DEBUG: User", adminUserId, "has toys:", toys.length);
+      const toys = await storage.getToysByOwnerId(userId);
+      console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
       if (toys.length > 0) {
         console.log("*** FIRST TOY:", JSON.stringify(toys[0], null, 2));
       }
