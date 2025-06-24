@@ -105,6 +105,7 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
+      console.log('*** FRONTEND LOGIN: Attempting login for:', data.email);
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -114,14 +115,22 @@ export default function Login() {
         body: JSON.stringify(data),
       });
       
+      console.log('*** FRONTEND LOGIN: Response status:', response.status);
+      console.log('*** FRONTEND LOGIN: Response headers:', response.headers);
+      
       if (!response.ok) {
         const error = await response.json();
+        console.log('*** FRONTEND LOGIN: Error response:', error);
         throw new Error(error.message || "Login failed");
       }
       
-      return response.json();
+      const result = await response.json();
+      console.log('*** FRONTEND LOGIN: Success response:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('*** FRONTEND LOGIN: Login mutation successful, user data:', data);
+      
       // Invalidate auth queries to refresh authentication state
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
@@ -130,12 +139,14 @@ export default function Login() {
         description: "Welcome back to your pet care journey.",
       });
       
-      // Wait a moment for the query to invalidate, then redirect
+      // Wait longer for session to be established, then redirect
       setTimeout(() => {
+        console.log('*** FRONTEND LOGIN: Redirecting to dashboard');
         window.location.href = "/";
-      }, 200);
+      }, 500);
     },
     onError: (error: any) => {
+      console.log('*** FRONTEND LOGIN: Login mutation failed:', error);
       setError(error.message || "Login failed. Please try again.");
     },
   });

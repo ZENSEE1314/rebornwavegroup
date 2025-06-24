@@ -24,16 +24,32 @@ export function setupSession(app: Express) {
     tableName: "sessions",
   });
 
+  // Detect production/live environment more reliably
+  const isLiveServer = process.env.NODE_ENV === 'production' || 
+                       process.env.REPL_DEPLOYMENT === '1' || 
+                       process.env.REPLIT_DEPLOYMENT === '1' ||
+                       process.env.REPLIT_DB_URL || // Replit database indicator
+                       process.env.REPL_OWNER; // Replit environment indicator
+
+  console.log('*** SESSION CONFIG DEBUG: isLiveServer:', isLiveServer);
+  console.log('*** SESSION CONFIG DEBUG: NODE_ENV:', process.env.NODE_ENV);
+  console.log('*** SESSION CONFIG DEBUG: REPL_DEPLOYMENT:', process.env.REPL_DEPLOYMENT);
+  console.log('*** SESSION CONFIG DEBUG: Host detection for session config');
+
   app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset expiration on each request to prevent auto logout
+    name: 'reborn.sid', // Custom session name to avoid conflicts
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Force false for all Replit environments (HTTP/HTTPS both work)
       maxAge: sessionTtl,
-      sameSite: 'lax',
+      sameSite: 'lax', // Allows cross-site requests needed for Replit
+      domain: undefined, // Let browser handle domain automatically
+      path: '/', // Ensure cookies work across all paths
     },
   }));
 }
@@ -241,18 +257,31 @@ export function setupAuthRoutes(app: Express) {
 
   // Email/Password Login
   app.post('/api/auth/login', (req: Request, res: Response, next) => {
+    console.log('*** LOGIN DEBUG: Login attempt for:', req.body.email);
+    console.log('*** LOGIN DEBUG: Session ID before auth:', req.sessionID);
+    console.log('*** LOGIN DEBUG: Current session:', req.session);
+    
     passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
+        console.log('*** LOGIN DEBUG: Authentication error:', err);
         return res.status(500).json({ message: 'Authentication error' });
       }
       if (!user) {
+        console.log('*** LOGIN DEBUG: User not found or invalid credentials:', info);
         return res.status(401).json({ message: info?.message || 'Invalid credentials' });
       }
 
+      console.log('*** LOGIN DEBUG: User authenticated successfully:', user.email);
       req.login(user, (err) => {
         if (err) {
+          console.log('*** LOGIN DEBUG: req.login() failed:', err);
           return res.status(500).json({ message: 'Login failed' });
         }
+        
+        console.log('*** LOGIN DEBUG: Login successful, session ID:', req.sessionID);
+        console.log('*** LOGIN DEBUG: Session after login:', req.session);
+        console.log('*** LOGIN DEBUG: User in session:', req.user);
+        
         res.json({
           id: user.id,
           email: user.email,
@@ -697,11 +726,14 @@ export function requireAuth(req: Request, res: Response, next: Function) {
   console.log("*** REQUIRE AUTH DEBUG: Method:", req.method, "Path:", req.path);
   console.log("*** REQUIRE AUTH DEBUG: isAuthenticated():", req.isAuthenticated());
   console.log("*** REQUIRE AUTH DEBUG: req.user:", req.user);
-  console.log("*** REQUIRE AUTH DEBUG: session:", req.session);
+  console.log("*** REQUIRE AUTH DEBUG: session ID:", req.sessionID);
+  console.log("*** REQUIRE AUTH DEBUG: session cookie:", req.session.cookie);
+  console.log("*** REQUIRE AUTH DEBUG: host:", req.get('host'));
+  console.log("*** REQUIRE AUTH DEBUG: user-agent:", req.get('user-agent'));
   
   if (!req.isAuthenticated() || !req.user) {
-    console.log("*** REQUIRE AUTH DEBUG: Authentication failed");
-    return res.status(401).json({ message: 'Unauthorized' });
+    console.log("*** REQUIRE AUTH DEBUG: Authentication failed - redirecting to login");
+    return res.status(401).json({ message: 'Unauthorized', redirect: '/login' });
   }
   
   console.log("*** REQUIRE AUTH DEBUG: Authentication successful");

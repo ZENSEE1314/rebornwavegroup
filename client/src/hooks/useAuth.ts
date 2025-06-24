@@ -2,14 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
-  const { data: user, isLoading, error } = useQuery({
+  const { data: user, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 unauthorized errors
+      if (error?.status === 401) return false;
+      return failureCount < 2;
+    },
     refetchInterval: false, // Disable auto-refresh for auth
     refetchOnWindowFocus: false, // Disable refetch on window focus
-    staleTime: 30 * 1000, // 30 seconds stale time for faster auth updates
-    gcTime: 0, // Don't cache auth data in garbage collection
+    staleTime: 60 * 1000, // 60 seconds stale time for better stability
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection time
   });
 
   return {
@@ -17,5 +21,6 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!user && !error,
     error,
+    refetch,
   };
 }
