@@ -7426,6 +7426,18 @@ export default function CompleteApp() {
                 </Card>
               ))}
               
+              {/* Show toy count outside grid */}
+            </div>
+            
+            {Array.isArray(toyInventory) && toyInventory.length > 0 && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-medium">
+                  Found {toyInventory.length} toy(s) in your collection
+                </p>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Show regular toy inventory with pagination */}
               {Array.isArray(toyInventory) && toyInventory.slice((toyInventoryPage - 1) * 10, toyInventoryPage * 10).map((toy) => {
                 // Check if this toy has a pending transaction
