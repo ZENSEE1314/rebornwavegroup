@@ -45,7 +45,7 @@ export function setupLocalAuth() {
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
+        const user = await storage.getUserByEmail(email.toLowerCase());
         if (!user || !user.password) {
           return done(null, false, { message: 'Invalid email or password' });
         }
@@ -190,8 +190,8 @@ export function setupAuthRoutes(app: Express) {
         return res.status(400).json({ message: 'Gender must be either male or female' });
       }
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      // Check if user already exists (case-insensitive)
+      const existingUser = await storage.getUserByEmail(email.toLowerCase());
       if (existingUser) {
         return res.status(400).json({ message: 'User already exists with this email' });
       }
@@ -201,7 +201,7 @@ export function setupAuthRoutes(app: Express) {
       
       const newUser = await storage.createEmailUser({
         id: userId,
-        email,
+        email: email.toLowerCase(),
         password, // Pass plain password, let storage handle hashing
         authProvider: 'email',
         firstName: firstName || '',

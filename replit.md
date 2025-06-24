@@ -265,11 +265,12 @@ A comprehensive digital financial management and collectible toy platform that c
 - ✅ Email/password login authentication FULLY FIXED - resolved double-hashing issue
 - ✅ Registration and login flow working seamlessly
 - ✅ ALL USER PASSWORDS STANDARDIZED - All 22 database users now use password "password123"
+- ✅ EMAIL CASE INSENSITIVE - Login works with any email case variation (SSS@GMAIL.COM = sss@gmail.com)
 - Test credentials available: 
   - test@example.com / password123
   - kcwee5@gmail.com / password123
   - candyheng198088@gmail.com / password123
-  - Any database user email / password123
+  - Any database user email / password123 (case insensitive)
 - Current issues: Google OAuth 403 errors, SendGrid API key 401 errors (OAuth-related)
 
 ### Evolution System
