@@ -97,14 +97,14 @@ function FingerPointer({ targetElement, position, bubbleText }: FingerPointerPro
     >
       <div className="relative flex items-center justify-center">
         {/* Finger pointing animation */}
-        <div className={`text-6xl ${getFingerDirection()} animate-bounce`}>
+        <div className={`text-4xl sm:text-6xl ${getFingerDirection()} finger-bounce finger-pointer-mobile`}>
           👆
         </div>
         
         {/* Bubble text */}
         <div className={`absolute ${getBubblePosition()} z-50`}>
-          <div className="bg-white border-2 border-yellow-400 rounded-lg px-3 py-2 shadow-lg max-w-xs sm:max-w-sm whitespace-nowrap">
-            <div className="text-sm font-medium text-gray-800 text-center">
+          <div className="bg-white border-2 border-yellow-400 rounded-lg px-2 sm:px-3 py-1 sm:py-2 shadow-lg bubble-mobile bubble-pop whitespace-nowrap">
+            <div className="text-xs sm:text-sm font-medium text-gray-800 text-center">
               {bubbleText}
             </div>
             {/* Bubble arrow */}
