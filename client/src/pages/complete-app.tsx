@@ -909,7 +909,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     retry: 1,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     refetchOnWindowFocus: false, // Disabled auto-refresh
-    refetchOnMount: false, // Disabled auto-refresh
+    refetchOnMount: true, // Only fetch on initial mount
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
@@ -993,11 +993,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     enabled: !!currentPet?.id,
   });
 
-  // Fetch sleep progress for sleeping pets with reduced polling
+  // Fetch sleep progress for sleeping pets - disabled auto-refresh
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    refetchInterval: 5000, // Update every 5 seconds instead of every second
+    // refetchInterval: 5000, // Disabled auto-refresh
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);

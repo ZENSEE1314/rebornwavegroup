@@ -3436,23 +3436,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/pets', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pets', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
-      if (!adminUserId) {
+      const userId = getUserId(req);
+      
+      if (!userId) {
+        console.log("*** PETS ENDPOINT: No user ID found");
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      console.log(`Fetching pets for user: ${adminUserId}`);
-      const pets = await storage.getPetsByUserId(adminUserId);
-      console.log(`Found ${pets.length} pets:`, pets.map(p => ({ id: p.id, name: p.name, hunger: p.hunger, cleanliness: p.cleanliness, happiness: p.happiness, energy: p.energy })));
-      
-      // Disable all forms of caching for real-time updates
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate, proxy-revalidate');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', '0');
-      res.set('Surrogate-Control', 'no-store');
-      res.set('ETag', Date.now().toString()); // Force unique response
+      console.log("*** PETS ENDPOINT: Fetching pets for user:", userId);
+      const pets = await storage.getUserPets(userId);
+      console.log("*** PETS ENDPOINT: Found pets:", pets?.length || 0);
       
       res.json(pets);
     } catch (error) {
