@@ -902,14 +902,15 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     retry: 1,
   });
 
-  // Fetch user's pets - removed auto-refresh for better performance
+  // Fetch user's pets with reasonable caching
   const { data: pets = [], isLoading: petsLoading, refetch: refetchPets } = useQuery({
     queryKey: ["/api/pets"],
     enabled: !!user?.id,
     retry: 1,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: false, // Disabled auto-refresh
-    refetchOnMount: true, // Only fetch on initial mount
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    refetchOnWindowFocus: true, // Refresh when returning to tab
+    refetchOnMount: true,
+    refetchInterval: 300000, // Auto-refresh every 5 minutes
   });
 
   // Safe pets array with proper fallback - define this first to avoid crashes
@@ -952,37 +953,37 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   }, [safePets, currentPetIndex]);
 
-  // Auto decay system - disabled for better performance
-  // useEffect(() => {
-  //   if (pets && Array.isArray(pets) && pets.length > 0) {
-  //     const decayInterval = setInterval(async () => {
-  //       for (const pet of pets) {
-  //         if (!pet?.id) continue;
-  //         
-  //         try {
-  //           const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
-  //             method: 'POST',
-  //             headers: {
-  //               'Content-Type': 'application/json',
-  //             },
-  //           });
-  //           
-  //           if (response.ok) {
-  //             const data = await response.json();
-  //             console.log(`Decay applied to pet ${pet.name}:`, data.message);
-  //             
-  //             // Refresh pets to get updated stats
-  //             refetchPets();
-  //           }
-  //         } catch (error) {
-  //           console.error(`Error applying decay to pet ${pet.name}:`, error);
-  //         }
-  //       }
-  //     }, 180000); // Run every 3 minutes (180,000 milliseconds)
+  // Auto decay system - runs every 10 minutes for reasonable updates
+  useEffect(() => {
+    if (pets && Array.isArray(pets) && pets.length > 0) {
+      const decayInterval = setInterval(async () => {
+        for (const pet of pets) {
+          if (!pet?.id) continue;
+          
+          try {
+            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`Decay applied to pet ${pet.name}:`, data.message);
+              
+              // Refresh pets to get updated stats
+              refetchPets();
+            }
+          } catch (error) {
+            console.error(`Error applying decay to pet ${pet.name}:`, error);
+          }
+        }
+      }, 600000); // Run every 10 minutes (600,000 milliseconds)
 
-  //     return () => clearInterval(decayInterval);
-  //   }
-  // }, [pets]);
+      return () => clearInterval(decayInterval);
+    }
+  }, [pets]);
   
   // Get current pet from pets array
   const currentPet = safePets[currentPetIndex];
@@ -993,11 +994,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     enabled: !!currentPet?.id,
   });
 
-  // Fetch sleep progress for sleeping pets - disabled auto-refresh
+  // Fetch sleep progress for sleeping pets - reasonable refresh interval
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
     enabled: !!safePets[currentPetIndex]?.id && safePets[currentPetIndex]?.isSleeping,
-    // refetchInterval: 5000, // Disabled auto-refresh
+    refetchInterval: 30000, // Update every 30 seconds for sleeping pets
     queryFn: async () => {
       if (!safePets[currentPetIndex]?.id) return null;
       const response = await fetch(`/api/pets/${safePets[currentPetIndex].id}/sleep-progress`);

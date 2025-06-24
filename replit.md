@@ -3,7 +3,7 @@
 ## Overview
 A comprehensive digital financial management and collectible toy platform that combines interactive gamification, multi-language support, and dynamic user engagement through innovative technological infrastructure.
 
-**Current Status**: ✅ OPTIMIZED PET CARE SYSTEM - Removed all auto-refresh intervals and background polling to improve performance. Pet data now loads once and updates only when user performs actions. Fixed authentication issues with pets endpoint using proper requireAuth middleware.
+**Current Status**: ✅ BALANCED PET CARE SYSTEM - Restored auto-refresh with reasonable intervals: 5-minute background refresh, 10-minute auto-decay, 30-second sleep progress updates. Pet system stays dynamic without being too aggressive. Fixed authentication issues with pets endpoint using proper requireAuth middleware.
 
 ## Project Architecture
 
