@@ -473,6 +473,27 @@ If you didn't request this password reset, please ignore this email.
     }
   });
 
+  // Check authentication status endpoint
+  app.get('/api/auth/user', (req: Request, res: Response) => {
+    console.log('*** AUTH CHECK: Session ID:', req.sessionID);
+    console.log('*** AUTH CHECK: isAuthenticated():', req.isAuthenticated());
+    console.log('*** AUTH CHECK: req.user exists:', !!req.user);
+    
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    const user = req.user as any;
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      authProvider: user.authProvider,
+    });
+  });
+
   // Logout (POST version for API calls)
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.logout((err) => {
@@ -483,7 +504,7 @@ If you didn't request this password reset, please ignore this email.
         if (err) {
           return res.status(500).json({ message: 'Session destruction failed' });
         }
-        res.clearCookie('connect.sid');
+        res.clearCookie('reborn.sid'); // Use custom session name
         res.json({ message: 'Logged out successfully' });
       });
     });
@@ -501,7 +522,7 @@ If you didn't request this password reset, please ignore this email.
           console.error('Session destruction error:', err);
           return res.redirect('/');
         }
-        res.clearCookie('connect.sid');
+        res.clearCookie('reborn.sid'); // Use custom session name
         res.redirect('/');
       });
     });
