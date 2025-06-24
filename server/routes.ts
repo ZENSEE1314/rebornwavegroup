@@ -1928,13 +1928,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activate toy with QR code (replaces the old scan functionality)
-  app.post('/api/toys/scan', isAuthenticated, async (req: any, res) => {
+  app.post('/api/toys/scan', requireAuth, async (req: any, res) => {
     console.log("=== QR SCAN REQUEST ===");
     console.log("Body:", req.body);
-    console.log("User:", req.user?.claims?.sub);
+    console.log("User ID:", getUserId(req));
     
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const { qrCode } = req.body;
       
       if (!qrCode || qrCode.trim() === '') {
@@ -1942,8 +1946,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "QR code is required" });
       }
       
-      console.log("Calling activateToyByQrCode with:", qrCode.trim(), adminUserId);
-      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), adminUserId);
+      console.log("Calling activateToyByQrCode with:", qrCode.trim(), userId);
+      const activatedToy = await storage.activateToyByQrCode(qrCode.trim(), userId);
       
       if (!activatedToy) {
         console.log("ERROR: No toy returned");

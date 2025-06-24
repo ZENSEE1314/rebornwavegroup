@@ -4783,19 +4783,34 @@ export default function CompleteApp() {
   };
 
   const addToyByCode = async () => {
-    if (!newToyCode) {
+    if (!newToyCode.trim()) {
       toast({
-        title: t('common.error'),
-        description: t('toys.enterQrCode'),
+        title: 'Error',
+        description: 'Please enter a QR code',
         variant: "destructive"
       });
       return;
     }
 
     try {
-      const response = await apiRequest('POST', '/api/toys/scan', {
-        qrCode: newToyCode
+      console.log('Attempting to activate toy with QR code:', newToyCode);
+      
+      const response = await fetch('/api/toys/scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          qrCode: newToyCode.trim()
+        })
       });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to activate toy');
+      }
 
       // Refresh toy inventory
       queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
@@ -4803,14 +4818,20 @@ export default function CompleteApp() {
       setNewToyCode("");
       
       toast({
-        title: t('toys.activationSuccess'),
-        description: t('toys.activationSuccessMessage'),
+        title: 'Success!',
+        description: `Toy "${data.toy?.name || 'Unknown'}" activated successfully!`,
+        duration: 4000,
       });
+      
+      console.log('Toy activated successfully:', data.toy);
+      
     } catch (error: any) {
+      console.error('Toy activation error:', error);
       toast({
-        title: t('common.error'),
-        description: error.message || t('toys.activationError'),
-        variant: "destructive"
+        title: 'Activation Failed',
+        description: error.message || 'Failed to activate toy. Please check the QR code.',
+        variant: "destructive",
+        duration: 4000,
       });
     }
   };
