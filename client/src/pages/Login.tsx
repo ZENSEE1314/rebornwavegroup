@@ -122,13 +122,18 @@ export default function Login() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate auth queries to refresh authentication state
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
       toast({
         title: "Login successful!",
         description: "Welcome back to your pet care journey.",
       });
       
-      // Force a complete page reload to ensure fresh auth state
-      window.location.href = "/";
+      // Wait a moment for the query to invalidate, then redirect
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 200);
     },
     onError: (error: any) => {
       setError(error.message || "Login failed. Please try again.");

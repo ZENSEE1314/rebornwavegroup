@@ -153,21 +153,22 @@ export function setupLocalAuth() {
   }
 
   passport.serializeUser((user: any, done) => {
+    console.log('*** SERIALIZE DEBUG: Serializing user with ID:', user.id, 'Email:', user.email);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      console.log('Deserializing user with ID:', id);
+      console.log('*** DESERIALIZE DEBUG: Attempting to deserialize user with ID:', id);
       const user = await storage.getUser(id);
       if (!user) {
-        console.log('User not found during deserialization:', id);
+        console.log('*** DESERIALIZE DEBUG: User not found during deserialization:', id);
         return done(null, false);
       }
-      console.log('User deserialized successfully:', user.email);
+      console.log('*** DESERIALIZE DEBUG: User deserialized successfully:', user.email, 'User object:', !!user);
       done(null, user);
     } catch (error) {
-      console.error('Deserialization error:', error);
+      console.error('*** DESERIALIZE DEBUG: Deserialization error:', error);
       done(null, false);
     }
   });
