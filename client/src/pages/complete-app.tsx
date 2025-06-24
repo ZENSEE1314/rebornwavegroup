@@ -3762,13 +3762,53 @@ export default function CompleteApp() {
     setShowQRCamera(false);
   };
 
+  const scanQRCode = async (videoElement: HTMLVideoElement) => {
+    try {
+      // Import QR scanner dynamically
+      const QrScanner = (await import('qr-scanner')).default;
+      
+      // Scan for QR code
+      const result = await QrScanner.scanImage(videoElement);
+      
+      console.log('QR Code detected:', result);
+      
+      // Set the detected QR code
+      setNewToyCode(result);
+      
+      // Stop camera
+      stopCamera();
+      
+      toast({
+        title: t('qr.codeDetected'),
+        description: `QR Code: ${result}`,
+      });
+      
+      // Automatically try to activate the toy
+      setTimeout(() => {
+        addToyByCode();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('QR scan error:', error);
+      toast({
+        title: t('qr.scanFailed'),
+        description: t('qr.tryManual'),
+        variant: "destructive",
+      });
+    }
+  };
+
   const simulateQRDetection = () => {
-    // For demonstration purposes - in a real app, you'd use a QR code detection library
-    toast({
-      title: t('qr.featureUnderDevelopment'),
-      description: t('qr.autoDetectionComingSoon'),
-    });
-    stopCamera();
+    const videoElement = document.querySelector('video') as HTMLVideoElement;
+    if (videoElement && cameraStream) {
+      scanQRCode(videoElement);
+    } else {
+      toast({
+        title: t('qr.cameraNotReady'),
+        description: t('qr.ensureCameraActive'),
+        variant: "destructive",
+      });
+    }
   };
 
   // Clean up camera stream on unmount
@@ -8622,6 +8662,18 @@ export default function CompleteApp() {
                       if (video && cameraStream) {
                         video.srcObject = cameraStream;
                         video.play();
+                        
+                        // Auto-scan every 2 seconds
+                        const scanInterval = setInterval(() => {
+                          if (video && cameraStream) {
+                            scanQRCode(video);
+                          } else {
+                            clearInterval(scanInterval);
+                          }
+                        }, 2000);
+                        
+                        // Clear interval when component unmounts or camera stops
+                        video.addEventListener('pause', () => clearInterval(scanInterval));
                       }
                     }}
                     className="w-full h-64 bg-gray-200 rounded-lg object-cover"
@@ -8666,6 +8718,12 @@ export default function CompleteApp() {
               >
                 {t("common.close")}
               </Button>
+            </div>
+            
+            <div className="mt-2 text-center">
+              <p className="text-xs text-purple-600">
+                Auto-scanning active - point camera at QR code
+              </p>
             </div>
 
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">

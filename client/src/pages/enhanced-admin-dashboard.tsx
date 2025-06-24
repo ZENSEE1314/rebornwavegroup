@@ -4302,18 +4302,36 @@ function EnhancedAdminDashboard() {
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(toy.qrCode)}`}
                                     alt="QR Code"
                                     className="w-20 h-20 rounded border-2 border-gray-600 cursor-pointer"
-                                    onClick={() => {
-                                      const link = document.createElement('a');
-                                      link.href = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(toy.qrCode)}`;
-                                      link.download = `toy-${toy.id}-qr.png`;
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      document.body.removeChild(link);
-                                      toast({
-                                        title: "QR Code Downloaded!",
-                                        description: "QR code image has been downloaded.",
-                                        duration: 2000,
-                                      });
+                                    onClick={async () => {
+                                      try {
+                                        // Fetch the QR code image as blob
+                                        const response = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(toy.qrCode)}`);
+                                        const blob = await response.blob();
+                                        
+                                        // Create download link
+                                        const link = document.createElement('a');
+                                        const url = URL.createObjectURL(blob);
+                                        link.href = url;
+                                        link.download = `toy-${toy.id}-qr-${toy.qrCode.substring(0, 8)}.png`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        URL.revokeObjectURL(url);
+                                        
+                                        toast({
+                                          title: "QR Code Downloaded!",
+                                          description: `QR code for ${toy.name} has been downloaded.`,
+                                          duration: 2000,
+                                        });
+                                      } catch (error) {
+                                        console.error('Download failed:', error);
+                                        toast({
+                                          title: "Download Failed",
+                                          description: "Unable to download QR code. Please try again.",
+                                          variant: "destructive",
+                                          duration: 3000,
+                                        });
+                                      }
                                     }}
                                   />
                                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
