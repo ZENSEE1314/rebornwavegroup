@@ -2993,8 +2993,10 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const calculatedPoints = Math.floor(parseFloat(amount || "0") / 1000);
 
   // Fetch user's payment verifications
-  const { data: verifications = [], isLoading } = useQuery({
+  const { data: verifications = [], isLoading, refetch: refetchVerifications } = useQuery({
     queryKey: ['/api/payment-verifications'],
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always refetch for real-time updates
   });
 
   const submitMutation = useMutation({
@@ -3013,7 +3015,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       setReceiptImage(null);
       setImagePreview(null);
       setIsSubmitting(false);
+      // Invalidate all payment verification queries to ensure real-time updates
       queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey[0];
+        return key ? key.toString().includes('/api/payment-verifications') : false;
+      }});
+      // Also manually refetch to ensure immediate update
+      refetchVerifications();
     },
     onError: (error: any) => {
       console.log('Payment verification submission error:', error);
