@@ -515,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
@@ -523,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verifications = await db
         .select()
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.adminUserId, adminUserId))
+        .where(eq(paymentVerifications.userId, userId))
         .orderBy(desc(paymentVerifications.createdAt))
         .limit(limit)
         .offset(offset);
@@ -531,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalCount = await db
         .select({ count: sql`count(*)` })
         .from(paymentVerifications)
-        .where(eq(paymentVerifications.adminUserId, adminUserId));
+        .where(eq(paymentVerifications.userId, userId));
       
       const total = Number(totalCount[0].count);
 

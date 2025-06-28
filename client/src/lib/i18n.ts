@@ -194,6 +194,11 @@ export const translations: Translations = {
     zh: '提交验证失败',
     id: 'Gagal mengirim verifikasi'
   },
+  'verification.submitted': {
+    en: 'Verification submitted successfully',
+    zh: '验证提交成功',
+    id: 'Verifikasi berhasil dikirim'
+  },
   'purchase.pointsEarned': {
     en: 'Points earned: ',
     zh: '获得积分：',
