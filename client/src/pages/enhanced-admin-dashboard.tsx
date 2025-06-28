@@ -149,7 +149,6 @@ function EnhancedAdminDashboard() {
   const [openApproveDialog, setOpenApproveDialog] = useState<number | null>(null);
   const [openRejectDialog, setOpenRejectDialog] = useState<number | null>(null);
   const [approveForm, setApproveForm] = useState({
-    pointsAwarded: 0,
     adminNotes: ''
   });
   const [rejectForm, setRejectForm] = useState({
@@ -1360,10 +1359,9 @@ function EnhancedAdminDashboard() {
   });
 
   const approvePaymentVerificationMutation = useMutation({
-    mutationFn: async ({ id, pointsAwarded, adminNotes }: { id: number, pointsAwarded: number, adminNotes: string }) => {
+    mutationFn: async ({ id, adminNotes }: { id: number, adminNotes: string }) => {
       return apiRequest('PATCH', `/api/admin/payment-verifications/${id}`, {
         status: 'approved',
-        pointsAwarded,
         adminNotes
       });
     },
@@ -2337,15 +2335,13 @@ function EnhancedAdminDashboard() {
                                       <DialogTitle className="text-white">Approve Payment Verification</DialogTitle>
                                     </DialogHeader>
                                     <div className="space-y-4">
-                                      <div>
-                                        <Label className="text-gray-300">Points to Award</Label>
-                                        <Input
-                                          type="number"
-                                          value={approveForm.pointsAwarded}
-                                          onChange={(e) => setApproveForm({...approveForm, pointsAwarded: parseInt(e.target.value) || 0})}
-                                          className="bg-gray-800 border-gray-600 text-white"
-                                          placeholder="Enter points to award"
-                                        />
+                                      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+                                        <p className="text-blue-300 text-sm">
+                                          <strong>Auto-calculated Points:</strong> Points will be automatically calculated at 1 point per 1000 IDR when approved.
+                                        </p>
+                                        <p className="text-blue-200 text-xs mt-1">
+                                          Amount: IDR {parseFloat(verification.amount).toLocaleString()} → {Math.floor(parseFloat(verification.amount) / 1000)} points
+                                        </p>
                                       </div>
                                       <div>
                                         <Label className="text-gray-300">Admin Notes</Label>
@@ -2361,7 +2357,6 @@ function EnhancedAdminDashboard() {
                                           onClick={() => {
                                             approvePaymentVerificationMutation.mutate({
                                               id: verification.id,
-                                              pointsAwarded: approveForm.pointsAwarded,
                                               adminNotes: approveForm.adminNotes
                                             });
                                           }}
