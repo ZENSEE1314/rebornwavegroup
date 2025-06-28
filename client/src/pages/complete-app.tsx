@@ -1373,19 +1373,19 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       console.log('*** ACTIVATING TOY AS PET:', toy);
       return apiRequest('POST', `/api/toys/${toy.id}/activate-as-pet`, {});
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
       toast({
-        title: t('pet.activationSuccess'),
-        description: t('pet.toyNowActivePet', { name: data.petName || 'Pet' }),
+        title: "Pet Activated!",
+        description: "Your pet is now active!",
       });
     },
     onError: (error: any) => {
       console.error('*** TOY ACTIVATION ERROR:', error);
       toast({
-        title: t('pet.activationFailed'),
-        description: error.message || t('pet.activationError'),
+        title: "Activation Failed",
+        description: error.message || "Failed to activate pet",
         variant: "destructive",
       });
     },
@@ -7508,7 +7508,7 @@ export default function CompleteApp() {
                               {t("marketplace.listed")}
                             </div>
                             <p className="text-xs text-green-700 mt-1">
-                              {t('price.label')}: Rp {parseInt(activeListing.price).toLocaleString('id-ID')}
+                              Price: Rp {parseInt(activeListing.price).toLocaleString('id-ID')}
                             </p>
                           </div>
                         )}
@@ -7537,7 +7537,7 @@ export default function CompleteApp() {
                           {toy.isActivated ? (
                             <Badge className="w-full bg-purple-600 text-white">
                               <Heart className="w-3 h-3 mr-1" />
-                              {t('pet.active')}
+                              Active Pet
                             </Badge>
                           ) : (
                             <Button 
@@ -7547,7 +7547,7 @@ export default function CompleteApp() {
                               disabled={activateToyAsPetMutation?.isPending}
                             >
                               <Heart className="w-4 h-4 mr-2" />
-                              {activateToyAsPetMutation?.isPending ? 'Activating...' : t('pet.activateAsPet')}
+                              {activateToyAsPetMutation?.isPending ? 'Activating...' : 'Activate as Pet'}
                             </Button>
                           )}
                         </div>
