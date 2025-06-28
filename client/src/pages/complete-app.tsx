@@ -7549,20 +7549,20 @@ export default function CompleteApp() {
                               <Heart className="w-3 h-3 mr-1" />
                               Active Pet
                             </Badge>
+                          ) : activeListing ? (
+                            <Badge className="w-full bg-orange-600 text-white">
+                              <ShoppingBag className="w-3 h-3 mr-1" />
+                              Listed in Marketplace
+                            </Badge>
                           ) : (
                             <Button 
-                              onClick={() => {
-                                toast({
-                                  title: "Feature Not Available",
-                                  description: "Pet activation is available in the Collections tab",
-                                  variant: "default",
-                                });
-                              }}
+                              onClick={() => activateToyAsPet(toy)}
                               className="w-full bg-green-600 hover:bg-green-700 text-white"
                               size="sm"
+                              disabled={activateToyAsPetMutation?.isPending}
                             >
                               <Heart className="w-4 h-4 mr-2" />
-                              Activate as Pet
+                              {activateToyAsPetMutation?.isPending ? 'Activating...' : 'Activate as Pet'}
                             </Button>
                           )}
                         </div>

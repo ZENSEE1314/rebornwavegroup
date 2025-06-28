@@ -485,9 +485,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment verification routes
   app.post("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
       console.log("Payment verification request body:", req.body);
-      console.log("User ID:", adminUserId);
+      console.log("User ID:", userId);
       
       const validation = insertPaymentVerificationSchema.safeParse(req.body);
       
@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .insert(paymentVerifications)
         .values({
           ...validation.data,
-          adminUserId,
+          userId,
         })
         .returning();
 
