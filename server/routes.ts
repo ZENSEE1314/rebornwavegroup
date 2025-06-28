@@ -663,7 +663,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, adminNotes, pointsAwarded } = req.body;
       const adminId = adminUserId;
 
-      console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status}`);
+      // Get the verification to calculate automatic points
+      const [existingVerification] = await db.select().from(paymentVerifications).where(eq(paymentVerifications.id, parseInt(id))).limit(1);
+      if (!existingVerification) {
+        return res.status(404).json({ message: "Payment verification not found" });
+      }
+
+      // Auto-calculate points based on amount (1 point per 1000 IDR) when approving
+      let calculatedPoints = pointsAwarded;
+      if (status === 'approved') {
+        const amount = parseFloat(existingVerification.amount);
+        calculatedPoints = Math.floor(amount / 1000); // 1 point per 1000 IDR
+        console.log(`*** APPROVAL DEBUG: Auto-calculated ${calculatedPoints} points from amount ${amount} IDR`);
+      }
+
+      console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status} with ${calculatedPoints} points`);
 
       const [updatedVerification] = await db
         .update(paymentVerifications)
@@ -671,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status,
           adminId,
           adminNotes,
-          pointsAwarded: pointsAwarded || 0,
+          pointsAwarded: calculatedPoints || 0,
           processedAt: new Date(),
           updatedAt: new Date(),
         })
@@ -686,30 +700,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`*** APPROVAL DEBUG: Updated verification:`, updatedVerification);
 
       // If approved, award points to user and handle referral commission
-      if (status === 'approved' && pointsAwarded > 0) {
-        console.log(`*** APPROVAL DEBUG: Processing approval with ${pointsAwarded} points`);
+      if (status === 'approved' && calculatedPoints > 0) {
+        console.log(`*** APPROVAL DEBUG: Processing approval with ${calculatedPoints} points`);
         
         // Get user information to find introducer
-        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.adminUserId)).limit(1);
+        const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
         console.log(`*** APPROVAL DEBUG: User info found:`, userInfo[0]);
         
         // Award points to user
-        console.log(`*** APPROVAL DEBUG: Awarding ${pointsAwarded} points to user ${updatedVerification.adminUserId}`);
+        console.log(`*** APPROVAL DEBUG: Awarding ${calculatedPoints} points to user ${updatedVerification.userId}`);
         await db
           .update(users)
           .set({
-            loyaltyPoints: sql`${users.loyaltyPoints} + ${pointsAwarded}`,
-            lifetimePoints: sql`${users.lifetimePoints} + ${pointsAwarded}`,
+            loyaltyPoints: sql`${users.loyaltyPoints} + ${calculatedPoints}`,
+            lifetimePoints: sql`${users.lifetimePoints} + ${calculatedPoints}`,
           })
-          .where(eq(users.id, updatedVerification.adminUserId));
+          .where(eq(users.id, updatedVerification.userId));
 
         // Record points history
         console.log(`*** APPROVAL DEBUG: Recording points history`);
         await db.insert(pointsHistory).values({
-          adminUserId: updatedVerification.adminUserId,
-          points: pointsAwarded,
+          userId: updatedVerification.userId,
+          points: calculatedPoints,
           type: 'earned',
-          description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'}`,
+          description: `Purchase verification approved - ${updatedVerification.description || 'Purchase'} (${calculatedPoints} points from ${parseFloat(existingVerification.amount).toLocaleString()} IDR)`,
           relatedId: updatedVerification.id,
         });
 
