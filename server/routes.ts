@@ -1805,9 +1805,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/listings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/listings', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const validatedData = insertListingSchema.parse({
         ...req.body,
         sellerId: adminUserId,
