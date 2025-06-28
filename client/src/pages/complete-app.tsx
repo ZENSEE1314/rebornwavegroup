@@ -2999,7 +2999,8 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const submitMutation = useMutation({
     mutationFn: async (data: { amount: string; description: string; receiptImageUrl: string }) => {
       console.log('Submitting payment verification with data:', data);
-      return apiRequest('POST', '/api/payment-verifications', data);
+      const response = await apiRequest('POST', '/api/payment-verifications', data);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
