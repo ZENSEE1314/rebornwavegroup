@@ -7544,10 +7544,10 @@ export default function CompleteApp() {
                               onClick={() => activateToyAsPet(toy)}
                               className="w-full bg-green-600 hover:bg-green-700 text-white"
                               size="sm"
-                              disabled={activateToyAsPetMutation.isPending}
+                              disabled={activateToyAsPetMutation?.isPending}
                             >
                               <Heart className="w-4 h-4 mr-2" />
-                              {activateToyAsPetMutation.isPending ? 'Activating...' : t('pet.activateAsPet')}
+                              {activateToyAsPetMutation?.isPending ? 'Activating...' : t('pet.activateAsPet')}
                             </Button>
                           )}
                         </div>
