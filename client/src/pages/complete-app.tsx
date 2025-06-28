@@ -1367,6 +1367,30 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   });
 
+  // Mutation to activate toy as pet
+  const activateToyAsPetMutation = useMutation({
+    mutationFn: (toy: any) => {
+      console.log('*** ACTIVATING TOY AS PET:', toy);
+      return apiRequest('POST', `/api/toys/${toy.id}/activate-as-pet`, {});
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+      toast({
+        title: t('pet.activationSuccess'),
+        description: t('pet.toyNowActivePet', { name: data.petName || 'Pet' }),
+      });
+    },
+    onError: (error: any) => {
+      console.error('*** TOY ACTIVATION ERROR:', error);
+      toast({
+        title: t('pet.activationFailed'),
+        description: error.message || t('pet.activationError'),
+        variant: "destructive",
+      });
+    },
+  });
+
 
 
   // Show loading state
@@ -4836,7 +4860,7 @@ export default function CompleteApp() {
     if (!newListingPrice || !selectedToyForSale) {
       toast({
         title: t('common.error'),
-        description: t('marketplace.selectToyAndPrice'),
+        description: 'Please select a toy and enter a price',
         variant: "destructive"
       });
       return;
@@ -4852,6 +4876,12 @@ export default function CompleteApp() {
     setNewListingPrice("");
     setSelectedToyForSale(null);
     setShowCreateListingModal(false);
+  };
+
+  // Function to activate toy as pet
+  const activateToyAsPet = (toy: any) => {
+    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
+    activateToyAsPetMutation.mutate(toy);
   };
 
   const initiateRedemption = (reward: any) => {
