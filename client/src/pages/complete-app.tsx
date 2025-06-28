@@ -2978,6 +2978,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const [verificationPage, setVerificationPage] = useState(1);
   const { toast } = useToast();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   // Fetch user's payment verifications with pagination
   const { data: userVerificationsResponse, isLoading: verificationsLoading } = useQuery({
