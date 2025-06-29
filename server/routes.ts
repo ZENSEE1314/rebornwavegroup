@@ -2250,8 +2250,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if toy is already activated as a pet
       const existingPets = await storage.getPetsByUserId(userId);
-      if (existingPets.some(pet => pet.toyId === toyId)) {
-        return res.status(409).json({ message: "Pet already exists for this toy" });
+      const existingPet = existingPets.find(pet => pet.toyId === toyId);
+      if (existingPet) {
+        // Pet already exists, just update toy activation status and return success
+        console.log('*** PET ALREADY EXISTS, UPDATING TOY ACTIVATION STATUS:', toyId);
+        await storage.updateToy(toyId, { isActivated: true });
+        console.log('*** TOY ACTIVATION STATUS UPDATED FOR EXISTING PET');
+        return res.json({ 
+          message: "Pet already activated for this toy!", 
+          pet: existingPet 
+        });
       }
       
       // Create pet from the toy
