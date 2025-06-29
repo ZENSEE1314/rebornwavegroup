@@ -5122,16 +5122,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { adminUserId: targetUserId } = req.params;
       const { firstName, lastName, email, phoneNumber, role } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(targetUserId, {
         firstName,
         lastName,
         email,
         phoneNumber,
         role
       });
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(targetUserId);
+
+      // Broadcast real-time updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: targetUserId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
       
       res.json({ message: "User profile updated successfully" });
     } catch (error) {
@@ -5141,7 +5169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Update user profile (PATCH)
-  app.patch('/api/admin/users/:adminUserId', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:adminUserId', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -5165,6 +5193,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
         role
       });
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(targetUserId);
+
+      // Broadcast real-time updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: targetUserId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            gender: updatedUser.gender,
+            dateOfBirth: updatedUser.dateOfBirth,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
       
       res.json({ message: "User profile updated successfully" });
     } catch (error) {
@@ -6249,14 +6307,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId } = req.params;
+      const { adminUserId: targetUserId } = req.params;
       const { tokens } = req.body;
       
       if (typeof tokens !== 'number' || tokens < 0) {
         return res.status(400).json({ message: "Valid token amount required" });
       }
       
-      await storage.updateUserTokens(adminUserId, tokens);
+      await storage.updateUserTokens(targetUserId, tokens);
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(targetUserId);
+
+      // Broadcast real-time updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: targetUserId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
+
       res.json({ message: "User tokens updated successfully" });
     } catch (error) {
       console.error("Error updating user tokens:", error);

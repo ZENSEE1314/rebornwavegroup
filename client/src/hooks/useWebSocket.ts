@@ -73,6 +73,21 @@ export function useWebSocket(enabled: boolean = true) {
               }
             });
           }
+
+          // Handle user data updates for real-time admin user editing
+          if (data.type === 'USER_DATA_UPDATED') {
+            console.log('Received user data update:', data.userData);
+            
+            // Invalidate user-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/users') ||
+                       queryKey?.includes('/api/user-stats') ||
+                       queryKey?.includes('/api/auth/user');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
