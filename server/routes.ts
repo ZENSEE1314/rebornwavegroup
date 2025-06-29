@@ -793,6 +793,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Payment verification update completed
       console.log(`Payment verification ${updatedVerification.id} updated to ${updatedVerification.status}`);
 
+      // Broadcast real-time updates via WebSocket
+      if ((global as any).wss) {
+        const wsData = {
+          type: 'PAYMENT_VERIFICATION_UPDATE',
+          data: {
+            id: updatedVerification.id,
+            userId: updatedVerification.userId,
+            status: updatedVerification.status,
+            pointsAwarded: calculatedPoints || 0,
+            adminNotes: adminNotes,
+            timestamp: new Date().toISOString()
+          }
+        };
+
+        // Broadcast to all connected clients
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(wsData));
+          }
+        });
+        
+        console.log(`*** REALTIME: Broadcasted payment approval update for verification ${updatedVerification.id}`);
+      }
+
       res.json(updatedVerification);
     } catch (error) {
       console.error("*** APPROVAL DEBUG: Error updating payment verification:", error);
@@ -6526,6 +6550,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching all toys:', error);
       res.status(500).json({ message: 'Failed to fetch toys data' });
     }
+  });
+
+  // Setup WebSocket server for real-time updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store WebSocket server globally for real-time updates
+  (global as any).wss = wss;
+  
+  wss.on('connection', (ws: WebSocket) => {
+    console.log('WebSocket client connected');
+    
+    ws.on('message', (message: string) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('WebSocket message received:', data);
+      } catch (error) {
+        console.error('Invalid WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+    });
   });
 
   return httpServer;
