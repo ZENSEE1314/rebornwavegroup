@@ -43,6 +43,21 @@ export function useWebSocket(enabled: boolean = true) {
               console.log(`Payment approved: ${data.data.pointsAwarded} points awarded`);
             }
           }
+          
+          // Handle appointment events for real-time admin updates
+          if (data.type === 'appointment_created' || data.type === 'appointment_updated' || data.type === 'appointment_status_changed') {
+            console.log('Received appointment update:', data.type, data.data);
+            
+            // Invalidate appointment-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/appointments') ||
+                       queryKey?.includes('/api/appointments') ||
+                       queryKey?.includes('/api/user-stats');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }

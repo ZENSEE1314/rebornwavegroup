@@ -1521,6 +1521,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const appointment = await storage.createAppointment(validatedData);
       
+      // Broadcast appointment creation to all connected clients
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'appointment_created',
+            data: appointment
+          }));
+        }
+      });
+      
       // Get user details for email
       const user = await storage.getUser(userId);
       if (user && user.email) {
@@ -1637,6 +1647,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set status to pending for admin reconfirmation
       await storage.updateAppointmentStatus(appointmentId, 'pending');
       
+      // Broadcast appointment update to all connected clients
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'appointment_updated',
+            data: { ...updatedAppointment, status: 'pending' }
+          }));
+        }
+      });
+      
       // Send reschedule email
       const user = await storage.getUser(userId);
       if (user && user.email) {
@@ -1685,6 +1705,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.updateAppointmentStatus(appointmentId, status);
+      
+      // Broadcast appointment status change to all connected clients
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'appointment_status_changed',
+            data: { ...appointment, status }
+          }));
+        }
+      });
       
       // Send cancellation email if status is cancelled
       if (status === 'cancelled') {

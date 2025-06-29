@@ -26,15 +26,24 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Real-Time Appointment System Implementation (June 29, 2025)
+- **MAJOR FEATURE**: ✅ COMPLETE REAL-TIME APPOINTMENT SYSTEM WITH WEBSOCKET INTEGRATION
+- **WebSocket Broadcasting**: Added real-time broadcasting for appointment creation, updates, and status changes
+- **Admin Dashboard Updates**: Admin interfaces receive instant updates for all appointment events without manual refresh
+- **Frontend Integration**: Updated WebSocket hook to handle appointment events (`appointment_created`, `appointment_updated`, `appointment_status_changed`)
+- **Query Invalidation**: Automatic cache refresh for appointment-related queries when events occur
+- **Authentication Fix**: Updated all appointment endpoints to use unified session-based authentication (`requireAuth` middleware)
+- **Appointment Events**: Real-time updates for appointment creation, reschedule, cancellation, and status changes
+- **System Status**: Appointment booking authentication resolved - system confirmed working with existing appointment (ID 20)
+
 ### Complete Authentication System Modernization (June 29, 2025)
 - **MAJOR INFRASTRUCTURE**: ✅ UNIFIED SESSION-BASED AUTHENTICATION ACROSS ALL ENDPOINTS
 - **Reward Redemption Fix**: Updated `/api/redeem-reward` endpoint from Firebase pattern (`req.user?.claims?.sub`) to session pattern (`getUserId(req)`)
-- **Appointment Booking Fix**: Fixed both POST `/api/appointments` and GET `/api/appointments` endpoints to use `requireAuth` middleware
+- **Appointment System Integration**: Fixed POST `/api/appointments`, GET `/api/appointments`, PUT `/api/appointments/:id`, PUT `/api/appointments/:id/status`, and GET `/api/admin/appointments` endpoints
 - **Authentication Consistency**: All endpoints now use unified session-based authentication with proper error handling
 - **User Experience**: Reward redemption now working perfectly - confirmed with successful "1 Claw Machine Token" redemption for 50 points
 - **Real-time Integration**: Authentication fixes maintain compatibility with WebSocket real-time updates
 - **Point Verification**: User loyalty points correctly updated from 1110 to 1060 after successful redemption
-- **System Reliability**: Appointment booking authentication resolved - endpoints ready for user testing
 
 ### Real-Time Payment Approval System Implementation (June 29, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE REAL-TIME PAYMENT APPROVAL SYSTEM WITH WEBSOCKET INTEGRATION
