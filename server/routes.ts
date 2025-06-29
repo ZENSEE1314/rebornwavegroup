@@ -1505,12 +1505,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointment routes
-  app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
+  app.post('/api/appointments', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+      
       const validatedData = {
         ...req.body,
-        adminUserId,
+        userId,
         appointmentDate: new Date(req.body.appointmentDate),
         status: 'pending' // New appointments require admin confirmation
       };
@@ -1518,7 +1522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointment = await storage.createAppointment(validatedData);
       
       // Get user details for email
-      const user = await storage.getUser(adminUserId);
+      const user = await storage.getUser(userId);
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
@@ -1547,16 +1551,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/appointments', isAuthenticated, async (req: any, res) => {
+  app.get('/api/appointments', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const user = await storage.getUser(adminUserId);
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+      
+      const user = await storage.getUser(userId);
       
       let appointments;
       if (user?.role === 'admin') {
         appointments = await storage.getAllAppointments();
       } else {
-        appointments = await storage.getAppointmentsByUserId(adminUserId);
+        appointments = await storage.getAppointmentsByUserId(userId);
       }
       
       res.json(appointments);
