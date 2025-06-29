@@ -478,20 +478,26 @@ If you didn't request this password reset, please ignore this email.
     console.log('*** AUTH CHECK: Session ID:', req.sessionID);
     console.log('*** AUTH CHECK: isAuthenticated():', req.isAuthenticated());
     console.log('*** AUTH CHECK: req.user exists:', !!req.user);
+    console.log('*** AUTH CHECK: req.user data:', req.user);
     
-    if (!req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    
-    const user = req.user as any;
-    res.json({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      authProvider: user.authProvider,
-    });
+    // Give a brief moment for session to settle
+    setTimeout(() => {
+      if (!req.isAuthenticated() || !req.user) {
+        console.log('*** AUTH CHECK: No authentication found');
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      
+      const user = req.user as any;
+      console.log('*** AUTH CHECK: Returning user data for:', user.email);
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        authProvider: user.authProvider,
+      });
+    }, 10);
   });
 
   // Logout (POST version for API calls)

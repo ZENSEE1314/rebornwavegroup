@@ -1399,6 +1399,33 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   });
 
+  // Activate toy as pet mutation
+  const activateToyAsPetMutation = useMutation({
+    mutationFn: async (toy: any) => {
+      return apiRequest("POST", `/api/toys/${toy.id}/activate-as-pet`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({
+        title: t('common.success'),
+        description: t('pet.activatedSuccessfully'),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('pet.activationFailed'),
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Function to activate toy as pet
+  const activateToyAsPet = (toy: any) => {
+    activateToyAsPetMutation.mutate(toy);
+  };
+
 
 
 

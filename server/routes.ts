@@ -1944,7 +1944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete listing route for cancel sale functionality
-  app.delete('/api/listings/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/listings/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const listingId = parseInt(id);
@@ -2224,6 +2224,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking daily token:", error);
       res.status(500).json({ message: "Failed to check daily token" });
+    }
+  });
+
+  // Activate toy as pet endpoint
+  app.post('/api/toys/:toyId/activate-as-pet', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const toyId = parseInt(req.params.toyId);
+      
+      // Get the toy
+      const toy = await storage.getToyById(toyId);
+      if (!toy) {
+        return res.status(404).json({ message: "Toy not found" });
+      }
+      
+      // Check if toy is owned by user
+      if (toy.ownerId !== userId) {
+        return res.status(403).json({ message: "You don't own this toy" });
+      }
+      
+      // Check if toy is already activated as a pet
+      const existingPets = await storage.getPetsByUserId(userId);
+      if (existingPets.some(pet => pet.toyId === toyId)) {
+        return res.status(409).json({ message: "Pet already exists for this toy" });
+      }
+      
+      // Create pet from the toy
+      const newPet = await storage.createPet({
+        userId,
+        toyId: toyId,
+        name: toy.name,
+        species: toy.species || 'Doluruu',
+        gender: toy.gender || 'male',
+        happiness: 100,
+        hunger: 100,
+        cleanliness: 100,
+        energy: 100,
+        currentAge: 0,
+        growthStage: 'baby',
+        evolutionPoints: 0,
+        isSleeping: false,
+        birthDate: new Date(),
+        lastCareDate: new Date(),
+        lastFeedTime: new Date(),
+        lastCleanTime: new Date(),
+        lastPlayTime: new Date(),
+        sleepStartTime: null,
+        lastEnergyUpdate: new Date()
+      });
+      
+      res.json({ 
+        message: "Toy activated as pet successfully!", 
+        pet: newPet 
+      });
+    } catch (error) {
+      console.error('Error activating toy as pet:', error);
+      res.status(500).json({ message: 'Failed to activate toy as pet' });
     }
   });
 
