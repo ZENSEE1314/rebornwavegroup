@@ -260,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Pet ID:', req.params.petId);
 
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -275,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the pet to verify ownership and get current stats
       const pet = await storage.getPetById(parseInt(petId));
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -393,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track care activity for evolution progression
       await storage.createCareActivity({
         petId: parseInt(petId),
-        adminUserId,
+        userId: adminUserId,
         activityType: careType,
         completedAt: new Date(),
         pointsEarned: 5 // Each care activity earns 5 evolution points
