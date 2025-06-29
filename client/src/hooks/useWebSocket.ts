@@ -25,11 +25,17 @@ export function useWebSocket(enabled: boolean = true) {
           if (data.type === 'PAYMENT_VERIFICATION_UPDATE') {
             console.log('Received payment verification update:', data.data);
             
-            // Invalidate relevant queries for real-time updates
-            queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/points-history'] });
+            // Invalidate relevant queries for real-time updates with predicate matching
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/payment-verifications') ||
+                       queryKey?.includes('/api/payment-verifications') ||
+                       queryKey?.includes('/api/user-stats') ||
+                       queryKey?.includes('/api/points-history') ||
+                       queryKey?.includes('/api/admin/commission-stats');
+              }
+            });
             
             // Show notification based on status
             if (data.data.status === 'approved' && data.data.pointsAwarded > 0) {

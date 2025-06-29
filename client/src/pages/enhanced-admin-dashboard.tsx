@@ -402,6 +402,9 @@ function EnhancedAdminDashboard() {
   const { data: paymentVerificationsResponse }: any = useQuery({
     queryKey: [`/api/admin/payment-verifications?page=${paymentVerificationsPage}&limit=${paymentVerificationsPerPage}`],
     retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
   });
 
   const { data: allPendingPurchases = [] } = useQuery({
