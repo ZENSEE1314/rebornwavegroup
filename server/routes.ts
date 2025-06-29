@@ -2583,7 +2583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get pet to verify ownership
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
