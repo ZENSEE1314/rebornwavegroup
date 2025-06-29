@@ -3725,7 +3725,7 @@ function EnhancedAdminDashboard() {
                                 <Button
                                   size="sm"
                                   onClick={() => updateTokenClaimMutation.mutate({
-                                    claimId: transaction.id,
+                                    claimId: transaction.relatedId || transaction.id,
                                     status: 'approved',
                                     adminNotes: 'Approved by admin'
                                   })}
@@ -3738,7 +3738,7 @@ function EnhancedAdminDashboard() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateTokenClaimMutation.mutate({
-                                    claimId: transaction.id,
+                                    claimId: transaction.relatedId || transaction.id,
                                     status: 'rejected',
                                     adminNotes: 'Rejected by admin'
                                   })}
