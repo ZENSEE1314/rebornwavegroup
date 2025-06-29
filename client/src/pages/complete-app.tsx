@@ -29,7 +29,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 
 // Seasonal Collections Component
-function SeasonalCollectionsTab() {
+function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: any) => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -7623,7 +7623,7 @@ export default function CompleteApp() {
               </TabsContent>
 
               <TabsContent value="seasonal-collections" className="space-y-6">
-                <SeasonalCollectionsTab />
+                <SeasonalCollectionsTab activateToyAsPet={activateToyAsPet} />
               </TabsContent>
             </Tabs>
           </div>
