@@ -6159,7 +6159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create token claim request (no shipping address - redeem at approved locations)
       const claim = await storage.createTokenClaim({
-        adminUserId,
+        userId: adminUserId,
         tokensRequested,
         status: 'pending'
       });
@@ -6210,9 +6210,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User route to get their own token claim history
-  app.get('/api/token-claims/history', isAuthenticated, async (req: any, res) => {
+  app.get('/api/token-claims/history', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -6226,9 +6226,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive token transaction history for a user
-  app.get('/api/tokens/history', isAuthenticated, async (req: any, res) => {
+  app.get('/api/tokens/history', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -6273,9 +6273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/token-claims/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/token-claims/:id', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
