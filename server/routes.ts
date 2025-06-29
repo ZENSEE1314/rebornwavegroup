@@ -1688,7 +1688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send cancellation email if status is cancelled
       if (status === 'cancelled') {
-        const user = await storage.getUser(adminUserId);
+        const user = await storage.getUser(userId);
         if (user && user.email) {
           const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
           
@@ -3921,7 +3921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Get all appointments
-  app.get('/api/admin/appointments', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/appointments', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
