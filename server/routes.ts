@@ -2279,6 +2279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastEnergyUpdate: new Date()
       });
       
+      // Update toy activation status
+      await storage.updateToy(toyId, { isActivated: true });
+      
       res.json({ 
         message: "Toy activated as pet successfully!", 
         pet: newPet 

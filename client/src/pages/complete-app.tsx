@@ -3439,6 +3439,8 @@ export default function CompleteApp() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
       queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       toast({
         title: "Pet Activated!",
         description: "Your pet is now active!",
