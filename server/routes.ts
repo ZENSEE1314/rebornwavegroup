@@ -1611,14 +1611,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update appointment (reschedule)
-  app.put('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/appointments/:id', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+      
       const appointmentId = parseInt(req.params.id);
       const { appointmentDate } = req.body;
-      const adminUserId = req.user.claims.sub;
       
       // Get appointment details before updating
-      const appointments = await storage.getAppointmentsByUserId(adminUserId);
+      const appointments = await storage.getAppointmentsByUserId(userId);
       const appointment = appointments.find(apt => apt.id === appointmentId);
       
       if (!appointment) {
@@ -1634,7 +1638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(appointmentId, 'pending');
       
       // Send reschedule email
-      const user = await storage.getUser(adminUserId);
+      const user = await storage.getUser(userId);
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
@@ -1662,14 +1666,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cancel/delete appointment
-  app.put('/api/appointments/:id/status', isAuthenticated, async (req: any, res) => {
+  app.put('/api/appointments/:id/status', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+      
       const appointmentId = parseInt(req.params.id);
       const { status } = req.body;
-      const adminUserId = req.user.claims.sub;
       
       // Get appointment details before updating
-      const appointments = await storage.getAppointmentsByUserId(adminUserId);
+      const appointments = await storage.getAppointmentsByUserId(userId);
       const appointment = appointments.find(apt => apt.id === appointmentId);
       
       if (!appointment) {
