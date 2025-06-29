@@ -621,8 +621,7 @@ function EnhancedAdminDashboard() {
         title: "Email sent successfully", 
         description: `Sent to ${data.successCount} recipients`
       });
-      setEmailSubject('');
-      setEmailText('');
+      setEmailData({...emailData, subject: '', text: ''});
     },
     onError: (error: any) => {
       toast({ 
@@ -646,7 +645,7 @@ function EnhancedAdminDashboard() {
         title: "WhatsApp messages sent successfully", 
         description: `Sent to ${data.successCount} recipients`
       });
-      setWhatsappMessage('');
+      // WhatsApp message cleared via dedicated Emails tab
     },
     onError: (error: any) => {
       toast({ 
@@ -3250,8 +3249,11 @@ function EnhancedAdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Button
                       onClick={() => {
-                        setEmailSubject("Welcome to Reborn Wave Group!");
-                        setEmailText("Welcome to our digital pet care platform! We're excited to have you join our community. Start caring for your digital pets and earn rewards today!");
+                        setEmailData({
+                          ...emailData,
+                          subject: "Welcome to Reborn Wave Group!",
+                          text: "Welcome to our digital pet care platform! We're excited to have you join our community. Start caring for your digital pets and earn rewards today!"
+                        });
                       }}
                       variant="outline"
                       className="bg-blue-600/20 border-blue-400 text-blue-300 hover:bg-blue-600/30 p-4 h-auto flex-col items-start"
@@ -3265,8 +3267,11 @@ function EnhancedAdminDashboard() {
                     
                     <Button
                       onClick={() => {
-                        setEmailSubject("Pet Evolution Celebration!");
-                        setEmailText("Congratulations! Your digital pet has evolved to a new stage. Keep caring for them to unlock more rewards and achievements!");
+                        setEmailData({
+                          ...emailData,
+                          subject: "Pet Evolution Celebration!",
+                          text: "Congratulations! Your digital pet has evolved to a new stage. Keep caring for them to unlock more rewards and achievements!"
+                        });
                       }}
                       variant="outline"
                       className="bg-green-600/20 border-green-400 text-green-300 hover:bg-green-600/30 p-4 h-auto flex-col items-start"
@@ -3280,8 +3285,11 @@ function EnhancedAdminDashboard() {
                     
                     <Button
                       onClick={() => {
-                        setEmailSubject("Daily Token Reward Available!");
-                        setEmailText("Your daily token reward is ready! Log in now to claim your tokens and continue your pet care journey.");
+                        setEmailData({
+                          ...emailData,
+                          subject: "Daily Token Reward Available!",
+                          text: "Your daily token reward is ready! Log in now to claim your tokens and continue your pet care journey."
+                        });
                       }}
                       variant="outline"
                       className="bg-yellow-600/20 border-yellow-400 text-yellow-300 hover:bg-yellow-600/30 p-4 h-auto flex-col items-start"
