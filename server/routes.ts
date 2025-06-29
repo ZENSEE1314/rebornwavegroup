@@ -2125,13 +2125,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   */
 
   // Pet sleep management
-  app.post('/api/pets/:petId/sleep', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/sleep', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2147,7 +2151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.createCareActivity({
           petId,
-          adminUserId,
+          userId: adminUserId,
           activityType: 'sleep',
           completedAt: new Date(),
           pointsEarned: 0
@@ -2564,16 +2568,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get sleep progress - calculates energy gained during sleep
-  app.get('/api/pets/:petId/sleep-progress', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pets/:petId/sleep-progress', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
       
@@ -2787,13 +2791,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 24-Hour Token System - Check token status
-  app.get('/api/pets/:petId/token-status', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pets/:petId/token-status', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
