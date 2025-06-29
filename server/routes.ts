@@ -19,50 +19,61 @@ function startSleepEnergyTimer(petId: number) {
     clearInterval(sleepTimers.get(petId)!);
   }
 
-  // Start new timer that increases energy every 30 seconds
-  const timer = setInterval(async () => {
-    try {
-      const pet = await storage.getPetById(petId);
-      if (!pet || !pet.isSleeping) {
-        // Stop timer if pet is no longer sleeping
-        clearInterval(timer);
-        sleepTimers.delete(petId);
-        return;
-      }
+  // Wait 5 minutes before starting energy increases
+  const initialDelay = setTimeout(() => {
+    console.log(`*** REAL-TIME: Starting energy increases for pet ${petId} after 5-minute delay`);
+    
+    // Start timer that increases energy every 30 seconds after the 5-minute delay
+    const timer = setInterval(async () => {
+      try {
+        const pet = await storage.getPetById(petId);
+        if (!pet || !pet.isSleeping) {
+          // Stop timer if pet is no longer sleeping
+          clearInterval(timer);
+          sleepTimers.delete(petId);
+          return;
+        }
 
-      // Check if energy is at 100% and auto-wake pet
-      if (pet.energy >= 100) {
+        // Check if energy is at 100% and auto-wake pet
+        if (pet.energy >= 100) {
+          await storage.updatePetStats(petId, { 
+            isSleeping: false, 
+            sleepStartTime: null 
+          });
+          console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
+          // Stop timer after waking up
+          clearInterval(timer);
+          sleepTimers.delete(petId);
+          return;
+        }
+
+        // Increase energy by 1 point every 30 seconds
+        const newEnergy = Math.min(100, pet.energy + 1);
         await storage.updatePetStats(petId, { 
-          isSleeping: false, 
-          sleepStartTime: null 
+          energy: newEnergy,
+          lastEnergyUpdate: new Date()
         });
-        console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
-        // Stop timer after waking up
-        clearInterval(timer);
-        sleepTimers.delete(petId);
-        return;
+        
+        console.log(`*** REAL-TIME: Pet ${petId} energy increased to ${newEnergy}%`);
+      } catch (error) {
+        console.error(`Error in sleep energy timer for pet ${petId}:`, error);
       }
+    }, 30000); // 30 seconds
 
-      // Increase energy by 1 point every 30 seconds
-      const newEnergy = Math.min(100, pet.energy + 1);
-      await storage.updatePetStats(petId, { 
-        energy: newEnergy,
-        lastEnergyUpdate: new Date()
-      });
-      
-      console.log(`*** REAL-TIME: Pet ${petId} energy increased to ${newEnergy}%`);
-    } catch (error) {
-      console.error(`Error in sleep energy timer for pet ${petId}:`, error);
-    }
-  }, 30000); // 30 seconds
+    sleepTimers.set(petId, timer);
+  }, 300000); // 5 minutes = 300,000 milliseconds
 
-  sleepTimers.set(petId, timer);
-  console.log(`*** REAL-TIME: Started energy timer for pet ${petId}`);
+  // Store the initial delay timeout so it can be cleared if needed
+  sleepTimers.set(petId, initialDelay);
+  console.log(`*** REAL-TIME: Started 5-minute delay timer for pet ${petId}`);
 }
 
 function stopSleepEnergyTimer(petId: number) {
   if (sleepTimers.has(petId)) {
-    clearInterval(sleepTimers.get(petId)!);
+    const timer = sleepTimers.get(petId)!;
+    // Clear both timeout and interval timers
+    clearTimeout(timer);
+    clearInterval(timer);
     sleepTimers.delete(petId);
     console.log(`*** REAL-TIME: Stopped energy timer for pet ${petId}`);
   }
@@ -187,9 +198,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const sleepingPets = await db.select().from(schema.pets);
       for (const pet of sleepingPets) {
-        if (pet.isSleeping && pet.energy < 100) {
-          console.log(`*** STARTUP: Starting energy timer for sleeping pet ${pet.id}`);
-          startSleepEnergyTimer(pet.id);
+        if (pet.isSleeping && pet.energy < 100 && pet.sleepStartTime) {
+          const sleepDuration = Date.now() - new Date(pet.sleepStartTime).getTime();
+          const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+          
+          if (sleepDuration >= fiveMinutes) {
+            // Pet has been sleeping for more than 5 minutes, start energy increases immediately
+            console.log(`*** STARTUP: Pet ${pet.id} has been sleeping for ${Math.round(sleepDuration / 60000)} minutes, starting energy increases immediately`);
+            
+            // Start immediate energy increase timer (no 5-minute delay)
+            const timer = setInterval(async () => {
+              try {
+                const currentPet = await storage.getPetById(pet.id);
+                if (!currentPet || !currentPet.isSleeping) {
+                  clearInterval(timer);
+                  sleepTimers.delete(pet.id);
+                  return;
+                }
+
+                if (currentPet.energy >= 100) {
+                  await storage.updatePetStats(pet.id, { 
+                    isSleeping: false, 
+                    sleepStartTime: null 
+                  });
+                  console.log(`*** REAL-TIME: Pet ${pet.id} auto-woke up - energy reached 100%`);
+                  clearInterval(timer);
+                  sleepTimers.delete(pet.id);
+                  return;
+                }
+
+                const newEnergy = Math.min(100, currentPet.energy + 1);
+                await storage.updatePetStats(pet.id, { 
+                  energy: newEnergy,
+                  lastEnergyUpdate: new Date()
+                });
+                
+                console.log(`*** REAL-TIME: Pet ${pet.id} energy increased to ${newEnergy}%`);
+              } catch (error) {
+                console.error(`Error in startup energy timer for pet ${pet.id}:`, error);
+              }
+            }, 30000);
+            
+            sleepTimers.set(pet.id, timer);
+          } else {
+            // Pet has been sleeping for less than 5 minutes, start normal timer with remaining delay
+            const remainingDelay = fiveMinutes - sleepDuration;
+            console.log(`*** STARTUP: Pet ${pet.id} needs ${Math.round(remainingDelay / 60000)} more minutes before energy increases start`);
+            startSleepEnergyTimer(pet.id);
+          }
         }
       }
     } catch (error) {
