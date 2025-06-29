@@ -1286,6 +1286,18 @@ function EnhancedAdminDashboard() {
   });
 
 
+  const updateTokenClaimMutation = useMutation({
+    mutationFn: async ({ claimId, status, adminNotes, trackingNumber }: { claimId: number; status: string; adminNotes: string; trackingNumber?: string }) => {
+      return apiRequest('PATCH', `/api/admin/token-claims/${claimId}`, { status, adminNotes, trackingNumber });
+    },
+    onSuccess: () => {
+      toast({ title: "Token claim updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update token claim", variant: "destructive" });
+    }
+  });
 
   const createRewardMutation = useMutation({
     mutationFn: async (rewardData: any) => {
@@ -3169,7 +3181,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Token Claims</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-orange-400">0</div>
+                      <div className="text-2xl font-bold text-orange-400">{tokenClaims.filter((claim: any) => claim.status === 'pending').length}</div>
                       <p className="text-xs text-gray-400 mt-1">Total claims processed</p>
                     </CardContent>
                   </Card>
@@ -3184,6 +3196,73 @@ function EnhancedAdminDashboard() {
               {/* Communication System */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Email Management */}
+                {/* Token Claims Approval Section */}
+                {tokenClaims.filter((claim: any) => claim.status === 'pending').length > 0 && (
+                  <Card className="bg-slate-800/60 border-slate-700/50">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-orange-400" />
+                        Pending Token Claims ({tokenClaims.filter((claim: any) => claim.status === 'pending').length})
+                      </CardTitle>
+                      <p className="text-gray-300 text-sm">Review and approve user token claims</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4 max-h-96 overflow-y-auto">
+                        {tokenClaims.filter((claim: any) => claim.status === 'pending').map((claim: any) => (
+                          <div key={claim.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-white font-medium">User: {claim.userEmail}</span>
+                                  <Badge variant="outline" className="text-orange-400 border-orange-400">
+                                    {claim.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-gray-300 text-sm mb-2">
+                                  <strong>Type:</strong> {claim.claimType} | <strong>Amount:</strong> {claim.quantity} tokens
+                                </p>
+                                <p className="text-gray-300 text-sm mb-2">
+                                  <strong>Reason:</strong> {claim.reason || 'No reason provided'}
+                                </p>
+                                <p className="text-gray-400 text-xs">
+                                  Submitted: {new Date(claim.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateTokenClaimMutation.mutate({
+                                    claimId: claim.id,
+                                    status: 'approved',
+                                    adminNotes: 'Approved by admin'
+                                  })}
+                                  disabled={updateTokenClaimMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateTokenClaimMutation.mutate({
+                                    claimId: claim.id,
+                                    status: 'rejected',
+                                    adminNotes: 'Rejected by admin'
+                                  })}
+                                  disabled={updateTokenClaimMutation.isPending}
+                                  className="border-red-500 text-red-400 hover:bg-red-500/10"
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="bg-slate-800/60 border-slate-700/50">
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
