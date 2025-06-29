@@ -2558,9 +2558,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Energy potion - spend 2 tokens to restore energy to 100%
-  app.post('/api/pets/:petId/energy-potion', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/energy-potion', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       // Get user's current token balance
