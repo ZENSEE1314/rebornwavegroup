@@ -6302,8 +6302,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/admin/token-claims/:id', requireAuth, async (req: any, res) => {
     try {
+      console.log(`*** TOKEN CLAIM APPROVAL ROUTE: Starting update for claim ID ${req.params.id}`);
+      console.log(`*** REQUEST BODY:`, req.body);
+      console.log(`*** REQUEST PARAMS:`, req.params);
+      
       const adminUserId = getUserId(req);
+      console.log(`*** ADMIN USER ID:`, adminUserId);
+      
       const currentUser = await storage.getUser(adminUserId);
+      console.log(`*** CURRENT USER:`, currentUser?.email, currentUser?.role);
       
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -6312,15 +6319,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status, adminNotes, trackingNumber } = req.body;
       
+      console.log(`*** CALLING updateTokenClaimStatus with:`, {
+        claimId: parseInt(id),
+        status,
+        adminUserId,
+        adminNotes,
+        trackingNumber
+      });
+      
       await storage.updateTokenClaimStatus(parseInt(id), status, adminUserId, adminNotes, trackingNumber);
       
-      // Token claim updated
-      console.log(`Token claim ${id} updated to ${status}`);
+      console.log(`*** TOKEN CLAIM UPDATE SUCCESSFUL: Claim ${id} updated to ${status}`);
       
       res.json({ message: "Token claim updated successfully" });
     } catch (error) {
-      console.error("Error updating token claim:", error);
-      res.status(500).json({ message: "Failed to update token claim" });
+      console.error("*** TOKEN CLAIM ROUTE ERROR:", error);
+      console.error("*** ERROR STACK:", error.stack);
+      res.status(500).json({ message: "Failed to update token claim", error: error.message });
     }
   });
 
