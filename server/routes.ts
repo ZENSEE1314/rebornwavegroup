@@ -2729,16 +2729,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
       const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
       
-      // Only add energy if 1 minute have passed since last energy update (faster energy gain)
-      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 1);
+      // Only add energy if 5 minutes have passed since last energy update (5-minute intervals)
+      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 5);
       const currentEnergy = pet.energy || 0;
       const newEnergy = Math.min(100, currentEnergy + energyToAdd);
       
       console.log(`*** SLEEP DEBUG: Pet ${petId} - Current energy: ${currentEnergy}, Minutes since last update: ${minutesSinceLastEnergyUpdate}, Energy to add: ${energyToAdd}, New energy: ${newEnergy}`);
       
-      // Calculate time until next energy boost
-      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 1;
-      const nextEnergyIn = energyToAdd > 0 ? 1 : (1 - minutesSinceLastInterval);
+      // Calculate time until next energy boost (5-minute intervals)
+      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 5;
+      const nextEnergyIn = energyToAdd > 0 ? 5 : (5 - minutesSinceLastInterval);
       
       // Calculate stat decay - DO NOT restore stats, only apply decay to current values
       const timeSinceLastCare = pet.lastCareDate ? 
