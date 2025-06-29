@@ -5731,7 +5731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create the game score record (no tokens awarded)
       const gameScore = await storage.createGameScore({
-        adminUserId,
+        userId: adminUserId,
         petId,
         score,
         tokensEarned: 0
