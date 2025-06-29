@@ -6331,6 +6331,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`*** TOKEN CLAIM UPDATE SUCCESSFUL: Claim ${id} updated to ${status}`);
       
+      // Broadcast WebSocket update for real-time UI changes
+      broadcastToClients({
+        type: 'TOKEN_CLAIM_UPDATED',
+        data: {
+          claimId: parseInt(id),
+          status,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
       res.json({ message: "Token claim updated successfully" });
     } catch (error) {
       console.error("*** TOKEN CLAIM ROUTE ERROR:", error);

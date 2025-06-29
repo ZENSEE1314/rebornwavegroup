@@ -104,6 +104,27 @@ export function useWebSocket(enabled: boolean = true) {
               }
             });
           }
+
+          // Handle token claim approval for real-time admin updates
+          if (data.type === 'TOKEN_CLAIM_UPDATED') {
+            console.log('Received token claim approval update:', data.data);
+            
+            // Aggressively invalidate all token-related queries for immediate UI updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/token-claims') ||
+                       queryKey?.includes('/api/admin/token-transactions') ||
+                       queryKey?.includes('/api/tokens/history') ||
+                       queryKey?.includes('/api/user-stats') ||
+                       queryKey?.includes('/api/admin/all-users');
+              }
+            });
+            
+            // Force immediate refetch for real-time UI updates
+            queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] });
+            queryClient.removeQueries({ queryKey: ['/api/admin/token-transactions'] });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }

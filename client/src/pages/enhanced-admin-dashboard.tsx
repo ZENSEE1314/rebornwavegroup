@@ -1292,13 +1292,16 @@ function EnhancedAdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "Token claim updated successfully" });
-      // Invalidate all related queries to refresh the UI immediately
+      // Aggressive cache invalidation for immediate UI updates
       queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/token-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-      // Force refetch to ensure immediate UI update
-      queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] });
+      // Remove cache and force immediate refetch
+      queryClient.removeQueries({ queryKey: ['/api/admin/token-transactions'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'], type: 'active' });
+      // Reset stale time to force fresh data
+      queryClient.resetQueries({ queryKey: ['/api/admin/token-transactions'] });
     },
     onError: () => {
       toast({ title: "Failed to update token claim", variant: "destructive" });
