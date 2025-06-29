@@ -2603,6 +2603,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnergy = pet.energy || 0;
       const newEnergy = Math.min(100, currentEnergy + energyToAdd);
       
+      console.log(`*** SLEEP DEBUG: Pet ${petId} - Current energy: ${currentEnergy}, Minutes since last update: ${minutesSinceLastEnergyUpdate}, Energy to add: ${energyToAdd}, New energy: ${newEnergy}`);
+      
       // Calculate time until next energy boost
       const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 1;
       const nextEnergyIn = energyToAdd > 0 ? 1 : (1 - minutesSinceLastInterval);
@@ -2647,7 +2649,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (Object.keys(updates).length > 0) {
+        console.log(`*** SLEEP UPDATE: Applying updates to pet ${petId}:`, updates);
         await storage.updatePetStats(petId, updates);
+        console.log(`*** SLEEP UPDATE: Successfully updated pet ${petId}`);
+      } else {
+        console.log(`*** SLEEP UPDATE: No updates needed for pet ${petId}`);
       }
       
       // If pet was auto-woken, return different response
