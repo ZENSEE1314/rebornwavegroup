@@ -801,9 +801,6 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-lg">{entry.score}</div>
-                      <div className="text-sm text-gray-500">
-                        {entry.tokensEarned} {t('game.tokens')}
-                      </div>
                     </div>
                   </div>
                 ))
