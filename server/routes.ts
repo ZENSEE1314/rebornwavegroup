@@ -5113,9 +5113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Update user profile (PUT)
-  app.put('/api/admin/users/:adminUserId/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/users/:adminUserId/profile', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
@@ -6240,9 +6240,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin route to update user tokens directly
-  app.patch('/api/admin/users/:adminUserId/tokens', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:adminUserId/tokens', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
       
       if (!currentUser || currentUser.role !== 'admin') {
