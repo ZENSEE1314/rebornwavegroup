@@ -5721,9 +5721,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Broadcast functions removed - using polling for stable updates
 
   // Game scores routes
-  app.post('/api/game-scores', isAuthenticated, async (req: any, res) => {
+  app.post('/api/game-scores', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       const { petId, score } = req.body;
       
       // Create the game score record (no tokens awarded)
@@ -5752,9 +5755,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/game-scores/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/game-scores/user', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       const userScores = await storage.getUserGameScores(adminUserId);
       res.json(userScores);
     } catch (error: any) {
@@ -5764,9 +5770,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin route to reset leaderboard
-  app.delete('/api/admin/game-scores/reset', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/game-scores/reset', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
       const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
