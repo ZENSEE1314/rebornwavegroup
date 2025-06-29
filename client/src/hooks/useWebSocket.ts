@@ -93,12 +93,14 @@ export function useWebSocket(enabled: boolean = true) {
           if (data.type === 'TOKEN_CLAIM_CREATED') {
             console.log('Received token claim update:', data.claim);
             
-            // Invalidate token-related queries for real-time updates
+            // Invalidate token-related queries for real-time updates (both user and admin)
             queryClient.invalidateQueries({ 
               predicate: (query) => {
                 const queryKey = query.queryKey[0] as string;
                 return queryKey?.includes('/api/tokens/history') ||
                        queryKey?.includes('/api/token-claims') ||
+                       queryKey?.includes('/api/admin/token-claims') ||
+                       queryKey?.includes('/api/admin/token-transactions') ||
                        queryKey?.includes('/api/user-stats') ||
                        queryKey?.includes('/api/auth/user');
               }

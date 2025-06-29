@@ -2088,16 +2088,16 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`*** TOKEN TRANSACTION STATUS UPDATED for claimId: ${claimId}, updated rows:`, transactionUpdateResult.rowCount);
 
-      // If approved, no action needed - tokens remain unchanged
+      // If approved, no action needed - tokens remain unchanged (already deducted when claim was made)
       if (status === 'approved') {
-        console.log('Token claim approved - no token changes needed');
+        console.log('Token claim approved - tokens remain deducted');
       }
       
-      // If rejected, deduct tokens from user's account as penalty
+      // If rejected, add tokens back to user's account (refund the deducted tokens)
       if (status === 'rejected') {
-        console.log('Deducting tokens:', claim.tokensRequested, 'from user:', claim.userId);
+        console.log('Adding tokens back:', claim.tokensRequested, 'to user:', claim.userId);
         await db.update(users).set({
-          tokens: sql`${users.tokens} - ${claim.tokensRequested}`,
+          tokens: sql`${users.tokens} + ${claim.tokensRequested}`,
           updatedAt: new Date()
         }).where(eq(users.id, claim.userId));
       }
