@@ -6164,6 +6164,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending'
       });
 
+      // Create token transaction record for token history
+      await db.insert(tokenTransactions).values({
+        userId: adminUserId,
+        tokens: -tokensRequested, // Negative for tokens spent
+        type: 'token_claim',
+        description: `Token claim request: ${tokensRequested} tokens`,
+        status: 'pending',
+        relatedId: claim.id,
+        createdAt: new Date()
+      });
+
+      // Get WebSocket server for real-time updates
+      const wss = (global as any).wss;
+      if (wss) {
+        // Broadcast token claim update to all connected clients
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'TOKEN_CLAIM_CREATED',
+              userId: adminUserId,
+              claim: claim,
+              tokensUsed: tokensRequested
+            }));
+          }
+        });
+      }
+
       res.json(claim);
     } catch (error) {
       console.error("Error creating token claim:", error);

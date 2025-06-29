@@ -88,6 +88,22 @@ export function useWebSocket(enabled: boolean = true) {
               }
             });
           }
+
+          // Handle token claim updates for real-time token system
+          if (data.type === 'TOKEN_CLAIM_CREATED') {
+            console.log('Received token claim update:', data.claim);
+            
+            // Invalidate token-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/tokens/history') ||
+                       queryKey?.includes('/api/token-claims') ||
+                       queryKey?.includes('/api/user-stats') ||
+                       queryKey?.includes('/api/auth/user');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
