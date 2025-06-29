@@ -2725,20 +2725,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sleepStart = new Date(pet.sleepStartTime);
       const totalSleepMinutes = Math.floor((now.getTime() - sleepStart.getTime()) / (1000 * 60));
       
-      // Track when energy was last added using lastEnergyUpdate field
-      const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
-      const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
+      // Calculate time since sleep start in seconds for precise timing
+      const secondsSinceSleepStart = Math.floor((now.getTime() - sleepStart.getTime()) / 1000);
       
-      // Only add energy if 5 minutes have passed since last energy update (5-minute intervals)
-      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 5);
-      const currentEnergy = pet.energy || 0;
-      const newEnergy = Math.min(100, currentEnergy + energyToAdd);
+      // First 5 minutes (300 seconds) is delay period - no energy gain
+      const delayPeriod = 5 * 60; // 5 minutes in seconds
       
-      console.log(`*** SLEEP DEBUG: Pet ${petId} - Current energy: ${currentEnergy}, Minutes since last update: ${minutesSinceLastEnergyUpdate}, Energy to add: ${energyToAdd}, New energy: ${newEnergy}`);
+      let energyToAdd = 0;
+      let nextEnergyIn = 5; // Default to 5 minutes
       
-      // Calculate time until next energy boost (5-minute intervals)
-      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 5;
-      const nextEnergyIn = energyToAdd > 0 ? 5 : (5 - minutesSinceLastInterval);
+      if (secondsSinceSleepStart < delayPeriod) {
+        // Still in delay period
+        energyToAdd = 0;
+        nextEnergyIn = (delayPeriod - secondsSinceSleepStart) / 60; // Convert to minutes
+        console.log(`*** SLEEP DEBUG: Pet ${petId} in delay period - ${Math.floor(nextEnergyIn)} minutes remaining before energy starts`);
+      } else {
+        // Past delay period - calculate energy gains every 5 minutes
+        const secondsSinceEnergyStart = secondsSinceSleepStart - delayPeriod;
+        const energyIntervals = Math.floor(secondsSinceEnergyStart / (5 * 60)); // 5-minute intervals
+        
+        // Get current energy from real-time system or database
+        const currentEnergy = pet.energy || 0;
+        const expectedEnergy = Math.min(100, 50 + energyIntervals); // Start at 50%, add 1% per interval
+        
+        // Check if we need to sync with real-time system
+        if (currentEnergy < expectedEnergy) {
+          energyToAdd = expectedEnergy - currentEnergy;
+        }
+        
+        // Calculate time until next interval
+        const secondsUntilNext = (5 * 60) - (secondsSinceEnergyStart % (5 * 60));
+        nextEnergyIn = secondsUntilNext / 60; // Convert to minutes
+        
+        console.log(`*** SLEEP DEBUG: Pet ${petId} - Past delay period - Current: ${currentEnergy}%, Expected: ${expectedEnergy}%, Energy to add: ${energyToAdd}, Next in: ${nextEnergyIn.toFixed(1)} min`);
+      }
+      
+      const newEnergy = Math.min(100, (pet.energy || 0) + energyToAdd);
       
       // Calculate stat decay - DO NOT restore stats, only apply decay to current values
       const timeSinceLastCare = pet.lastCareDate ? 
