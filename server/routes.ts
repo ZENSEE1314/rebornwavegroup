@@ -6332,14 +6332,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`*** TOKEN CLAIM UPDATE SUCCESSFUL: Claim ${id} updated to ${status}`);
       
       // Broadcast WebSocket update for real-time UI changes
-      broadcastToClients({
+      const wsData = {
         type: 'TOKEN_CLAIM_UPDATED',
         data: {
           claimId: parseInt(id),
           status,
           timestamp: new Date().toISOString()
         }
-      });
+      };
+      
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(wsData));
+          }
+        });
+      }
       
       res.json({ message: "Token claim updated successfully" });
     } catch (error) {
