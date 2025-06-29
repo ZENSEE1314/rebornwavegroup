@@ -377,10 +377,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  const { data: tokenClaimsResponse }: any = useQuery({
-    queryKey: ['/api/admin/token-claims'],
-    retry: false,
-  });
+
 
   const { data: topUpRequestsResponse }: any = useQuery({
     queryKey: ['/api/admin/topup-requests'],
@@ -468,7 +465,7 @@ function EnhancedAdminDashboard() {
   const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
-  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
+
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
   const pendingPurchases = allPendingPurchases || [];
   const tokenTransactions = (tokenTransactionsResponse as any)?.data || [];
@@ -1849,9 +1846,7 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="marketplace" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Market
               </TabsTrigger>
-              <TabsTrigger value="tokens" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
-                Claims
-              </TabsTrigger>
+
               <TabsTrigger value="token-transactions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Tokens
               </TabsTrigger>
@@ -3571,59 +3566,7 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Token Claims Tab */}
-          <TabsContent value="tokens">
-            <Card className="bg-slate-800/60 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Token Claims Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-gray-300">User</TableHead>
-                        <TableHead className="text-gray-300">Tokens Awarded</TableHead>
-                        <TableHead className="text-gray-300">Reward Date</TableHead>
-                        <TableHead className="text-gray-300">Pet Count</TableHead>
-                        <TableHead className="text-gray-300">All Pets Healthy</TableHead>
-                        <TableHead className="text-gray-300">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tokenClaims?.map((claim: any) => (
-                        <TableRow key={claim.id}>
-                          <TableCell className="text-white">
-                            {claim.user?.firstName} {claim.user?.lastName}
-                            <div className="text-sm text-gray-400">{claim.user?.email}</div>
-                          </TableCell>
-                          <TableCell className="text-green-300 font-semibold">
-                            {claim.tokensAwarded}
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            {formatDate(claim.rewardDate)}
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            {claim.petCount || 0}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={claim.allPetsHealthy ? 'default' : 'secondary'}>
-                              {claim.allPetsHealthy ? 'Yes' : 'No'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="default">
-                              Processed
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           {/* Token Transactions Tab */}
           <TabsContent value="token-transactions">
