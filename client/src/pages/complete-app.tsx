@@ -4221,8 +4221,13 @@ export default function CompleteApp() {
   // Mutation to claim tokens
   const claimTokensMutation = useMutation({
     mutationFn: (tokenData: { tokensRequested: number }) => apiRequest('POST', '/api/token-claims', tokenData),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // Invalidate all token-related queries for immediate updates
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens/history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/token-claims'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      
       setShowTokenClaimModal(false);
       setTokenClaimAmount("");
       toast({
@@ -4230,10 +4235,11 @@ export default function CompleteApp() {
         description: t('tokens.claimSubmittedSuccess'),
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Token claim error:', error);
       toast({
         title: t('common.error'),
-        description: t('tokens.claimSubmitFailed'),
+        description: error?.message || t('tokens.claimSubmitFailed'),
         variant: "destructive",
       });
     },
