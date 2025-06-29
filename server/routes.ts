@@ -23,19 +23,23 @@ function startSleepEnergyTimer(petId: number) {
   const timer = setInterval(async () => {
     try {
       const pet = await storage.getPetById(petId);
-      if (!pet || !pet.isSleeping || pet.energy >= 100) {
-        // Stop timer if pet is no longer sleeping or energy is full
+      if (!pet || !pet.isSleeping) {
+        // Stop timer if pet is no longer sleeping
         clearInterval(timer);
         sleepTimers.delete(petId);
-        
-        if (pet && pet.energy >= 100 && pet.isSleeping) {
-          // Auto-wake pet when energy reaches 100%
-          await storage.updatePetStats(petId, { 
-            isSleeping: false, 
-            sleepStartTime: null 
-          });
-          console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
-        }
+        return;
+      }
+
+      // Check if energy is at 100% and auto-wake pet
+      if (pet.energy >= 100) {
+        await storage.updatePetStats(petId, { 
+          isSleeping: false, 
+          sleepStartTime: null 
+        });
+        console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
+        // Stop timer after waking up
+        clearInterval(timer);
+        sleepTimers.delete(petId);
         return;
       }
 
@@ -181,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize real-time energy timers for currently sleeping pets
   setTimeout(async () => {
     try {
-      const sleepingPets = await storage.getAllPets();
+      const sleepingPets = await db.select().from(schema.pets);
       for (const pet of sleepingPets) {
         if (pet.isSleeping && pet.energy < 100) {
           console.log(`*** STARTUP: Starting energy timer for sleeping pet ${pet.id}`);
