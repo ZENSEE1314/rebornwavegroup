@@ -378,6 +378,10 @@ function EnhancedAdminDashboard() {
   });
 
 
+  const { data: tokenClaimsResponse }: any = useQuery({
+    queryKey: ['/api/admin/token-claims'],
+    retry: false,
+  });
 
   const { data: topUpRequestsResponse }: any = useQuery({
     queryKey: ['/api/admin/topup-requests'],
@@ -465,6 +469,7 @@ function EnhancedAdminDashboard() {
   const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
   const activatedPets = (activatedPetsResponse as any)?.data || [];
+  const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
   const pendingPurchases = allPendingPurchases || [];
@@ -1280,18 +1285,7 @@ function EnhancedAdminDashboard() {
     },
   });
 
-  const updateTokenClaimMutation = useMutation({
-    mutationFn: async ({ claimId, status, adminNotes }: { claimId: number; status: string; adminNotes: string }) => {
-      return apiRequest('PATCH', `/api/admin/token-claims/${claimId}`, { status, adminNotes });
-    },
-    onSuccess: () => {
-      toast({ title: "Token claim updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to update token claim", variant: "destructive" });
-    }
-  });
+
 
   const createRewardMutation = useMutation({
     mutationFn: async (rewardData: any) => {
@@ -3175,7 +3169,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Token Claims</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-orange-400">{tokenClaims.length}</div>
+                      <div className="text-2xl font-bold text-orange-400">0</div>
                       <p className="text-xs text-gray-400 mt-1">Total claims processed</p>
                     </CardContent>
                   </Card>
