@@ -2238,7 +2238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toyId = parseInt(req.params.toyId);
       
       // Get the toy
-      const toy = await storage.getToyById(toyId);
+      const toy = await storage.getToy(toyId);
       if (!toy) {
         return res.status(404).json({ message: "Toy not found" });
       }
