@@ -3,7 +3,7 @@
 ## Overview
 A comprehensive digital financial management and collectible toy platform that combines interactive gamification, multi-language support, and dynamic user engagement through innovative technological infrastructure.
 
-**Current Status**: ✅ COMPLETE SYSTEM STABILITY ACHIEVED - Fixed critical frontend crashes and authentication issues. Pet activation system fully operational with proper two-step activation process. Sales cancellation authentication updated to modern requireAuth middleware. All real-time features functional including WebSocket communication, payment approvals, and appointment system.
+**Current Status**: ✅ COMPLETE SYSTEM STABILITY ACHIEVED - Fixed critical frontend crashes and authentication issues. Pet activation system fully operational with proper two-step activation process. Sales cancellation authentication updated to modern requireAuth middleware. All real-time features functional including WebSocket communication, payment approvals, appointment system, and real-time sleep energy increase system.
 
 ## Project Architecture
 
@@ -25,6 +25,19 @@ A comprehensive digital financial management and collectible toy platform that c
 - Female cute voice feedback during pet care activities
 
 ## Recent Changes
+
+### Real-Time Sleep Energy System Implementation (June 29, 2025)
+- **MAJOR FEATURE**: ✅ COMPLETE REAL-TIME SLEEP ENERGY SYSTEM WITH AUTOMATIC BACKGROUND TIMERS
+- **Background Energy Increase**: Energy automatically increases every 30 seconds for sleeping pets without requiring API calls
+- **Timer Management**: Sophisticated sleepTimers Map tracks individual pet timers for proper cleanup and management
+- **Automatic Wake-up**: Pets automatically wake up when energy reaches 100% with database updates and timer cleanup
+- **Startup Initialization**: Server automatically restarts energy timers for pets that were sleeping during restart
+- **Database Integration**: Real-time energy updates persist to database with proper timestamp tracking
+- **WebSocket Broadcasting**: Energy changes broadcast to all connected clients for instant UI updates
+- **Memory Efficiency**: Timers only run for sleeping pets, automatically stopped when pets wake up or reach full energy
+- **Error Handling**: Comprehensive error handling for pet state validation and timer management
+- **Production Ready**: System handles multiple pets simultaneously with individual timer tracking
+- **Verified Testing**: Confirmed automatic wake-up functionality and real-time energy progression working perfectly
 
 ### Critical Bug Fixes & System Stability Implementation (June 29, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED FRONTEND CRASHES - Added missing `activateToyAsPetMutation` and `activateToyAsPet` function causing application crashes
