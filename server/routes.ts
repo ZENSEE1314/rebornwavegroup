@@ -2598,14 +2598,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastEnergyUpdate = pet.lastEnergyUpdate ? new Date(pet.lastEnergyUpdate) : sleepStart;
       const minutesSinceLastEnergyUpdate = Math.floor((now.getTime() - lastEnergyUpdate.getTime()) / (1000 * 60));
       
-      // Only add energy if 5 minutes have passed since last energy update
-      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 5);
+      // Only add energy if 1 minute have passed since last energy update (faster energy gain)
+      const energyToAdd = Math.floor(minutesSinceLastEnergyUpdate / 1);
       const currentEnergy = pet.energy || 0;
       const newEnergy = Math.min(100, currentEnergy + energyToAdd);
       
       // Calculate time until next energy boost
-      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 5;
-      const nextEnergyIn = energyToAdd > 0 ? 5 : (5 - minutesSinceLastInterval);
+      const minutesSinceLastInterval = minutesSinceLastEnergyUpdate % 1;
+      const nextEnergyIn = energyToAdd > 0 ? 1 : (1 - minutesSinceLastInterval);
       
       // Calculate stat decay - DO NOT restore stats, only apply decay to current values
       const timeSinceLastCare = pet.lastCareDate ? 
@@ -2750,13 +2750,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wake up pet
-  app.post('/api/pets/:petId/wake', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/wake', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
