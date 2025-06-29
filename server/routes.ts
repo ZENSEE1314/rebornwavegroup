@@ -2605,12 +2605,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Create token transaction record for admin tracking
-      await storage.createTokenTransaction({
+      await db.insert(tokenTransactions).values({
         userId: adminUserId,
         description: `Energy Potion used for pet "${pet.name}" - restored energy to 100%`,
         type: 'spent',
         tokens: -2,
-        relatedId: petId
+        relatedId: petId,
+        status: 'completed',
+        createdAt: new Date()
       });
       
       // Create activity record
