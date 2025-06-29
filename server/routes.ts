@@ -1153,9 +1153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's top-up requests
-  app.get('/api/topup/requests', isAuthenticated, async (req: any, res) => {
+  app.get('/api/topup/requests', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const requests = await storage.getTopUpRequestsByUserId(adminUserId);
       res.json(requests);
     } catch (error) {
@@ -1165,9 +1165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user's payment transactions
-  app.get('/api/payment/transactions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/payment/transactions', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
       const transactions = await storage.getPaymentTransactionsByUserId(adminUserId);
       res.json(transactions);
     } catch (error) {
@@ -1623,9 +1623,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/users/genealogy-tree', isAuthenticated, async (req: any, res) => {
+  app.get('/api/users/genealogy-tree', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub || req.user?.id;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User ID not found" });
       }
@@ -3461,9 +3461,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes for cash-out management
-  app.get("/api/admin/cashouts", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/cashouts", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user?.claims?.sub);
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
       if (user?.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -3476,9 +3477,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/cashouts/:id/status", isAuthenticated, async (req, res) => {
+  app.put("/api/admin/cashouts/:id/status", requireAuth, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user?.claims?.sub);
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
       if (user?.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -6048,9 +6050,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin pet editing
-  app.put('/api/admin/pets/:petId', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/pets/:petId', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
@@ -6075,9 +6077,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Token claim routes for users to request physical tokens
-  app.post('/api/token-claims', isAuthenticated, async (req: any, res) => {
+  app.post('/api/token-claims', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
