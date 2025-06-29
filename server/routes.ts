@@ -2618,7 +2618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create activity record
       await storage.createCareActivity({
         petId,
-        adminUserId,
+        userId: adminUserId,
         activityType: 'energy_potion',
         completedAt: new Date(),
         pointsEarned: 0
