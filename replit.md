@@ -33,8 +33,10 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Frontend Integration**: Updated WebSocket hook to handle appointment events (`appointment_created`, `appointment_updated`, `appointment_status_changed`)
 - **Query Invalidation**: Automatic cache refresh for appointment-related queries when events occur
 - **Authentication Fix**: Updated all appointment endpoints to use unified session-based authentication (`requireAuth` middleware)
-- **Appointment Events**: Real-time updates for appointment creation, reschedule, cancellation, and status changes
-- **System Status**: Appointment booking authentication resolved - system confirmed working with existing appointment (ID 20)
+- **Admin Status Changes**: Fixed admin appointment approval endpoint to broadcast real-time updates to users when appointments are approved/cancelled
+- **User Real-Time Updates**: Users now receive instant notifications when admin changes appointment status via WebSocket broadcasting
+- **Bug Fixes**: Corrected `appointment.adminUserId` to `appointment.userId` for proper email notifications
+- **System Status**: Complete bidirectional real-time appointment system operational - both admin-to-user and user-to-admin updates working
 
 ### Complete Authentication System Modernization (June 29, 2025)
 - **MAJOR INFRASTRUCTURE**: ✅ UNIFIED SESSION-BASED AUTHENTICATION ACROSS ALL ENDPOINTS

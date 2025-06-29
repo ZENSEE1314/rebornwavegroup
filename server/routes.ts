@@ -3990,7 +3990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint - Approve/Cancel appointment
-  app.patch('/api/admin/appointments/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/appointments/:id', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -4017,8 +4017,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update appointment status
       await storage.updateAppointmentStatus(parseInt(id), status);
       
+      // Get updated appointment data for broadcasting
+      const updatedAppointment = { ...appointment, status };
+      
+      // Broadcast appointment status change to all connected clients for real-time updates
+      if ((global as any).wss) {
+        const wsData = {
+          type: 'appointment_status_changed',
+          data: updatedAppointment
+        };
+
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(wsData));
+          }
+        });
+        
+        console.log(`*** REALTIME: Broadcasted appointment status change for appointment ${id} to ${status}`)
+      }
+      
       // Send email notification based on status change
-      const user = await storage.getUser(appointment.adminUserId);
+      const user = await storage.getUser(appointment.userId); // Fixed: use userId instead of adminUserId
       if (user && user.email) {
         const userName = user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Valued Customer';
         
