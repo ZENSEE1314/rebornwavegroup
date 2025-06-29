@@ -120,12 +120,7 @@ function EnhancedAdminDashboard() {
   });
   const [emailSending, setEmailSending] = useState(false);
 
-  // Communication system state
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailText, setEmailText] = useState('');
-  const [sendEmailToAll, setSendEmailToAll] = useState(true);
-  const [whatsappMessage, setWhatsappMessage] = useState('');
-  const [sendWhatsAppToAll, setSendWhatsAppToAll] = useState(true);
+
 
 
 
@@ -1049,39 +1044,7 @@ function EnhancedAdminDashboard() {
     }
   };
 
-  // Communication handler functions
-  const handleSendEmail = async () => {
-    if (!emailSubject.trim() || !emailText.trim()) {
-      toast({ 
-        title: "Missing information", 
-        description: "Please provide both subject and message",
-        variant: "destructive" 
-      });
-      return;
-    }
 
-    sendBulkEmailMutation.mutate({
-      subject: emailSubject,
-      text: emailText,
-      sendToAll: sendEmailToAll
-    });
-  };
-
-  const handleSendWhatsApp = async () => {
-    if (!whatsappMessage.trim()) {
-      toast({ 
-        title: "Missing message", 
-        description: "Please provide a WhatsApp message",
-        variant: "destructive" 
-      });
-      return;
-    }
-
-    sendWhatsAppMutation.mutate({
-      message: whatsappMessage,
-      sendToAll: sendWhatsAppToAll
-    });
-  };
 
   // Toy Template mutations (duplicate removed)
 
@@ -3272,103 +3235,6 @@ function EnhancedAdminDashboard() {
                   </Card>
                 )}
 
-                <Card className="bg-slate-800/60 border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-blue-400" />
-                      Email Communication
-                    </CardTitle>
-                    <p className="text-gray-300 text-sm">Send emails to all users or specific individuals</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300">Email Subject</Label>
-                        <Input
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          placeholder="Enter email subject..."
-                          className="bg-white/10 border-white/20 text-white"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-gray-300">Email Message</Label>
-                        <textarea
-                          value={emailText}
-                          onChange={(e) => setEmailText(e.target.value)}
-                          placeholder="Enter your email message..."
-                          rows={4}
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-gray-400 resize-none"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="sendToAllUsers"
-                          checked={sendEmailToAll}
-                          onChange={(e) => setSendEmailToAll(e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor="sendToAllUsers" className="text-gray-300">
-                          Send to all users ({usersResponse?.pagination?.totalCount || 0} users)
-                        </Label>
-                      </div>
-                      <Button 
-                        onClick={handleSendEmail}
-                        disabled={!emailSubject || !emailText || sendBulkEmailMutation.isPending}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        {sendBulkEmailMutation.isPending ? "Sending..." : "Send Email"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* WhatsApp Management */}
-                <Card className="bg-slate-800/60 border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-2">
-                      <MessageCircle className="h-5 w-5 text-green-400" />
-                      WhatsApp Communication
-                    </CardTitle>
-                    <p className="text-gray-300 text-sm">Send WhatsApp messages to users with mobile numbers</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300">WhatsApp Message</Label>
-                        <textarea
-                          value={whatsappMessage}
-                          onChange={(e) => setWhatsappMessage(e.target.value)}
-                          placeholder="Enter your WhatsApp message..."
-                          rows={4}
-                          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-gray-400 resize-none"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="sendWhatsAppToAll"
-                          checked={sendWhatsAppToAll}
-                          onChange={(e) => setSendWhatsAppToAll(e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor="sendWhatsAppToAll" className="text-gray-300">
-                          Send to all users with mobile numbers (18 users)
-                        </Label>
-                      </div>
-                      <Button 
-                        onClick={handleSendWhatsApp}
-                        disabled={!whatsappMessage || sendWhatsAppMutation.isPending}
-                        className="w-full bg-green-600 hover:bg-green-700"
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        {sendWhatsAppMutation.isPending ? "Sending..." : "Send WhatsApp"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
 
               {/* Content Templates */}
