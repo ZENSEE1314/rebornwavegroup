@@ -3708,6 +3708,39 @@ function EnhancedAdminDashboard() {
                           <TableCell className="text-gray-300">
                             {formatDate(transaction.createdAt)}
                           </TableCell>
+                          <TableCell>
+                            {transaction.type === 'token_claim' && transaction.status === 'pending' ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateTokenClaimMutation.mutate({
+                                    claimId: transaction.id,
+                                    status: 'approved',
+                                    adminNotes: 'Approved by admin'
+                                  })}
+                                  disabled={updateTokenClaimMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateTokenClaimMutation.mutate({
+                                    claimId: transaction.id,
+                                    status: 'rejected',
+                                    adminNotes: 'Rejected by admin'
+                                  })}
+                                  disabled={updateTokenClaimMutation.isPending}
+                                  className="border-red-500 text-red-400 hover:bg-red-500/10"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
