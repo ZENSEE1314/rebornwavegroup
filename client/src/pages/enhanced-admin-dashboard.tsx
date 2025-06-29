@@ -3674,6 +3674,7 @@ function EnhancedAdminDashboard() {
                         <TableHead className="text-gray-300">Description</TableHead>
                         <TableHead className="text-gray-300">Status</TableHead>
                         <TableHead className="text-gray-300">Date</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
