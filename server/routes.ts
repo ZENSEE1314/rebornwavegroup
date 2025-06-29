@@ -5162,17 +5162,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/redeem-reward', isAuthenticated, async (req: any, res) => {
+  app.post('/api/redeem-reward', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
-      if (!adminUserId) {
+      const userId = getUserId(req);
+      if (!userId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
       const { rewardId, pointsCost } = req.body;
       
       // Get user and reward data
-      const user = await storage.getUser(adminUserId);
+      const user = await storage.getUser(userId);
       const reward = await storage.getRewardItemById(rewardId);
       
       if (!user) {
@@ -5194,7 +5194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Deduct points from user
-      await storage.updateUserPoints(adminUserId, -pointsCost);
+      await storage.updateUserPoints(userId, -pointsCost);
       
       // If it's a credit reward, add credits to user account
       if (reward.type === 'credit' && reward.creditAmount) {
@@ -5202,11 +5202,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const creditAmount = parseFloat(reward.creditAmount);
         const newCredits = (currentCredits + creditAmount).toString();
         
-        await storage.updateUserCredits(adminUserId, newCredits);
+        await storage.updateUserCredits(userId, newCredits);
         
         // Create credit history record
         await storage.createCreditHistory({
-          adminUserId,
+          userId,
           type: 'earned',
           amount: reward.creditAmount,
           description: `Redeemed: ${reward.name}`
@@ -5215,7 +5215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create points history record for redemption
       await storage.createPointsHistory({
-        adminUserId,
+        userId,
         points: -pointsCost,
         type: 'redeemed',
         description: `Redeemed: ${reward.name}`
