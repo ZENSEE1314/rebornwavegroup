@@ -2280,7 +2280,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update toy activation status
+      console.log('*** UPDATING TOY ACTIVATION STATUS:', toyId);
       await storage.updateToy(toyId, { isActivated: true });
+      console.log('*** TOY ACTIVATION STATUS UPDATED');
       
       res.json({ 
         message: "Toy activated as pet successfully!", 
