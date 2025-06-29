@@ -384,6 +384,7 @@ export const pets = pgTable("pets", {
   toyId: integer("toy_id").notNull(),
   name: varchar("name").notNull(),
   species: varchar("species").default("Doluruu"),
+  type: varchar("type").notNull(), // 'virtual' | 'dragon'
   gender: varchar("gender").default("male").notNull(), // 'male' | 'female'
   birthDate: timestamp("birth_date").defaultNow(),
   currentAge: integer("current_age").default(0), // days since birth

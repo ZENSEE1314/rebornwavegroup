@@ -2260,6 +2260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         toyId: toyId,
         name: toy.name,
         species: toy.species || 'Doluruu',
+        type: 'virtual', // Required field for pet type
         gender: toy.gender || 'male',
         happiness: 100,
         hunger: 100,
