@@ -34,35 +34,7 @@ function SeasonalCollectionsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mutation to activate toy as pet (moved here for scope)
-  const activateToyAsPetMutation = useMutation({
-    mutationFn: (toy: any) => {
-      console.log('*** ACTIVATING TOY AS PET:', toy);
-      return apiRequest('POST', `/api/toys/${toy.id}/activate-as-pet`, {});
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-      toast({
-        title: "Pet Activated!",
-        description: "Your pet is now active!",
-      });
-    },
-    onError: (error: any) => {
-      console.error('*** TOY ACTIVATION ERROR:', error);
-      toast({
-        title: "Activation Failed",
-        description: error.message || "Failed to activate pet",
-        variant: "destructive",
-      });
-    },
-  });
 
-  // Function to activate toy as pet
-  const activateToyAsPet = (toy: any) => {
-    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
-    activateToyAsPetMutation.mutate(toy);
-  };
   
   // Fetch seasonal data
   const { data: seasons = [] } = useQuery({
@@ -1431,10 +1403,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
 
 
 
-  // Function to activate toy as pet
-  const activateToyAsPet = (toy: any) => {
-    activateToyAsPetMutation.mutate(toy);
-  };
+
 
 
 
@@ -4936,12 +4905,6 @@ export default function CompleteApp() {
     setShowCreateListingModal(false);
   };
 
-  // Function to activate toy as pet
-  const activateToyAsPet = (toy: any) => {
-    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
-    activateToyAsPetMutation.mutate(toy);
-  };
-
   const initiateRedemption = (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
       toast({
@@ -7607,10 +7570,10 @@ export default function CompleteApp() {
                               onClick={() => activateToyAsPet(toy)}
                               className="w-full bg-green-600 hover:bg-green-700 text-white"
                               size="sm"
-                              disabled={activateToyAsPetMutation.isPending}
+                              disabled={false}
                             >
                               <Heart className="w-4 h-4 mr-2" />
-                              {activateToyAsPetMutation.isPending ? 'Activating...' : 'Activate as Pet'}
+                              Activate as Pet
                             </Button>
                           )}
                         </div>
