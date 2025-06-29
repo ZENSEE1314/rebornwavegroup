@@ -1076,35 +1076,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   // Get unactivated toys (toys without QR codes activated)
   const unactivatedToys = ownedToys?.filter((toy: any) => !toy.isActivated) || [];
 
-  // Mutation to activate toy as pet
-  const activateToyAsPetMutation = useMutation({
-    mutationFn: (toy: any) => {
-      console.log('*** ACTIVATING TOY AS PET:', toy);
-      return apiRequest('POST', `/api/toys/${toy.id}/activate-as-pet`, {});
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
-      toast({
-        title: "Pet Activated!",
-        description: "Your pet is now active!",
-      });
-    },
-    onError: (error: any) => {
-      console.error('*** TOY ACTIVATION ERROR:', error);
-      toast({
-        title: "Activation Failed",
-        description: error.message || "Failed to activate pet",
-        variant: "destructive",
-      });
-    },
-  });
 
-  // Function to activate toy as pet
-  const activateToyAsPet = (toy: any) => {
-    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
-    activateToyAsPetMutation.mutate(toy);
-  };
 
   // Bath mutation - correct endpoint
   const bathMutation = useMutation({
@@ -3457,6 +3429,36 @@ export default function CompleteApp() {
   
   // Enable WebSocket connection for real-time updates
   useWebSocket(true);
+
+  // Mutation to activate toy as pet - moved to top level for global access
+  const activateToyAsPetMutation = useMutation({
+    mutationFn: (toy: any) => {
+      console.log('*** ACTIVATING TOY AS PET:', toy);
+      return apiRequest('POST', `/api/toys/${toy.id}/activate-as-pet`, {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
+      toast({
+        title: "Pet Activated!",
+        description: "Your pet is now active!",
+      });
+    },
+    onError: (error: any) => {
+      console.error('*** TOY ACTIVATION ERROR:', error);
+      toast({
+        title: "Activation Failed",
+        description: error.message || "Failed to activate pet",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Function to activate toy as pet - moved to top level for global access
+  const activateToyAsPet = (toy: any) => {
+    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
+    activateToyAsPetMutation.mutate(toy);
+  };
   
   const [activeTab, setActiveTab] = useState("dashboard");
   
