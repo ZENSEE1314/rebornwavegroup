@@ -76,8 +76,9 @@ A comprehensive digital financial management and collectible toy platform that c
 - **MAJOR INFRASTRUCTURE**: ✅ UNIFIED SESSION-BASED AUTHENTICATION ACROSS ALL ENDPOINTS
 - **Reward Redemption Fix**: Updated `/api/redeem-reward` endpoint from Firebase pattern (`req.user?.claims?.sub`) to session pattern (`getUserId(req)`)
 - **Appointment System Integration**: Fixed POST `/api/appointments`, GET `/api/appointments`, PUT `/api/appointments/:id`, PUT `/api/appointments/:id/status`, and GET `/api/admin/appointments` endpoints
+- **Profile Update Fix**: ✅ Updated `/api/auth/user/profile` endpoint from Firebase authentication to unified session-based authentication
 - **Authentication Consistency**: All endpoints now use unified session-based authentication with proper error handling
-- **User Experience**: Reward redemption now working perfectly - confirmed with successful "1 Claw Machine Token" redemption for 50 points
+- **User Experience**: Reward redemption and profile updates now working perfectly - confirmed with successful "1 Claw Machine Token" redemption for 50 points
 - **Real-time Integration**: Authentication fixes maintain compatibility with WebSocket real-time updates
 - **Point Verification**: User loyalty points correctly updated from 1110 to 1060 after successful redemption
 

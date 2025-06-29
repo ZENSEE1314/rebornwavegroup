@@ -1580,12 +1580,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/auth/user/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/auth/user/profile', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
       const { firstName, lastName, phoneNumber, gender, dateOfBirth } = req.body;
       
-      await storage.updateUserProfile(adminUserId, {
+      await storage.updateUserProfile(userId, {
         firstName,
         lastName,
         phoneNumber,
