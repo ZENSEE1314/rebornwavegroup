@@ -55,6 +55,26 @@ function startSleepEnergyTimer(petId: number) {
         });
         
         console.log(`*** REAL-TIME: Pet ${petId} energy increased to ${newEnergy}%`);
+        
+        // Broadcast real-time energy update via WebSocket
+        if ((global as any).wss) {
+          const wsData = {
+            type: 'PET_ENERGY_UPDATE',
+            data: {
+              petId: petId,
+              energy: newEnergy,
+              timestamp: new Date().toISOString()
+            }
+          };
+
+          (global as any).wss.clients.forEach((client: any) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(wsData));
+            }
+          });
+          
+          console.log(`*** WEBSOCKET: Broadcasted energy update for pet ${petId} - ${newEnergy}%`);
+        }
       } catch (error) {
         console.error(`Error in sleep energy timer for pet ${petId}:`, error);
       }
@@ -234,6 +254,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
                 
                 console.log(`*** REAL-TIME: Pet ${pet.id} energy increased to ${newEnergy}%`);
+                
+                // Broadcast real-time energy update via WebSocket
+                if ((global as any).wss) {
+                  const wsData = {
+                    type: 'PET_ENERGY_UPDATE',
+                    data: {
+                      petId: pet.id,
+                      energy: newEnergy,
+                      timestamp: new Date().toISOString()
+                    }
+                  };
+
+                  (global as any).wss.clients.forEach((client: any) => {
+                    if (client.readyState === WebSocket.OPEN) {
+                      client.send(JSON.stringify(wsData));
+                    }
+                  });
+                  
+                  console.log(`*** WEBSOCKET: Broadcasted startup energy update for pet ${pet.id} - ${newEnergy}%`);
+                }
               } catch (error) {
                 console.error(`Error in startup energy timer for pet ${pet.id}:`, error);
               }

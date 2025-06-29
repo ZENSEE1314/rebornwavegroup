@@ -58,6 +58,21 @@ export function useWebSocket(enabled: boolean = true) {
               }
             });
           }
+          
+          // Handle pet energy updates for real-time sleep energy system
+          if (data.type === 'PET_ENERGY_UPDATE') {
+            console.log('Received pet energy update:', data.data);
+            
+            // Invalidate pet-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/pets') ||
+                       queryKey?.includes('/api/pets/') ||
+                       queryKey?.includes('sleep-progress');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
