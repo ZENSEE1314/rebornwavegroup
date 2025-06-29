@@ -2081,6 +2081,13 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`*** TOKEN CLAIM UPDATED SUCCESSFULLY`);
 
+      // Update the corresponding token transaction status
+      await db.update(tokenTransactions).set({
+        status: status
+      }).where(eq(tokenTransactions.relatedId, claimId));
+      
+      console.log(`*** TOKEN TRANSACTION STATUS UPDATED for claimId: ${claimId}`);
+
       // If approved, add tokens to user's account
       if (status === 'approved') {
         console.log('Adding tokens:', claim.tokensRequested, 'to user:', claim.userId);

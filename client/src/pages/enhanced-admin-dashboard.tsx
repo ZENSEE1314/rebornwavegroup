@@ -1288,24 +1288,19 @@ function EnhancedAdminDashboard() {
 
   const updateTokenClaimMutation = useMutation({
     mutationFn: async ({ claimId, status, adminNotes, trackingNumber }: { claimId: number; status: string; adminNotes: string; trackingNumber?: string }) => {
-      console.log('*** FRONTEND: Token claim mutation called with:', { claimId, status, adminNotes, trackingNumber });
-      try {
-        const result = await apiRequest('PATCH', `/api/admin/token-claims/${claimId}`, { status, adminNotes, trackingNumber });
-        console.log('*** FRONTEND: Token claim mutation result:', result);
-        return result;
-      } catch (error) {
-        console.error('*** FRONTEND: Token claim mutation error:', error);
-        throw error;
-      }
+      return apiRequest('PATCH', `/api/admin/token-claims/${claimId}`, { status, adminNotes, trackingNumber });
     },
-    onSuccess: (data) => {
-      console.log('*** FRONTEND: Token claim mutation success:', data);
+    onSuccess: () => {
       toast({ title: "Token claim updated successfully" });
+      // Invalidate all related queries to refresh the UI immediately
       queryClient.invalidateQueries({ queryKey: ['/api/admin/token-claims'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/token-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      // Force refetch to ensure immediate UI update
+      queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] });
     },
-    onError: (error) => {
-      console.error('*** FRONTEND: Token claim mutation onError:', error);
+    onError: () => {
       toast({ title: "Failed to update token claim", variant: "destructive" });
     }
   });
