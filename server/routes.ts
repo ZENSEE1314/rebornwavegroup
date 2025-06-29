@@ -10,6 +10,60 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
 
+// Real-time sleep energy system
+const sleepTimers = new Map<number, NodeJS.Timeout>();
+
+function startSleepEnergyTimer(petId: number) {
+  // Clear existing timer if any
+  if (sleepTimers.has(petId)) {
+    clearInterval(sleepTimers.get(petId)!);
+  }
+
+  // Start new timer that increases energy every 30 seconds
+  const timer = setInterval(async () => {
+    try {
+      const pet = await storage.getPetById(petId);
+      if (!pet || !pet.isSleeping || pet.energy >= 100) {
+        // Stop timer if pet is no longer sleeping or energy is full
+        clearInterval(timer);
+        sleepTimers.delete(petId);
+        
+        if (pet && pet.energy >= 100 && pet.isSleeping) {
+          // Auto-wake pet when energy reaches 100%
+          await storage.updatePetStats(petId, { 
+            isSleeping: false, 
+            sleepStartTime: null 
+          });
+          console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
+        }
+        return;
+      }
+
+      // Increase energy by 1 point every 30 seconds
+      const newEnergy = Math.min(100, pet.energy + 1);
+      await storage.updatePetStats(petId, { 
+        energy: newEnergy,
+        lastEnergyUpdate: new Date()
+      });
+      
+      console.log(`*** REAL-TIME: Pet ${petId} energy increased to ${newEnergy}%`);
+    } catch (error) {
+      console.error(`Error in sleep energy timer for pet ${petId}:`, error);
+    }
+  }, 30000); // 30 seconds
+
+  sleepTimers.set(petId, timer);
+  console.log(`*** REAL-TIME: Started energy timer for pet ${petId}`);
+}
+
+function stopSleepEnergyTimer(petId: number) {
+  if (sleepTimers.has(petId)) {
+    clearInterval(sleepTimers.get(petId)!);
+    sleepTimers.delete(petId);
+    console.log(`*** REAL-TIME: Stopped energy timer for pet ${petId}`);
+  }
+}
+
 // Helper function to extract user ID from different auth formats
 function getUserId(req: any): string | null {
   // For session-based authentication (passport)
@@ -124,6 +178,20 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize real-time energy timers for currently sleeping pets
+  setTimeout(async () => {
+    try {
+      const sleepingPets = await storage.getAllPets();
+      for (const pet of sleepingPets) {
+        if (pet.isSleeping && pet.energy < 100) {
+          console.log(`*** STARTUP: Starting energy timer for sleeping pet ${pet.id}`);
+          startSleepEnergyTimer(pet.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing sleep timers:', error);
+    }
+  }, 1000); // Start timers 1 second after server starts
   // Global request logger for debugging pet care endpoints
   app.use((req, res, next) => {
     if (req.path.includes('/api/pets') && req.path.includes('/care/')) {
@@ -2157,6 +2225,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pointsEarned: 0
         });
 
+        // Start real-time energy increase for this pet
+        startSleepEnergyTimer(petId);
+
         res.json({ message: "Pet is now sleeping", isSleeping: true });
       } else {
         res.status(400).json({ message: "Pet is already fully energized" });
@@ -2646,6 +2717,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.isSleeping = false;
         updates.sleepStartTime = null;
         console.log(`Pet ${petId} automatically woke up - energy reached 100%`);
+        // Stop the real-time energy timer
+        stopSleepEnergyTimer(petId);
       }
       
       if (Object.keys(updates).length > 0) {
@@ -2787,6 +2860,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isSleeping: false, 
         sleepStartTime: null 
       });
+
+      // Stop the real-time energy timer
+      stopSleepEnergyTimer(petId);
 
       res.json({ 
         message: "Pet woke up", 
