@@ -594,6 +594,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
 
 function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language: string; onClose: () => void; user: any }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [gameStarted, setGameStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -673,7 +674,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
         });
         
         // Refresh leaderboard data
-        await useQueryClient().invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/game-scores/leaderboard"] });
         
         toast({
           title: t('game.over'),
