@@ -99,7 +99,8 @@ function EnhancedAdminDashboard() {
   const [newSeason, setNewSeason] = useState({
     name: "",
     displayName: "",
-    description: ""
+    description: "",
+    iconFile: null as File | null
   });
 
   const [editSeasonData, setEditSeasonData] = useState({
@@ -108,7 +109,8 @@ function EnhancedAdminDashboard() {
     displayName: "",
     description: "",
     backgroundColor: "#3B82F6",
-    price: "1000000.00"
+    price: "1000000.00",
+    iconFile: null as File | null
   });
 
   const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
@@ -1123,7 +1125,31 @@ function EnhancedAdminDashboard() {
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
       console.log("*** CREATING SEASON:", seasonData);
-      return apiRequest('POST', '/api/seasons', seasonData);
+      
+      // If there's an image file, use FormData for file upload
+      if (seasonData.iconFile) {
+        const formData = new FormData();
+        formData.append('name', seasonData.name);
+        formData.append('displayName', seasonData.displayName);
+        formData.append('description', seasonData.description);
+        formData.append('iconFile', seasonData.iconFile);
+        
+        const response = await fetch('/api/seasons', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create season');
+        }
+        
+        return response.json();
+      } else {
+        // Regular JSON request if no file upload
+        return apiRequest('POST', '/api/seasons', seasonData);
+      }
     },
     onSuccess: (data) => {
       console.log("*** CREATE SEASON SUCCESS:", data);
@@ -1132,13 +1158,11 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
       queryClient.refetchQueries({ queryKey: ['/api/seasons'] });
       // Clear all form fields
-      setSeasonForm({
+      setNewSeason({
         name: "",
         displayName: "",
         description: "",
-        backgroundColor: "#3B82F6",
-        iconUrl: "/images/default-season.png",
-        isActive: true
+        iconFile: null
       });
     },
     onError: (error: any) => {
@@ -1203,7 +1227,9 @@ function EnhancedAdminDashboard() {
         name: "",
         displayName: "",
         description: "",
-        backgroundColor: "#3B82F6"
+        backgroundColor: "#3B82F6",
+        price: "1000000.00",
+        iconFile: null
       });
     },
     onError: (error: any) => {
@@ -3831,7 +3857,9 @@ function EnhancedAdminDashboard() {
                                       name: season.name,
                                       displayName: season.displayName,
                                       description: season.description || "",
-                                      backgroundColor: season.backgroundColor || "#3B82F6"
+                                      backgroundColor: season.backgroundColor || "#3B82F6",
+                                      price: season.price || "1000000.00",
+                                      iconFile: null
                                     });
                                     setShowEditSeasonDialog(true);
                                   }}
