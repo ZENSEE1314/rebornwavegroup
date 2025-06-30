@@ -959,6 +959,8 @@ function EnhancedAdminDashboard() {
     }
   });
 
+
+
   const updateBannerMutation = useMutation({
     mutationFn: async ({ id, bannerData }: { id: number; bannerData: any }) => {
       return apiRequest('PUT', `/api/admin/banners/${id}`, bannerData);
