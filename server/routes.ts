@@ -2050,7 +2050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/listings', async (req: any, res) => {
     try {
       const { season } = req.query;
-      const listings = await storage.getSeasonalMarketplaceListings(season as string);
+      const listings = await storage.getAllListings(season as string);
       res.json(listings);
     } catch (error) {
       console.error("Error fetching listings:", error);
@@ -2085,7 +2085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       
       // Check if user is admin
-      const user = await storage.getUserById(userId);
+      const user = await storage.getUser(userId);
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
