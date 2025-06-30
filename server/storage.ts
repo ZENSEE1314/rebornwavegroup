@@ -855,7 +855,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllListings(seasonFilter?: string): Promise<any[]> {
-    // Show unowned toys as marketplace listings for purchase
+    // Show only 1 random toy from unowned toys as marketplace listing
     let query = db
       .select({
         id: toys.id,
@@ -884,7 +884,7 @@ export class DatabaseStorage implements IStorage {
       ));
 
     if (seasonFilter && seasonFilter !== 'all') {
-      return await db
+      query = db
         .select({
           id: toys.id,
           name: toys.name,
@@ -910,11 +910,43 @@ export class DatabaseStorage implements IStorage {
           isNull(toys.ownerId),
           eq(toys.isActivated, false),
           eq(seasons.name, seasonFilter)
-        ))
-        .orderBy(toys.rarity, toys.name);
+        ));
     }
 
-    return await query.orderBy(toys.rarity, toys.name);
+    // Get all available toys and return only 1 random toy
+    const allToys = await query;
+    if (allToys.length === 0) {
+      return [];
+    }
+    
+    // Return 1 random toy from available toys
+    const randomIndex = Math.floor(Math.random() * allToys.length);
+    return [allToys[randomIndex]];
+  }
+
+  // Purchase toy method - assigns toy to user and returns new random marketplace toy
+  async purchaseToy(toyId: number, userId: string): Promise<any> {
+    // First, assign the purchased toy to the user
+    const [purchasedToy] = await db
+      .update(toys)
+      .set({ 
+        ownerId: userId,
+        updatedAt: new Date()
+      })
+      .where(eq(toys.id, toyId))
+      .returning();
+
+    if (!purchasedToy) {
+      throw new Error('Toy not found or already owned');
+    }
+
+    // Get a new random toy for the marketplace
+    const newMarketplaceToys = await this.getAllListings();
+    
+    return {
+      purchasedToy,
+      newMarketplaceToy: newMarketplaceToys[0] || null
+    };
   }
 
   async getSeasonalMarketplaceListings(seasonFilter?: string): Promise<any[]> {

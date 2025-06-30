@@ -2126,6 +2126,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Purchase toy from marketplace
+  app.post('/api/purchase-toy/:toyId', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const toyId = parseInt(req.params.toyId);
+      
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const purchaseResult = await storage.purchaseToy(toyId, userId);
+      
+      // Broadcast marketplace update to all connected clients
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(JSON.stringify({
+              type: 'MARKETPLACE_UPDATED',
+              data: {
+                message: 'New toy available in marketplace',
+                purchasedToyId: toyId,
+                newToy: purchaseResult.newMarketplaceToy
+              }
+            }));
+          }
+        });
+      }
+
+      res.json({
+        message: 'Toy purchased successfully',
+        purchasedToy: purchaseResult.purchasedToy,
+        newMarketplaceToy: purchaseResult.newMarketplaceToy
+      });
+    } catch (error) {
+      console.error('Error purchasing toy:', error);
+      res.status(500).json({ message: 'Failed to purchase toy' });
+    }
+  });
+
   app.post('/api/listings', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
