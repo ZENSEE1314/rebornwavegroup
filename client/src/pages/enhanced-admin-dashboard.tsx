@@ -3908,7 +3908,7 @@ function EnhancedAdminDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">No Season</SelectItem>
-                          {seasonsData.map((season: any) => (
+                          {allSeasons.map((season: any) => (
                             <SelectItem key={season.id} value={season.id.toString()}>
                               {season.displayName}
                             </SelectItem>
@@ -5428,7 +5428,7 @@ function EnhancedAdminDashboard() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 border-gray-600">
                     <SelectItem value="none" className="text-white">No Season</SelectItem>
-                    {seasonsData.map((season: any) => (
+                    {allSeasons.map((season: any) => (
                       <SelectItem key={season.id} value={season.id.toString()} className="text-white">
                         {season.displayName}
                       </SelectItem>
@@ -5766,7 +5766,7 @@ function EnhancedAdminDashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No Season</SelectItem>
-                  {seasonsData.map((season: any) => (
+                  {allSeasons.map((season: any) => (
                     <SelectItem key={season.id} value={season.id.toString()}>
                       {season.displayName}
                     </SelectItem>
