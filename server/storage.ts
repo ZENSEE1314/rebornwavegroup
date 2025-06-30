@@ -28,6 +28,7 @@ import {
   dailyTokenRewards,
   seasons,
   collectionSeries,
+  marketplaceEarnings,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -80,7 +81,7 @@ import {
   type DailyCareStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, or, isNull } from "drizzle-orm";
+import { eq, desc, sql, and, or, isNull, gte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 import bcrypt from "bcryptjs";
@@ -892,10 +893,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(listings.status, "active"));
 
     if (seasonFilter) {
-      query = query.where(and(
-        eq(listings.status, "active"),
-        eq(seasons.name, seasonFilter)
-      ));
+      const filteredQuery = db
+        .select({
+          id: listings.id,
+          toyId: listings.toyId,
+          sellerId: listings.sellerId,
+          price: listings.price,
+          description: listings.description,
+          status: listings.status,
+          createdAt: listings.createdAt,
+          updatedAt: listings.updatedAt,
+          toy: {
+            id: toys.id,
+            name: toys.name,
+            series: toys.series,
+            rarity: toys.rarity,
+            imageUrl: toys.imageUrl,
+            gender: toys.gender,
+            color: toys.color,
+            seasonId: toys.seasonId,
+          },
+          seller: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+          },
+          season: {
+            id: seasons.id,
+            name: seasons.name,
+          }
+        })
+        .from(listings)
+        .leftJoin(toys, eq(listings.toyId, toys.id))
+        .leftJoin(users, eq(listings.sellerId, users.id))
+        .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+        .where(and(
+          eq(listings.status, "active"),
+          eq(seasons.name, seasonFilter)
+        ));
+      
+      return await filteredQuery.orderBy(desc(listings.createdAt));
     }
 
     return await query.orderBy(desc(listings.createdAt));
@@ -1731,7 +1769,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Seasonal sales analytics method
-  async getSeasonalSalesAnalytics(): Promise<any> {
+  async getSeasonalSalesAnalytics(): Promise<any[]> {
+    const seasonalSales = await db
+      .select({
+        seasonId: seasons.id,
+        seasonName: seasons.name,
+        totalSales: sql<number>`COUNT(${marketplaceEarnings.id})`,
+        totalRevenue: sql<number>`COALESCE(SUM(CAST(${marketplaceEarnings.salePrice} AS DECIMAL)), 0)`,
+        totalCommission: sql<number>`COALESCE(SUM(CAST(${marketplaceEarnings.amount} AS DECIMAL)), 0)`,
+        averageSalePrice: sql<number>`COALESCE(AVG(CAST(${marketplaceEarnings.salePrice} AS DECIMAL)), 0)`,
+        commissionRate: sql<number>`COALESCE(AVG(CAST(${marketplaceEarnings.commissionRate} AS DECIMAL)), 10.00)`
+      })
+      .from(marketplaceEarnings)
+      .leftJoin(toys, eq(marketplaceEarnings.relatedToyId, toys.id))
+      .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+      .where(eq(marketplaceEarnings.status, 'confirmed'))
+      .groupBy(seasons.id, seasons.name)
+      .orderBy(desc(sql<number>`COALESCE(SUM(CAST(${marketplaceEarnings.amount} AS DECIMAL)), 0)`));
+
+    return seasonalSales;
+  }
+  async getSeasonalSalesStatistics(): Promise<any> {
     try {
       // Get sales data by season with commission tracking
       const seasonalData = await db
