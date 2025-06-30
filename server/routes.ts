@@ -7362,6 +7362,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin season price update endpoint
+  app.put('/api/admin/seasons/:seasonId', requireAuth, async (req: any, res: any) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      // Check if user is admin
+      const user = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user.length || user[0].role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { seasonId } = req.params;
+      const { name, displayName, description, backgroundColor, price } = req.body;
+
+      // Update season with new price
+      const updatedSeason = await db.update(seasons)
+        .set({
+          name,
+          displayName,
+          description,
+          backgroundColor,
+          price: parseFloat(price).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(seasons.id, parseInt(seasonId)))
+        .returning();
+
+      if (!updatedSeason.length) {
+        return res.status(404).json({ message: 'Season not found' });
+      }
+
+      // Broadcast real-time update via WebSocket
+      const wss = (global as any).wss;
+      if (wss) {
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'SEASON_PRICE_UPDATED',
+              data: { seasonId: parseInt(seasonId), updatedSeason: updatedSeason[0] }
+            }));
+          }
+        });
+      }
+
+      res.status(200).json({
+        message: 'Season price updated successfully',
+        season: updatedSeason[0]
+      });
+
+    } catch (error) {
+      console.error('Season price update error:', error);
+      res.status(500).json({ message: 'Failed to update season price' });
+    }
+  });
+
   // Setup WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   

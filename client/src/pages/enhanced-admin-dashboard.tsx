@@ -362,7 +362,7 @@ function EnhancedAdminDashboard() {
     queryKey: ['/api/seasons'],
     retry: false,
   });
-  const seasonsData = Array.isArray(seasonsRaw) ? seasonsRaw : [];
+  const allSeasons = Array.isArray(seasonsRaw) ? seasonsRaw : [];
 
 
 
@@ -720,7 +720,25 @@ function EnhancedAdminDashboard() {
     }
   });
 
-
+  const updateSeasonMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return apiRequest('PUT', `/api/admin/seasons/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Season price updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      setShowEditSeasonDialog(false);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update season price";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
+    }
+  });
 
   const editToyMutation = useMutation({
     mutationFn: async ({ toyId, toyData }: { toyId: number; toyData: any }) => {
