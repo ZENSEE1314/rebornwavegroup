@@ -798,6 +798,11 @@ export const translations: Translations = {
     zh: '重置',
     id: 'Reset'
   },
+  'marketplace.allSeasons': {
+    en: 'All Seasons',
+    zh: '所有季节',
+    id: 'Semua Musim'
+  },
   'auth.enterEmail': {
     en: 'Enter your email',
     zh: '输入您的电子邮件',

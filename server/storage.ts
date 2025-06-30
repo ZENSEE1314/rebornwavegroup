@@ -855,88 +855,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllListings(seasonFilter?: string): Promise<any[]> {
+    // Show unowned toys as marketplace listings for purchase
     let query = db
       .select({
-        id: listings.id,
-        toyId: listings.toyId,
-        sellerId: listings.sellerId,
-        price: listings.price,
-        description: listings.description,
-        status: listings.status,
-        createdAt: listings.createdAt,
-        updatedAt: listings.updatedAt,
-        toy: {
-          id: toys.id,
-          name: toys.name,
-          series: toys.series,
-          rarity: toys.rarity,
-          imageUrl: toys.imageUrl,
-          gender: toys.gender,
-          color: toys.color,
-          seasonId: toys.seasonId,
-        },
-        seller: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-        },
+        id: toys.id,
+        name: toys.name,
+        series: toys.series,
+        rarity: toys.rarity,
+        imageUrl: toys.imageUrl,
+        gender: toys.gender,
+        color: toys.color,
+        salePrice: toys.salePrice,
+        originalPrice: toys.originalPrice,
+        seasonId: toys.seasonId,
+        ownerId: toys.ownerId,
+        isActivated: toys.isActivated,
+        createdAt: toys.createdAt,
         season: {
           id: seasons.id,
           name: seasons.name,
         }
       })
-      .from(listings)
-      .leftJoin(toys, eq(listings.toyId, toys.id))
-      .leftJoin(users, eq(listings.sellerId, users.id))
+      .from(toys)
       .leftJoin(seasons, eq(toys.seasonId, seasons.id))
-      .where(eq(listings.status, "active"));
+      .where(and(
+        isNull(toys.ownerId), // Only unowned toys
+        eq(toys.isActivated, false) // Only non-activated toys
+      ));
 
-    if (seasonFilter) {
-      const filteredQuery = db
-        .select({
-          id: listings.id,
-          toyId: listings.toyId,
-          sellerId: listings.sellerId,
-          price: listings.price,
-          description: listings.description,
-          status: listings.status,
-          createdAt: listings.createdAt,
-          updatedAt: listings.updatedAt,
-          toy: {
-            id: toys.id,
-            name: toys.name,
-            series: toys.series,
-            rarity: toys.rarity,
-            imageUrl: toys.imageUrl,
-            gender: toys.gender,
-            color: toys.color,
-            seasonId: toys.seasonId,
-          },
-          seller: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email,
-          },
-          season: {
-            id: seasons.id,
-            name: seasons.name,
-          }
-        })
-        .from(listings)
-        .leftJoin(toys, eq(listings.toyId, toys.id))
-        .leftJoin(users, eq(listings.sellerId, users.id))
-        .leftJoin(seasons, eq(toys.seasonId, seasons.id))
-        .where(and(
-          eq(listings.status, "active"),
-          eq(seasons.name, seasonFilter)
-        ));
-      
-      return await filteredQuery.orderBy(desc(listings.createdAt));
+    if (seasonFilter && seasonFilter !== 'all') {
+      query = query.where(and(
+        isNull(toys.ownerId),
+        eq(toys.isActivated, false),
+        eq(seasons.name, seasonFilter)
+      ));
     }
 
-    return await query.orderBy(desc(listings.createdAt));
+    return await query.orderBy(toys.rarity, toys.name);
   }
 
   async getSeasonalMarketplaceListings(seasonFilter?: string): Promise<any[]> {
