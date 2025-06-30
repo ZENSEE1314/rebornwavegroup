@@ -6889,7 +6889,7 @@ export default function CompleteApp() {
                       <CardContent className="p-8 text-center">
                         <div className="mb-6">
                           {/* Season Logo/Icon - 940x940 square */}
-                          <div className="w-full aspect-square mx-auto rounded-lg flex items-center justify-center mb-4 overflow-hidden border-2 border-gray-200">
+                          <div className="w-full aspect-square mx-auto rounded-lg flex items-center justify-center mb-4 overflow-hidden">
                             {season.iconUrl ? (
                               <img 
                                 src={season.iconUrl} 
@@ -6907,7 +6907,11 @@ export default function CompleteApp() {
                           <h3 className="text-2xl font-bold text-slate-900 mb-2">
                             {season.name}
                           </h3>
-                          <p className="text-slate-600 mb-4">
+                        </div>
+                        
+                        {/* Season Description */}
+                        <div className="mb-4">
+                          <p className="text-slate-600">
                             {season.displayName || season.description || 'Seasonal Collection'}
                           </p>
                         </div>
