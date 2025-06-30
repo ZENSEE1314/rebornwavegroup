@@ -2046,10 +2046,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Marketplace listing routes
+  // Marketplace listing routes with seasonal filtering
   app.get('/api/listings', async (req: any, res) => {
     try {
-      const listings = await storage.getAllListings();
+      const { season } = req.query;
+      const listings = await storage.getAllListings(season as string);
       res.json(listings);
     } catch (error) {
       console.error("Error fetching listings:", error);
@@ -7121,6 +7122,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get marketplace earnings stats error:', error);
       res.status(500).json({ message: 'Failed to get marketplace earnings stats' });
+    }
+  });
+
+  // Seasonal sales analytics endpoint
+  app.get('/api/admin/seasonal-sales-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const analytics = await storage.getSeasonalSalesAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error('Get seasonal sales analytics error:', error);
+      res.status(500).json({ message: 'Failed to get seasonal sales analytics' });
     }
   });
 

@@ -853,8 +853,8 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getAllListings(): Promise<any[]> {
-    return await db
+  async getAllListings(seasonFilter?: string): Promise<any[]> {
+    let query = db
       .select({
         id: listings.id,
         toyId: listings.toyId,
@@ -870,19 +870,36 @@ export class DatabaseStorage implements IStorage {
           series: toys.series,
           rarity: toys.rarity,
           imageUrl: toys.imageUrl,
+          gender: toys.gender,
+          color: toys.color,
+          seasonId: toys.seasonId,
         },
         seller: {
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
+        },
+        season: {
+          id: seasons.id,
+          name: seasons.name,
         }
       })
       .from(listings)
       .leftJoin(toys, eq(listings.toyId, toys.id))
       .leftJoin(users, eq(listings.sellerId, users.id))
-      .where(eq(listings.status, "active"))
-      .orderBy(desc(listings.createdAt));
+      .leftJoin(seasons, eq(toys.seasonId, seasons.id));
+
+    if (seasonFilter) {
+      query = query.where(and(
+        eq(listings.status, "active"),
+        eq(seasons.name, seasonFilter)
+      ));
+    } else {
+      query = query.where(eq(listings.status, "active"));
+    }
+
+    return await query.orderBy(desc(listings.createdAt));
   }
 
   async getListingsByUserId(userId: string): Promise<Listing[]> {
@@ -1669,12 +1686,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Marketplace earnings tracking
-  async recordMarketplaceEarning(earningData: InsertMarketplaceEarning): Promise<MarketplaceEarning> {
+  async recordMarketplaceEarning(earningData: any): Promise<any> {
     const [earning] = await db.insert(marketplaceEarnings).values(earningData).returning();
     return earning;
   }
 
-  async getMarketplaceEarnings(): Promise<MarketplaceEarning[]> {
+  async getMarketplaceEarnings(): Promise<any[]> {
     return await db.select().from(marketplaceEarnings).orderBy(desc(marketplaceEarnings.createdAt));
   }
 

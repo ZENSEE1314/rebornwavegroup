@@ -3747,6 +3747,11 @@ export const translations: Translations = {
     zh: '推荐',
     id: 'rujukan'
   },
+  'marketplace.selectToy': {
+    en: 'Select a toy to sell',
+    zh: '选择要出售的玩具',
+    id: 'Pilih mainan untuk dijual'
+  },
   'referral.autoPoints': {
     en: 'Points are earned automatically when referrals are successful',
     zh: '推荐成功时自动获得积分',
