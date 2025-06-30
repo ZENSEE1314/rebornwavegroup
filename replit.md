@@ -26,6 +26,13 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Marketplace User Interface Enhancement (June 30, 2025)
+- **USER INTERFACE IMPROVEMENT**: ✅ MARKETPLACE NOW HIDES USER LISTINGS TAB WHEN NO TOYS ARE AVAILABLE
+- **Conditional Tab Display**: User Listings tab only appears when there are actual toys listed for sale by other users
+- **Cleaner Interface**: When no user listings exist, marketplace shows only Season Packs option for better user experience
+- **Dynamic Navigation**: Marketplace navigation adapts based on available content, reducing interface clutter
+- **User Experience**: Simplified marketplace interface prevents confusion when no user-to-user trading options are available
+
 ### Seasonal Marketplace Toy Visibility Fix (June 30, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED TOY VISIBILITY ISSUE IN DULURUU BREEDING SEASON
 - **Root Cause Identified**: Marketplace system was looking for listings table instead of showing unowned toys directly

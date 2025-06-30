@@ -6870,14 +6870,17 @@ export default function CompleteApp() {
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Season Packs
               </Button>
-              <Button
-                variant={marketplaceView === 'listings' ? 'default' : 'outline'}
-                onClick={() => setMarketplaceView('listings')}
-                className="px-6 py-2"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                User Listings
-              </Button>
+              {/* Only show User Listings tab when there are listings available */}
+              {listings && listings.length > 0 && (
+                <Button
+                  variant={marketplaceView === 'listings' ? 'default' : 'outline'}
+                  onClick={() => setMarketplaceView('listings')}
+                  className="px-6 py-2"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  User Listings
+                </Button>
+              )}
             </div>
 
             {/* Season-based Purchase Cards */}
