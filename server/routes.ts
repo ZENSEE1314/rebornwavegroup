@@ -6728,6 +6728,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to get all points history for item claim history
+  app.get('/api/admin/points-history', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Get all points history with user information
+      const allPointsHistory = await db
+        .select({
+          id: pointsHistory.id,
+          userId: pointsHistory.userId,
+          type: pointsHistory.type,
+          amount: pointsHistory.amount,
+          description: pointsHistory.description,
+          status: pointsHistory.status,
+          createdAt: pointsHistory.createdAt,
+          user: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email
+          }
+        })
+        .from(pointsHistory)
+        .leftJoin(users, eq(pointsHistory.userId, users.id))
+        .orderBy(desc(pointsHistory.createdAt));
+
+      res.json(allPointsHistory);
+    } catch (error) {
+      console.error("Error fetching points history:", error);
+      res.status(500).json({ message: "Failed to fetch points history" });
+    }
+  });
+
   // Admin add tokens to user
   app.post('/api/admin/users/:adminUserId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {

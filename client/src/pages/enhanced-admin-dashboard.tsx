@@ -397,6 +397,12 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Query for points history to show item claims
+  const { data: pointsHistory = [] } = useQuery({
+    queryKey: ['/api/admin/points-history'],
+    retry: false,
+  });
+
   // All toys query for comprehensive toy list
   const allToysQuery = useQuery({
     queryKey: ['/api/admin/all-toys'],
@@ -3410,6 +3416,48 @@ function EnhancedAdminDashboard() {
               </div>
 
 
+
+              {/* Item Claim History */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-orange-400" />
+                    Item Claim History
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">View all user reward redemption history</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {Array.isArray(pointsHistory) && pointsHistory.length > 0 ? (
+                      pointsHistory.filter((entry: any) => entry.type === 'redeemed').map((entry: any) => (
+                        <div key={entry.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-white font-medium">User: {entry.userEmail || 'Unknown'}</span>
+                                <Badge variant="outline" className="text-orange-400 border-orange-400">
+                                  {Math.abs(entry.points)} points
+                                </Badge>
+                              </div>
+                              <p className="text-gray-300 text-sm mb-2">
+                                <strong>Item:</strong> {entry.description || 'Reward redemption'}
+                              </p>
+                              <p className="text-gray-400 text-xs">
+                                Redeemed: {new Date(entry.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-gray-500 mb-4 text-4xl">🎁</div>
+                        <p className="text-gray-500">No item claims yet</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Promotion Banners */}
               <Card className="bg-slate-800/60 border-slate-700/50">
