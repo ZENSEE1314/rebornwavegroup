@@ -6794,19 +6794,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/seasons/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { name, displayName, description, backgroundColor, iconUrl, isActive } = req.body;
+      const { name, displayName, description, backgroundColor, iconUrl, isActive, showInMarketplace } = req.body;
 
-      await db.update(schema.seasons).set({
+      const [updatedSeason] = await db.update(schema.seasons).set({
         name,
         displayName,
         description,
         backgroundColor,
         iconUrl,
         isActive,
+        showInMarketplace,
         updatedAt: new Date()
-      }).where(eq(schema.seasons.id, parseInt(id)));
+      }).where(eq(schema.seasons.id, parseInt(id))).returning();
 
-      res.json({ message: "Season updated successfully" });
+      // Broadcast real-time updates via WebSocket
+      if (wss && updatedSeason) {
+        const message = {
+          type: 'SEASON_UPDATED',
+          seasonId: parseInt(id),
+          seasonData: updatedSeason
+        };
+        
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
+
+      res.json({ message: "Season updated successfully", season: updatedSeason });
     } catch (error) {
       console.error("Error updating season:", error);
       res.status(500).json({ message: "Failed to update season" });

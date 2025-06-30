@@ -721,32 +721,7 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  const updateSeasonMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return apiRequest('PUT', `/api/admin/seasons/${id}`, data);
-    },
-    onSuccess: () => {
-      toast({ title: "Season price updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-      setEditSeasonData({
-        id: null,
-        name: "",
-        displayName: "",
-        description: "",
-        backgroundColor: "#3B82F6",
-        price: "1000000.00"
-      });
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update season price";
-      toast({ 
-        title: "Error", 
-        description: errorMessage,
-        variant: "destructive" 
-      });
-    }
-  });
+
 
   const editToyMutation = useMutation({
     mutationFn: async ({ toyId, toyData }: { toyId: number; toyData: any }) => {
@@ -1190,6 +1165,24 @@ function EnhancedAdminDashboard() {
       toast({ 
         title: "Cannot delete season", 
         description: `${message}. Please reassign or remove related items first.`,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const updateSeasonMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return apiRequest('PUT', `/api/admin/seasons/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Season updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/seasons'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update season", 
+        description: error.message,
         variant: "destructive" 
       });
     }

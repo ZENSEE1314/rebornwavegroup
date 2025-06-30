@@ -141,6 +141,21 @@ export function useWebSocket(enabled: boolean = true) {
             queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] });
             queryClient.removeQueries({ queryKey: ['/api/admin/token-transactions'] });
           }
+
+          // Handle season updates for real-time marketplace visibility changes
+          if (data.type === 'SEASON_UPDATED') {
+            console.log('Received season update:', data.seasonData);
+            
+            // Invalidate season-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/seasons') ||
+                       queryKey?.includes('/api/seasons') ||
+                       queryKey?.includes('/api/listings');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
