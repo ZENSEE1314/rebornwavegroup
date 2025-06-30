@@ -5192,60 +5192,7 @@ export default function CompleteApp() {
 
   // cancelPurchase function already defined above
 
-  const buyToy = (listing) => {
-    // Check if trying to buy own item
-    if (listing.sellerId === user?.id) {
-      toast({
-        title: t('common.error'),
-        description: t('marketplace.cannotBuyOwnItem'),
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const price = parseFloat(listing.price || '0');
-    if (userCredits < price) {
-      toast({
-        title: t('common.error'),
-        description: t('credits.insufficient'),
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Show confirmation dialog
-    setSelectedPurchaseListing(listing);
-    setShowPurchaseConfirmation(true);
-  };
-
-  const confirmPurchaseDialog = () => {
-    const listing = selectedPurchaseListing;
-    const price = parseFloat(listing.price || '0');
-    
-    // Calculate points earned (1 point per 10,000 RP)
-    const pointsEarned = Math.floor(price / 10000);
-
-    // Create pending purchase - buyer pays, seller must confirm
-    // The backend will handle both credit deduction and credit history creation
-    createPendingPurchaseMutation.mutate({
-      listingId: listing.id,
-      buyerId: user?.id,
-      sellerId: listing.sellerId,
-      toyId: listing.toyId,
-      amount: listing.price,
-      pointsEarned: pointsEarned,
-    });
-
-    // Points will be added when seller confirms the purchase
-
-    setShowPurchaseConfirmation(false);
-    setSelectedPurchaseListing(null);
-
-    toast({
-      title: t('marketplace.purchaseSuccessful'),
-      description: t('marketplace.creditsDeductedWaitingConfirmation', { points: pointsEarned }),
-    });
-  };
+  // buyToy and confirmPurchaseDialog functions already defined above
 
   // Function to confirm purchase as seller
   const confirmPurchase = async (purchaseId) => {
