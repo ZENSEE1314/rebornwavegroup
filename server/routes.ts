@@ -3183,17 +3183,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/marketplace/listings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/marketplace/listings', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const userId = getUserId(req);
       const validatedData = insertListingSchema.parse({
         ...req.body,
-        sellerId: adminUserId,
+        sellerId: userId,
       });
       
       const listing = await storage.createListing(validatedData);
       
-      // Marketplace listing created successfully
+      // Broadcast update to all connected clients
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(JSON.stringify({
+              type: 'MARKETPLACE_UPDATED',
+              data: {
+                newListing: listing,
+                message: `New toy listed for sale`
+              }
+            }));
+          }
+        });
+      }
       
       res.json(listing);
     } catch (error) {
@@ -3202,10 +3215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/marketplace/my-listings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/marketplace/my-listings', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const listings = await storage.getListingsByUserId(adminUserId);
+      const userId = getUserId(req);
+      const listings = await storage.getListingsByUserId(userId);
       res.json(listings);
     } catch (error) {
       console.error("Error fetching user listings:", error);
