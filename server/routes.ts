@@ -221,6 +221,8 @@ const multerStorage = multer.diskStorage({
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded images statically
+  app.use('/uploaded-images', express.static('uploaded-images'));
   // Initialize real-time energy timers for currently sleeping pets
   setTimeout(async () => {
     try {
@@ -5090,6 +5092,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).returning();
 
       console.log("*** CREATE SEASON RESULT:", season);
+      
+      // Broadcast season creation to all connected clients for real-time marketplace updates
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'SEASON_CREATED',
+            data: season
+          }));
+        }
+      });
+      
       res.json(season);
     } catch (error) {
       console.error("Error creating season:", error);
@@ -5098,7 +5111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Edit season (admin only)
-  app.put('/api/seasons/:seasonId', requireAuth, async (req: any, res) => {
+  app.put('/api/seasons/:seasonId', requireAuth, upload.single('iconFile'), async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -5111,20 +5124,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const seasonId = parseInt(req.params.seasonId);
-      const { name, displayName, description, backgroundColor, iconUrl } = req.body;
+      const { name, displayName, description, backgroundColor, iconUrl, price, showInMarketplace } = req.body;
+      
+      // Handle uploaded file
+      let finalIconUrl = iconUrl;
+      if (req.file) {
+        finalIconUrl = `/uploaded-images/${req.file.filename}`;
+      }
       
       console.log("*** EDIT SEASON DEBUG:", {
         seasonId,
         requestBody: req.body,
-        parsedData: { name, displayName, description, backgroundColor, iconUrl }
+        uploadedFile: req.file?.filename,
+        parsedData: { name, displayName, description, backgroundColor, iconUrl: finalIconUrl, price, showInMarketplace }
       });
       
       const result = await db.update(schema.seasons)
-        .set({ name, displayName, description, backgroundColor, iconUrl, updatedAt: new Date() })
+        .set({ 
+          name, 
+          displayName, 
+          description, 
+          backgroundColor, 
+          iconUrl: finalIconUrl, 
+          price: price || "1000000.00",
+          showInMarketplace: showInMarketplace !== undefined ? showInMarketplace : true,
+          updatedAt: new Date() 
+        })
         .where(eq(schema.seasons.id, seasonId))
         .returning();
         
       console.log("*** EDIT SEASON RESULT:", result);
+      
+      // Broadcast season update to all connected clients for real-time marketplace updates
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'SEASON_UPDATED',
+            data: result[0]
+          }));
+        }
+      });
         
       res.json({ message: "Season updated successfully", season: result[0] });
     } catch (error) {

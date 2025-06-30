@@ -1217,7 +1217,35 @@ function EnhancedAdminDashboard() {
 
   const editSeasonMutation = useMutation({
     mutationFn: async ({ seasonId, seasonData }: { seasonId: number; seasonData: any }) => {
-      return apiRequest('PUT', `/api/seasons/${seasonId}`, seasonData);
+      console.log("*** EDITING SEASON:", seasonId, seasonData);
+      
+      // If there's an image file, use FormData for file upload
+      if (seasonData.iconFile) {
+        const formData = new FormData();
+        formData.append('name', seasonData.name);
+        formData.append('displayName', seasonData.displayName);
+        formData.append('description', seasonData.description || '');
+        formData.append('backgroundColor', seasonData.backgroundColor || '#3B82F6');
+        formData.append('price', seasonData.price || '1000000.00');
+        formData.append('showInMarketplace', seasonData.showInMarketplace?.toString() || 'true');
+        formData.append('iconFile', seasonData.iconFile);
+        
+        const response = await fetch(`/api/seasons/${seasonId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update season');
+        }
+        
+        return response.json();
+      } else {
+        // Regular JSON request if no file upload
+        return apiRequest('PUT', `/api/seasons/${seasonId}`, seasonData);
+      }
     },
     onSuccess: () => {
       toast({ title: "Season updated successfully" });
@@ -5704,6 +5732,23 @@ function EnhancedAdminDashboard() {
                 className="bg-white/10 border-white/20 text-white h-10"
               />
             </div>
+            <div>
+              <Label className="text-gray-300">Update Season Logo (Optional)</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setEditSeasonData({ ...editSeasonData, iconFile: file });
+                }}
+                className="bg-white/10 border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {editSeasonData.iconFile && (
+                <p className="text-sm text-green-400 mt-1">
+                  New logo selected: {editSeasonData.iconFile.name}
+                </p>
+              )}
+            </div>
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => {
@@ -5714,7 +5759,9 @@ function EnhancedAdminDashboard() {
                         name: editSeasonData.name,
                         displayName: editSeasonData.displayName,
                         description: editSeasonData.description,
-                        backgroundColor: editSeasonData.backgroundColor
+                        backgroundColor: editSeasonData.backgroundColor,
+                        price: editSeasonData.price,
+                        iconFile: editSeasonData.iconFile
                       }
                     });
                   }
