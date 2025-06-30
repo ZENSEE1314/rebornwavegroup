@@ -15,7 +15,7 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator, Coins, Settings
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Calculator, Coins, Settings, Loader2, ShoppingCart
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -6835,43 +6835,57 @@ export default function CompleteApp() {
                 {t('toys.marketplace')}
               </h2>
               <p className="text-slate-600">
-                {t('toys.browseAndBuy')}
+                Choose a season to purchase a random toy
               </p>
-              
-              {/* Seasonal Filter Buttons */}
-              <div className="flex justify-center gap-2 mb-6 flex-wrap">
-                <Button 
-                  onClick={() => setSelectedMarketplaceSeason(null)}
-                  variant={selectedMarketplaceSeason === null ? "default" : "outline"}
-                  className="mb-2"
-                >
-                  {t("marketplace.allSeasons") || "All Seasons"}
-                </Button>
-                {seasons?.map((season) => (
-                  <Button
-                    key={season.id}
-                    onClick={() => setSelectedMarketplaceSeason(season.name)}
-                    variant={selectedMarketplaceSeason === season.name ? "default" : "outline"}
-                    className="mb-2"
-                  >
-                    {season.name}
-                  </Button>
-                ))}
-              </div>
-              
-              <Button 
-                onClick={() => setShowCreateListingModal(true)} 
-                className="mt-4 bg-green-600 hover:bg-green-700"
-                disabled={!toyInventory || toyInventory.length === 0}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t("marketplace.sellMyToy")}
-              </Button>
-              {(!toyInventory || toyInventory.length === 0) && (
-                <p className="text-sm text-gray-500 mt-2">
-                  You need to own toys to sell them. Scan QR codes to collect toys first.
-                </p>
-              )}
+            </div>
+
+            {/* Season-based Purchase Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {seasons?.map((season) => (
+                <Card key={season.id} className="hover:shadow-lg transition-shadow border-2 hover:border-blue-300">
+                  <CardContent className="p-8 text-center">
+                    <div className="mb-6">
+                      {/* Season Logo/Icon */}
+                      <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-3xl font-bold text-white">
+                          {season.name.charAt(0)}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                        {season.name}
+                      </h3>
+                      <p className="text-slate-600 mb-4">
+                        {season.displayName || season.description || 'Seasonal Collection'}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <p className="text-lg font-bold text-yellow-800">Random Toy</p>
+                        <p className="text-sm text-yellow-600">Get a surprise toy from this season</p>
+                      </div>
+                      
+                      <Button 
+                        onClick={() => purchaseRandomToy(season.name)}
+                        className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3"
+                        disabled={purchaseRandomToyMutation.isPending}
+                      >
+                        {purchaseRandomToyMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Purchasing...
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            Purchase Random Toy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
             {(() => {
