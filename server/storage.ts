@@ -888,18 +888,21 @@ export class DatabaseStorage implements IStorage {
       .from(listings)
       .leftJoin(toys, eq(listings.toyId, toys.id))
       .leftJoin(users, eq(listings.sellerId, users.id))
-      .leftJoin(seasons, eq(toys.seasonId, seasons.id));
+      .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+      .where(eq(listings.status, "active"));
 
     if (seasonFilter) {
       query = query.where(and(
         eq(listings.status, "active"),
         eq(seasons.name, seasonFilter)
       ));
-    } else {
-      query = query.where(eq(listings.status, "active"));
     }
 
     return await query.orderBy(desc(listings.createdAt));
+  }
+
+  async getSeasonalMarketplaceListings(seasonFilter?: string): Promise<any[]> {
+    return this.getAllListings(seasonFilter);
   }
 
   async getListingsByUserId(userId: string): Promise<Listing[]> {

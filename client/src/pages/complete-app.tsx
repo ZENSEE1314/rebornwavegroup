@@ -3555,6 +3555,12 @@ export default function CompleteApp() {
     gcTime: 30 * 60 * 1000, // 30 minutes garbage collection time
   });
 
+  // Fetch seasons for marketplace filtering
+  const { data: seasons = [] } = useQuery({
+    queryKey: ['/api/seasons'],
+    staleTime: 10 * 60 * 1000, // 10 minutes stale time
+  });
+
   const userCredits = userStats ? parseFloat(userStats.credits) : 0;
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
   const lifetimePoints = userStats?.lifetimePoints || 0;
@@ -4180,10 +4186,18 @@ export default function CompleteApp() {
     enabled: !!user,
   });
 
-  // Fetch all marketplace listings from database
+  // Fetch all marketplace listings from database with seasonal filtering
   const { data: marketplaceListings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['/api/listings'],
+    queryKey: ['/api/listings', selectedMarketplaceSeason],
     enabled: !!user,
+    queryFn: async () => {
+      const url = selectedMarketplaceSeason 
+        ? `/api/listings?season=${encodeURIComponent(selectedMarketplaceSeason)}`
+        : '/api/listings';
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch listings');
+      return response.json();
+    }
   });
 
   // Mutation to create new toy

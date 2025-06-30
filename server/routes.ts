@@ -2050,11 +2050,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/listings', async (req: any, res) => {
     try {
       const { season } = req.query;
-      const listings = await storage.getAllListings(season as string);
+      const listings = await storage.getSeasonalMarketplaceListings(season as string);
       res.json(listings);
     } catch (error) {
       console.error("Error fetching listings:", error);
       res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  // Seasonal sales analytics for admin dashboard
+  app.get('/api/admin/seasonal-sales-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const analytics = await storage.getSeasonalSalesAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching seasonal sales analytics:", error);
+      res.status(500).json({ message: "Failed to fetch seasonal sales analytics" });
     }
   });
 
