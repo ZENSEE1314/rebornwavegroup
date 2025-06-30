@@ -3,6 +3,7 @@ import express from "express";
 import path from "path";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import multer from "multer";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, count, isNull } from "drizzle-orm";
@@ -10,6 +11,29 @@ import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploaded-images/')
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+      cb(null, 'season-' + uniqueSuffix + path.extname(file.originalname))
+    }
+  }),
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Real-time sleep energy system
 const sleepTimers = new Map<number, NodeJS.Timeout>();
@@ -114,7 +138,6 @@ function getUserId(req: any): string | null {
 }
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import multer from "multer";
 import { promises as fs } from "fs";
 import { 
   insertAppointmentSchema,
@@ -5037,7 +5060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create season (admin only)
-  app.post('/api/seasons', requireAuth, async (req: any, res) => {
+  app.post('/api/seasons', requireAuth, upload.single('iconFile'), async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -5049,7 +5072,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { name, displayName, description, backgroundColor, iconUrl, isActive } = req.body;
+      const { name, displayName, description, backgroundColor, iconUrl, isActive, price, showInMarketplace } = req.body;
+      
+      // Handle uploaded file
+      let finalIconUrl = iconUrl;
+      if (req.file) {
+        finalIconUrl = `/uploaded-images/${req.file.filename}`;
+      }
       
       console.log("*** CREATE SEASON BACKEND:", {
         requestBody: req.body,
@@ -5064,12 +5093,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name,
         displayName,
         description: description || '',
-        iconUrl: iconUrl || '/images/default-season.png',
+        iconUrl: finalIconUrl || '/images/default-season.png',
         backgroundColor: backgroundColor || '#3B82F6',
         isActive: isActive !== undefined ? isActive : true,
         displayOrder: 0,
         startDate: new Date(),
         endDate: null,
+        price: price || "1000000.00",
+        showInMarketplace: showInMarketplace !== undefined ? showInMarketplace : true,
         createdAt: new Date(),
         updatedAt: new Date()
       }).returning();
