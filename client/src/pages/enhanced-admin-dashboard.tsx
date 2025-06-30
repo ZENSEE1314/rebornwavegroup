@@ -728,7 +728,14 @@ function EnhancedAdminDashboard() {
       toast({ title: "Season price updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
       queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-      setShowEditSeasonDialog(false);
+      setEditSeasonData({
+        id: null,
+        name: "",
+        displayName: "",
+        description: "",
+        backgroundColor: "#3B82F6",
+        price: "1000000.00"
+      });
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to update season price";
@@ -3794,9 +3801,9 @@ function EnhancedAdminDashboard() {
                       
                       {/* Available Seasons */}
                       <div className="mt-4">
-                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({seasonsData.length})</h4>
+                        <h4 className="text-gray-300 text-sm font-medium mb-2">Available Seasons ({allSeasons.length})</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {seasonsData.map((season: any) => (
+                          {allSeasons.map((season: any) => (
                             <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
                               <span className="text-white text-sm">{season.displayName}</span>
                               <div className="flex items-center gap-2">
