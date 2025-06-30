@@ -1933,9 +1933,6 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Emails
               </TabsTrigger>
-              <TabsTrigger value="seasons" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
-                Seasons
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -4312,11 +4309,21 @@ function EnhancedAdminDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {/* Revenue Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
+                        <div className="text-purple-400 text-sm font-medium">Commission Earnings</div>
+                        <div className="text-white text-2xl font-bold">RP 150,000</div>
+                        <div className="text-purple-300 text-xs">User-to-user sales (10%)</div>
+                      </div>
+                      <div className="bg-orange-900/20 border border-orange-400/30 rounded-lg p-4">
+                        <div className="text-orange-400 text-sm font-medium">Season Sales</div>
+                        <div className="text-white text-2xl font-bold">RP 150,000</div>
+                        <div className="text-orange-300 text-xs">Random seasonal toy purchases</div>
+                      </div>
                       <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-4">
                         <div className="text-green-400 text-sm font-medium">Total Earnings</div>
                         <div className="text-white text-2xl font-bold">RP 300,000</div>
-                        <div className="text-green-300 text-xs">Platform commission (10%)</div>
+                        <div className="text-green-300 text-xs">Combined platform revenue</div>
                       </div>
                       <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4">
                         <div className="text-blue-400 text-sm font-medium">Total Sales</div>
