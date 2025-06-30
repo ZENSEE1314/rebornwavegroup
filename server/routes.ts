@@ -2057,6 +2057,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate random marketplace listings from unowned toys
+  app.post('/api/admin/generate-marketplace-listings', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if user is admin
+      const user = await storage.getUserById(userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { count = 10 } = req.body;
+      
+      // Validate count
+      if (count < 1 || count > 50) {
+        return res.status(400).json({ message: 'Count must be between 1 and 50' });
+      }
+
+      const result = await storage.createRandomMarketplaceListings(count);
+      
+      // Broadcast update to all connected clients
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(JSON.stringify({
+              type: 'MARKETPLACE_UPDATED',
+              data: {
+                newListings: result.created,
+                message: `${result.created} new toys added to marketplace`
+              }
+            }));
+          }
+        });
+      }
+
+      res.status(201).json({
+        message: `Successfully created ${result.created} marketplace listings`,
+        created: result.created,
+        listings: result.listings
+      });
+
+    } catch (error) {
+      console.error('Error generating marketplace listings:', error);
+      res.status(500).json({ message: 'Failed to generate marketplace listings' });
+    }
+  });
+
   app.post('/api/listings', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);

@@ -1668,6 +1668,94 @@ export class DatabaseStorage implements IStorage {
     await db.delete(rewardItems).where(eq(rewardItems.id, id));
   }
 
+  // Random marketplace listing generation
+  async createRandomMarketplaceListings(count: number = 10): Promise<{ created: number; listings: any[] }> {
+    try {
+      // Get random unowned toys that are not activated and not already listed
+      const unownedToys = await db
+        .select()
+        .from(toys)
+        .where(
+          and(
+            isNull(toys.ownerId), // No owner
+            eq(toys.isActivated, false), // Not activated as pets
+            isNull(toys.salePrice) // Not already marked for sale
+          )
+        )
+        .limit(count * 3); // Get more than needed to have options
+
+      if (unownedToys.length === 0) {
+        return { created: 0, listings: [] };
+      }
+
+      // Randomly select from available toys
+      const selectedToys = unownedToys
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(count, unownedToys.length));
+
+      const createdListings = [];
+
+      for (const toy of selectedToys) {
+        // Generate random price based on rarity
+        let basePrice = 50000; // Base price in IDR
+        switch (toy.rarity?.toLowerCase()) {
+          case 'legendary':
+            basePrice = 500000 + Math.random() * 1000000; // 500k-1.5M IDR
+            break;
+          case 'epic':
+            basePrice = 200000 + Math.random() * 300000; // 200k-500k IDR
+            break;
+          case 'rare':
+            basePrice = 100000 + Math.random() * 100000; // 100k-200k IDR
+            break;
+          case 'common':
+          default:
+            basePrice = 25000 + Math.random() * 75000; // 25k-100k IDR
+            break;
+        }
+
+        // Round to nearest 1000
+        const price = (Math.round(basePrice / 1000) * 1000).toString();
+
+        // Create marketplace listing with system as seller
+        const listingData = {
+          toyId: toy.id,
+          sellerId: 'system', // Special system seller ID
+          price: price,
+          description: `${toy.rarity} ${toy.name} available for purchase. Color: ${toy.color}, Gender: ${toy.gender}`,
+          status: 'active' as const
+        };
+
+        const [listing] = await db
+          .insert(listings)
+          .values(listingData)
+          .returning();
+
+        // Update toy to mark it's for sale
+        await db
+          .update(toys)
+          .set({ 
+            salePrice: price,
+            isForSale: true,
+            updatedAt: new Date()
+          })
+          .where(eq(toys.id, toy.id));
+
+        createdListings.push({
+          ...listing,
+          toy: toy
+        });
+      }
+
+      console.log(`*** MARKETPLACE: Created ${createdListings.length} random listings`);
+      return { created: createdListings.length, listings: createdListings };
+
+    } catch (error) {
+      console.error('Error creating random marketplace listings:', error);
+      return { created: 0, listings: [] };
+    }
+  }
+
   // Game score operations
   async createGameScore(scoreData: InsertGameScore): Promise<GameScore> {
     const [score] = await db

@@ -132,6 +132,9 @@ function EnhancedAdminDashboard() {
     color: null as string | null
   });
   
+  // Marketplace listing generation state
+  const [marketplaceListingCount, setMarketplaceListingCount] = useState(10);
+  
   // Pagination states
   const [topUpCurrentPage, setTopUpCurrentPage] = useState(1);
   const topUpItemsPerPage = 10;
@@ -1086,6 +1089,28 @@ function EnhancedAdminDashboard() {
       toast({ 
         title: "Failed to generate toys", 
         description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Random marketplace listing generation mutation
+  const generateMarketplaceListingsMutation = useMutation({
+    mutationFn: async (count: number) => {
+      return apiRequest('POST', '/api/admin/generate-marketplace-listings', { count });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Marketplace listings generated", 
+        description: `Successfully created ${data.created} new toy listings`
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-toys'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to generate listings", 
+        description: error.message || "Please try again",
         variant: "destructive" 
       });
     }
