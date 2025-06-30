@@ -6620,6 +6620,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin route to update user credits directly
+  app.patch('/api/admin/users/:adminUserId/credits', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { adminUserId: targetUserId } = req.params;
+      const { credits } = req.body;
+      
+      if (typeof credits !== 'string' || parseFloat(credits) < 0) {
+        return res.status(400).json({ message: "Valid credit amount required" });
+      }
+      
+      await storage.updateUserCredits(targetUserId, credits);
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(targetUserId);
+
+      // Broadcast real-time updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: targetUserId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
+
+      res.json({ message: "User credits updated successfully" });
+    } catch (error) {
+      console.error("Error updating user credits:", error);
+      res.status(500).json({ message: "Failed to update user credits" });
+    }
+  });
+
+  // Admin route to update user loyalty points directly
+  app.patch('/api/admin/users/:adminUserId/loyalty-points', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { adminUserId: targetUserId } = req.params;
+      const { loyaltyPoints } = req.body;
+      
+      if (typeof loyaltyPoints !== 'number' || loyaltyPoints < 0) {
+        return res.status(400).json({ message: "Valid loyalty points amount required" });
+      }
+      
+      await storage.updateUserLoyaltyPoints(targetUserId, loyaltyPoints);
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(targetUserId);
+
+      // Broadcast real-time updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: targetUserId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
+
+      res.json({ message: "User loyalty points updated successfully" });
+    } catch (error) {
+      console.error("Error updating user loyalty points:", error);
+      res.status(500).json({ message: "Failed to update user loyalty points" });
+    }
+  });
+
   // Admin add tokens to user
   app.post('/api/admin/users/:adminUserId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {

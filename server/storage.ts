@@ -147,6 +147,7 @@ export interface IStorage {
   updateUserCredits(userId: string, amount: string): Promise<void>;
   updateUserPoints(userId: string, points: number): Promise<void>;
   deductUserTokens(userId: string, tokens: number): Promise<void>;
+  updateUserLoyaltyPoints(userId: string, loyaltyPoints: number): Promise<void>;
   
   // Admin operations
   getAllUsers(): Promise<User[]>;
@@ -2264,6 +2265,13 @@ export class DatabaseStorage implements IStorage {
   async updateUserTokens(userId: string, tokens: number): Promise<void> {
     await db.update(users).set({ 
       tokens: tokens,
+      updatedAt: new Date()
+    }).where(eq(users.id, userId));
+  }
+
+  async updateUserLoyaltyPoints(userId: string, loyaltyPoints: number): Promise<void> {
+    await db.update(users).set({ 
+      loyaltyPoints: loyaltyPoints,
       updatedAt: new Date()
     }).where(eq(users.id, userId));
   }

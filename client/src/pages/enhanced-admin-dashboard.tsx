@@ -931,6 +931,34 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const updateUserCreditsMutation = useMutation({
+    mutationFn: async ({ userId, credits }: { userId: string; credits: string }) => {
+      return apiRequest('PATCH', `/api/admin/users/${userId}/credits`, { credits });
+    },
+    onSuccess: () => {
+      toast({ title: "User credits updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update user credits", variant: "destructive" });
+    }
+  });
+
+  const updateUserPointsMutation = useMutation({
+    mutationFn: async ({ userId, loyaltyPoints }: { userId: string; loyaltyPoints: number }) => {
+      return apiRequest('PATCH', `/api/admin/users/${userId}/loyalty-points`, { loyaltyPoints });
+    },
+    onSuccess: () => {
+      toast({ title: "User loyalty points updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update user loyalty points", variant: "destructive" });
+    }
+  });
+
   // Content management mutations
   const createBannerMutation = useMutation({
     mutationFn: async (bannerData: any) => {
@@ -2065,8 +2093,48 @@ function EnhancedAdminDashboard() {
                             user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'Not set'
                           )}
                         </TableCell>
-                        <TableCell className="text-green-300">RP {formatMoney(user.credits || 0)}</TableCell>
-                        <TableCell className="text-purple-300">{user.loyaltyPoints || 0}</TableCell>
+                        <TableCell className="text-green-300">
+                          <div className="flex items-center gap-2">
+                            <span>RP {formatMoney(user.credits || 0)}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const newCredits = prompt(`Edit credits for ${user.firstName || user.email || 'User'}:`, (user.credits || 0).toString());
+                                if (newCredits !== null && !isNaN(parseFloat(newCredits)) && parseFloat(newCredits) >= 0) {
+                                  updateUserCreditsMutation.mutate({
+                                    userId: user.id,
+                                    credits: parseFloat(newCredits).toString()
+                                  });
+                                }
+                              }}
+                              className="h-6 px-2 text-xs border-gray-600 text-gray-300 hover:bg-gray-800"
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-purple-300">
+                          <div className="flex items-center gap-2">
+                            <span>{user.loyaltyPoints || 0}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const newPoints = prompt(`Edit loyalty points for ${user.firstName || user.email || 'User'}:`, (user.loyaltyPoints || 0).toString());
+                                if (newPoints !== null && !isNaN(parseInt(newPoints)) && parseInt(newPoints) >= 0) {
+                                  updateUserPointsMutation.mutate({
+                                    userId: user.id,
+                                    loyaltyPoints: parseInt(newPoints)
+                                  });
+                                }
+                              }}
+                              className="h-6 px-2 text-xs border-gray-600 text-gray-300 hover:bg-gray-800"
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell className="text-yellow-300">
                           <div className="flex items-center gap-2">
                             <span>🪙 {user.tokens || 0}</span>
