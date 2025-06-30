@@ -2915,6 +2915,18 @@ export class DatabaseStorage implements IStorage {
     }).returning();
     return series;
   }
+
+  async updateSeason(seasonId: number, updateData: any): Promise<any> {
+    const [updatedSeason] = await db
+      .update(seasons)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(seasons.id, seasonId))
+      .returning();
+    return updatedSeason;
+  }
 }
 
 export const storage = new DatabaseStorage();
