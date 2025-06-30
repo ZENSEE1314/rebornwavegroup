@@ -4376,18 +4376,7 @@ export default function CompleteApp() {
     },
   });
 
-  // Mutation to create marketplace listing
-  const createListingMutation = useMutation({
-    mutationFn: (listingData: any) => apiRequest('POST', '/api/listings', listingData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/toys'] });
-      toast({
-        title: "Success!",
-        description: "Your toy has been listed in the marketplace!",
-      });
-    },
-  });
+  // Marketplace listing mutation already defined above
 
   // Mutation to update toy ownership
   const updateToyOwnerMutation = useMutation({
@@ -5097,27 +5086,7 @@ export default function CompleteApp() {
     }
   };
 
-  const createMarketplaceListing = () => {
-    if (!newListingPrice || !selectedToyForSale) {
-      toast({
-        title: t('common.error'),
-        description: 'Please select a toy and enter a price',
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Create listing using database mutation
-    createListingMutation.mutate({
-      toyId: selectedToyForSale.id,
-      price: newListingPrice, // Send as string to match database schema
-      description: `Original ${selectedToyForSale.name} from collection`,
-    });
-    
-    setNewListingPrice("");
-    setSelectedToyForSale(null);
-    setShowCreateListingModal(false);
-  };
+  // createMarketplaceListing function already defined above
 
   const initiateRedemption = (reward: any) => {
     if (loyaltyPoints < reward.pointsCost) {
@@ -5187,79 +5156,9 @@ export default function CompleteApp() {
     }
   };
 
-  // Mutation for purchasing random toy from season
-  const purchaseRandomToyMutation = useMutation({
-    mutationFn: async (seasonName: string) => {
-      const response = await fetch(`/api/purchase-random-toy?season=${encodeURIComponent(seasonName)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to purchase toy');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Purchase Successful!",
-        description: `You received: ${data.purchasedToy?.name || 'Mystery Toy'}`,
-      });
-      // Refresh relevant data
-      queryClient.invalidateQueries({ queryKey: ['/api/user-toys'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Purchase Failed",
-        description: error.message || "Failed to purchase random toy",
-        variant: "destructive",
-      });
-    },
-  });
+  // purchaseRandomToyMutation and purchaseRandomToy function already defined above
 
-  // Function to handle random toy purchase
-  const purchaseRandomToy = (seasonName: string) => {
-    purchaseRandomToyMutation.mutate(seasonName);
-  };
-
-  // Function to cancel listing
-  const cancelListing = (listingId) => {
-    // Find the toy that was being sold
-    const canceledToy = marketplaceToys.find(toy => toy.id === listingId);
-    
-    // Remove from marketplace toys
-    const updatedMarketplaceToys = marketplaceToys.filter(item => item.id !== listingId);
-    setMarketplaceToys(updatedMarketplaceToys);
-    setUserListings(userListings.filter(item => item.id !== listingId));
-    
-    // Update global marketplace listings storage
-    localStorage.setItem('globalMarketplaceListings', JSON.stringify(updatedMarketplaceToys));
-    
-    if (canceledToy) {
-      // Add it back to user's inventory
-      const restoredToy = {
-        id: canceledToy.toyId || canceledToy.id,
-        name: canceledToy.name,
-        rarity: canceledToy.rarity,
-        acquiredDate: new Date().toISOString().split('T')[0],
-        qrCode: `QR${Date.now()}`,
-        image: canceledToy.image
-      };
-      
-      const updatedInventory = [...toyInventory, restoredToy];
-      setToyInventory(updatedInventory);
-      localStorage.setItem(`userToys_${user?.id || 'guest'}`, JSON.stringify(updatedInventory));
-    }
-    
-    toast({
-      title: t('marketplace.saleCanceled'),
-      description: t('marketplace.toyReturnedToInventory'),
-    });
-  };
+  // cancelListing function already defined above
 
   // Fixed cancel sale function using real API
   const cancelSale = async (purchaseId: any) => {
@@ -5291,35 +5190,7 @@ export default function CompleteApp() {
     }
   };
 
-  // Cancel purchase function for buyers
-  const cancelPurchase = async (purchaseId: any) => {
-    try {
-      const response = await fetch(`/api/pending-purchases/${purchaseId}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        toast({
-          title: t('marketplace.purchaseCancelled'),
-          description: t('account.creditsRefunded')
-        });
-        
-        // Refresh all data from database
-        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-      }
-    } catch (error) {
-      console.error('Error cancelling purchase:', error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel purchase",
-        variant: "destructive"
-      });
-    }
-  };
+  // cancelPurchase function already defined above
 
   const buyToy = (listing) => {
     // Check if trying to buy own item
