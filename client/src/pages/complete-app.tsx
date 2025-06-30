@@ -6874,69 +6874,241 @@ export default function CompleteApp() {
                 {t('toys.marketplace')}
               </h2>
               <p className="text-slate-600">
-                Choose a season to purchase a random toy
+                Buy random toys from seasons or purchase specific toys from other users
               </p>
             </div>
 
-            {/* Season-based Purchase Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {seasons?.map((season) => (
-                <Card key={season.id} className="hover:shadow-lg transition-shadow border-2 hover:border-blue-300">
-                  <CardContent className="p-8 text-center">
-                    <div className="mb-6">
-                      {/* Season Logo/Icon */}
-                      <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
-                        <span className="text-3xl font-bold text-white">
-                          {season.name.charAt(0)}
-                        </span>
-                      </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                        {season.name}
-                      </h3>
-                      <p className="text-slate-600 mb-4">
-                        {season.displayName || season.description || 'Seasonal Collection'}
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p className="text-lg font-bold text-yellow-800">Random Toy</p>
-                        <p className="text-sm text-yellow-600">Get a surprise toy from this season</p>
-                      </div>
-                      
-                      <Button 
-                        onClick={() => purchaseRandomToy(season.name)}
-                        className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3"
-                        disabled={purchaseRandomToyMutation.isPending}
-                      >
-                        {purchaseRandomToyMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Purchasing...
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            Purchase Random Toy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Marketplace Navigation */}
+            <div className="flex justify-center space-x-4 mb-8">
+              <Button
+                variant={marketplaceView === 'seasons' ? 'default' : 'outline'}
+                onClick={() => setMarketplaceView('seasons')}
+                className="px-6 py-2"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Season Packs
+              </Button>
+              <Button
+                variant={marketplaceView === 'listings' ? 'default' : 'outline'}
+                onClick={() => setMarketplaceView('listings')}
+                className="px-6 py-2"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                User Listings
+              </Button>
             </div>
 
-            {/* Instructions for users */}
-            <div className="mt-8 text-center">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">How it works:</h3>
-                <p className="text-blue-700">
-                  Select a season above to purchase a random collectible toy from that season's collection. 
-                  Each purchase gives you a surprise toy with unique rarity and characteristics!
-                </p>
+            {/* Season-based Purchase Cards */}
+            {marketplaceView === 'seasons' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {seasons?.map((season) => (
+                    <Card key={season.id} className="hover:shadow-lg transition-shadow border-2 hover:border-blue-300">
+                      <CardContent className="p-8 text-center">
+                        <div className="mb-6">
+                          {/* Season Logo/Icon */}
+                          <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
+                            <span className="text-3xl font-bold text-white">
+                              {season.name.charAt(0)}
+                            </span>
+                          </div>
+                          <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                            {season.name}
+                          </h3>
+                          <p className="text-slate-600 mb-4">
+                            {season.displayName || season.description || 'Seasonal Collection'}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <p className="text-lg font-bold text-yellow-800">Random Toy</p>
+                            <p className="text-sm text-yellow-600">Get a surprise toy from this season</p>
+                          </div>
+                          
+                          <Button 
+                            onClick={() => purchaseRandomToy(season.name)}
+                            className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3"
+                            disabled={purchaseRandomToyMutation.isPending}
+                          >
+                            {purchaseRandomToyMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Purchasing...
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingCart className="w-4 h-4 mr-2" />
+                                Purchase Random Toy
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Instructions for season purchases */}
+                <div className="text-center">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-2">Season Packs:</h3>
+                    <p className="text-blue-700">
+                      Select a season above to purchase a random collectible toy from that season's collection. 
+                      Each purchase gives you a surprise toy with unique rarity and characteristics!
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* User Listings */}
+            {marketplaceView === 'listings' && (
+              <div className="space-y-6">
+                {/* Create Listing Button */}
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => setShowCreateListingModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Sell Your Toy
+                  </Button>
+                </div>
+
+                {/* Listings Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {listings && listings.length > 0 ? listings.map((listing) => {
+                    const pendingPurchase = pendingPurchases?.find(p => p.toyId === listing.id);
+                    
+                    return (
+                      <Card key={listing.id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="relative mb-4">
+                            <img 
+                              src={listing.imageUrl || '/api/placeholder/200/200'} 
+                              alt={listing.name}
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                            <Badge 
+                              variant="secondary" 
+                              className={`absolute top-2 right-2 ${
+                                listing.rarity === 'secret' ? 'bg-purple-600 text-white' :
+                                listing.rarity === 'epic' ? 'bg-orange-600 text-white' :
+                                listing.rarity === 'rare' ? 'bg-blue-600 text-white' :
+                                'bg-gray-600 text-white'
+                              }`}
+                            >
+                              {listing.rarity}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <h3 className="font-bold text-lg text-slate-900">{listing.name}</h3>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    listing.gender === 'male' ? 'border-blue-300 text-blue-600' : 'border-pink-300 text-pink-600'
+                                  }`}
+                                >
+                                  {listing.gender === 'male' ? '♂ Male' : '♀ Female'}
+                                </Badge>
+                                <div 
+                                  className="w-4 h-4 rounded-full border-2 border-gray-300"
+                                  style={{ backgroundColor: listing.color }}
+                                  title={`Color: ${listing.color}`}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <span className="text-2xl font-bold text-green-600">
+                                ${listing.price}
+                              </span>
+                              <span className="text-sm text-slate-500">
+                                by {listing.sellerName || 'Unknown'}
+                              </span>
+                            </div>
+                            
+                            {listing.ownerId === user?.id ? (
+                              <div className="space-y-2">
+                                <Badge variant="outline" className="w-full text-green-600 border-green-600">
+                                  {t("sale.yourListing")}
+                                </Badge>
+                                <Button 
+                                  onClick={() => cancelListing(listing.id)}
+                                  variant="outline"
+                                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                                >
+                                  <X className="w-4 h-4 mr-2" />
+                                  {t("sale.cancel")}
+                                </Button>
+                              </div>
+                            ) : pendingPurchase && pendingPurchase.buyerId === user?.id ? (
+                              <div className="space-y-2">
+                                {pendingPurchase.status === 'pending_seller_confirmation' ? (
+                                  <>
+                                    <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
+                                      {t("purchase.pendingSeller")}
+                                    </Badge>
+                                    <Button 
+                                      onClick={() => cancelPurchase(pendingPurchase.id)}
+                                      variant="outline"
+                                      className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                                    >
+                                      <X className="w-4 h-4 mr-2" />
+                                      {t("purchase.cancel")}
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
+                                    {t("purchase.awaitingDelivery")}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <Button 
+                                onClick={() => buyToy(listing)} 
+                                className="w-full"
+                                disabled={userCredits < parseFloat(listing.price || '0')}
+                              >
+                                {userCredits >= parseFloat(listing.price || '0') ? 
+                                  (t("common.buy")) : 
+                                  (t("credits.insufficient"))
+                                }
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }) : (
+                    <div className="col-span-full text-center py-12 text-slate-500">
+                      <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                      <h3 className="text-lg font-medium mb-2">
+                        {t('marketplace.noToysForSale')}
+                      </h3>
+                      <p className="text-sm">
+                        {t('marketplace.beFirstToSell')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Instructions for user listings */}
+                <div className="text-center">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-green-900 mb-2">User Marketplace:</h3>
+                    <p className="text-green-700">
+                      Buy specific toys from other users or sell your own toys to earn credits. 
+                      Set your own prices and trade directly with the community!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
