@@ -55,8 +55,152 @@ import {
   Tag,
   Mail,
   MessageCircle,
-  ImageIcon
+  ImageIcon,
+  Shield
 } from "lucide-react";
+
+// Admin Logs Section Component
+function AdminLogsSection() {
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Fetch admin logs query
+  const { data: logsResponse, isLoading: logsLoading } = useQuery({
+    queryKey: ['/api/admin/logs', currentPage],
+    queryFn: () => 
+      fetch(`/api/admin/logs?page=${currentPage}&limit=50`, {
+        credentials: 'include'
+      }).then(res => res.json())
+  });
+
+  const adminLogs = logsResponse?.data || [];
+  
+  return (
+    <Card className="bg-slate-800/60 border-slate-700/50">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-white flex items-center gap-2">
+          <Shield className="h-5 w-5" />
+          Admin Action Logs
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {logsLoading ? (
+          <div className="text-center text-gray-400 py-8">
+            Loading admin logs...
+          </div>
+        ) : adminLogs.length === 0 ? (
+          <div className="text-center text-gray-400 py-8">
+            No admin logs found
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-600">
+                  <TableHead className="text-gray-300">Admin</TableHead>
+                  <TableHead className="text-gray-300">Action</TableHead>
+                  <TableHead className="text-gray-300">Target User</TableHead>
+                  <TableHead className="text-gray-300">Entity</TableHead>
+                  <TableHead className="text-gray-300">Description</TableHead>
+                  <TableHead className="text-gray-300">Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adminLogs.map((log: any) => (
+                  <TableRow key={log.id} className="border-slate-600">
+                    <TableCell className="text-white">
+                      <div>
+                        <div className="font-medium">
+                          {log.admin?.firstName} {log.admin?.lastName}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          {log.admin?.email}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-white">
+                      <Badge 
+                        variant={log.action === 'update' ? 'default' : 'secondary'}
+                        className="bg-blue-600 text-white"
+                      >
+                        {log.action.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-white">
+                      {log.targetUser ? (
+                        <div>
+                          <div className="font-medium">
+                            {log.targetUser.firstName} {log.targetUser.lastName}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {log.targetUser.email}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">System</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-white">
+                      <Badge variant="outline" className="border-slate-600 text-gray-300">
+                        {log.entityType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-white text-sm max-w-md truncate">
+                      {log.description}
+                    </TableCell>
+                    <TableCell className="text-gray-400 text-sm">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDate(log.createdAt)}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {logsResponse?.pagination && (
+          <div className="flex justify-center mt-6">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+                
+                {[...Array(Math.min(10, Math.ceil(logsResponse.pagination.totalCount / 50)))].map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(pageNum)}
+                        isActive={currentPage === pageNum}
+                        className="min-w-[40px]"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    className={currentPage >= Math.ceil(logsResponse.pagination.totalCount / 50) ? "pointer-events-none opacity-50" : ""}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function EnhancedAdminDashboard() {
   const { user } = useAuth();
@@ -1967,6 +2111,9 @@ function EnhancedAdminDashboard() {
 
               <TabsTrigger value="token-transactions" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Tokens
+              </TabsTrigger>
+              <TabsTrigger value="admin-logs" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
+                Admin Logs
               </TabsTrigger>
               <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Emails
@@ -5456,6 +5603,12 @@ function EnhancedAdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Admin Logs Tab */}
+          <TabsContent value="admin-logs">
+            <AdminLogsSection />
+          </TabsContent>
+
         </Tabs>
       </div>
 
