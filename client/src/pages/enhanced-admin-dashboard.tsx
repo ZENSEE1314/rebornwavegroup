@@ -106,7 +106,8 @@ function EnhancedAdminDashboard() {
     name: "",
     displayName: "",
     description: "",
-    backgroundColor: "#3B82F6"
+    backgroundColor: "#3B82F6",
+    price: "1000000.00"
   });
 
   const [showEditSeasonDialog, setShowEditSeasonDialog] = useState(false);
@@ -1855,6 +1856,9 @@ function EnhancedAdminDashboard() {
               </TabsTrigger>
               <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Emails
+              </TabsTrigger>
+              <TabsTrigger value="seasons" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
+                Seasons
               </TabsTrigger>
             </TabsList>
           </div>
@@ -5856,6 +5860,127 @@ function EnhancedAdminDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Seasons Pricing Configuration Tab */}
+      <TabsContent value="seasons">
+        <Card className="bg-slate-800/60 border-slate-700/50">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-white text-lg font-medium">Season Price Management</CardTitle>
+            <p className="text-slate-400 text-sm">Configure pricing for seasonal toy purchases</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {allSeasons.map((season: any) => (
+                <div key={season.id} className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium">{season.displayName}</h3>
+                      <p className="text-slate-400 text-sm">{season.description}</p>
+                      <div className="mt-2">
+                        <span className="text-green-400 text-sm font-medium">
+                          Current Price: RP {season.price ? Number(season.price).toLocaleString('id-ID') : '1,000,000'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            className="bg-blue-600/20 text-blue-300 border border-blue-500/30 hover:bg-blue-600/40"
+                            onClick={() => {
+                              setEditSeasonData({
+                                id: season.id,
+                                name: season.name,
+                                displayName: season.displayName,
+                                description: season.description || "",
+                                backgroundColor: season.backgroundColor || "#3B82F6",
+                                price: season.price || "1000000.00"
+                              });
+                            }}
+                          >
+                            <Tag className="h-4 w-4 mr-1" />
+                            Set Price
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-slate-800 border-slate-700">
+                          <DialogHeader>
+                            <DialogTitle className="text-white">Configure Season Price</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label className="text-slate-300">Season Name</Label>
+                              <Input
+                                value={editSeasonData.displayName}
+                                disabled
+                                className="bg-slate-700/50 border-slate-600 text-slate-400"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-slate-300">Random Toy Price (IDR)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1000"
+                                value={editSeasonData.price}
+                                onChange={(e) => setEditSeasonData({
+                                  ...editSeasonData,
+                                  price: e.target.value
+                                })}
+                                className="bg-slate-700/50 border-slate-600 text-white"
+                                placeholder="1000000"
+                              />
+                              <p className="text-slate-400 text-xs mt-1">
+                                Preview: RP {editSeasonData.price ? Number(editSeasonData.price).toLocaleString('id-ID') : '0'}
+                              </p>
+                            </div>
+                            <div className="bg-slate-700/30 p-3 rounded border border-slate-600/50">
+                              <p className="text-slate-300 text-sm font-medium mb-1">Price Guidelines</p>
+                              <ul className="text-slate-400 text-xs space-y-1">
+                                <li>• Common toys: 500,000 - 1,000,000 IDR</li>
+                                <li>• Rare toys: 1,000,000 - 2,500,000 IDR</li>
+                                <li>• Epic toys: 2,500,000 - 5,000,000 IDR</li>
+                                <li>• Legendary toys: 5,000,000+ IDR</li>
+                              </ul>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <Button
+                                onClick={() => {
+                                  updateSeasonMutation.mutate({
+                                    id: editSeasonData.id!,
+                                    data: {
+                                      name: editSeasonData.name,
+                                      displayName: editSeasonData.displayName,
+                                      description: editSeasonData.description,
+                                      backgroundColor: editSeasonData.backgroundColor,
+                                      price: editSeasonData.price
+                                    }
+                                  });
+                                }}
+                                className="bg-green-600 hover:bg-green-700 flex-1"
+                                disabled={updateSeasonMutation.isPending}
+                              >
+                                {updateSeasonMutation.isPending ? "Updating..." : "Update Price"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => setShowEditSeasonDialog(false)}
+                                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
     </div>
   );
 }

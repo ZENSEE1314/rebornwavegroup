@@ -7265,7 +7265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Season name is required' });
       }
 
-      // Get season by name
+      // Get season by name with price
       const season = await db.select()
         .from(seasons)
         .where(eq(seasons.name, seasonName))
@@ -7273,6 +7273,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!season.length) {
         return res.status(404).json({ message: 'Season not found' });
+      }
+
+      const seasonPrice = parseFloat(season[0].price || '1000000.00');
+
+      // Get user's current credits
+      const user = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user.length) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const userCredits = parseFloat(user[0].credits || '0');
+
+      // Check if user has sufficient credits
+      if (userCredits < seasonPrice) {
+        return res.status(400).json({ 
+          message: `Insufficient credits. Required: RP ${seasonPrice.toLocaleString('id-ID')}, Available: RP ${userCredits.toLocaleString('id-ID')}` 
+        });
       }
 
       // Get all available toys from this season that are not owned
@@ -7292,6 +7313,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Select a random toy
       const randomIndex = Math.floor(Math.random() * availableToys.length);
       const selectedToy = availableToys[randomIndex];
+
+      // Deduct credits from user
+      const newCredits = userCredits - seasonPrice;
+      await db.update(users)
+        .set({
+          credits: newCredits.toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
 
       // Assign the toy to the user
       await db.update(toys)

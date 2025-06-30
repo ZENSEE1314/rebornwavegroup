@@ -6906,6 +6906,11 @@ export default function CompleteApp() {
                           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                             <p className="text-lg font-bold text-yellow-800">Random Toy</p>
                             <p className="text-sm text-yellow-600">Get a surprise toy from this season</p>
+                            <div className="mt-3 text-center">
+                              <span className="text-2xl font-bold text-green-700">
+                                RP {season.price ? Number(season.price).toLocaleString('id-ID') : '1,000,000'}
+                              </span>
+                            </div>
                           </div>
                           
                           <Button 
