@@ -3448,8 +3448,181 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
 
 export default function CompleteApp() {
   const { user } = useAuth();
+  
+  // Marketplace state variables
+  const [marketplaceView, setMarketplaceView] = useState<'seasons' | 'listings'>('seasons');
+  const [showCreateListingModal, setShowCreateListingModal] = useState(false);
+  const [selectedToyForSale, setSelectedToyForSale] = useState<any>(null);
+  const [newListingPrice, setNewListingPrice] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch marketplace listings (for user buy/sell)
+  const { data: listings = [] } = useQuery({
+    queryKey: ["/api/listings"],
+    enabled: !!user?.id,
+  });
+
+  // Fetch pending purchases
+  const { data: pendingPurchases = [] } = useQuery({
+    queryKey: ["/api/pending-purchases"],
+    enabled: !!user?.id,
+  });
+
+  // Fetch seasons for season-based purchasing
+  const { data: seasons = [] } = useQuery({
+    queryKey: ["/api/seasons"],
+    enabled: !!user?.id,
+  });
+
+  // Fetch user's toys for creating listings
+  const { data: userToys = [] } = useQuery({
+    queryKey: ["/api/toys"],
+    enabled: !!user?.id,
+  });
+
+  // Random toy purchase mutation
+  const purchaseRandomToyMutation = useMutation({
+    mutationFn: async (seasonName: string) => {
+      return apiRequest("POST", "/api/purchase-random-toy", { seasonName });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Success!",
+        description: "Random toy purchased successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to purchase toy",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Create marketplace listing mutation
+  const createListingMutation = useMutation({
+    mutationFn: async ({ toyId, price }: { toyId: number; price: string }) => {
+      return apiRequest("POST", "/api/listings", { toyId, price });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      setShowCreateListingModal(false);
+      setSelectedToyForSale(null);
+      setNewListingPrice("");
+      toast({
+        title: "Success!",
+        description: "Toy listed for sale successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create listing",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Buy toy mutation
+  const buyToyMutation = useMutation({
+    mutationFn: async (listing: any) => {
+      return apiRequest("POST", `/api/listings/${listing.id}/buy`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Success!",
+        description: "Toy purchased successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to purchase toy",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Cancel listing mutation
+  const cancelListingMutation = useMutation({
+    mutationFn: async (listingId: number) => {
+      return apiRequest("DELETE", `/api/listings/${listingId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      toast({
+        title: "Success!",
+        description: "Listing cancelled successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel listing",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Cancel purchase mutation
+  const cancelPurchaseMutation = useMutation({
+    mutationFn: async (purchaseId: number) => {
+      return apiRequest("DELETE", `/api/pending-purchases/${purchaseId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pending-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      toast({
+        title: "Success!",
+        description: "Purchase cancelled successfully!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel purchase",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Helper functions
+  const purchaseRandomToy = (seasonName: string) => {
+    purchaseRandomToyMutation.mutate(seasonName);
+  };
+
+  const createMarketplaceListing = () => {
+    if (selectedToyForSale && newListingPrice) {
+      createListingMutation.mutate({
+        toyId: selectedToyForSale.id,
+        price: newListingPrice
+      });
+    }
+  };
+
+  const buyToy = (listing: any) => {
+    buyToyMutation.mutate(listing);
+  };
+
+  const cancelListing = (listingId: number) => {
+    cancelListingMutation.mutate(listingId);
+  };
+
+  const cancelPurchase = (purchaseId: number) => {
+    cancelPurchaseMutation.mutate(purchaseId);
+  };
+
+  // Get user credits for purchasing validation
+  const userCredits = parseFloat(user?.credits || "0");
   const { t } = useTranslation();
   
   // Enable WebSocket connection for real-time updates
@@ -3494,8 +3667,7 @@ export default function CompleteApp() {
     return !localStorage.getItem('onboarding-completed');
   });
   
-  // State for pending purchases and confirmations
-  const [pendingPurchases, setPendingPurchases] = useState([]);
+  // State for confirmations
   
   // History modal states
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -3555,13 +3727,8 @@ export default function CompleteApp() {
     gcTime: 30 * 60 * 1000, // 30 minutes garbage collection time
   });
 
-  // Fetch seasons for marketplace filtering
-  const { data: seasons = [] } = useQuery({
-    queryKey: ['/api/seasons'],
-    staleTime: 10 * 60 * 1000, // 10 minutes stale time
-  });
+  // Seasons already fetched above for marketplace
 
-  const userCredits = userStats ? parseFloat(userStats.credits) : 0;
   const loyaltyPoints = userStats?.loyaltyPoints || 0;
   const lifetimePoints = userStats?.lifetimePoints || 0;
   const referralEarnings = userStats?.referralEarnings || 0;
@@ -3994,10 +4161,7 @@ export default function CompleteApp() {
   
   const [showPurchaseConfirmation, setShowPurchaseConfirmation] = useState(false);
   const [selectedPurchaseListing, setSelectedPurchaseListing] = useState(null);
-  const [newListingPrice, setNewListingPrice] = useState("");
   const [newListingDescription, setNewListingDescription] = useState("");
-  const [selectedToyForSale, setSelectedToyForSale] = useState(null);
-  const [showCreateListingModal, setShowCreateListingModal] = useState(false);
   const referralCode = "RWG8H4K2";
 
   // Cash-out states
@@ -7109,6 +7273,83 @@ export default function CompleteApp() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Create Listing Modal */}
+        {showCreateListingModal && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setShowCreateListingModal(false)}
+          >
+            <div 
+              className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-4">
+                Sell Your Toy
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Select Toy to Sell
+                  </label>
+                  <select
+                    value={selectedToyForSale?.id || ""}
+                    onChange={(e) => {
+                      const toyId = parseInt(e.target.value);
+                      const toy = userToys.find((t: any) => t.id === toyId);
+                      setSelectedToyForSale(toy);
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="">Choose a toy...</option>
+                    {userToys
+                      .filter((toy: any) => !toy.isActivated && !toy.isForSale)
+                      .map((toy: any) => (
+                        <option key={toy.id} value={toy.id}>
+                          {toy.name} ({toy.rarity})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Sale Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter price"
+                    value={newListingPrice}
+                    onChange={(e) => setNewListingPrice(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+
+                <div className="flex space-x-2">
+                  <Button 
+                    onClick={createMarketplaceListing} 
+                    className="flex-1" 
+                    disabled={!selectedToyForSale || !newListingPrice || createListingMutation.isPending}
+                  >
+                    {createListingMutation.isPending ? "Creating..." : "Create Listing"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowCreateListingModal(false);
+                      setSelectedToyForSale(null);
+                      setNewListingPrice("");
+                    }} 
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
