@@ -3601,6 +3601,7 @@ export default function CompleteApp() {
   const [tokenClaimAmount, setTokenClaimAmount] = useState("");
   const [showQRCamera, setShowQRCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [selectedMarketplaceSeason, setSelectedMarketplaceSeason] = useState<string | null>(null);
 
   // 5-Level Loyalty Program System
   const loyaltyLevels = [
@@ -6822,6 +6823,28 @@ export default function CompleteApp() {
               <p className="text-slate-600">
                 {t('toys.browseAndBuy')}
               </p>
+              
+              {/* Seasonal Filter Buttons */}
+              <div className="flex justify-center gap-2 mb-6 flex-wrap">
+                <Button 
+                  onClick={() => setSelectedMarketplaceSeason(null)}
+                  variant={selectedMarketplaceSeason === null ? "default" : "outline"}
+                  className="mb-2"
+                >
+                  {t("marketplace.allSeasons") || "All Seasons"}
+                </Button>
+                {seasons?.map((season) => (
+                  <Button
+                    key={season.id}
+                    onClick={() => setSelectedMarketplaceSeason(season.name)}
+                    variant={selectedMarketplaceSeason === season.name ? "default" : "outline"}
+                    className="mb-2"
+                  >
+                    {season.name}
+                  </Button>
+                ))}
+              </div>
+              
               <Button 
                 onClick={() => setShowCreateListingModal(true)} 
                 className="mt-4 bg-green-600 hover:bg-green-700"

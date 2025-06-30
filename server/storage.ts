@@ -1727,6 +1727,61 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // Seasonal sales analytics method
+  async getSeasonalSalesAnalytics(): Promise<any> {
+    try {
+      // Get sales data by season with commission tracking
+      const seasonalData = await db
+        .select({
+          seasonId: seasons.id,
+          seasonName: seasons.name,
+          totalSales: sql<number>`COUNT(DISTINCT ${listings.id})`,
+          totalRevenue: sql<number>`COALESCE(SUM(CAST(${listings.price} AS DECIMAL)), 0)`,
+          platformCommission: sql<number>`COALESCE(SUM(CAST(${listings.price} AS DECIMAL) * 0.10), 0)`,
+          adminSales: sql<number>`COUNT(CASE WHEN ${users.role} = 'admin' THEN 1 END)`,
+          userSales: sql<number>`COUNT(CASE WHEN ${users.role} = 'user' THEN 1 END)`,
+        })
+        .from(listings)
+        .leftJoin(toys, eq(listings.toyId, toys.id))
+        .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+        .leftJoin(users, eq(listings.sellerId, users.id))
+        .where(eq(listings.status, "active"))
+        .groupBy(seasons.id, seasons.name)
+        .orderBy(desc(sql`COUNT(DISTINCT ${listings.id})`));
+
+      // Get overall statistics
+      const overallStats = await db
+        .select({
+          totalEarnings: sql<number>`COALESCE(SUM(CAST(${listings.price} AS DECIMAL) * 0.10), 0)`,
+          totalSales: sql<number>`COUNT(*)`,
+          avgCommission: sql<number>`COALESCE(AVG(CAST(${listings.price} AS DECIMAL) * 0.10), 0)`
+        })
+        .from(listings)
+        .where(eq(listings.status, "active"));
+
+      return {
+        seasonalBreakdown: seasonalData,
+        summary: {
+          totalEarnings: overallStats[0]?.totalEarnings || 0,
+          totalSales: overallStats[0]?.totalSales || 0,
+          avgCommission: overallStats[0]?.avgCommission || 0,
+          platformFeePercentage: 10
+        }
+      };
+    } catch (error) {
+      console.error('Error getting seasonal sales analytics:', error);
+      return {
+        seasonalBreakdown: [],
+        summary: {
+          totalEarnings: 0,
+          totalSales: 0,
+          avgCommission: 0,
+          platformFeePercentage: 10
+        }
+      };
+    }
+  }
+
   // Random marketplace listing generation
   async createRandomMarketplaceListings(count: number = 10): Promise<{ created: number; listings: any[] }> {
     try {
