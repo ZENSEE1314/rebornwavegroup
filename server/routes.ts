@@ -7076,6 +7076,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Marketplace earnings tracking endpoints
+  app.get('/api/admin/marketplace-earnings', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const earnings = await storage.getMarketplaceEarnings();
+      res.json({ data: earnings });
+    } catch (error) {
+      console.error('Get marketplace earnings error:', error);
+      res.status(500).json({ message: 'Failed to get marketplace earnings' });
+    }
+  });
+
+  app.get('/api/admin/marketplace-earnings-stats', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const stats = await storage.getMarketplaceEarningsStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Get marketplace earnings stats error:', error);
+      res.status(500).json({ message: 'Failed to get marketplace earnings stats' });
+    }
+  });
+
   // Get all toys (templates + generated toys + live toys) for admin dashboard
   app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
     try {

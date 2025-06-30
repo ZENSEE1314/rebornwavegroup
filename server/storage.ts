@@ -1668,6 +1668,48 @@ export class DatabaseStorage implements IStorage {
     await db.delete(rewardItems).where(eq(rewardItems.id, id));
   }
 
+  // Marketplace earnings tracking
+  async recordMarketplaceEarning(earningData: InsertMarketplaceEarning): Promise<MarketplaceEarning> {
+    const [earning] = await db.insert(marketplaceEarnings).values(earningData).returning();
+    return earning;
+  }
+
+  async getMarketplaceEarnings(): Promise<MarketplaceEarning[]> {
+    return await db.select().from(marketplaceEarnings).orderBy(desc(marketplaceEarnings.createdAt));
+  }
+
+  async getMarketplaceEarningsStats(): Promise<{
+    totalEarnings: number;
+    totalSales: number;
+    averageCommission: number;
+    monthlyEarnings: number;
+  }> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [allEarnings] = await db.select({
+      totalEarnings: sql<number>`COALESCE(SUM(CAST(${marketplaceEarnings.amount} AS DECIMAL)), 0)`,
+      totalSales: sql<number>`COUNT(*)`,
+      averageCommission: sql<number>`COALESCE(AVG(CAST(${marketplaceEarnings.amount} AS DECIMAL)), 0)`
+    }).from(marketplaceEarnings).where(eq(marketplaceEarnings.status, 'confirmed'));
+
+    const [monthlyEarnings] = await db.select({
+      monthlyEarnings: sql<number>`COALESCE(SUM(CAST(${marketplaceEarnings.amount} AS DECIMAL)), 0)`
+    }).from(marketplaceEarnings).where(
+      and(
+        eq(marketplaceEarnings.status, 'confirmed'),
+        gte(marketplaceEarnings.createdAt, startOfMonth)
+      )
+    );
+
+    return {
+      totalEarnings: allEarnings?.totalEarnings || 0,
+      totalSales: allEarnings?.totalSales || 0,
+      averageCommission: allEarnings?.averageCommission || 0,
+      monthlyEarnings: monthlyEarnings?.monthlyEarnings || 0
+    };
+  }
+
   // Random marketplace listing generation
   async createRandomMarketplaceListings(count: number = 10): Promise<{ created: number; listings: any[] }> {
     try {
