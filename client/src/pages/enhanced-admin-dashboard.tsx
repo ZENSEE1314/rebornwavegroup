@@ -69,7 +69,7 @@ function EnhancedAdminDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editedUserData, setEditedUserData] = useState<any>({});
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("users");
   const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
   const [editingPet, setEditingPet] = useState<any>(null);
   const [editedPetData, setEditedPetData] = useState<any>({});
