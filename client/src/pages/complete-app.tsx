@@ -1310,6 +1310,33 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     }
   });
 
+  // User marketplace listing creation mutation
+  const createListingMutation = useMutation({
+    mutationFn: async ({ toyId, price, description }: { toyId: number; price: string; description: string }) => {
+      return apiRequest("POST", "/api/listings", {
+        toyId,
+        price,
+        description
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/my-listings"] });
+      toast({
+        title: "Listing Created!",
+        description: "Your toy is now listed in the marketplace.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Create Listing",
+        description: error.message || "Unable to list your toy for sale.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Edit pet name mutation
   const editPetNameMutation = useMutation({
     mutationFn: async ({ petId, newName }: { petId: number; newName: string }) => {
@@ -6798,10 +6825,16 @@ export default function CompleteApp() {
               <Button 
                 onClick={() => setShowCreateListingModal(true)} 
                 className="mt-4 bg-green-600 hover:bg-green-700"
+                disabled={!toyInventory || toyInventory.length === 0}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 {t("marketplace.sellMyToy")}
               </Button>
+              {(!toyInventory || toyInventory.length === 0) && (
+                <p className="text-sm text-gray-500 mt-2">
+                  You need to own toys to sell them. Scan QR codes to collect toys first.
+                </p>
+              )}
             </div>
 
             {(() => {
