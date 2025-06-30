@@ -6884,7 +6884,7 @@ export default function CompleteApp() {
             {marketplaceView === 'seasons' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {seasons?.map((season) => (
+                  {seasons?.filter(season => season.showInMarketplace !== false).map((season) => (
                     <Card key={season.id} className="hover:shadow-lg transition-shadow border-2 hover:border-blue-300">
                       <CardContent className="p-8 text-center">
                         <div className="mb-6">
