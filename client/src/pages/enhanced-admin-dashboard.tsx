@@ -5938,6 +5938,138 @@ function EnhancedAdminDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* Reward Edit Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingReward ? 'Edit Reward' : 'Create New Reward'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-white text-sm">Reward Name</label>
+              <Input
+                value={rewardForm.name}
+                onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
+                placeholder="Enter reward name"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Description</label>
+              <Input
+                value={rewardForm.description}
+                onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
+                placeholder="Enter reward description"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Type</label>
+              <Select value={rewardForm.type} onValueChange={(value) => setRewardForm({...rewardForm, type: value})}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="item">Item</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="token">Token</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Points Cost</label>
+              <Input
+                type="number"
+                value={rewardForm.pointsCost}
+                onChange={(e) => setRewardForm({...rewardForm, pointsCost: parseInt(e.target.value) || 0})}
+                placeholder="Enter points required"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            {rewardForm.type === 'credit' && (
+              <div>
+                <label className="text-white text-sm">Credit Amount</label>
+                <Input
+                  value={rewardForm.creditAmount}
+                  onChange={(e) => setRewardForm({...rewardForm, creditAmount: e.target.value})}
+                  placeholder="Enter credit amount"
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="text-white text-sm">Stock Quantity (Optional)</label>
+              <Input
+                type="number"
+                value={rewardForm.stockQuantity || ''}
+                onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                placeholder="Leave blank for unlimited"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Image URL (Optional)</label>
+              <Input
+                value={rewardForm.imageUrl}
+                onChange={(e) => setRewardForm({...rewardForm, imageUrl: e.target.value})}
+                placeholder="Enter image URL"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={rewardForm.isActive}
+                onChange={(e) => setRewardForm({...rewardForm, isActive: e.target.checked})}
+                className="rounded border-white/20"
+              />
+              <label htmlFor="isActive" className="text-white text-sm">Active</label>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editingReward) {
+                    updateRewardMutation.mutate({
+                      id: editingReward.id,
+                      data: rewardForm
+                    });
+                  } else {
+                    createRewardMutation.mutate(rewardForm);
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-1"
+                disabled={(createRewardMutation.isPending || updateRewardMutation.isPending) || !rewardForm.name}
+              >
+                {(createRewardMutation.isPending || updateRewardMutation.isPending) ? 
+                  (editingReward ? "Updating..." : "Creating...") : 
+                  (editingReward ? "Update Reward" : "Create Reward")
+                }
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRewardDialog(false);
+                  setEditingReward(null);
+                }}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
