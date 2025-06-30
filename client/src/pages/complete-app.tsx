@@ -6888,8 +6888,8 @@ export default function CompleteApp() {
                     <Card key={season.id} className="hover:shadow-lg transition-shadow border-2 hover:border-blue-300">
                       <CardContent className="p-8 text-center">
                         <div className="mb-6">
-                          {/* Season Logo/Icon */}
-                          <div className="w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                          {/* Season Logo/Icon - 940x940 square */}
+                          <div className="w-full aspect-square mx-auto rounded-lg flex items-center justify-center mb-4 overflow-hidden border-2 border-gray-200">
                             {season.iconUrl ? (
                               <img 
                                 src={season.iconUrl} 
@@ -6897,8 +6897,8 @@ export default function CompleteApp() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                                <span className="text-3xl font-bold text-white">
+                              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                <span className="text-6xl font-bold text-white">
                                   {season.name.charAt(0)}
                                 </span>
                               </div>
