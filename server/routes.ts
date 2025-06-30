@@ -7255,6 +7255,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Purchase random toy from season endpoint
+  app.post('/api/purchase-random-toy', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const seasonName = req.query.season;
+
+      if (!seasonName) {
+        return res.status(400).json({ message: 'Season name is required' });
+      }
+
+      // Get season by name
+      const season = await db.select()
+        .from(seasons)
+        .where(eq(seasons.name, seasonName))
+        .limit(1);
+
+      if (!season.length) {
+        return res.status(404).json({ message: 'Season not found' });
+      }
+
+      // Get all available toys from this season that are not owned
+      const availableToys = await db.select()
+        .from(toys)
+        .where(
+          and(
+            eq(toys.seasonId, season[0].id),
+            isNull(toys.ownerId)
+          )
+        );
+
+      if (!availableToys.length) {
+        return res.status(400).json({ message: 'No toys available in this season' });
+      }
+
+      // Select a random toy
+      const randomIndex = Math.floor(Math.random() * availableToys.length);
+      const selectedToy = availableToys[randomIndex];
+
+      // Assign the toy to the user
+      await db.update(toys)
+        .set({
+          ownerId: userId,
+          purchasedBy: userId,
+          updatedAt: new Date()
+        })
+        .where(eq(toys.id, selectedToy.id));
+
+      // Get the updated toy with full details
+      const purchasedToy = await db.select()
+        .from(toys)
+        .where(eq(toys.id, selectedToy.id))
+        .limit(1);
+
+      // Broadcast real-time update via WebSocket
+      const wss = (global as any).wss;
+      if (wss) {
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'MARKETPLACE_UPDATE',
+              data: { action: 'toy_purchased', toyId: selectedToy.id }
+            }));
+          }
+        });
+      }
+
+      res.status(200).json({
+        message: 'Toy purchased successfully',
+        purchasedToy: purchasedToy[0]
+      });
+
+    } catch (error) {
+      console.error('Purchase random toy error:', error);
+      res.status(500).json({ message: 'Failed to purchase toy' });
+    }
+  });
+
   // Setup WebSocket server for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   

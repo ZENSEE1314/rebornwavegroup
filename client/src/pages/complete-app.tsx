@@ -5023,6 +5023,45 @@ export default function CompleteApp() {
     }
   };
 
+  // Mutation for purchasing random toy from season
+  const purchaseRandomToyMutation = useMutation({
+    mutationFn: async (seasonName: string) => {
+      const response = await fetch(`/api/purchase-random-toy?season=${encodeURIComponent(seasonName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to purchase toy');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Purchase Successful!",
+        description: `You received: ${data.purchasedToy?.name || 'Mystery Toy'}`,
+      });
+      // Refresh relevant data
+      queryClient.invalidateQueries({ queryKey: ['/api/user-toys'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to purchase random toy",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Function to handle random toy purchase
+  const purchaseRandomToy = (seasonName: string) => {
+    purchaseRandomToyMutation.mutate(seasonName);
+  };
+
   // Function to cancel listing
   const cancelListing = (listingId) => {
     // Find the toy that was being sold
@@ -6888,194 +6927,18 @@ export default function CompleteApp() {
               ))}
             </div>
 
-            {(() => {
-              const listings = marketplaceListings || [];
-              const itemsPerPage = 10;
-              const startIndex = (marketplacePage - 1) * itemsPerPage;
-              const endIndex = startIndex + itemsPerPage;
-              const paginatedListings = listings.slice(startIndex, endIndex);
-              const totalPages = Math.ceil(listings.length / itemsPerPage);
-
-              return (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {paginatedListings.length > 0 ? paginatedListings.map((listing) => {
-                // Check if there's a pending purchase for this listing
-                const pendingPurchase = userPendingPurchases?.find(p => p.listingId === listing.id);
-                const isOwnListing = listing.sellerId === user?.id;
-                
-                
-                return (
-                  <Card key={listing.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="text-center">
-                        <div className="mb-4">
-                          <img 
-                            src={toyImage} 
-                            alt={listing.toy?.name || "Toy"} 
-                            className="w-24 h-24 mx-auto object-contain"
-                          />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">{listing.toy?.name}</h3>
-                        <div className="flex justify-center gap-2 mb-2">
-                          <Badge className={getRarityColor(listing.toy?.rarity)} variant="secondary">
-                            {listing.toy?.rarity}
-                          </Badge>
-                          {listing.toy?.gender && (
-                            <Badge variant="outline" className={
-                              listing.toy.gender === 'male' 
-                                ? "border-blue-300 text-blue-700 bg-blue-50" 
-                                : "border-pink-300 text-pink-700 bg-pink-50"
-                            }>
-                              {listing.toy.gender === 'male' ? '♂ Male' : '♀ Female'}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-2xl font-bold text-green-600 mt-4 mb-2">
-                          RP {parseFloat(listing.price || '0').toLocaleString('id-ID')}
-                        </p>
-                        <p className="text-sm text-slate-500 mb-4">
-                          {t("listing.soldBy")}: {listing.seller?.firstName || listing.seller?.email?.split('@')[0] || "User"}
-                        </p>
-                        
-                        {isOwnListing ? (
-                          <div className="space-y-2">
-                            {pendingPurchase && pendingPurchase.status === 'pending_seller_confirmation' ? (
-                              <div className="space-y-2">
-                                <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
-                                  {t("purchase.awaitingConfirmation")}
-                                </Badge>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    onClick={() => confirmPurchase(pendingPurchase.id)}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                  >
-                                    <Check className="w-4 h-4 mr-2" />
-                                    {t("common.confirm")}
-                                  </Button>
-                                  <Button 
-                                    onClick={() => cancelSale(pendingPurchase.id)}
-                                    variant="outline"
-                                    className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
-                                  >
-                                    <X className="w-4 h-4 mr-2" />
-                                    {t("common.cancel")}
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <Badge variant="outline" className="w-full text-orange-600 border-orange-600">
-                                  {t("listing.yourItem")}
-                                </Badge>
-                                <Button 
-                                  onClick={async () => {
-                                    try {
-                                      const response = await fetch(`/api/listings/${listing.id}`, {
-                                        method: 'DELETE',
-                                        credentials: 'include'
-                                      });
-                                      if (response.ok) {
-                                        toast({
-                                          title: t("sale.cancelled"),
-                                          description: t("listing.removed")
-                                        });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
-                                      }
-                                    } catch (error) {
-                                      console.error('Error cancelling listing:', error);
-                                      toast({
-                                        title: "Error",
-                                        description: "Failed to cancel listing",
-                                        variant: "destructive"
-                                      });
-                                    }
-                                  }} 
-                                  className="w-full bg-red-600 hover:bg-red-700"
-                                  variant="destructive"
-                                >
-                                  {t("sale.cancel")}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ) : pendingPurchase && pendingPurchase.buyerId === user?.id ? (
-                          <div className="space-y-2">
-                            {pendingPurchase.status === 'pending_seller_confirmation' ? (
-                              <>
-                                <Badge variant="outline" className="w-full text-yellow-600 border-yellow-600">
-                                  {t("purchase.pendingSeller")}
-                                </Badge>
-                                <Button 
-                                  onClick={() => cancelPurchase(pendingPurchase.id)}
-                                  variant="outline"
-                                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
-                                >
-                                  <X className="w-4 h-4 mr-2" />
-                                  {t("purchase.cancel")}
-                                </Button>
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="w-full text-blue-600 border-blue-600">
-                                {t("purchase.awaitingDelivery")}
-                              </Badge>
-                            )}
-                          </div>
-                        ) : (
-                          <Button 
-                            onClick={() => buyToy(listing)} 
-                            className="w-full"
-                            disabled={userCredits < parseFloat(listing.price || '0')}
-                          >
-                            {userCredits >= parseFloat(listing.price || '0') ? 
-                              (t("common.buy")) : 
-                              (t("credits.insufficient"))
-                            }
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              }) : (
-                <div className="col-span-full text-center py-12 text-slate-500">
-                  <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <h3 className="text-lg font-medium mb-2">
-                    {t('marketplace.noToysForSale')}
-                  </h3>
-                  <p className="text-sm">
-                    {t('marketplace.beFirstToSell')}
-                  </p>
-                </div>
-              )}
-                    </div>
-
-                    {/* Marketplace Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="flex justify-between items-center pt-6 mt-6">
-                        <div className="text-sm text-gray-600">
-                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, listings.length)} {t("pagination.of")} {listings.length} {t("pagination.items")}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMarketplacePage(Math.max(1, marketplacePage - 1))}
-                            disabled={marketplacePage === 1}
-                          >
-                            {t("pagination.previous")}
-                          </Button>
-                          <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
-                            {marketplacePage} / {totalPages}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMarketplacePage(Math.min(totalPages, marketplacePage + 1))}
-                            disabled={marketplacePage === totalPages}
-                          >
-                            {t("common.next")}
-                          </Button>
+            {/* Instructions for users */}
+            <div className="mt-8 text-center">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">How it works:</h3>
+                <p className="text-blue-700">
+                  Select a season above to purchase a random collectible toy from that season's collection. 
+                  Each purchase gives you a surprise toy with unique rarity and characteristics!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
                         </div>
                       </div>
                     )}
