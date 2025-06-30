@@ -6870,8 +6870,13 @@ export default function CompleteApp() {
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Season Packs
               </Button>
-              {/* Only show User Listings tab when there are listings available */}
-              {listings && listings.length > 0 && (
+              {/* Only show User Listings tab when there are actual user-to-user listings available */}
+              {(() => {
+                const userListings = listings?.filter(listing => 
+                  listing.ownerId && listing.ownerId !== 'system' && listing.sellerName
+                ) || [];
+                return userListings.length > 0;
+              })() && (
                 <Button
                   variant={marketplaceView === 'listings' ? 'default' : 'outline'}
                   onClick={() => setMarketplaceView('listings')}
@@ -6963,8 +6968,14 @@ export default function CompleteApp() {
 
                 {/* Listings Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {listings && listings.length > 0 ? listings.map((listing) => {
-                    const pendingPurchase = pendingPurchases?.find(p => p.toyId === listing.id);
+                  {(() => {
+                    // Filter to show only actual user-to-user listings
+                    const userListings = listings?.filter(listing => 
+                      listing.ownerId && listing.ownerId !== 'system' && listing.sellerName
+                    ) || [];
+                    
+                    return userListings.length > 0 ? userListings.map((listing) => {
+                      const pendingPurchase = pendingPurchases?.find(p => p.toyId === listing.id);
                     
                     return (
                       <Card key={listing.id} className="hover:shadow-lg transition-shadow">
@@ -7079,7 +7090,8 @@ export default function CompleteApp() {
                         {t('marketplace.beFirstToSell')}
                       </p>
                     </div>
-                  )}
+                  );
+                })()}
                 </div>
 
                 {/* Instructions for user listings */}
