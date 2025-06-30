@@ -5804,6 +5804,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: schema.seasons.description,
         iconUrl: schema.seasons.iconUrl,
         backgroundColor: schema.seasons.backgroundColor,
+        price: schema.seasons.price,
+        showInMarketplace: schema.seasons.showInMarketplace,
         isActive: schema.seasons.isActive,
         displayOrder: schema.seasons.displayOrder,
       }).from(schema.seasons)
