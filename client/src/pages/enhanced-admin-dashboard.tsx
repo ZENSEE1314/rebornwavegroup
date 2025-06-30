@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -3805,7 +3806,27 @@ function EnhancedAdminDashboard() {
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {allSeasons.map((season: any) => (
                             <div key={season.id} className="flex items-center justify-between bg-white/5 rounded px-3 py-2">
-                              <span className="text-white text-sm">{season.displayName}</span>
+                              <div className="flex-1">
+                                <span className="text-white text-sm">{season.displayName}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <span className="text-slate-400">Marketplace:</span>
+                                    <Switch
+                                      checked={season.showInMarketplace !== false}
+                                      onCheckedChange={(checked) => {
+                                        updateSeasonMutation.mutate({
+                                          id: season.id,
+                                          data: { showInMarketplace: checked }
+                                        });
+                                      }}
+                                      className="scale-75"
+                                    />
+                                    <span className={season.showInMarketplace !== false ? "text-green-400" : "text-red-400"}>
+                                      {season.showInMarketplace !== false ? "Visible" : "Hidden"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
                               <div className="flex items-center gap-2">
                                 <Button
                                   size="sm"
