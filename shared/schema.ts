@@ -899,6 +899,46 @@ export type InsertPet = z.infer<typeof insertPetSchema>;
 export type InsertPetCareActivity = z.infer<typeof insertPetCareActivitySchema>;
 export type InsertDailyCareStatus = z.infer<typeof insertDailyCareStatusSchema>;
 
+// Admin logs table for tracking all administrative actions
+export const adminLogs = pgTable("admin_logs", {
+  id: serial("id").primaryKey(),
+  adminUserId: varchar("admin_user_id").notNull().references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id), // User affected by the action
+  targetType: varchar("target_type").notNull(), // 'user', 'pet', 'toy', 'season', 'banner', 'reward', etc.
+  targetId: varchar("target_id"), // ID of the affected entity
+  action: varchar("action").notNull(), // 'create', 'update', 'delete', 'approve', 'reject'
+  entityType: varchar("entity_type").notNull(), // 'credits', 'loyalty_points', 'tokens', 'profile', 'payment_verification', etc.
+  oldValues: jsonb("old_values"), // Previous values before change
+  newValues: jsonb("new_values"), // New values after change
+  description: text("description").notNull(), // Human-readable description
+  ipAddress: varchar("ip_address"), // Admin's IP address
+  userAgent: text("user_agent"), // Admin's browser/client info
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Admin logs relations
+export const adminLogsRelations = relations(adminLogs, ({ one }) => ({
+  admin: one(users, {
+    fields: [adminLogs.adminUserId],
+    references: [users.id],
+    relationName: "adminLogsAdmin",
+  }),
+  targetUser: one(users, {
+    fields: [adminLogs.targetUserId],
+    references: [users.id],
+    relationName: "adminLogsTargetUser",
+  }),
+}));
+
+// Admin logs insert schema
+export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
+
 // Game scores table
 export const gameScores = pgTable("game_scores", {
   id: serial("id").primaryKey(),

@@ -29,6 +29,7 @@ import {
   seasons,
   collectionSeries,
   marketplaceEarnings,
+  adminLogs,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -79,6 +80,8 @@ import {
   type Pet,
   type PetCareActivity,
   type DailyCareStatus,
+  type AdminLog,
+  type InsertAdminLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull, gte } from "drizzle-orm";
@@ -245,6 +248,12 @@ export interface IStorage {
   // Daily care operations
   getTodaysCareStatus(petId: number): Promise<DailyCareStatus | undefined>;
   updateCareStatus(petId: number, userId: string, careType: 'fed' | 'bathed' | 'slept' | 'cleaned', completed: boolean): Promise<void>;
+  
+  // Admin logs operations
+  createAdminLog(log: InsertAdminLog): Promise<AdminLog>;
+  getAdminLogs(limit?: number, offset?: number): Promise<AdminLog[]>;
+  getAdminLogsByAdmin(adminUserId: string): Promise<AdminLog[]>;
+  getAdminLogsByTargetUser(targetUserId: string): Promise<AdminLog[]>;
   createCareActivity(activity: InsertPetCareActivity): Promise<PetCareActivity>;
   getCareActivitiesByPetId(petId: number): Promise<PetCareActivity[]>;
   checkAllCareCompleted(petId: number): Promise<boolean>;
