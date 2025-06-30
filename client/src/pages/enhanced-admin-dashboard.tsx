@@ -605,16 +605,11 @@ function EnhancedAdminDashboard() {
 
   const updateUserCreditsMutation = useMutation({
     mutationFn: async ({ userId, credits }: { userId: string; credits: string }) => {
-      return apiRequest(`/api/admin/users/${userId}/credits`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credits }),
-      });
+      return apiRequest('PATCH', `/api/admin/users/${userId}/credits`, { credits });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       toast({ title: "User credits updated successfully" });
-      setSelectedUser(null);
     },
     onError: (error: any) => {
       console.error('Error updating user credits:', error);
@@ -624,16 +619,11 @@ function EnhancedAdminDashboard() {
 
   const updateUserLoyaltyPointsMutation = useMutation({
     mutationFn: async ({ userId, loyaltyPoints }: { userId: string; loyaltyPoints: number }) => {
-      return apiRequest(`/api/admin/users/${userId}/loyalty-points`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loyaltyPoints }),
-      });
+      return apiRequest('PATCH', `/api/admin/users/${userId}/loyalty-points`, { loyaltyPoints });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       toast({ title: "User loyalty points updated successfully" });
-      setSelectedUser(null);
     },
     onError: (error: any) => {
       console.error('Error updating user loyalty points:', error);
@@ -2141,7 +2131,7 @@ function EnhancedAdminDashboard() {
                               onClick={() => {
                                 const newPoints = prompt(`Edit loyalty points for ${user.firstName || user.email || 'User'}:`, (user.loyaltyPoints || 0).toString());
                                 if (newPoints !== null && !isNaN(parseInt(newPoints)) && parseInt(newPoints) >= 0) {
-                                  updateUserPointsMutation.mutate({
+                                  updateUserLoyaltyPointsMutation.mutate({
                                     userId: user.id,
                                     loyaltyPoints: parseInt(newPoints)
                                   });
