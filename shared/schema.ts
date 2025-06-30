@@ -107,6 +107,7 @@ export const seasons = pgTable("seasons", {
   description: text("description"),
   iconUrl: varchar("icon_url"),
   backgroundColor: varchar("background_color").default("#3B82F6"), // Hex color for season theme
+  price: decimal("price", { precision: 10, scale: 2 }).default("1000000.00"), // Price in IDR for random toy from season
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
   isActive: boolean("is_active").default(true),

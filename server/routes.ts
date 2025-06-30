@@ -7259,7 +7259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/purchase-random-toy', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const seasonName = req.query.season;
+      const { seasonName } = req.body;
 
       if (!seasonName) {
         return res.status(400).json({ message: 'Season name is required' });

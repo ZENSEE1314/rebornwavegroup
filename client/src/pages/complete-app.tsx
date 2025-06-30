@@ -6870,22 +6870,14 @@ export default function CompleteApp() {
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Season Packs
               </Button>
-              {/* Only show User Listings tab when there are actual user-to-user listings available */}
-              {(() => {
-                const userListings = listings?.filter(listing => 
-                  listing.ownerId && listing.ownerId !== 'system' && listing.sellerName
-                ) || [];
-                return userListings.length > 0;
-              })() && (
-                <Button
-                  variant={marketplaceView === 'listings' ? 'default' : 'outline'}
-                  onClick={() => setMarketplaceView('listings')}
-                  className="px-6 py-2"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  User Listings
-                </Button>
-              )}
+              <Button
+                variant={marketplaceView === 'listings' ? 'default' : 'outline'}
+                onClick={() => setMarketplaceView('listings')}
+                className="px-6 py-2"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                User Listings
+              </Button>
             </div>
 
             {/* Season-based Purchase Cards */}
