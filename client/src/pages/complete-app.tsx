@@ -6939,14 +6939,6 @@ export default function CompleteApp() {
             </div>
           </div>
         )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-          </div>
-        )}
 
         {/* Comprehensive History Tab */}
         {activeTab === "token-history" && (
