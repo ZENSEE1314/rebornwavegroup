@@ -603,6 +603,44 @@ function EnhancedAdminDashboard() {
     }
   });
 
+  const updateUserCreditsMutation = useMutation({
+    mutationFn: async ({ userId, credits }: { userId: string; credits: string }) => {
+      return apiRequest(`/api/admin/users/${userId}/credits`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credits }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "User credits updated successfully" });
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      console.error('Error updating user credits:', error);
+      toast({ title: "Failed to update user credits", variant: "destructive" });
+    },
+  });
+
+  const updateUserLoyaltyPointsMutation = useMutation({
+    mutationFn: async ({ userId, loyaltyPoints }: { userId: string; loyaltyPoints: number }) => {
+      return apiRequest(`/api/admin/users/${userId}/loyalty-points`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loyaltyPoints }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "User loyalty points updated successfully" });
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      console.error('Error updating user loyalty points:', error);
+      toast({ title: "Failed to update user loyalty points", variant: "destructive" });
+    },
+  });
+
   // SendGrid email mutations
 
   const sendWelcomeEmailMutation = useMutation({
@@ -937,33 +975,7 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  const updateUserCreditsMutation = useMutation({
-    mutationFn: async ({ userId, credits }: { userId: string; credits: string }) => {
-      return apiRequest('PATCH', `/api/admin/users/${userId}/credits`, { credits });
-    },
-    onSuccess: () => {
-      toast({ title: "User credits updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to update user credits", variant: "destructive" });
-    }
-  });
 
-  const updateUserPointsMutation = useMutation({
-    mutationFn: async ({ userId, loyaltyPoints }: { userId: string; loyaltyPoints: number }) => {
-      return apiRequest('PATCH', `/api/admin/users/${userId}/loyalty-points`, { loyaltyPoints });
-    },
-    onSuccess: () => {
-      toast({ title: "User loyalty points updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-    },
-    onError: () => {
-      toast({ title: "Failed to update user loyalty points", variant: "destructive" });
-    }
-  });
 
   // Content management mutations
   const createBannerMutation = useMutation({
@@ -2114,7 +2126,7 @@ function EnhancedAdminDashboard() {
                                   });
                                 }
                               }}
-                              className="h-6 px-2 text-xs border-gray-600 text-gray-300 hover:bg-gray-800"
+                              className="h-6 px-2 text-xs bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
                             >
                               Edit
                             </Button>
@@ -2135,7 +2147,7 @@ function EnhancedAdminDashboard() {
                                   });
                                 }
                               }}
-                              className="h-6 px-2 text-xs border-gray-600 text-gray-300 hover:bg-gray-800"
+                              className="h-6 px-2 text-xs bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
                             >
                               Edit
                             </Button>
@@ -3428,15 +3440,17 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {Array.isArray(pointsHistory) && pointsHistory.length > 0 ? (
-                      pointsHistory.filter((entry: any) => entry.type === 'redeemed').map((entry: any) => (
+                    {Array.isArray(pointsHistory.data || pointsHistory) && (pointsHistory.data || pointsHistory).length > 0 ? (
+                      (pointsHistory.data || pointsHistory).filter((entry: any) => entry.type === 'redeemed').map((entry: any) => (
                         <div key={entry.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-white font-medium">User: {entry.userEmail || 'Unknown'}</span>
+                                <span className="text-white font-medium">
+                                  User: {entry.user ? `${entry.user.firstName} ${entry.user.lastName} (${entry.user.email})` : 'Unknown'}
+                                </span>
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
-                                  {Math.abs(entry.points)} points
+                                  {Math.abs(parseInt(entry.amount))} points
                                 </Badge>
                               </div>
                               <p className="text-gray-300 text-sm mb-2">
