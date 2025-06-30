@@ -27,7 +27,8 @@ const upload = multer({
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'), false);
+      const error = new Error('Only image files are allowed!') as any;
+      cb(error);
     }
   },
   limits: {
@@ -155,7 +156,6 @@ import {
   commissionHistory,
   referrals,
 } from "@shared/schema";
-import { eq, and, or, like, desc, sql, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 
 // Enhanced pet evolution utility functions
@@ -218,23 +218,7 @@ const multerStorage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
-  storage: multerStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  }
-});
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize real-time energy timers for currently sleeping pets
