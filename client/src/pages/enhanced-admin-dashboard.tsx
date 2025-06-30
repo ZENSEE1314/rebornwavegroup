@@ -3339,73 +3339,7 @@ function EnhancedAdminDashboard() {
 
               </div>
 
-              {/* Content Templates */}
-              <Card className="bg-slate-800/60 border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-purple-400" />
-                    Message Templates
-                  </CardTitle>
-                  <p className="text-gray-300 text-sm">Pre-built templates for common communications</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button
-                      onClick={() => {
-                        setEmailData({
-                          ...emailData,
-                          subject: "Welcome to Reborn Wave Group!",
-                          text: "Welcome to our digital pet care platform! We're excited to have you join our community. Start caring for your digital pets and earn rewards today!"
-                        });
-                      }}
-                      variant="outline"
-                      className="bg-blue-600/20 border-blue-400 text-blue-300 hover:bg-blue-600/30 p-4 h-auto flex-col items-start"
-                    >
-                      <Users className="h-6 w-6 mb-2" />
-                      <div className="text-left">
-                        <div className="font-semibold">Welcome Email</div>
-                        <div className="text-xs opacity-80">New user greeting</div>
-                      </div>
-                    </Button>
-                    
-                    <Button
-                      onClick={() => {
-                        setEmailData({
-                          ...emailData,
-                          subject: "Pet Evolution Celebration!",
-                          text: "Congratulations! Your digital pet has evolved to a new stage. Keep caring for them to unlock more rewards and achievements!"
-                        });
-                      }}
-                      variant="outline"
-                      className="bg-green-600/20 border-green-400 text-green-300 hover:bg-green-600/30 p-4 h-auto flex-col items-start"
-                    >
-                      <Trophy className="h-6 w-6 mb-2" />
-                      <div className="text-left">
-                        <div className="font-semibold">Evolution Alert</div>
-                        <div className="text-xs opacity-80">Pet milestone notification</div>
-                      </div>
-                    </Button>
-                    
-                    <Button
-                      onClick={() => {
-                        setEmailData({
-                          ...emailData,
-                          subject: "Daily Token Reward Available!",
-                          text: "Your daily token reward is ready! Log in now to claim your tokens and continue your pet care journey."
-                        });
-                      }}
-                      variant="outline"
-                      className="bg-yellow-600/20 border-yellow-400 text-yellow-300 hover:bg-yellow-600/30 p-4 h-auto flex-col items-start"
-                    >
-                      <Gift className="h-6 w-6 mb-2" />
-                      <div className="text-left">
-                        <div className="font-semibold">Token Reminder</div>
-                        <div className="text-xs opacity-80">Daily reward notification</div>
-                      </div>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+
 
               {/* Promotion Banners */}
               <Card className="bg-slate-800/60 border-slate-700/50">
@@ -3434,10 +3368,38 @@ function EnhancedAdminDashboard() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400"
+                              onClick={() => {
+                                setEditingBanner(banner);
+                                setBannerForm({
+                                  title: banner.title,
+                                  description: banner.description,
+                                  imageUrl: banner.imageUrl || "",
+                                  ctaText: banner.ctaText || "",
+                                  ctaUrl: banner.ctaUrl || "",
+                                  type: banner.type,
+                                  backgroundColor: banner.backgroundColor || "blue",
+                                  displayOrder: banner.displayOrder || 0,
+                                  isActive: banner.isActive,
+                                  iconSymbol: banner.iconSymbol || ""
+                                });
+                                setShowBannerDialog(true);
+                              }}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm">
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to delete this banner?')) {
+                                  deleteBannerMutation.mutate(banner.id);
+                                }
+                              }}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -6061,6 +6023,138 @@ function EnhancedAdminDashboard() {
                 onClick={() => {
                   setShowRewardDialog(false);
                   setEditingReward(null);
+                }}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Banner Edit Dialog */}
+      <Dialog open={showBannerDialog} onOpenChange={setShowBannerDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingBanner ? 'Edit Banner' : 'Create New Banner'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-white text-sm">Title</label>
+              <Input
+                value={bannerForm.title}
+                onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})}
+                placeholder="Enter banner title"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Description</label>
+              <Input
+                value={bannerForm.description}
+                onChange={(e) => setBannerForm({...bannerForm, description: e.target.value})}
+                placeholder="Enter banner description"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Image URL</label>
+              <Input
+                value={bannerForm.imageUrl}
+                onChange={(e) => setBannerForm({...bannerForm, imageUrl: e.target.value})}
+                placeholder="Enter image URL"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">CTA Text</label>
+              <Input
+                value={bannerForm.ctaText}
+                onChange={(e) => setBannerForm({...bannerForm, ctaText: e.target.value})}
+                placeholder="Call to action text"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">CTA URL</label>
+              <Input
+                value={bannerForm.ctaUrl}
+                onChange={(e) => setBannerForm({...bannerForm, ctaUrl: e.target.value})}
+                placeholder="Call to action URL"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Background Color</label>
+              <Select value={bannerForm.backgroundColor} onValueChange={(value) => setBannerForm({...bannerForm, backgroundColor: value})}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blue">Blue</SelectItem>
+                  <SelectItem value="green">Green</SelectItem>
+                  <SelectItem value="orange">Orange</SelectItem>
+                  <SelectItem value="purple">Purple</SelectItem>
+                  <SelectItem value="red">Red</SelectItem>
+                  <SelectItem value="gray">Gray</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Icon Symbol</label>
+              <Input
+                value={bannerForm.iconSymbol}
+                onChange={(e) => setBannerForm({...bannerForm, iconSymbol: e.target.value})}
+                placeholder="Emoji or symbol (e.g., 🎉)"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="bannerActive"
+                checked={bannerForm.isActive}
+                onChange={(e) => setBannerForm({...bannerForm, isActive: e.target.checked})}
+                className="rounded border-white/20"
+              />
+              <label htmlFor="bannerActive" className="text-white text-sm">Active</label>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editingBanner) {
+                    updateBannerMutation.mutate({
+                      id: editingBanner.id,
+                      bannerData: bannerForm
+                    });
+                  } else {
+                    createBannerMutation.mutate(bannerForm);
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700 flex-1"
+                disabled={(createBannerMutation.isPending || updateBannerMutation.isPending) || !bannerForm.title}
+              >
+                {(createBannerMutation.isPending || updateBannerMutation.isPending) ? 
+                  (editingBanner ? "Updating..." : "Creating...") : 
+                  (editingBanner ? "Update Banner" : "Create Banner")
+                }
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBannerDialog(false);
+                  setEditingBanner(null);
                 }}
                 className="border-white/20 text-white hover:bg-white/10"
               >
