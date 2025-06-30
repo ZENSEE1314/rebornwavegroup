@@ -74,6 +74,20 @@ export function useWebSocket(enabled: boolean = true) {
             });
           }
 
+          // Handle marketplace updates for real-time listing generation
+          if (data.type === 'MARKETPLACE_UPDATED') {
+            console.log('Received marketplace update:', data.data);
+            
+            // Invalidate marketplace-related queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/listings') ||
+                       queryKey?.includes('/api/admin/all-toys');
+              }
+            });
+          }
+
           // Handle user data updates for real-time admin user editing
           if (data.type === 'USER_DATA_UPDATED') {
             console.log('Received user data update:', data.userData);
