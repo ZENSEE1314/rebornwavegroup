@@ -143,7 +143,7 @@ export function useWebSocket(enabled: boolean = true) {
           }
 
           // Handle season updates for real-time marketplace visibility changes
-          if (data.type === 'SEASON_UPDATED' || data.type === 'SEASON_CREATED') {
+          if (data.type === 'SEASON_UPDATED' || data.type === 'SEASON_CREATED' || data.type === 'SEASON_DELETED') {
             console.log('Received season update:', data.type, data.data);
             
             // Invalidate season-related queries for real-time updates

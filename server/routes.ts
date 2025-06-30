@@ -5218,6 +5218,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete the season
       await db.delete(schema.seasons).where(eq(schema.seasons.id, seasonId));
       
+      // Broadcast real-time updates via WebSocket
+      const wss = (global as any).wss;
+      if (wss) {
+        const message = {
+          type: 'SEASON_DELETED',
+          seasonId: seasonId,
+          data: { id: seasonId }
+        };
+        
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
+      
       res.json({ message: "Season deleted successfully" });
     } catch (error) {
       console.error("Error deleting season:", error);
@@ -6903,6 +6919,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Then delete the season
       await db.delete(schema.seasons).where(eq(schema.seasons.id, parseInt(id)));
+
+      // Broadcast real-time updates via WebSocket
+      const wss = (global as any).wss;
+      if (wss) {
+        const message = {
+          type: 'SEASON_DELETED',
+          seasonId: parseInt(id),
+          data: { id: parseInt(id) }
+        };
+        
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
 
       res.json({ message: "Season deleted successfully" });
     } catch (error) {

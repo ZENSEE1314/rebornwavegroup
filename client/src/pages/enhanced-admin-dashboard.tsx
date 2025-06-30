@@ -1180,7 +1180,7 @@ function EnhancedAdminDashboard() {
 
   const deleteSeasonMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest('DELETE', `/api/seasons/${id}`, {});
+      return apiRequest('DELETE', `/api/admin/seasons/${id}`, {});
     },
     onSuccess: () => {
       toast({ title: "Season deleted successfully" });
