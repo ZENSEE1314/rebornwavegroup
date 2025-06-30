@@ -6905,15 +6905,15 @@ export default function CompleteApp() {
                             )}
                           </div>
                           <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                            {season.name}
+                            {season.displayName || season.name}
                           </h3>
-                        </div>
-                        
-                        {/* Season Description */}
-                        <div className="mb-4">
-                          <p className="text-slate-600">
-                            {season.displayName || season.description || 'Seasonal Collection'}
-                          </p>
+                          
+                          {/* Season Description */}
+                          {season.description && (
+                            <p className="text-slate-600 mb-4">
+                              {season.description}
+                            </p>
+                          )}
                         </div>
                         
                         <div className="space-y-4">
