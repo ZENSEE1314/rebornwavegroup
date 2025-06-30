@@ -7268,8 +7268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get season by name with price
       const season = await db.select()
-        .from(seasons)
-        .where(eq(seasons.name, seasonName))
+        .from(schema.seasons)
+        .where(eq(schema.seasons.name, seasonName))
         .limit(1);
 
       if (!season.length) {
@@ -7280,8 +7280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's current credits
       const user = await db.select()
-        .from(users)
-        .where(eq(users.id, userId))
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
         .limit(1);
 
       if (!user.length) {
@@ -7299,11 +7299,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all available toys from this season that are not owned
       const availableToys = await db.select()
-        .from(toys)
+        .from(schema.toys)
         .where(
           and(
-            eq(toys.seasonId, season[0].id),
-            isNull(toys.ownerId)
+            eq(schema.toys.seasonId, season[0].id),
+            isNull(schema.toys.ownerId)
           )
         );
 
@@ -7317,26 +7317,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Deduct credits from user
       const newCredits = userCredits - seasonPrice;
-      await db.update(users)
+      await db.update(schema.users)
         .set({
           credits: newCredits.toFixed(2),
           updatedAt: new Date()
         })
-        .where(eq(users.id, userId));
+        .where(eq(schema.users.id, userId));
 
       // Assign the toy to the user
-      await db.update(toys)
+      await db.update(schema.toys)
         .set({
           ownerId: userId,
           purchasedBy: userId,
           updatedAt: new Date()
         })
-        .where(eq(toys.id, selectedToy.id));
+        .where(eq(schema.toys.id, selectedToy.id));
 
       // Get the updated toy with full details
       const purchasedToy = await db.select()
-        .from(toys)
-        .where(eq(toys.id, selectedToy.id))
+        .from(schema.toys)
+        .where(eq(schema.toys.id, selectedToy.id))
         .limit(1);
 
       // Broadcast real-time update via WebSocket
