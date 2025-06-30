@@ -884,11 +884,34 @@ export class DatabaseStorage implements IStorage {
       ));
 
     if (seasonFilter && seasonFilter !== 'all') {
-      query = query.where(and(
-        isNull(toys.ownerId),
-        eq(toys.isActivated, false),
-        eq(seasons.name, seasonFilter)
-      ));
+      return await db
+        .select({
+          id: toys.id,
+          name: toys.name,
+          series: toys.series,
+          rarity: toys.rarity,
+          imageUrl: toys.imageUrl,
+          gender: toys.gender,
+          color: toys.color,
+          salePrice: toys.salePrice,
+          originalPrice: toys.originalPrice,
+          seasonId: toys.seasonId,
+          ownerId: toys.ownerId,
+          isActivated: toys.isActivated,
+          createdAt: toys.createdAt,
+          season: {
+            id: seasons.id,
+            name: seasons.name,
+          }
+        })
+        .from(toys)
+        .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+        .where(and(
+          isNull(toys.ownerId),
+          eq(toys.isActivated, false),
+          eq(seasons.name, seasonFilter)
+        ))
+        .orderBy(toys.rarity, toys.name);
     }
 
     return await query.orderBy(toys.rarity, toys.name);

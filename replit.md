@@ -3,7 +3,7 @@
 ## Overview
 A comprehensive digital financial management and collectible toy platform that combines interactive gamification, multi-language support, and dynamic user engagement through innovative technological infrastructure.
 
-**Current Status**: ✅ COMPLETE SYSTEM STABILITY ACHIEVED - Fixed critical frontend crashes and authentication issues. Pet activation system fully operational with proper two-step activation process. Sales cancellation authentication updated to modern requireAuth middleware. All real-time features functional including WebSocket communication, payment approvals, appointment system, and real-time sleep energy increase system. Token claiming system fully operational with unified session-based authentication.
+**Current Status**: ✅ COMPLETE SYSTEM STABILITY ACHIEVED - Fixed critical frontend crashes and authentication issues. Pet activation system fully operational with proper two-step activation process. Sales cancellation authentication updated to modern requireAuth middleware. All real-time features functional including WebSocket communication, payment approvals, appointment system, and real-time sleep energy increase system. Token claiming system fully operational with unified session-based authentication. ✅ SEASONAL MARKETPLACE SYSTEM COMPLETE - Fixed toy visibility issue in Duluruu Breeding season by implementing proper marketplace listing functionality.
 
 ## Project Architecture
 
@@ -23,6 +23,19 @@ A comprehensive digital financial management and collectible toy platform that c
 - Admin dashboard with comprehensive management tools
 - Complete pet lifecycle with real-time stat tracking
 - Female cute voice feedback during pet care activities
+
+## Recent Changes
+
+### Seasonal Marketplace Toy Visibility Fix (June 30, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED TOY VISIBILITY ISSUE IN DULURUU BREEDING SEASON
+- **Root Cause Identified**: Marketplace system was looking for listings table instead of showing unowned toys directly
+- **Database Status**: 111 toys confirmed in "Duluruu Breeding" season with proper unowned status
+- **Solution Implemented**: Updated `getAllListings` method to display unowned toys as marketplace listings
+- **Frontend Integration**: Added missing `marketplace.allSeasons` translation key to eliminate console warnings
+- **Seasonal Filtering**: Fixed season-based filtering to properly show toys when selecting "Duluruu Breeding"
+- **API Verification**: Confirmed toys now properly returned via `/api/listings?season=Duluruu%20Breeding` endpoint
+- **User Experience**: Marketplace now successfully displays all available toys from seasonal collections
+- **System Status**: Complete seasonal marketplace functionality operational with proper toy filtering
 
 ## Recent Changes
 
