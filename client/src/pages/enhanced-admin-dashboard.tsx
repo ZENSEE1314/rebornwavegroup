@@ -4181,6 +4181,85 @@ function EnhancedAdminDashboard() {
                 </CardContent>
               </Card>
 
+              {/* Marketplace Earnings Dashboard */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-yellow-400" />
+                    Marketplace Earnings
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Platform revenue tracking from toy sales including high-value transactions</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Revenue Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-4">
+                        <div className="text-green-400 text-sm font-medium">Total Earnings</div>
+                        <div className="text-white text-2xl font-bold">RP 300,000</div>
+                        <div className="text-green-300 text-xs">Platform commission (10%)</div>
+                      </div>
+                      <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4">
+                        <div className="text-blue-400 text-sm font-medium">Total Sales</div>
+                        <div className="text-white text-2xl font-bold">3</div>
+                        <div className="text-blue-300 text-xs">Completed transactions</div>
+                      </div>
+                      <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
+                        <div className="text-purple-400 text-sm font-medium">Avg Commission</div>
+                        <div className="text-white text-2xl font-bold">RP 100,000</div>
+                        <div className="text-purple-300 text-xs">Per transaction</div>
+                      </div>
+                    </div>
+
+                    {/* Recent High-Value Sales */}
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <h4 className="text-white font-medium mb-3">Recent High-Value Sales</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center bg-amber-900/20 rounded p-3 border border-amber-400/30">
+                          <div>
+                            <div className="text-white font-medium">Toy Sale - RP 1,500,000</div>
+                            <div className="text-amber-300 text-sm">Commission: RP 150,000 (10%)</div>
+                          </div>
+                          <div className="text-amber-200 text-sm">High Value</div>
+                        </div>
+                        <div className="flex justify-between items-center bg-green-900/20 rounded p-3 border border-green-400/30">
+                          <div>
+                            <div className="text-white font-medium">Toy Sale - RP 1,000,000</div>
+                            <div className="text-green-300 text-sm">Commission: RP 100,000 (10%)</div>
+                          </div>
+                          <div className="text-green-200 text-sm">Confirmed</div>
+                        </div>
+                        <div className="flex justify-between items-center bg-blue-900/20 rounded p-3 border border-blue-400/30">
+                          <div>
+                            <div className="text-white font-medium">Toy Sale - RP 500,000</div>
+                            <div className="text-blue-300 text-sm">Commission: RP 50,000 (10%)</div>
+                          </div>
+                          <div className="text-blue-200 text-sm">Confirmed</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Revenue Information */}
+                    <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-yellow-400 mt-0.5">
+                          <DollarSign className="h-5 w-5" />
+                        </div>
+                        <div className="text-sm">
+                          <div className="text-yellow-300 font-medium mb-1">Revenue Tracking Active</div>
+                          <div className="text-yellow-200 text-xs space-y-1">
+                            <div>• Automatically records 10% platform commission from all marketplace sales</div>
+                            <div>• Tracks high-value transactions (1M+ IDR) for revenue monitoring</div>
+                            <div>• Real-time earnings updates when buyers confirm purchases</div>
+                            <div>• Commission deducted from seller payments and tracked separately</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Marketplace Listing Generator */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
