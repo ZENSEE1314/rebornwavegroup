@@ -2150,7 +2150,7 @@ function EnhancedAdminDashboard() {
                                     role: user.role
                                   });
                                 }}
-                                className="bg-blue-600 hover:bg-blue-700 h-10 w-10 p-0"
+                                className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold h-10 w-10 p-0 border-2 border-yellow-400"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -3434,7 +3434,7 @@ function EnhancedAdminDashboard() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                            <Button variant="outline" size="sm" className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400">
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button variant="destructive" size="sm">
@@ -3478,7 +3478,7 @@ function EnhancedAdminDashboard() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="border-white/20 text-white hover:bg-white/10"
+                              className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400"
                               onClick={() => handleEditReward(reward)}
                             >
                               <Edit className="h-4 w-4" />
@@ -4150,7 +4150,7 @@ function EnhancedAdminDashboard() {
                             }}
                             size="sm"
                             variant="outline"
-                            className="text-white border-white/20 hover:bg-white/10"
+                            className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
