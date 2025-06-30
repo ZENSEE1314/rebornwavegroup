@@ -6637,7 +6637,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid credit amount required" });
       }
       
+      // Get old values for logging
+      const targetUser = await storage.getUser(targetUserId);
+      const oldCredits = targetUser?.credits || "0.00";
+      
       await storage.updateUserCredits(targetUserId, credits);
+
+      // Create admin log
+      await storage.createAdminLog({
+        adminUserId,
+        targetUserId,
+        targetType: "user", 
+        targetId: targetUserId,
+        action: "update",
+        entityType: "credits",
+        oldValues: { credits: oldCredits },
+        newValues: { credits },
+        description: `Admin ${currentUser.firstName || currentUser.email} updated user credits from ${oldCredits} to ${credits}`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
 
       // Get updated user data for broadcasting
       const updatedUser = await storage.getUser(targetUserId);
@@ -6691,7 +6710,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid loyalty points amount required" });
       }
       
+      // Get old values for logging
+      const targetUser = await storage.getUser(targetUserId);
+      const oldLoyaltyPoints = targetUser?.loyaltyPoints || 0;
+      
       await storage.updateUserLoyaltyPoints(targetUserId, loyaltyPoints);
+
+      // Create admin log
+      await storage.createAdminLog({
+        adminUserId,
+        targetUserId,
+        targetType: "user",
+        targetId: targetUserId,
+        action: "update",
+        entityType: "loyalty_points",
+        oldValues: { loyaltyPoints: oldLoyaltyPoints },
+        newValues: { loyaltyPoints },
+        description: `Admin ${currentUser.firstName || currentUser.email} updated user loyalty points from ${oldLoyaltyPoints} to ${loyaltyPoints}`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
 
       // Get updated user data for broadcasting
       const updatedUser = await storage.getUser(targetUserId);
@@ -7700,6 +7738,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('error', (error) => {
       console.error('WebSocket error:', error);
     });
+  });
+
+  // Admin logs API endpoints
+  app.get('/api/admin/logs', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      const logs = await storage.getAdminLogs(limit, offset);
+      
+      res.json({
+        data: logs,
+        pagination: {
+          page,
+          limit,
+          totalCount: logs.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching admin logs:', error);
+      res.status(500).json({ message: "Failed to fetch admin logs" });
+    }
   });
 
   return httpServer;

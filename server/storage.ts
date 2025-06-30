@@ -2944,6 +2944,59 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedSeason;
   }
+
+  // Admin logs operations
+  async createAdminLog(log: InsertAdminLog): Promise<AdminLog> {
+    const [adminLog] = await db.insert(adminLogs).values(log).returning();
+    return adminLog;
+  }
+
+  async getAdminLogs(limit: number = 50, offset: number = 0): Promise<AdminLog[]> {
+    const logs = await db
+      .select({
+        adminLog: adminLogs,
+        admin: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+        targetUser: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
+      })
+      .from(adminLogs)
+      .leftJoin(users, eq(adminLogs.adminUserId, users.id))
+      .leftJoin(alias(users, 'targetUser'), eq(adminLogs.targetUserId, alias(users, 'targetUser').id))
+      .orderBy(desc(adminLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return logs.map(log => ({
+      ...log.adminLog,
+      admin: log.admin,
+      targetUser: log.targetUser
+    })) as any[];
+  }
+
+  async getAdminLogsByAdmin(adminUserId: string): Promise<AdminLog[]> {
+    return await db
+      .select()
+      .from(adminLogs)
+      .where(eq(adminLogs.adminUserId, adminUserId))
+      .orderBy(desc(adminLogs.createdAt));
+  }
+
+  async getAdminLogsByTargetUser(targetUserId: string): Promise<AdminLog[]> {
+    return await db
+      .select()
+      .from(adminLogs)
+      .where(eq(adminLogs.targetUserId, targetUserId))
+      .orderBy(desc(adminLogs.createdAt));
+  }
 }
 
 export const storage = new DatabaseStorage();
