@@ -236,6 +236,22 @@ export const cashOutTransactions = pgTable("cash_out_transactions", {
   processedAt: timestamp("processed_at"),
 });
 
+// Marketplace earnings tracking table - for admin revenue insights
+export const marketplaceEarnings = pgTable("marketplace_earnings", {
+  id: serial("id").primaryKey(),
+  transactionType: varchar("transaction_type").notNull(), // 'sale_commission' | 'listing_fee' | 'premium_feature'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  relatedListingId: integer("related_listing_id"),
+  relatedToyId: integer("related_toy_id"),
+  relatedUserId: varchar("related_user_id"),
+  salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00"), // Default 10% commission
+  status: varchar("status").default("confirmed").notNull(), // 'pending' | 'confirmed' | 'refunded'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Pending purchases table - for purchase confirmation flow
 export const pendingPurchases = pgTable("pending_purchases", {
   id: serial("id").primaryKey(),
@@ -803,9 +819,16 @@ export const insertPointsHistorySchema = createInsertSchema(pointsHistory).omit(
   createdAt: true,
 });
 
+export const insertMarketplaceEarningSchema = createInsertSchema(marketplaceEarnings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertPendingPurchase = z.infer<typeof insertPendingPurchaseSchema>;
 export type InsertCreditHistory = z.infer<typeof insertCreditHistorySchema>;
 export type InsertPointsHistory = z.infer<typeof insertPointsHistorySchema>;
+export type InsertMarketplaceEarning = z.infer<typeof insertMarketplaceEarningSchema>;
 
 export type Appointment = typeof appointments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
@@ -815,6 +838,7 @@ export type Message = typeof messages.$inferSelect;
 export type Referral = typeof referrals.$inferSelect;
 export type PointRedemption = typeof pointRedemptions.$inferSelect;
 export type CashOutTransaction = typeof cashOutTransactions.$inferSelect;
+export type MarketplaceEarning = typeof marketplaceEarnings.$inferSelect;
 export type PendingPurchase = typeof pendingPurchases.$inferSelect;
 export type CreditHistory = typeof creditHistory.$inferSelect;
 export type PointsHistory = typeof pointsHistory.$inferSelect;
