@@ -4834,71 +4834,7 @@ function EnhancedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Appointments Tab */}
-          <TabsContent value="appointments" className="space-y-6">
-            <Card className="bg-white/10 backdrop-blur border-white/20">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-white">Appointments Management</CardTitle>
-                  <Button 
-                    onClick={() => downloadCSV(allAppointments, 'appointments')}
-                    variant="outline" 
-                    size="sm"
-                    className="bg-white/10 text-white border-white/20"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-white/20">
-                      <TableHead className="text-blue-200">User</TableHead>
-                      <TableHead className="text-blue-200">Date</TableHead>
-                      <TableHead className="text-blue-200">Time</TableHead>
-                      <TableHead className="text-blue-200">Service</TableHead>
-                      <TableHead className="text-blue-200">Status</TableHead>
-                      <TableHead className="text-blue-200">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allAppointments?.map((appointment: any) => (
-                      <TableRow key={appointment.id} className="border-white/10">
-                        <TableCell className="text-white">
-                          {appointment.user?.firstName} {appointment.user?.lastName}
-                        </TableCell>
-                        <TableCell className="text-white">{formatDate(appointment.date)}</TableCell>
-                        <TableCell className="text-white">{appointment.time}</TableCell>
-                        <TableCell className="text-white">{appointment.service}</TableCell>
-                        <TableCell>
-                          <Badge className={`${
-                            appointment.status === 'confirmed' ? 'bg-green-500' :
-                            appointment.status === 'pending' ? 'bg-yellow-500' :
-                            appointment.status === 'cancelled' ? 'bg-red-500' :
-                            'bg-gray-500'
-                          }`}>
-                            {appointment.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="bg-white/10 text-white border-white/20">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="bg-white/10 text-white border-white/20">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           {/* Email Management Tab */}
           <TabsContent value="emails">
