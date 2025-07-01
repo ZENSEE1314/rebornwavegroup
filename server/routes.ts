@@ -925,9 +925,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Record commission in credit history
           console.log(`*** APPROVAL DEBUG: Creating credit history record`);
           await storage.createCreditHistory({
-            adminUserId: userInfo[0].referredById,
+            userId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
-            type: 'referral_commission',
+            type: 'referral_commission', 
             description: `Referral commission (10%) from ${userInfo[0].firstName || 'user'}'s verified purchase of RP ${transactionAmount.toLocaleString()}`,
             referenceId: updatedVerification.id.toString(),
           });
