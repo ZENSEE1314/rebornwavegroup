@@ -6735,7 +6735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserLoyaltyPoints(targetUserId, loyaltyPoints);
 
       // Create admin log
-      await storage.createAdminLog({
+      const adminLog = await storage.createAdminLog({
         adminUserId,
         targetUserId,
         targetType: "user",
@@ -6748,6 +6748,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip || req.connection?.remoteAddress,
         userAgent: req.get('User-Agent')
       });
+
+      // Broadcast admin log update for real-time dashboard
+      broadcastAdminLogUpdate(adminLog);
 
       // Get updated user data for broadcasting
       const updatedUser = await storage.getUser(targetUserId);
