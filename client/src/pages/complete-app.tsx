@@ -5495,11 +5495,12 @@ export default function CompleteApp() {
                 {t('dashboard.logout')}
               </Button>
               
-              {/* Mobile Logout - Icon Only */}
-              <Button variant="outline" 
+              {/* Mobile Logout - Enhanced Icon Only */}
+              <Button 
+                variant="outline" 
                 onClick={() => window.location.href = '/api/logout'}
                 size="sm"
-                className="md:hidden p-2"
+                className="md:hidden p-3 bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105"
               >
                 <LogOut className="w-4 h-4" />
               </Button>
