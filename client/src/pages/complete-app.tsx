@@ -5450,28 +5450,10 @@ export default function CompleteApp() {
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
         <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            {/* Logo and Title - Modern App Design */}
-            <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg flex-shrink-0">
-                <img src={logoImage} alt="Reborn Wave House" className="w-full h-full object-contain filter brightness-0 invert" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
-                  Reborn Wave House
-                </h1>
-                <p className="text-xs md:text-sm text-gray-500 hidden sm:block font-medium">Your Oasis of Joy</p>
-              </div>
-            </div>
-            
-            {/* Right Side Controls - Enhanced Design */}
-            <div className="flex items-center space-x-3 md:space-x-5 flex-shrink-0">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-md">
-                <LanguageSelector />
-              </div>
-              
-              {/* Welcome Text with modern styling */}
+            {/* Left Side - Welcome Text */}
+            <div className="flex items-center space-x-3 flex-1">
               <div className="hidden lg:flex items-center space-x-3">
-                <div className="text-right">
+                <div className="text-left">
                   <p className="text-sm font-semibold text-gray-700">
                     {t('dashboard.welcome')}, {user?.firstName || 'User'}!
                   </p>
@@ -5479,9 +5461,28 @@ export default function CompleteApp() {
                     {user?.role === 'admin' ? 'Administrator' : 'Member'}
                   </p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                  <User className="w-5 h-5 text-white" />
-                </div>
+              </div>
+            </div>
+
+            {/* Center - Logo Button */}
+            <div className="flex-shrink-0">
+              <Button
+                onClick={() => setActiveTab("dashboard")}
+                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
+              </Button>
+            </div>
+            
+            {/* Right Side Controls - Enhanced Design */}
+            <div className="flex items-center space-x-3 md:space-x-5 flex-1 justify-end">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-md">
+                <LanguageSelector />
+              </div>
+              
+              {/* User Profile Icon */}
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                <User className="w-5 h-5 text-white" />
               </div>
               
               {/* Logout Button - Enhanced Design */}
@@ -6054,7 +6055,7 @@ export default function CompleteApp() {
             <div className="flex flex-wrap gap-2 justify-center">
               <Button 
                 size="sm" 
-                onClick={() => setShowPurchaseVerificationModal(true)} 
+                onClick={() => setActiveTab("purchase")} 
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Camera className="w-4 h-4 mr-2" />
