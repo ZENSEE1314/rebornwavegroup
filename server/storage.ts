@@ -2952,9 +2952,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAdminLogs(limit: number = 50, offset: number = 0): Promise<AdminLog[]> {
+    const targetUserAlias = alias(users, 'targetUser');
+    
     const logs = await db
       .select({
-        adminLog: adminLogs,
+        id: adminLogs.id,
+        adminUserId: adminLogs.adminUserId,
+        targetUserId: adminLogs.targetUserId,
+        targetType: adminLogs.targetType,
+        targetId: adminLogs.targetId,
+        action: adminLogs.action,
+        entityType: adminLogs.entityType,
+        oldValues: adminLogs.oldValues,
+        newValues: adminLogs.newValues,
+        description: adminLogs.description,
+        ipAddress: adminLogs.ipAddress,
+        userAgent: adminLogs.userAgent,
+        createdAt: adminLogs.createdAt,
         admin: {
           id: users.id,
           firstName: users.firstName,
@@ -2962,24 +2976,20 @@ export class DatabaseStorage implements IStorage {
           email: users.email,
         },
         targetUser: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
+          id: targetUserAlias.id,
+          firstName: targetUserAlias.firstName,
+          lastName: targetUserAlias.lastName,
+          email: targetUserAlias.email,
         }
       })
       .from(adminLogs)
       .leftJoin(users, eq(adminLogs.adminUserId, users.id))
-      .leftJoin(alias(users, 'targetUser'), eq(adminLogs.targetUserId, alias(users, 'targetUser').id))
+      .leftJoin(targetUserAlias, eq(adminLogs.targetUserId, targetUserAlias.id))
       .orderBy(desc(adminLogs.createdAt))
       .limit(limit)
       .offset(offset);
 
-    return logs.map(log => ({
-      ...log.adminLog,
-      admin: log.admin,
-      targetUser: log.targetUser
-    })) as any[];
+    return logs as any[];
   }
 
   async getAdminLogsByAdmin(adminUserId: string): Promise<AdminLog[]> {
