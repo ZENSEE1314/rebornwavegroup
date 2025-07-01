@@ -156,6 +156,19 @@ export function useWebSocket(enabled: boolean = true) {
               }
             });
           }
+
+          // Handle admin log updates for real-time admin dashboard
+          if (data.type === 'ADMIN_LOG_CREATED') {
+            console.log('Received admin log update:', data.logData);
+            
+            // Invalidate admin logs queries for real-time updates
+            queryClient.invalidateQueries({ 
+              predicate: (query) => {
+                const queryKey = query.queryKey[0] as string;
+                return queryKey?.includes('/api/admin/logs');
+              }
+            });
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }

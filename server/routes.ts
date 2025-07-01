@@ -39,6 +39,21 @@ const upload = multer({
 // Real-time sleep energy system
 const sleepTimers = new Map<number, NodeJS.Timeout>();
 
+// Broadcast admin log updates to all connected clients
+function broadcastAdminLogUpdate(logData: any) {
+  const wss = (global as any).wss;
+  if (wss) {
+    wss.clients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'ADMIN_LOG_CREATED',
+          logData: logData
+        }));
+      }
+    });
+  }
+}
+
 function startSleepEnergyTimer(petId: number) {
   // Clear existing timer if any
   if (sleepTimers.has(petId)) {
@@ -6644,7 +6659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserCredits(targetUserId, credits);
 
       // Create admin log
-      await storage.createAdminLog({
+      const adminLog = await storage.createAdminLog({
         adminUserId,
         targetUserId,
         targetType: "user", 
@@ -6657,6 +6672,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip || req.connection?.remoteAddress,
         userAgent: req.get('User-Agent')
       });
+
+      // Broadcast admin log update for real-time dashboard
+      broadcastAdminLogUpdate(adminLog);
 
       // Get updated user data for broadcasting
       const updatedUser = await storage.getUser(targetUserId);
