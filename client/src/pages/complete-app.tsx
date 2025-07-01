@@ -5445,38 +5445,58 @@ export default function CompleteApp() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      {/* Mobile-Optimized Header */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="w-full px-3 md:px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow-sm">
+            {/* Logo and Title - Mobile Responsive */}
+            <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow-sm flex-shrink-0">
                 <img src={logoImage} alt="Reborn Wave House" className="w-full h-full object-contain" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-blue-600">Reborn Wave House</h1>
-                <p className="text-xs text-gray-500">Your Oasis of Joy</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg md:text-2xl font-bold text-blue-600 truncate">Reborn Wave House</h1>
+                <p className="text-xs text-gray-500 hidden sm:block">Your Oasis of Joy</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Right Side Controls - Mobile Responsive */}
+            <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
               <LanguageSelector />
-              <span className="text-sm text-gray-600">
+              
+              {/* Welcome Text - Hide on smaller screens */}
+              <span className="text-sm text-gray-600 hidden lg:block">
                 {t('dashboard.welcome')}, {user?.firstName || user?.email?.split('@')[0] || 'User'}!
               </span>
-              <Button variant="outline" size="sm" onClick={() => window.location.href = '/api/logout'}>
+              
+              {/* Logout Button - Mobile Optimized */}
+              <Button variant="outline" 
+                onClick={() => window.location.href = '/api/logout'}
+                size="sm"
+                className="hidden md:flex"
+              >
                 <LogOut className="w-4 h-4 mr-2" />
                 {t('dashboard.logout')}
+              </Button>
+              
+              {/* Mobile Logout - Icon Only */}
+              <Button variant="outline" 
+                onClick={() => window.location.href = '/api/logout'}
+                size="sm"
+                className="md:hidden p-2"
+              >
+                <LogOut className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide pb-2">
+      {/* Mobile-Optimized Navigation Tabs */}
+      <div className="bg-white border-b hidden md:block">
+        <div className="w-full px-3 md:px-4">
+          <div className="flex flex-wrap gap-2 md:gap-4 py-2">
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
               { id: "petcare", label: t('petcare.title'), icon: Heart },
@@ -5499,14 +5519,14 @@ export default function CompleteApp() {
                   }
                   setActiveTab(tab.id);
                 }}
-                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm ${
+                className={`flex items-center space-x-1 md:space-x-2 py-3 md:py-4 px-2 md:px-3 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
+                <tab.icon className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </button>
             ))}
           </div>
