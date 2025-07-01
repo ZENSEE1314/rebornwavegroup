@@ -5446,35 +5446,50 @@ export default function CompleteApp() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
-      {/* Mobile-Optimized Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="w-full px-3 md:px-4 py-3 md:py-4">
+      {/* Enhanced Modern App Header */}
+      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
+        <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            {/* Logo and Title - Mobile Responsive */}
-            <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center p-1 shadow-sm flex-shrink-0">
-                <img src={logoImage} alt="Reborn Wave House" className="w-full h-full object-contain" />
+            {/* Logo and Title - Modern App Design */}
+            <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg flex-shrink-0">
+                <img src={logoImage} alt="Reborn Wave House" className="w-full h-full object-contain filter brightness-0 invert" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg md:text-2xl font-bold text-blue-600 truncate">Reborn Wave House</h1>
-                <p className="text-xs text-gray-500 hidden sm:block">Your Oasis of Joy</p>
+                <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
+                  Reborn Wave House
+                </h1>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block font-medium">Your Oasis of Joy</p>
               </div>
             </div>
             
-            {/* Right Side Controls - Mobile Responsive */}
-            <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
-              <LanguageSelector />
+            {/* Right Side Controls - Enhanced Design */}
+            <div className="flex items-center space-x-3 md:space-x-5 flex-shrink-0">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-md">
+                <LanguageSelector />
+              </div>
               
-              {/* Welcome Text - Hide on smaller screens */}
-              <span className="text-sm text-gray-600 hidden lg:block">
-                {t('dashboard.welcome')}, {user?.firstName || user?.email?.split('@')[0] || 'User'}!
-              </span>
+              {/* Welcome Text with modern styling */}
+              <div className="hidden lg:flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {t('dashboard.welcome')}, {user?.firstName || 'User'}!
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.role === 'admin' ? 'Administrator' : 'Member'}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+              </div>
               
-              {/* Logout Button - Mobile Optimized */}
-              <Button variant="outline" 
+              {/* Logout Button - Enhanced Design */}
+              <Button 
+                variant="outline" 
                 onClick={() => window.location.href = '/api/logout'}
                 size="sm"
-                className="hidden md:flex"
+                className="hidden md:flex bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 {t('dashboard.logout')}
@@ -5493,74 +5508,137 @@ export default function CompleteApp() {
         </div>
       </div>
 
-      {/* Mobile-Optimized Navigation Tabs */}
-      <div className="bg-white border-b hidden md:block">
-        <div className="w-full px-3 md:px-4">
-          <div className="flex flex-wrap gap-2 md:gap-4 py-2">
+      {/* Enhanced Desktop Navigation Tabs - Modern App UI */}
+      <div className="bg-white/95 backdrop-blur-lg border-b border-gray-100 hidden md:block shadow-sm">
+        <div className="w-full px-4 lg:px-6">
+          <div className="flex flex-wrap gap-2 lg:gap-3 py-3">
             {[
-              { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
-              { id: "petcare", label: t('petcare.title'), icon: Heart },
-              { id: "purchase", label: t('purchase.verification'), icon: Camera },
-              { id: "loyalty", label: t('loyalty.title'), icon: Star },
-              { id: "bookings", label: t('bookings.title'), icon: Calendar },
-              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
-              { id: "inventory", label: t('inventory.title'), icon: Package },
-              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
-              { id: "referrals", label: t('tabs.referrals'), icon: Users },
-              { id: "profile", label: t('tabs.profile'), icon: User }
+              { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600" },
+              { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600" },
+              { id: "purchase", label: t('purchase.verification'), icon: Camera, color: "from-indigo-500 to-indigo-600" },
+              { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600" },
+              { id: "bookings", label: t('bookings.title'), icon: Calendar, color: "from-green-500 to-emerald-600" },
+              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag, color: "from-purple-500 to-purple-600" },
+              { id: "inventory", label: t('inventory.title'), icon: Package, color: "from-orange-500 to-orange-600" },
+              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings, color: "from-red-500 to-red-600" }] : []),
+              { id: "referrals", label: t('tabs.referrals'), icon: Users, color: "from-teal-500 to-teal-600" },
+              { id: "profile", label: t('tabs.profile'), icon: User, color: "from-gray-500 to-gray-600" }
             ].map((tab) => (
               <button
                 key={tab.id}
                 data-tab={tab.id}
                 onClick={() => {
-                  // Play Doluruu sound when pet care tab is clicked
                   if (tab.id === "petcare") {
                     playDoluruuSound();
                   }
                   setActiveTab(tab.id);
                 }}
-                className={`flex items-center space-x-1 md:space-x-2 py-3 md:py-4 px-2 md:px-3 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap ${
+                className={`relative flex items-center space-x-2 lg:space-x-3 py-3 lg:py-4 px-4 lg:px-5 rounded-2xl font-medium text-sm lg:text-base whitespace-nowrap transition-all duration-300 transform hover:scale-105 ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-gradient-to-r from-white to-gray-50 text-gray-900 shadow-lg border border-gray-200'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <tab.icon className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
-                <span className="truncate">{tab.label}</span>
+                {/* Active indicator background */}
+                {activeTab === tab.id && (
+                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${tab.color} opacity-5`} />
+                )}
+                
+                {/* Icon with modern styling */}
+                <div className={`relative flex items-center justify-center w-5 h-5 lg:w-6 lg:h-6 rounded-lg transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? `bg-gradient-to-br ${tab.color} text-white shadow-md`
+                    : ''
+                }`}>
+                  <tab.icon className={`w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0 transition-all duration-300 ${
+                    activeTab === tab.id ? 'text-white scale-110' : ''
+                  }`} />
+                </div>
+                
+                {/* Label with enhanced typography */}
+                <span className={`truncate transition-all duration-300 ${
+                  activeTab === tab.id ? 'font-semibold' : ''
+                }`}>
+                  {tab.label}
+                </span>
+                
+                {/* Active indicator bar */}
+                {activeTab === tab.id && (
+                  <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 rounded-full bg-gradient-to-r ${tab.color} shadow-lg`} />
+                )}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
-        <div className="grid grid-cols-5 gap-1 px-2 py-2">
-          {[
-            { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
-            { id: "petcare", label: t('petcare.title'), icon: Heart },
-            { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
-            { id: "loyalty", label: t('loyalty.title'), icon: Star },
-            { id: "profile", label: t('tabs.profile'), icon: User }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (tab.id === "petcare") {
-                  playDoluruuSound();
-                }
-                setActiveTab(tab.id);
-              }}
-              className={`flex flex-col items-center justify-center py-2 px-1 transition-colors ${
-                activeTab === tab.id
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-500 hover:text-blue-600'
-              }`}
-            >
-              <tab.icon className="w-5 h-5 mb-1" />
-              <span className="text-xs font-medium truncate">{tab.label}</span>
-            </button>
-          ))}
+      {/* Enhanced Mobile Bottom Navigation - Modern App UI */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 md:hidden z-40 shadow-2xl">
+        <div className="safe-area-inset-bottom">
+          <div className="grid grid-cols-5 gap-1 px-3 py-2">
+            {[
+              { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600", bg: "bg-blue-500" },
+              { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600", bg: "bg-pink-500" },
+              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag, color: "from-purple-500 to-purple-600", bg: "bg-purple-500" },
+              { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600", bg: "bg-yellow-500" },
+              { id: "profile", label: t('tabs.profile'), icon: User, color: "from-emerald-500 to-green-600", bg: "bg-emerald-500" }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === "petcare") {
+                    playDoluruuSound();
+                  }
+                  setActiveTab(tab.id);
+                }}
+                className={`relative flex flex-col items-center justify-center py-3 px-2 rounded-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                  activeTab === tab.id
+                    ? 'scale-105'
+                    : ''
+                }`}
+              >
+                {/* Animated background for active state */}
+                {activeTab === tab.id && (
+                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tab.color} opacity-10 animate-pulse`} />
+                )}
+                
+                {/* Icon container with modern design */}
+                <div className={`relative flex items-center justify-center w-10 h-10 rounded-2xl mb-1 transition-all duration-300 shadow-lg ${
+                  activeTab === tab.id
+                    ? `bg-gradient-to-br ${tab.color} text-white shadow-lg`
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}>
+                  <tab.icon className={`w-5 h-5 transition-all duration-300 ${
+                    activeTab === tab.id ? 'scale-110' : ''
+                  }`} />
+                  
+                  {/* Active state glow effect */}
+                  {activeTab === tab.id && (
+                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tab.color} opacity-20 blur-sm`} />
+                  )}
+                </div>
+                
+                {/* Label with enhanced typography */}
+                <span className={`text-xs font-medium transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? 'text-gray-900 font-semibold'
+                    : 'text-gray-500'
+                }`}>
+                  {tab.label}
+                </span>
+                
+                {/* Active indicator - modern dot */}
+                {activeTab === tab.id && (
+                  <div className={`absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-gradient-to-r ${tab.color} shadow-lg animate-bounce`} />
+                )}
+                
+                {/* Ripple effect on tap */}
+                <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                  <div className="absolute inset-0 rounded-2xl bg-black opacity-0 transition-opacity duration-150 active:opacity-10" />
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
