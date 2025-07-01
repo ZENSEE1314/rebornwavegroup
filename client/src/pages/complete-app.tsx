@@ -5943,7 +5943,7 @@ export default function CompleteApp() {
               </Card>
 
               <Card className="bg-blue-50 border-blue-200 referrals-card">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 md:p-6 text-center">
                   <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
                   <p className="text-sm text-blue-600 font-medium">
                     {t("navigation.referrals")}
@@ -5961,7 +5961,7 @@ export default function CompleteApp() {
               </Card>
 
               <Card className="bg-yellow-50 border-yellow-200 earnings-card">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 md:p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
                   <p className="text-sm text-yellow-600 font-medium">
                     {t('dashboard.referralEarnings')}
@@ -5971,14 +5971,14 @@ export default function CompleteApp() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
               {/* Quick Booking */}
               <div className="lg:col-span-2">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>{t('dashboard.quickBooking')}</CardTitle>
+                  <CardHeader className="p-4 md:p-6">
+                    <CardTitle className="text-lg md:text-xl">{t('dashboard.quickBooking')}</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 p-4 md:p-6">
                     <Select onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
                       <SelectTrigger>
                         <SelectValue placeholder={t('dashboard.selectCategory')} />
