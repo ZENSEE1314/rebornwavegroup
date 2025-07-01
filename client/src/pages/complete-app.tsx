@@ -5533,6 +5533,37 @@ export default function CompleteApp() {
         </div>
       </div>
 
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
+        <div className="grid grid-cols-5 gap-1 px-2 py-2">
+          {[
+            { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
+            { id: "petcare", label: t('petcare.title'), icon: Heart },
+            { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
+            { id: "loyalty", label: t('loyalty.title'), icon: Star },
+            { id: "profile", label: t('tabs.profile'), icon: User }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                if (tab.id === "petcare") {
+                  playDoluruuSound();
+                }
+                setActiveTab(tab.id);
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 transition-colors ${
+                activeTab === tab.id
+                  ? 'text-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-blue-600'
+              }`}
+            >
+              <tab.icon className="w-5 h-5 mb-1" />
+              <span className="text-xs font-medium truncate">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Top-up Payment Modal */}
       {showTopUpModal && (
         <div 
@@ -5775,18 +5806,18 @@ export default function CompleteApp() {
         </div>
       )}
 
-      {/* Content Area */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Mobile-Optimized Content Area */}
+      <div className="w-full px-3 md:px-4 py-4 md:py-8 pb-20 md:pb-8">
         
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && (
-          <div className="space-y-8">
-            {/* Welcome Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
-              <h2 className="text-3xl font-bold mb-2">
+          <div className="space-y-4 md:space-y-8">
+            {/* Mobile-Optimized Welcome Section */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 md:p-8 text-white">
+              <h2 className="text-xl md:text-3xl font-bold mb-2">
                 {t('dashboard.welcome')}, {user?.firstName || 'Candy'}!
               </h2>
-              <p className="text-blue-100">
+              <p className="text-blue-100 text-sm md:text-base">
                 Level {currentLoyaltyLevel.level} • {loyaltyPoints} {t('dashboard.points')} • RP {formatRupiah(userCredits)}
               </p>
             </div>
@@ -5837,10 +5868,10 @@ export default function CompleteApp() {
               </div>
             )}
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 stats-grid">
+            {/* Mobile-Optimized Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-6 stats-grid">
               <Card className="bg-green-50 border-green-200 credits-card">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 md:p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
                   <p className="text-sm text-green-600 font-medium">
                     {t('dashboard.credits')}
@@ -5869,7 +5900,7 @@ export default function CompleteApp() {
               </Card>
 
               <Card className="bg-purple-50 border-purple-200 loyalty-card">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 md:p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
                   <p className="text-sm text-purple-600 font-medium">
                     {t('dashboard.loyaltyPoints')}
@@ -5883,7 +5914,7 @@ export default function CompleteApp() {
               </Card>
 
               <Card className="bg-orange-50 border-orange-200 tokens-card">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 md:p-6 text-center">
                   <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
                   <p className="text-sm text-orange-600 font-medium">
                     {t('dashboard.tokens')}
