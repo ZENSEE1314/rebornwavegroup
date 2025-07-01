@@ -63,16 +63,59 @@ import {
 function AdminLogsSection() {
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Fetch admin logs query
-  const { data: logsResponse, isLoading: logsLoading } = useQuery({
+  // Fetch admin logs query with proper error handling
+  const { data: logsResponse, isLoading: logsLoading, error } = useQuery({
     queryKey: ['/api/admin/logs', currentPage],
-    queryFn: () => 
-      fetch(`/api/admin/logs?page=${currentPage}&limit=50`, {
-        credentials: 'include'
-      }).then(res => res.json())
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/admin/logs?page=${currentPage}&limit=50`, {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch admin logs:', error);
+        throw error;
+      }
+    },
+    retry: 2,
+    retryDelay: 1000
   });
 
   const adminLogs = logsResponse?.data || [];
+  
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+  
+  // Show error state if query failed
+  if (error) {
+    return (
+      <Card className="bg-slate-800/60 border-slate-700/50">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-white flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Admin Action Logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-400 py-8">
+            Failed to load admin logs. Please try again later.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card className="bg-slate-800/60 border-slate-700/50">

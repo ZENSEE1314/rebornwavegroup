@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Send real-time update via WebSocket to synchronize frontend
-      if (global.wss) {
+      if ((global as any).wss) {
         const updateMessage = {
           type: 'petStatsUpdate',
           petId: parseInt(petId),
@@ -561,7 +561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         console.log('Broadcasting pet stats update via WebSocket:', updateMessage);
-        global.wss.clients.forEach((client: any) => {
+        (global as any).wss.clients.forEach((client: any) => {
           if (client.readyState === 1) { // WebSocket.OPEN
             client.send(JSON.stringify(updateMessage));
           }

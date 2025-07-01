@@ -169,9 +169,19 @@ export function useWebSocket(enabled: boolean = true) {
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
+        // Clear any existing reconnect timeout and try again
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        reconnectTimeoutRef.current = setTimeout(connect, 5000);
       };
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
+      // Schedule reconnect on connection failure
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      reconnectTimeoutRef.current = setTimeout(connect, 5000);
     }
   }, [enabled]);
 
