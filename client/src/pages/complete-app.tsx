@@ -6051,74 +6051,42 @@ export default function CompleteApp() {
             </div>
 
             {/* Mobile Quick Action Buttons */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <Card className="bg-blue-50 border-blue-200 hover:shadow-lg transition-all duration-200 animate-fadeInUp">
-                <CardContent className="p-4 text-center">
-                  <Camera className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                  <p className="text-sm font-medium text-blue-600 mb-2">
-                    {t('dashboard.purchaseVerification') || 'Purchase Verification'}
-                  </p>
-                  <Button 
-                    size="sm" 
-                    onClick={() => setShowPurchaseVerificationModal(true)} 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Camera className="w-3 h-3 mr-1" />
-                    {t('dashboard.verify') || 'Verify'}
-                  </Button>
-                </CardContent>
-              </Card>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Button 
+                size="sm" 
+                onClick={() => setShowPurchaseVerificationModal(true)} 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Purchase Verification
+              </Button>
 
-              <Card className="bg-purple-50 border-purple-200 hover:shadow-lg transition-all duration-200 animate-fadeInUp">
-                <CardContent className="p-4 text-center">
-                  <Calendar className="h-8 w-8 mx-auto text-purple-600 mb-2" />
-                  <p className="text-sm font-medium text-purple-600 mb-2">
-                    {t('navigation.bookings') || 'Bookings'}
-                  </p>
-                  <Button 
-                    size="sm" 
-                    onClick={() => setActiveTab("bookings")} 
-                    className="w-full bg-purple-600 hover:bg-purple-700"
-                  >
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {t('dashboard.book') || 'Book'}
-                  </Button>
-                </CardContent>
-              </Card>
+              <Button 
+                size="sm" 
+                onClick={() => setActiveTab("bookings")} 
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Bookings
+              </Button>
 
-              <Card className="bg-pink-50 border-pink-200 hover:shadow-lg transition-all duration-200 animate-fadeInUp">
-                <CardContent className="p-4 text-center">
-                  <Package className="h-8 w-8 mx-auto text-pink-600 mb-2" />
-                  <p className="text-sm font-medium text-pink-600 mb-2">
-                    {t('navigation.collections') || 'Collections'}
-                  </p>
-                  <Button 
-                    size="sm" 
-                    onClick={() => setActiveTab("collections")} 
-                    className="w-full bg-pink-600 hover:bg-pink-700"
-                  >
-                    <Package className="w-3 h-3 mr-1" />
-                    {t('dashboard.view') || 'View'}
-                  </Button>
-                </CardContent>
-              </Card>
+              <Button 
+                size="sm" 
+                onClick={() => setActiveTab("inventory")} 
+                className="bg-pink-600 hover:bg-pink-700 text-white"
+              >
+                <Package className="w-4 h-4 mr-2" />
+                Collections
+              </Button>
 
-              <Card className="bg-emerald-50 border-emerald-200 hover:shadow-lg transition-all duration-200 animate-fadeInUp">
-                <CardContent className="p-4 text-center">
-                  <Users className="h-8 w-8 mx-auto text-emerald-600 mb-2" />
-                  <p className="text-sm font-medium text-emerald-600 mb-2">
-                    {t('navigation.referrals') || 'Referrals'}
-                  </p>
-                  <Button 
-                    size="sm" 
-                    onClick={() => setActiveTab("referral")} 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    <Users className="w-3 h-3 mr-1" />
-                    {t('dashboard.refer') || 'Refer'}
-                  </Button>
-                </CardContent>
-              </Card>
+              <Button 
+                size="sm" 
+                onClick={() => setActiveTab("referrals")} 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Referrals
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
