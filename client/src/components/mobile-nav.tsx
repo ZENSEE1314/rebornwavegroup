@@ -15,8 +15,8 @@ export default function MobileNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 md:hidden z-40">
-      <div className="grid grid-cols-5 gap-1">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 md:hidden z-40 safe-area-bottom">
+      <div className="grid grid-cols-5">
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
@@ -24,13 +24,13 @@ export default function MobileNav() {
           return (
             <Link key={item.name} href={item.href}>
               <div className={cn(
-                "flex flex-col items-center justify-center py-2 px-1 transition-colors",
+                "flex flex-col items-center justify-center py-3 px-2 min-h-[60px] transition-colors",
                 isActive 
-                  ? "text-primary-600" 
-                  : "text-slate-500 hover:text-primary-600"
+                  ? "text-primary bg-primary/10" 
+                  : "text-slate-500 hover:text-primary hover:bg-slate-50"
               )}>
-                <Icon className="h-5 w-5 mb-1" />
-                <span className="text-xs font-medium">{item.name}</span>
+                <Icon className="h-6 w-6 mb-1" />
+                <span className="text-xs font-medium leading-tight text-center">{item.name}</span>
               </div>
             </Link>
           );

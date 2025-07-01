@@ -6049,14 +6049,14 @@ export default function CompleteApp() {
               {/* Referral Section */}
               <div>
                 <Card className="bg-gradient-to-br from-emerald-500 to-blue-600 text-white">
-                  <CardHeader>
-                    <CardTitle className="text-white">
+                  <CardHeader className="p-4 md:p-6">
+                    <CardTitle className="text-white text-lg md:text-xl">
                       {t("referral.yourCode")}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="bg-white/20 rounded-lg p-4 mb-4 text-center">
-                      <p className="text-3xl font-bold font-mono mb-2">{referralCode}</p>
+                  <CardContent className="p-4 md:p-6">
+                    <div className="bg-white/20 rounded-lg p-3 md:p-4 mb-4 text-center">
+                      <p className="text-xl md:text-3xl font-bold font-mono mb-2">{referralCode}</p>
                       <p className="text-emerald-100 text-sm">
                         {t("referral.shareToEarn")}
                       </p>
