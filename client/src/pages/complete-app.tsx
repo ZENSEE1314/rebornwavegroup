@@ -5464,14 +5464,11 @@ export default function CompleteApp() {
               </div>
             </div>
 
-            {/* Center - Logo Button */}
-            <div className="flex-shrink-0">
-              <Button
-                onClick={() => setActiveTab("dashboard")}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
-              >
-                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
-              </Button>
+            {/* Center - Title */}
+            <div className="flex-shrink-0 text-center">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Reborn Wave House
+              </h1>
             </div>
             
             {/* Right Side Controls - Enhanced Design */}
@@ -6049,6 +6046,16 @@ export default function CompleteApp() {
                   <p className="text-2xl font-bold text-yellow-800">RP {formatRupiah(referralEarnings)}</p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Square Logo Button */}
+            <div className="flex justify-center my-6">
+              <Button
+                onClick={() => setActiveTab("dashboard")}
+                className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-3 shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                <img src={logoImage} alt="Reborn Wave House" className="w-12 h-12 object-contain filter brightness-0 invert" />
+              </Button>
             </div>
 
             {/* Mobile Quick Action Buttons */}
