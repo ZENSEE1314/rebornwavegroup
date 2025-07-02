@@ -5836,7 +5836,10 @@ export default function CompleteApp() {
                     <SelectValue placeholder={t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {toyInventory.filter((toy) => {
+                    {marketplaceListings.filter((toy) => {
+                      // Only show toys owned by current user
+                      const isOwnedByUser = toy.ownerId === user?.id;
+                      
                       // Hide toys that are already actively listed (API includes isListing flag)
                       const isAlreadyListed = toy.isListing === true;
                       
@@ -5850,7 +5853,7 @@ export default function CompleteApp() {
                       // Hide activated toys (they became pets and can't be sold)
                       const isActivated = toy.isActivated === true;
                       
-                      return !isAlreadyListed && !hasPendingTransaction && !isActivated;
+                      return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
                     }).map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
                         {toy.image} {toy.name} ({toy.rarity})
