@@ -855,12 +855,12 @@ export class DatabaseStorage implements IStorage {
 
     console.log("*** OWNERSHIP DEBUG:", {
       toyExists: !!toy,
-      toyOwnerId: toy?.owner_id,
+      toyOwnerId: toy?.ownerId,
       listingSellerId: listing.sellerId,
-      match: toy?.owner_id === listing.sellerId
+      match: toy?.ownerId === listing.sellerId
     });
 
-    if (!toy || toy.owner_id !== listing.sellerId) {
+    if (!toy || toy.ownerId !== listing.sellerId) {
       throw new Error('You do not own this toy');
     }
 
