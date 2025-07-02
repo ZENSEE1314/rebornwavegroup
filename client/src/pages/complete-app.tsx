@@ -5952,31 +5952,31 @@ export default function CompleteApp() {
             )}
 
             {/* Mobile Only - Bigger Icon-Only Action Buttons Below Banner */}
-            <div className="grid md:hidden grid-cols-4 gap-4 mb-6 px-4">
+            <div className="flex md:hidden justify-center gap-3 mb-6 px-4">
               <Button 
                 onClick={() => setActiveTab("purchase")} 
-                className="w-20 h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
+                className="w-20 h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Camera className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("bookings")} 
-                className="w-20 h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
+                className="w-20 h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Calendar className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("inventory")} 
-                className="w-20 h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
+                className="w-20 h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Package className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("referrals")} 
-                className="w-20 h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
+                className="w-20 h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Users className="w-8 h-8" />
               </Button>
