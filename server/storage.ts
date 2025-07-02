@@ -937,6 +937,7 @@ export class DatabaseStorage implements IStorage {
         listingId: listings.id,
         listingPrice: listings.price,
         sellerId: listings.sellerId,
+        sellerName: sql`concat(${users.firstName}, ' ', ${users.lastName})`.as('sellerName'),
         season: {
           id: seasons.id,
           name: seasons.name,
@@ -944,6 +945,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(listings)
       .innerJoin(toys, eq(listings.toyId, toys.id))
+      .innerJoin(users, eq(listings.sellerId, users.id))
       .leftJoin(seasons, eq(toys.seasonId, seasons.id))
       .where(eq(listings.status, 'active'));
 
