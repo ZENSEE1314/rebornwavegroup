@@ -5194,6 +5194,44 @@ export default function CompleteApp() {
 
   // buyToy and confirmPurchaseDialog functions already defined above
 
+  // Handle purchasing toys from user listings
+  const handlePurchaseToy = async (toyId: number, price: number) => {
+    try {
+      const response = await fetch(`/api/toys/${toyId}/purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ price })
+      });
+
+      if (response.ok) {
+        toast({
+          title: t('marketplace.purchaseInitiated'),
+          description: t('marketplace.purchaseSuccessDescription')
+        });
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['/api/listings'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/pending-purchases'] });
+      } else {
+        const error = await response.json();
+        toast({
+          title: t('marketplace.purchaseError'),
+          description: error.message || t('marketplace.purchaseErrorDescription'),
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error purchasing toy:', error);
+      toast({
+        title: t('marketplace.purchaseError'),
+        description: t('marketplace.purchaseErrorDescription'),
+        variant: "destructive"
+      });
+    }
+  };
+
   // Function to confirm purchase as seller
   const confirmPurchase = async (purchaseId) => {
     try {
@@ -7205,11 +7243,14 @@ export default function CompleteApp() {
                     <div className="col-span-full text-center py-12">
                       <ShoppingBag className="w-16 h-16 mx-auto text-gray-400 mb-4" />
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                        {t('marketplace.noToysForSale')}
+                        No Toys For Sale
                       </h3>
                       <p className="text-sm">
-                        {t('marketplace.beFirstToSell')}
+                        Be the first to sell your toy!
                       </p>
+                    </div>
+                  );
+                })()}
                     </div>
                   );
                 })()}
