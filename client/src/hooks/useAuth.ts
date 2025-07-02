@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getQueryFn, apiRequest } from "@/lib/queryClient";
 
 export function useAuth() {
+  const queryClient = useQueryClient();
+  
   const { data: user, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -16,11 +18,32 @@ export function useAuth() {
     gcTime: 5 * 60 * 1000, // 5 minutes garbage collection time
   });
 
+  const logout = async () => {
+    try {
+      await apiRequest('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      // Clear all cached data
+      queryClient.clear();
+      
+      // Redirect to login
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, clear cache and redirect
+      queryClient.clear();
+      window.location.href = '/login';
+    }
+  };
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user && !error,
     error,
     refetch,
+    logout,
   };
 }
