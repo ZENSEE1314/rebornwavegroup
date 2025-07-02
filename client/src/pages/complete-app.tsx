@@ -5837,20 +5837,8 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {toyInventory.filter((toy) => {
-                      // Only show toys that are NOT already actively listed by this user
-                      const isAlreadyListed = marketplaceListings?.some((listing: any) => 
-                        listing.id === toy.id && 
-                        listing.sellerId === user?.id &&
-                        listing.isListing
-                      );
-                      
-                      // Debug all toys in dropdown filtering
-                      console.log(`Dropdown filter for ${toy.name} (ID: ${toy.id}):`, {
-                        isAlreadyListed,
-                        isActivated: toy.isActivated,
-                        shouldShow: !isAlreadyListed && !toy.isActivated,
-                        marketplaceMatches: marketplaceListings?.filter((l: any) => l.id === toy.id && l.sellerId === user?.id)
-                      });
+                      // Hide toys that are already actively listed (API includes isListing flag)
+                      const isAlreadyListed = toy.isListing === true;
                       
                       // Also hide toys that have pending transactions
                       const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 

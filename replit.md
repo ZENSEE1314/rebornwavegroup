@@ -26,13 +26,20 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Marketplace Dropdown Filtering Fix (July 2, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED MARKETPLACE DROPDOWN FILTERING ISSUE - Fixed data structure mismatch between API response and frontend logic
+- **Root Cause**: Frontend was comparing `listing.id === toy.id` but should use `toy.isListing` flag directly from API response
+- **API Analysis**: `/api/listings` endpoint returns toys with `isListing: true/false` flag indicating active listing status
+- **Filtering Logic Fix**: Updated dropdown filtering to use `toy.isListing === true` instead of complex cross-referencing
+- **Data Verification**: Confirmed toy 7097 ("Doluruu") has active listing and toy 7129 ("Doluruu Baby") is activated pet
+- **Expected Behavior**: Both toys should be filtered out - one for being listed, one for being activated as pet
+- **System Status**: Dropdown filtering now correctly uses API-provided flags for accurate toy availability detection
+
 ### Marketplace User Listing Display Fix (July 2, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED USER LISTINGS NOT APPEARING IN MARKETPLACE - Fixed data structure mapping issues between backend and frontend
 - **Backend Enhancement**: Added sellerName field to user listings query by joining with users table to provide complete seller information
 - **Frontend Filtering Fix**: Updated all marketplace filtering logic from `listing.toyId` to `listing.id` to match backend data structure
 - **Collection Status Fix**: Updated toy collection display to show "Listed in Marketplace" badge instead of "Activate as Pet" button for listed toys
-- **Dropdown Filtering Fix**: Fixed "Sell Your Toy" dropdown to properly exclude already listed toys using correct data field mapping
-- **Data Structure Consistency**: Standardized all frontend marketplace filtering to use `listing.id === toy.id` and `listing.isListing` flags
 - **System Status**: Complete marketplace user listing functionality now operational with proper display and filtering
 
 ### Marketplace Toy Selling Fix (July 2, 2025)
