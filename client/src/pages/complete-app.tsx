@@ -5982,7 +5982,7 @@ export default function CompleteApp() {
               </Button>
             </div>
 
-            {/* Mobile: 2x2 Grid Layout, Desktop: 5 Column Grid */}
+            {/* Mobile: 3-Row Layout, Desktop: 5 Column Grid */}
             <div className="md:grid md:grid-cols-5 md:gap-6 stats-grid">
               {/* Mobile: First Row - Credits and Loyalty Points */}
               <div className="grid md:hidden grid-cols-2 gap-2 mb-2">
@@ -6031,7 +6031,7 @@ export default function CompleteApp() {
               </div>
 
               {/* Mobile: Second Row - Tokens and Referrals */}
-              <div className="grid md:hidden grid-cols-2 gap-2 mb-4">
+              <div className="grid md:hidden grid-cols-2 gap-2 mb-2">
                 <Card className="bg-orange-50 border-orange-200 tokens-card">
                   <CardContent className="p-2 text-center">
                     <Gift className="h-6 w-6 mx-auto text-orange-600 mb-1" />
@@ -6073,9 +6073,22 @@ export default function CompleteApp() {
                       onClick={toggleAchievementRules}
                       className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs px-1"
                     >
-                      <Trophy className="w-2 h-2 mr-1" />
-                      Achievement
+                      <Trophy className="w-1.5 h-1.5 mr-1" />
+                      <span className="text-xs">Achievement</span>
                     </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Mobile: Third Row - Referral Earnings */}
+              <div className="md:hidden mb-4">
+                <Card className="bg-yellow-50 border-yellow-200 earnings-card">
+                  <CardContent className="p-2 text-center">
+                    <DollarSign className="h-6 w-6 mx-auto text-yellow-600 mb-1" />
+                    <p className="text-xs text-yellow-600 font-medium">
+                      {t('dashboard.referralEarnings')}
+                    </p>
+                    <p className="text-lg font-bold text-yellow-800">RP {formatRupiah(referralEarnings)}</p>
                   </CardContent>
                 </Card>
               </div>
