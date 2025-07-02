@@ -5839,9 +5839,9 @@ export default function CompleteApp() {
                     {toyInventory.filter((toy) => {
                       // Only show toys that are NOT already actively listed by this user
                       const isAlreadyListed = marketplaceListings?.some((listing: any) => 
-                        listing.toyId === toy.id && 
+                        listing.id === toy.id && 
                         listing.sellerId === user?.id &&
-                        listing.status === 'active'
+                        listing.isListing
                       );
                       
                       // Also hide toys that have pending transactions

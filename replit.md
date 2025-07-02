@@ -26,6 +26,15 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Marketplace User Listing Display Fix (July 2, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED USER LISTINGS NOT APPEARING IN MARKETPLACE - Fixed data structure mapping issues between backend and frontend
+- **Backend Enhancement**: Added sellerName field to user listings query by joining with users table to provide complete seller information
+- **Frontend Filtering Fix**: Updated all marketplace filtering logic from `listing.toyId` to `listing.id` to match backend data structure
+- **Collection Status Fix**: Updated toy collection display to show "Listed in Marketplace" badge instead of "Activate as Pet" button for listed toys
+- **Dropdown Filtering Fix**: Fixed "Sell Your Toy" dropdown to properly exclude already listed toys using correct data field mapping
+- **Data Structure Consistency**: Standardized all frontend marketplace filtering to use `listing.id === toy.id` and `listing.isListing` flags
+- **System Status**: Complete marketplace user listing functionality now operational with proper display and filtering
+
 ### Marketplace Toy Selling Fix (July 2, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED MARKETPLACE TOY SELLING ERROR - Fixed duplicate listing validation causing 500 errors
 - **Root Cause**: Conflicting validation checks between route handler and storage layer causing database field mismatch
