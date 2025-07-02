@@ -5464,11 +5464,14 @@ export default function CompleteApp() {
               </div>
             </div>
 
-            {/* Center - Title */}
-            <div className="flex-shrink-0 text-center">
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Reborn Wave House
-              </h1>
+            {/* Center - Logo Button */}
+            <div className="flex-shrink-0">
+              <Button
+                onClick={() => setActiveTab("dashboard")}
+                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
+              </Button>
             </div>
             
             {/* Right Side Controls - Enhanced Design */}
@@ -6048,52 +6051,34 @@ export default function CompleteApp() {
               </Card>
             </div>
 
-            {/* Square Logo Button */}
-            <div className="flex justify-center my-6">
-              <Button
-                onClick={() => setActiveTab("dashboard")}
-                className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-3 shadow-lg hover:scale-105 transition-all duration-300"
-              >
-                <img src={logoImage} alt="Reborn Wave House" className="w-12 h-12 object-contain filter brightness-0 invert" />
-              </Button>
-            </div>
-
-            {/* Mobile Quick Action Buttons */}
-            <div className="flex flex-wrap gap-2 justify-center">
+            {/* Mobile Only - Icon-Only Action Buttons (Hidden on Desktop) */}
+            <div className="flex md:hidden justify-center gap-3 mt-6">
               <Button 
-                size="sm" 
                 onClick={() => setActiveTab("purchase")} 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
               >
-                <Camera className="w-4 h-4 mr-2" />
-                Purchase Verification
+                <Camera className="w-5 h-5" />
               </Button>
 
               <Button 
-                size="sm" 
                 onClick={() => setActiveTab("bookings")} 
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
               >
-                <Calendar className="w-4 h-4 mr-2" />
-                Bookings
+                <Calendar className="w-5 h-5" />
               </Button>
 
               <Button 
-                size="sm" 
                 onClick={() => setActiveTab("inventory")} 
-                className="bg-pink-600 hover:bg-pink-700 text-white"
+                className="w-12 h-12 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
               >
-                <Package className="w-4 h-4 mr-2" />
-                Collections
+                <Package className="w-5 h-5" />
               </Button>
 
               <Button 
-                size="sm" 
                 onClick={() => setActiveTab("referrals")} 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
               >
-                <Users className="w-4 h-4 mr-2" />
-                Referrals
+                <Users className="w-5 h-5" />
               </Button>
             </div>
 
