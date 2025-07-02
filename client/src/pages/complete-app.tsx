@@ -1068,7 +1068,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   const ownedToys = Array.isArray(userToys) ? userToys.filter((toy: any) => 
     toy.ownerId === user?.id &&
     !pets?.some((pet: any) => pet.toyId === toy.id) &&
-    !marketplaceListings?.some((listing: any) => listing.toyId === toy.id && listing.status === 'active')
+    !marketplaceListings?.some((listing: any) => listing.id === toy.id && listing.isListing)
   ) : [];
 
   // Get unactivated toys (toys without QR codes activated)
@@ -2292,7 +2292,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   // Filter out toys that are currently listed in marketplace
   const petCareToys = userOwnedToys.filter((toy: any) => {
     const isListed = Array.isArray(marketplaceListings) && marketplaceListings.some((listing: any) => 
-      listing.toyId === toy.id && listing.status === 'active'
+      listing.id === toy.id && listing.isListing
     );
     return !isListed;
   });
@@ -7981,9 +7981,9 @@ export default function CompleteApp() {
                 
                 // Check if this toy is currently listed in marketplace
                 const activeListing = Array.isArray(marketplaceListings) ? marketplaceListings.find((listing: any) => 
-                  listing?.toyId === toy?.id && 
+                  listing?.id === toy?.id && 
                   listing?.sellerId === user?.id &&
-                  listing?.status === 'active'
+                  listing?.isListing
                 ) : null;
                 
                 return (

@@ -956,14 +956,6 @@ export class DatabaseStorage implements IStorage {
     const userListings = await userListingsQuery;
     results.push(...userListings);
     
-    console.log('*** MARKETPLACE DEBUG - Final results:', {
-      unownedToysCount: unownedToys.length,
-      userListingsCount: userListings.length,
-      totalResults: results.length,
-      seasonFilter,
-      userListings: userListings.map(l => ({ id: l.id, name: l.name, listingId: l.listingId, sellerId: l.sellerId }))
-    });
-    
     return results;
   }
 
