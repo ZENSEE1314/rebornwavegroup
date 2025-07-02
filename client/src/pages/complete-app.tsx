@@ -5983,10 +5983,9 @@ export default function CompleteApp() {
             </div>
 
             {/* Mobile: 3-Row Layout, Desktop: 5 Column Grid */}
-            <div className="md:grid md:grid-cols-5 md:gap-6 stats-grid">
+            <div className="md:grid md:grid-cols-5 md:gap-6 mobile-stats-grid">
               {/* Mobile: First Row - Credits and Loyalty Points */}
-              <div className="block md:hidden">
-                <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="mobile-row-2-cols">
                   <Card className="bg-green-50 border-green-200 credits-card">
                     <CardContent className="p-2 text-center">
                       <DollarSign className="h-6 w-6 mx-auto text-green-600 mb-1" />
@@ -6029,12 +6028,10 @@ export default function CompleteApp() {
                       </Button>
                     </CardContent>
                   </Card>
-                </div>
               </div>
 
               {/* Mobile: Second Row - Tokens and Referrals */}
-              <div className="block md:hidden">
-                <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="mobile-row-2-cols">
                   <Card className="bg-orange-50 border-orange-200 tokens-card">
                     <CardContent className="p-2 text-center">
                       <Gift className="h-6 w-6 mx-auto text-orange-600 mb-1" />
@@ -6077,15 +6074,14 @@ export default function CompleteApp() {
                         className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-1"
                       >
                         <Trophy className="w-1 h-1 mr-0.5" />
-                        <span style={{fontSize: '8px'}} className="leading-tight">Achievement</span>
+                        <span className="achievement-text-tiny">Achievement</span>
                       </Button>
                     </CardContent>
                   </Card>
-                </div>
               </div>
 
               {/* Mobile: Third Row - Referral Earnings */}
-              <div className="block md:hidden mb-4">
+              <div className="mobile-row-full">
                 <Card className="bg-yellow-50 border-yellow-200 earnings-card">
                   <CardContent className="p-2 text-center">
                     <DollarSign className="h-6 w-6 mx-auto text-yellow-600 mb-1" />
