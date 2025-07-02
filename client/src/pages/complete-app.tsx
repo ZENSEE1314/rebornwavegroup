@@ -5951,8 +5951,8 @@ export default function CompleteApp() {
               </div>
             )}
 
-            {/* Mobile Only - Bigger Icon-Only Action Buttons Below Banner */}
-            <div className="flex md:hidden justify-center gap-3 mb-6 px-4">
+            {/* Mobile Only - 4 Navigation Buttons in Horizontal Row */}
+            <div className="flex md:hidden flex-row justify-center items-center gap-3 mb-6 px-4 w-full">
               <Button 
                 onClick={() => setActiveTab("purchase")} 
                 className="w-20 h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
