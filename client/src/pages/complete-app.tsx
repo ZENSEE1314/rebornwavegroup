@@ -10,20 +10,49 @@ import {
   Heart, Droplets, Bed, Sparkles
 } from "lucide-react";
 
+interface UserStats {
+  credits?: string;
+  loyaltyPoints?: number;
+  referrals?: any[];
+}
+
+interface Pet {
+  id: number;
+  name: string;
+  growthStage: string;
+  happiness: number;
+  hunger: number;
+  cleanliness?: number;
+  energy?: number;
+}
+
+interface User {
+  id?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}
+
 export default function CompleteApp() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("dashboard");
 
+  // Type the user object
+  const typedUser = user as User | undefined;
+
   // Fetch user stats
   const { data: userStats = {} } = useQuery({
     queryKey: ['/api/user/stats'],
   });
+  const typedUserStats = userStats as UserStats;
 
   // Fetch pets
   const { data: pets = [] } = useQuery({
     queryKey: ['/api/pets'],
   });
+  const typedPets = pets as Pet[];
 
   const navigation = [
     { id: "dashboard", label: "Dashboard", icon: Home },
@@ -56,7 +85,7 @@ export default function CompleteApp() {
             
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
-                Welcome, {user?.firstName || user?.email}
+                Welcome, {typedUser?.firstName || typedUser?.email}
               </div>
               <Button 
                 variant="outline" 
@@ -112,7 +141,7 @@ export default function CompleteApp() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {userStats.credits || "0"}
+                    {typedUserStats.credits || "0"}
                   </div>
                 </CardContent>
               </Card>
@@ -124,7 +153,7 @@ export default function CompleteApp() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {userStats.loyaltyPoints || 0}
+                    {typedUserStats.loyaltyPoints || 0}
                   </div>
                 </CardContent>
               </Card>
@@ -136,7 +165,7 @@ export default function CompleteApp() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {pets.length || 0}
+                    {typedPets.length || 0}
                   </div>
                 </CardContent>
               </Card>
@@ -148,7 +177,7 @@ export default function CompleteApp() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {userStats.referrals?.length || 0}
+                    {typedUserStats.referrals?.length || 0}
                   </div>
                 </CardContent>
               </Card>
@@ -173,9 +202,9 @@ export default function CompleteApp() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">Pet Care</h2>
             
-            {pets.length > 0 ? (
+            {typedPets.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pets.map((pet: any) => (
+                {typedPets.map((pet) => (
                   <Card key={pet.id}>
                     <CardHeader>
                       <CardTitle className="flex items-center justify-between">
@@ -270,7 +299,7 @@ export default function CompleteApp() {
                   Loyalty Rewards
                 </h3>
                 <p className="text-gray-500 mb-4">
-                  Current Points: {userStats.loyaltyPoints || 0}
+                  Current Points: {typedUserStats.loyaltyPoints || 0}
                 </p>
                 <p className="text-gray-500">
                   Redeem points for exclusive rewards and benefits
@@ -290,18 +319,18 @@ export default function CompleteApp() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <p className="mt-1 text-sm text-gray-900">{user?.email}</p>
+                  <p className="mt-1 text-sm text-gray-900">{typedUser?.email}</p>
                 </div>
-                {user?.firstName && (
+                {typedUser?.firstName && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">First Name</label>
-                    <p className="mt-1 text-sm text-gray-900">{user.firstName}</p>
+                    <p className="mt-1 text-sm text-gray-900">{typedUser.firstName}</p>
                   </div>
                 )}
-                {user?.lastName && (
+                {typedUser?.lastName && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                    <p className="mt-1 text-sm text-gray-900">{user.lastName}</p>
+                    <p className="mt-1 text-sm text-gray-900">{typedUser.lastName}</p>
                   </div>
                 )}
               </CardContent>

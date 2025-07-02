@@ -20,7 +20,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await apiRequest('/api/auth/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
