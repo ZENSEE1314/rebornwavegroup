@@ -6180,10 +6180,10 @@ export default function CompleteApp() {
                   <Button 
                     size="sm" 
                     onClick={toggleAchievementRules}
-                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm px-3"
+                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3"
                   >
-                    <Trophy className="w-4 h-4 mr-1" />
-                    Achievement
+                    <Trophy className="w-3 h-3 mr-0.5" />
+                    <span style={{fontSize: '10px'}}>Achievement</span>
                   </Button>
                 </CardContent>
               </Card>

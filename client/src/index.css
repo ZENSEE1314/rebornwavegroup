@@ -41,6 +41,15 @@
   .mobile-stats-grid > .hidden {
     display: none !important;
   }
+  
+  /* Force mobile grid to work properly */
+  @media (max-width: 767px) {
+    div[class*="grid-cols-2"] {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0.5rem !important;
+    }
+  }
 }
 
 /* Modern App Animations */
