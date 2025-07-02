@@ -1991,6 +1991,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
       if (toys.length > 0) {
         console.log("*** FIRST TOY:", JSON.stringify(toys[0], null, 2));
+        console.log("*** TOY ACTIVATION FIELD CHECK:", {
+          isActivated: toys[0].isActivated,
+          is_activated: toys[0].is_activated,
+          activated: toys[0].activated
+        });
       }
       res.json(toys);
     } catch (error) {
