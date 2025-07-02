@@ -872,8 +872,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllListings(seasonFilter?: string): Promise<any[]> {
-    // Show only 1 random toy from unowned toys as marketplace listing
-    let query = db
+    // Get both unowned toys (Season Packs) and user listings
+    const results = [];
+    
+    // 1. Get unowned toys (Season Packs) - only 1 random toy
+    let unownedQuery = db
       .select({
         id: toys.id,
         name: toys.name,
@@ -888,6 +891,10 @@ export class DatabaseStorage implements IStorage {
         ownerId: toys.ownerId,
         isActivated: toys.isActivated,
         createdAt: toys.createdAt,
+        isListing: sql`false`.as('isListing'),
+        listingId: sql`null`.as('listingId'),
+        listingPrice: sql`null`.as('listingPrice'),
+        sellerId: sql`null`.as('sellerId'),
         season: {
           id: seasons.id,
           name: seasons.name,
@@ -901,44 +908,53 @@ export class DatabaseStorage implements IStorage {
       ));
 
     if (seasonFilter && seasonFilter !== 'all') {
-      query = db
-        .select({
-          id: toys.id,
-          name: toys.name,
-          series: toys.series,
-          rarity: toys.rarity,
-          imageUrl: toys.imageUrl,
-          gender: toys.gender,
-          color: toys.color,
-          salePrice: toys.salePrice,
-          originalPrice: toys.originalPrice,
-          seasonId: toys.seasonId,
-          ownerId: toys.ownerId,
-          isActivated: toys.isActivated,
-          createdAt: toys.createdAt,
-          season: {
-            id: seasons.id,
-            name: seasons.name,
-          }
-        })
-        .from(toys)
-        .leftJoin(seasons, eq(toys.seasonId, seasons.id))
-        .where(and(
-          isNull(toys.ownerId),
-          eq(toys.isActivated, false),
-          eq(seasons.name, seasonFilter)
-        ));
+      unownedQuery = unownedQuery.where(eq(seasons.name, seasonFilter));
     }
 
-    // Get all available toys and return only 1 random toy
-    const allToys = await query;
-    if (allToys.length === 0) {
-      return [];
+    const unownedToys = await unownedQuery;
+    if (unownedToys.length > 0) {
+      const randomIndex = Math.floor(Math.random() * unownedToys.length);
+      results.push(unownedToys[randomIndex]);
     }
     
-    // Return 1 random toy from available toys
-    const randomIndex = Math.floor(Math.random() * allToys.length);
-    return [allToys[randomIndex]];
+    // 2. Get user listings from the listings table
+    let userListingsQuery = db
+      .select({
+        id: toys.id,
+        name: toys.name,
+        series: toys.series,
+        rarity: toys.rarity,
+        imageUrl: toys.imageUrl,
+        gender: toys.gender,
+        color: toys.color,
+        salePrice: toys.salePrice,
+        originalPrice: toys.originalPrice,
+        seasonId: toys.seasonId,
+        ownerId: toys.ownerId,
+        isActivated: toys.isActivated,
+        createdAt: toys.createdAt,
+        isListing: sql`true`.as('isListing'),
+        listingId: listings.id,
+        listingPrice: listings.price,
+        sellerId: listings.sellerId,
+        season: {
+          id: seasons.id,
+          name: seasons.name,
+        }
+      })
+      .from(listings)
+      .innerJoin(toys, eq(listings.toyId, toys.id))
+      .leftJoin(seasons, eq(toys.seasonId, seasons.id))
+      .where(eq(listings.status, 'active'));
+
+    if (seasonFilter && seasonFilter !== 'all') {
+      userListingsQuery = userListingsQuery.where(eq(seasons.name, seasonFilter));
+    }
+
+    const userListings = await userListingsQuery;
+    results.push(...userListings);
+    
+    return results;
   }
 
   // Purchase toy method - assigns toy to user and returns new random marketplace toy
