@@ -5450,8 +5450,16 @@ export default function CompleteApp() {
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
         <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            {/* Left Side - Welcome Text */}
+            {/* Left Side - Logo and Welcome Text */}
             <div className="flex items-center space-x-3 flex-1">
+              {/* Logo Button - Top Left */}
+              <Button
+                onClick={() => setActiveTab("dashboard")}
+                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
+              </Button>
+              
               <div className="hidden lg:flex items-center space-x-3">
                 <div className="text-left">
                   <p className="text-sm font-semibold text-gray-700">
@@ -5462,16 +5470,6 @@ export default function CompleteApp() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Center - Logo Button */}
-            <div className="flex-shrink-0">
-              <Button
-                onClick={() => setActiveTab("dashboard")}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
-              >
-                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
-              </Button>
             </div>
             
             {/* Right Side Controls - Enhanced Design */}
@@ -5948,6 +5946,37 @@ export default function CompleteApp() {
               </div>
             )}
 
+            {/* Mobile Only - Bigger Icon-Only Action Buttons (Hidden on Desktop) */}
+            <div className="flex md:hidden justify-center gap-4 mt-6">
+              <Button 
+                onClick={() => setActiveTab("purchase")} 
+                className="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center p-0 shadow-lg"
+              >
+                <Camera className="w-7 h-7" />
+              </Button>
+
+              <Button 
+                onClick={() => setActiveTab("bookings")} 
+                className="w-16 h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl flex items-center justify-center p-0 shadow-lg"
+              >
+                <Calendar className="w-7 h-7" />
+              </Button>
+
+              <Button 
+                onClick={() => setActiveTab("inventory")} 
+                className="w-16 h-16 bg-pink-600 hover:bg-pink-700 text-white rounded-2xl flex items-center justify-center p-0 shadow-lg"
+              >
+                <Package className="w-7 h-7" />
+              </Button>
+
+              <Button 
+                onClick={() => setActiveTab("referrals")} 
+                className="w-16 h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center p-0 shadow-lg"
+              >
+                <Users className="w-7 h-7" />
+              </Button>
+            </div>
+
             {/* Mobile-Optimized Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-6 stats-grid">
               <Card className="bg-green-50 border-green-200 credits-card">
@@ -6051,36 +6080,7 @@ export default function CompleteApp() {
               </Card>
             </div>
 
-            {/* Mobile Only - Icon-Only Action Buttons (Hidden on Desktop) */}
-            <div className="flex md:hidden justify-center gap-3 mt-6">
-              <Button 
-                onClick={() => setActiveTab("purchase")} 
-                className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
-              >
-                <Camera className="w-5 h-5" />
-              </Button>
 
-              <Button 
-                onClick={() => setActiveTab("bookings")} 
-                className="w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
-              >
-                <Calendar className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                onClick={() => setActiveTab("inventory")} 
-                className="w-12 h-12 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
-              >
-                <Package className="w-5 h-5" />
-              </Button>
-
-              <Button 
-                onClick={() => setActiveTab("referrals")} 
-                className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
-              >
-                <Users className="w-5 h-5" />
-              </Button>
-            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
               {/* Quick Booking */}
