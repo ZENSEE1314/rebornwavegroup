@@ -26,6 +26,14 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Marketplace Toy Selling Fix (July 2, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED MARKETPLACE TOY SELLING ERROR - Fixed duplicate listing validation causing 500 errors
+- **Root Cause**: Conflicting validation checks between route handler and storage layer causing database field mismatch
+- **Database Field Fix**: Updated ownership validation to use correct `owner_id` field instead of `ownerId` in createListing function
+- **Duplicate Check Removal**: Eliminated redundant listing validation in route handler since storage layer already performs comprehensive checks
+- **Error Message Enhancement**: Improved error handling to show actual error messages instead of generic "Failed to create listing"
+- **System Status**: Marketplace toy selling functionality now operational without validation conflicts
+
 ### Mobile Dashboard Layout Optimization (July 2, 2025)
 - **FINALIZED MOBILE STATS LAYOUT**: ✅ COMPLETE 3-ROW MOBILE DASHBOARD WITH OPTIMIZED CARD ORGANIZATION
 - **Row 1**: Credits and Loyalty Points displayed side by side in 2-column grid

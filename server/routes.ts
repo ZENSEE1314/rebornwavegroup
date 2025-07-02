@@ -2198,23 +2198,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sellerId: adminUserId,
       });
       
-      // Check for existing ACTIVE listing of the same toy by the same seller
-      const existingListings = await storage.getAllListings();
-      const duplicateListing = existingListings.find((listing: any) => 
-        listing.toyId === validatedData.toyId && 
-        listing.sellerId === adminUserId &&
-        listing.status === 'active'
-      );
-
-      if (duplicateListing) {
-        return res.status(400).json({ message: "This toy is already listed in the marketplace" });
-      }
-      
       const listing = await storage.createListing(validatedData);
       res.json(listing);
     } catch (error) {
       console.error("Error creating listing:", error);
-      res.status(500).json({ message: "Failed to create listing" });
+      res.status(500).json({ message: error.message || "Failed to create listing" });
     }
   });
 
