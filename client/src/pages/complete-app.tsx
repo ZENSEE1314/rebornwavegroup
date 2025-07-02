@@ -5844,6 +5844,14 @@ export default function CompleteApp() {
                         listing.isListing
                       );
                       
+                      // Debug all toys in dropdown filtering
+                      console.log(`Dropdown filter for ${toy.name} (ID: ${toy.id}):`, {
+                        isAlreadyListed,
+                        isActivated: toy.isActivated,
+                        shouldShow: !isAlreadyListed && !toy.isActivated,
+                        marketplaceMatches: marketplaceListings?.filter((l: any) => l.id === toy.id && l.sellerId === user?.id)
+                      });
+                      
                       // Also hide toys that have pending transactions
                       const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
                         purchase.toyId === toy.id && 
