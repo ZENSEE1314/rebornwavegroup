@@ -5952,91 +5952,188 @@ export default function CompleteApp() {
             )}
 
             {/* Mobile Only - Bigger Icon-Only Action Buttons Below Banner */}
-            <div className="flex md:hidden justify-center gap-4 mb-6">
+            <div className="grid md:hidden grid-cols-4 gap-4 mb-6 px-4">
               <Button 
                 onClick={() => setActiveTab("purchase")} 
-                className="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-20 h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
               >
-                <Camera className="w-7 h-7" />
+                <Camera className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("bookings")} 
-                className="w-16 h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-20 h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
               >
-                <Calendar className="w-7 h-7" />
+                <Calendar className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("inventory")} 
-                className="w-16 h-16 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-20 h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
               >
-                <Package className="w-7 h-7" />
+                <Package className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("referrals")} 
-                className="w-16 h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-20 h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0 mx-auto"
               >
-                <Users className="w-7 h-7" />
+                <Users className="w-8 h-8" />
               </Button>
             </div>
 
-            {/* Mobile-Optimized Stats Grid - 2 Columns Mobile, 5 Desktop */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-6 stats-grid">
-              <Card className="bg-green-50 border-green-200 credits-card">
-                <CardContent className="p-2 md:p-6 text-center">
-                  <DollarSign className="h-6 md:h-8 w-6 md:w-8 mx-auto text-green-600 mb-1 md:mb-2" />
-                  <p className="text-xs md:text-sm text-green-600 font-medium">
+            {/* Mobile: 2x2 Grid Layout, Desktop: 5 Column Grid */}
+            <div className="md:grid md:grid-cols-5 md:gap-6 stats-grid">
+              {/* Mobile: First Row - Credits and Loyalty Points */}
+              <div className="grid md:hidden grid-cols-2 gap-2 mb-2">
+                <Card className="bg-green-50 border-green-200 credits-card">
+                  <CardContent className="p-2 text-center">
+                    <DollarSign className="h-6 w-6 mx-auto text-green-600 mb-1" />
+                    <p className="text-xs text-green-600 font-medium">
+                      {t('dashboard.credits')}
+                    </p>
+                    <p className="text-sm font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
+                    <div className="space-y-1 mt-1">
+                      <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-xs px-1">
+                        <Plus className="w-2 h-2 mr-1" />
+                        Top Up
+                      </Button>
+                      <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-xs px-1">
+                        <DollarSign className="w-2 h-2 mr-1" />
+                        Cash Out
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setShowCreditHistoryModal(true)}
+                        className="w-full text-xs px-1"
+                      >
+                        <Eye className="w-2 h-2 mr-1" />
+                        History
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-purple-50 border-purple-200 loyalty-card">
+                  <CardContent className="p-2 text-center">
+                    <Gift className="h-6 w-6 mx-auto text-purple-600 mb-1" />
+                    <p className="text-xs text-purple-600 font-medium">
+                      {t('dashboard.loyaltyPoints')}
+                    </p>
+                    <p className="text-lg font-bold text-purple-800">{loyaltyPoints}</p>
+                    <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-1 bg-purple-600 hover:bg-purple-700 text-xs px-1">
+                      <Star className="w-2 h-2 mr-1" />
+                      Rewards
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Mobile: Second Row - Tokens and Referrals */}
+              <div className="grid md:hidden grid-cols-2 gap-2 mb-4">
+                <Card className="bg-orange-50 border-orange-200 tokens-card">
+                  <CardContent className="p-2 text-center">
+                    <Gift className="h-6 w-6 mx-auto text-orange-600 mb-1" />
+                    <p className="text-xs text-orange-600 font-medium">
+                      {t('dashboard.tokens')}
+                    </p>
+                    <p className="text-lg font-bold text-orange-800">{userTokens}</p>
+                    <div className="space-y-1 mt-1">
+                      <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-xs px-1">
+                        <Star className="w-2 h-2 mr-1" />
+                        Claim
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setModalHistoryFilter("tokens");
+                          setModalHistoryPage(1);
+                          setShowHistoryModal(true);
+                        }}
+                        className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 text-xs px-1"
+                      >
+                        <Eye className="w-2 h-2 mr-1" />
+                        History
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-blue-50 border-blue-200 referrals-card">
+                  <CardContent className="p-2 text-center">
+                    <Users className="h-6 w-6 mx-auto text-blue-600 mb-1" />
+                    <p className="text-xs text-blue-600 font-medium">
+                      {t("navigation.referrals")}
+                    </p>
+                    <p className="text-lg font-bold text-blue-800">{userReferrals.length}</p>
+                    <Button 
+                      size="sm" 
+                      onClick={toggleAchievementRules}
+                      className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs px-1"
+                    >
+                      <Trophy className="w-2 h-2 mr-1" />
+                      Achievement
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Desktop: 5 Column Layout (Hidden on Mobile) */}
+              <Card className="hidden md:block bg-green-50 border-green-200 credits-card">
+                <CardContent className="p-6 text-center">
+                  <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                  <p className="text-sm text-green-600 font-medium">
                     {t('dashboard.credits')}
                   </p>
-                  <p className="text-sm md:text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
-                  <div className="space-y-1 mt-1 md:mt-2">
-                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-xs md:text-sm px-1 md:px-3">
-                      <Plus className="w-2 md:w-3 h-2 md:h-3 mr-1" />
+                  <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
+                  <div className="space-y-1 mt-2">
+                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-sm px-3">
+                      <Plus className="w-3 h-3 mr-1" />
                       Top Up
                     </Button>
-                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-xs md:text-sm px-1 md:px-3">
-                      <DollarSign className="w-2 md:w-3 h-2 md:h-3 mr-1" />
+                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-sm px-3">
+                      <DollarSign className="w-3 h-3 mr-1" />
                       Cash Out
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
                       onClick={() => setShowCreditHistoryModal(true)}
-                      className="w-full text-xs px-1 md:px-3"
+                      className="w-full text-xs px-3"
                     >
-                      <Eye className="w-2 md:w-3 h-2 md:h-3 mr-1" />
+                      <Eye className="w-3 h-3 mr-1" />
                       History
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-purple-50 border-purple-200 loyalty-card">
-                <CardContent className="p-2 md:p-6 text-center">
-                  <Gift className="h-6 md:h-8 w-6 md:w-8 mx-auto text-purple-600 mb-1 md:mb-2" />
-                  <p className="text-xs md:text-sm text-purple-600 font-medium">
+              <Card className="hidden md:block bg-purple-50 border-purple-200 loyalty-card">
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+                  <p className="text-sm text-purple-600 font-medium">
                     {t('dashboard.loyaltyPoints')}
                   </p>
-                  <p className="text-lg md:text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
-                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-1 md:mt-2 bg-purple-600 hover:bg-purple-700 text-xs md:text-sm px-1 md:px-3">
-                    <Star className="w-2 md:w-4 h-2 md:h-4 mr-1" />
+                  <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
+                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700 text-sm px-3">
+                    <Star className="w-4 h-4 mr-1" />
                     Rewards
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="bg-orange-50 border-orange-200 tokens-card">
-                <CardContent className="p-2 md:p-6 text-center">
-                  <Gift className="h-6 md:h-8 w-6 md:w-8 mx-auto text-orange-600 mb-1 md:mb-2" />
-                  <p className="text-xs md:text-sm text-orange-600 font-medium">
+              <Card className="hidden md:block bg-orange-50 border-orange-200 tokens-card">
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 mx-auto text-orange-600 mb-2" />
+                  <p className="text-sm text-orange-600 font-medium">
                     {t('dashboard.tokens')}
                   </p>
-                  <p className="text-lg md:text-2xl font-bold text-orange-800">{userTokens}</p>
-                  <div className="space-y-1 md:space-y-2 mt-1 md:mt-2">
-                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-xs md:text-sm px-1 md:px-3">
-                      <Star className="w-2 md:w-4 h-2 md:h-4 mr-1" />
+                  <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
+                  <div className="space-y-2 mt-2">
+                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-sm px-3">
+                      <Star className="w-4 h-4 mr-1" />
                       Claim
                     </Button>
                     <Button 
@@ -6047,40 +6144,40 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 text-xs px-1 md:px-3"
+                      className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 text-xs px-3"
                     >
-                      <Eye className="w-2 md:w-3 h-2 md:h-3 mr-1" />
+                      <Eye className="w-3 h-3 mr-1" />
                       History
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-blue-50 border-blue-200 referrals-card">
-                <CardContent className="p-2 md:p-6 text-center">
-                  <Users className="h-6 md:h-8 w-6 md:w-8 mx-auto text-blue-600 mb-1 md:mb-2" />
-                  <p className="text-xs md:text-sm text-blue-600 font-medium">
+              <Card className="hidden md:block bg-blue-50 border-blue-200 referrals-card">
+                <CardContent className="p-6 text-center">
+                  <Users className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <p className="text-sm text-blue-600 font-medium">
                     {t("navigation.referrals")}
                   </p>
-                  <p className="text-lg md:text-2xl font-bold text-blue-800">{userReferrals.length}</p>
+                  <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
                   <Button 
                     size="sm" 
                     onClick={toggleAchievementRules}
-                    className="mt-1 md:mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs md:text-sm px-1 md:px-3"
+                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm px-3"
                   >
-                    <Trophy className="w-2 md:w-4 h-2 md:h-4 mr-1" />
+                    <Trophy className="w-4 h-4 mr-1" />
                     Achievement
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="bg-yellow-50 border-yellow-200 earnings-card">
-                <CardContent className="p-2 md:p-6 text-center">
-                  <DollarSign className="h-6 md:h-8 w-6 md:w-8 mx-auto text-yellow-600 mb-1 md:mb-2" />
-                  <p className="text-xs md:text-sm text-yellow-600 font-medium">
+              <Card className="hidden md:block bg-yellow-50 border-yellow-200 earnings-card">
+                <CardContent className="p-6 text-center">
+                  <DollarSign className="h-8 w-8 mx-auto text-yellow-600 mb-2" />
+                  <p className="text-sm text-yellow-600 font-medium">
                     {t('dashboard.referralEarnings')}
                   </p>
-                  <p className="text-lg md:text-2xl font-bold text-yellow-800">RP {formatRupiah(referralEarnings)}</p>
+                  <p className="text-2xl font-bold text-yellow-800">RP {formatRupiah(referralEarnings)}</p>
                 </CardContent>
               </Card>
             </div>
