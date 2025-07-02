@@ -5511,7 +5511,7 @@ export default function CompleteApp() {
       {/* Enhanced Desktop Navigation Tabs - Modern App UI */}
       <div className="bg-white/95 backdrop-blur-lg border-b border-gray-100 hidden md:block shadow-sm">
         <div className="w-full px-4 lg:px-6">
-          <div className="flex flex-wrap gap-2 lg:gap-3 py-3">
+          <div className="flex overflow-x-auto gap-2 lg:gap-3 py-3 scrollbar-hide">
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600" },
               { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600" },
@@ -7140,6 +7140,1209 @@ export default function CompleteApp() {
                 </div>
 
                 {/* Listings Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {(() => {
+                    // Filter to show only actual user-to-user listings
+                    const userListings = marketplaceListings?.filter(listing => 
+                      listing.ownerId && listing.ownerId !== 'system' && listing.sellerName
+                    ) || [];
+                    
+                    return userListings.length > 0 ? userListings.map((listing) => {
+                      const pendingPurchase = userPendingPurchases?.find(p => p.toyId === listing.id);
+                    
+                    return (
+                      <Card key={listing.id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="relative mb-4">
+                            <img 
+                              src={listing.imageUrl || '/api/placeholder/200/200'} 
+                              alt={listing.name}
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                            <Badge 
+                              className={`absolute top-2 right-2 ${getRarityColor(listing.rarity)}`}
+                            >
+                              {listing.rarity}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <h3 className="font-semibold text-lg">{listing.name}</h3>
+                            <p className="text-sm text-gray-600">
+                              Sold by: {listing.sellerName || 'Anonymous'}
+                            </p>
+                            
+                            {listing.description && (
+                              <p className="text-sm text-gray-700 line-clamp-2">
+                                {listing.description}
+                              </p>
+                            )}
+                            
+                            <div className="flex justify-between items-center pt-2">
+                              <span className="text-lg font-bold text-green-600">
+                                RP {formatRupiah(listing.price)}
+                              </span>
+                              
+                              {pendingPurchase ? (
+                                <Badge variant="secondary">
+                                  {pendingPurchase.status === 'pending_seller_confirmation' ? 'Pending Seller' : 'Pending You'}
+                                </Badge>
+                              ) : (
+                                <Button
+                                  onClick={() => handlePurchaseToy(listing.id, listing.price)}
+                                  disabled={listing.ownerId === user?.id}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {listing.ownerId === user?.id ? 'Your Toy' : 'Buy Now'}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }) : (
+                    <div className="col-span-full text-center py-12">
+                      <ShoppingBag className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                        {t('marketplace.noToysForSale')}
+                      </h3>
+                      <p className="text-sm">
+                        {t('marketplace.beFirstToSell')}
+                      </p>
+                    </div>
+                  );
+                })()}
+                </div>
+
+                {/* Instructions for user listings */}
+                <div className="text-center">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-green-900 mb-2">User Marketplace:</h3>
+                    <p className="text-green-700">
+                      Buy specific toys from other users or sell your own collection. 
+                      Set your own prices and trade directly with the community!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Collections Tab */}
+        {activeTab === "collections" && (
+          <SeasonalCollectionsTab activateToyAsPet={activateToyAsPet} />
+        )}
+
+        {/* Loyalty Tab */}
+        {activeTab === "loyalty" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {t('loyalty.system')}
+              </h2>
+              <p className="text-slate-600">
+                {t('loyalty.description')}
+              </p>
+            </div>
+
+            {/* User Stats Dashboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-600">{t('loyalty.points')}</p>
+                      <p className="text-2xl font-bold text-blue-900">
+                        {userStats?.loyaltyPoints?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                    <Star className="w-8 h-8 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-600">{t('loyalty.lifetimePoints')}</p>
+                      <p className="text-2xl font-bold text-green-900">
+                        {userStats?.lifetimePoints?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                    <TrendingUp className="w-8 h-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-purple-600">{t('referral.earnings')}</p>
+                      <p className="text-2xl font-bold text-purple-900">
+                        RP {formatRupiah(userStats?.referralEarnings || 0)}
+                      </p>
+                    </div>
+                    <Users className="w-8 h-8 text-purple-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-yellow-600">{t('tokens.balance')}</p>
+                      <p className="text-2xl font-bold text-yellow-900">
+                        {userStats?.tokens || 0}
+                      </p>
+                    </div>
+                    <Coins className="w-8 h-8 text-yellow-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Your Profile Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  {t('profile.info')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('auth.firstName')}
+                        </label>
+                        <p className="text-sm text-gray-900">
+                          {userStats?.firstName || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('auth.lastName')}
+                        </label>
+                        <p className="text-sm text-gray-900">
+                          {userStats?.lastName || '-'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <p className="text-sm text-gray-900">
+                        {user?.email || '-'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('auth.phoneNumber')}
+                      </label>
+                      <p className="text-sm text-gray-900">
+                        {userStats?.phoneNumber || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('auth.gender')}
+                      </label>
+                      <p className="text-sm text-gray-900">
+                        {userStats?.gender ? t(`auth.${userStats.gender}`) : '-'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('auth.dateOfBirth')}
+                      </label>
+                      <p className="text-sm text-gray-900">
+                        {userStats?.dateOfBirth ? new Date(userStats.dateOfBirth).toLocaleDateString() : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Achievement System */}
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                  {t('achievements.title')}
+                </h3>
+                <p className="text-slate-600">
+                  {t('achievements.description')}
+                </p>
+              </div>
+
+              {/* Achievement Progress */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {achievements.map((achievement, index) => (
+                  <Card key={index} className={`border-2 ${achievement.isUnlocked ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
+                    <CardContent className="p-6">
+                      <div className="text-center space-y-4">
+                        <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${achievement.isUnlocked ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-300 text-gray-600'}`}>
+                          <span className="text-2xl">{achievement.icon}</span>
+                        </div>
+                        
+                        <div>
+                          <h4 className={`font-bold text-lg ${achievement.isUnlocked ? 'text-yellow-900' : 'text-gray-700'}`}>
+                            {achievement.title}
+                          </h4>
+                          <p className={`text-sm ${achievement.isUnlocked ? 'text-yellow-700' : 'text-gray-500'}`}>
+                            {achievement.description}
+                          </p>
+                        </div>
+
+                        {achievement.isUnlocked && (
+                          <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3">
+                            <p className="text-sm font-medium text-yellow-800">
+                              {t('achievements.reward')}: {achievement.reward}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {!achievement.isUnlocked && (
+                          <div className="text-xs text-gray-400">
+                            {t('achievements.locked')}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Reward Redemption Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gift className="w-5 h-5" />
+                  {t('rewards.title')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {rewardItems.map((item, index) => (
+                    <Card key={index} className="border-2 border-gray-200 hover:border-blue-300 transition-colors">
+                      <CardContent className="p-4">
+                        <div className="text-center space-y-3">
+                          <div className="w-16 h-16 mx-auto">
+                            <img 
+                              src={item.imageUrl} 
+                              alt={item.name}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-lg">{item.name}</h4>
+                            {item.description && (
+                              <p className="text-sm text-gray-600">{item.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-center gap-2">
+                            <Star className="w-4 h-4 text-yellow-500" />
+                            <span className="font-bold text-lg">{item.pointsCost}</span>
+                          </div>
+
+                          <Button
+                            onClick={() => handleRedeemReward(item.id, item.pointsCost)}
+                            disabled={item.type === 'credit' && item.creditAmount ? userStats?.loyaltyPoints < item.pointsCost : userStats?.loyaltyPoints < item.pointsCost}
+                            className="w-full"
+                          >
+                            {item.type === 'credit' && item.creditAmount ? 
+                              `${t('rewards.redeem')} (+RP ${formatRupiah(item.creditAmount)})` : 
+                              t('rewards.redeem')
+                            }
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Transaction History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5" />
+                  {t('transactions.history')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Show only recent transactions (last 10) */}
+                  {userStats?.pointRedemptions?.slice(0, 10).map((transaction: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          transaction.points > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {transaction.points > 0 ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {transaction.description}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(transaction.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`font-bold ${
+                        transaction.points > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.points > 0 ? '+' : ''}{transaction.points}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!userStats?.pointRedemptions || userStats.pointRedemptions.length === 0) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <History className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('transactions.noHistory')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Appointment History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  {t('appointments.history')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {userStats?.appointments?.map((appointment: any) => (
+                    <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          appointment.status === 'confirmed' ? 'bg-green-100 text-green-600' : 
+                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                          'bg-yellow-100 text-yellow-600'
+                        }`}>
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {appointment.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(appointment.appointmentDate).toLocaleDateString()} - {appointment.status}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant={
+                          appointment.status === 'confirmed' ? 'default' : 
+                          appointment.status === 'cancelled' ? 'destructive' :
+                          'secondary'
+                        }
+                      >
+                        {appointment.status}
+                      </Badge>
+                    </div>
+                  ))}
+                  
+                  {(!userStats?.appointments || userStats.appointments.length === 0) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('appointments.noHistory')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Referral System */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {t('referral.system')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Referral Code Display */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6">
+                    <div className="text-center space-y-4">
+                      <h3 className="text-lg font-semibold text-purple-900">
+                        {t('referral.yourCode')}
+                      </h3>
+                      <div className="bg-white border-2 border-purple-300 rounded-lg p-4">
+                        <code className="text-2xl font-bold text-purple-700">
+                          {user?.referralCode || 'Loading...'}
+                        </code>
+                      </div>
+                      <p className="text-sm text-purple-700">
+                        {t('referral.shareCode')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Referral Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-900">
+                        {userStats?.referrals?.length || 0}
+                      </p>
+                      <p className="text-sm text-blue-700">{t('referral.totalReferred')}</p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-green-900">
+                        RP {formatRupiah(userStats?.referralEarnings || 0)}
+                      </p>
+                      <p className="text-sm text-green-700">{t('referral.totalEarnings')}</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-purple-900">10%</p>
+                      <p className="text-sm text-purple-700">{t('referral.commission')}</p>
+                    </div>
+                  </div>
+
+                  {/* Referral History */}
+                  {userStats?.referrals && userStats.referrals.length > 0 ? (
+                    <div className="space-y-3">
+                      <h4 className="font-semibold">{t('referral.history')}</h4>
+                      {userStats.referrals.map((referral: any) => (
+                        <div key={referral.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-sm">
+                              {referral.email}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(referral.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            {t('referral.registered')}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('referral.noReferrals')}</p>
+                      <p className="text-sm">{t('referral.startReferring')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Bookings Tab */}
+        {activeTab === "bookings" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {t('bookings.system')}
+              </h2>
+              <p className="text-slate-600">
+                {t('bookings.description')}
+              </p>
+            </div>
+
+            {/* Booking Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  {t('bookings.newBooking')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Service Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t('bookings.service')}
+                    </label>
+                    <Select onValueChange={(value) => {
+                      setSelectedService(serviceCategories[value]);
+                      setNewAppointment(prev => ({ ...prev, title: serviceCategories[value] }));
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('bookings.selectService')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(serviceCategories).map(([key, opt]: [string, any]) => (
+                          <SelectItem key={key} value={key}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Date Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t('bookings.date')}
+                    </label>
+                    <Input
+                      type="date"
+                      value={newAppointment.date}
+                      onChange={(e) => setNewAppointment(prev => ({ ...prev, date: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+
+                  {/* Time Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t('bookings.time')}
+                    </label>
+                    <Input
+                      type="time"
+                      value={newAppointment.time}
+                      onChange={(e) => setNewAppointment(prev => ({ ...prev, time: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Duration Selection */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      {t('bookings.duration')}
+                    </label>
+                    <Select onValueChange={(value) => setNewAppointment(prev => ({ ...prev, duration: parseInt(value) }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('bookings.selectDuration')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">30 {t('bookings.minutes')}</SelectItem>
+                        <SelectItem value="60">1 {t('bookings.hour')}</SelectItem>
+                        <SelectItem value="90">1.5 {t('bookings.hours')}</SelectItem>
+                        <SelectItem value="120">2 {t('bookings.hours')}</SelectItem>
+                        <SelectItem value="180">3 {t('bookings.hours')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Description */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">
+                      {t('bookings.description')}
+                    </label>
+                    <textarea
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none"
+                      rows={3}
+                      value={newAppointment.description}
+                      onChange={(e) => setNewAppointment(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder={t('bookings.descriptionPlaceholder')}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-6">
+                  <Button
+                    onClick={handleBookAppointment}
+                    disabled={!newAppointment.title || !newAppointment.date || !newAppointment.time}
+                    className="px-6"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    {t('bookings.submitBooking')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Existing Appointments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  {t('bookings.currentBookings')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {userAppointments?.map((appointment: any) => (
+                    <div key={appointment.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-lg">{appointment.title}</h4>
+                          <p className="text-sm text-gray-600">{appointment.description}</p>
+                        </div>
+                        <Badge 
+                          variant={
+                            appointment.status === 'confirmed' ? 'default' : 
+                            appointment.status === 'cancelled' ? 'destructive' :
+                            'secondary'
+                          }
+                        >
+                          {appointment.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">{t('bookings.date')}:</span>
+                          <p className="font-medium">
+                            {new Date(appointment.appointmentDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('bookings.time')}:</span>
+                          <p className="font-medium">
+                            {new Date(appointment.appointmentDate).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('bookings.duration')}:</span>
+                          <p className="font-medium">{appointment.duration} min</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">{t('bookings.cost')}:</span>
+                          <p className="font-medium">RP {formatRupiah(appointment.cost)}</p>
+                        </div>
+                      </div>
+
+                      {appointment.status === 'pending' && (
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAppointment(appointment);
+                              setShowEditAppointmentModal(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            {t('common.edit')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            {t('common.cancel')}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {(!userAppointments || userAppointments.length === 0) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('bookings.noBookings')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Purchase Verification Tab */}
+        {activeTab === "verification" && (
+          <PurchaseVerificationSection language={language} user={user} />
+        )}
+
+        {/* Referrals Tab */}
+        {activeTab === "referrals" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {t('referral.program')}
+              </h2>
+              <p className="text-slate-600">
+                {t('referral.programDescription')}
+              </p>
+            </div>
+
+            {/* Referral Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                  <p className="text-2xl font-bold text-blue-900">
+                    {userStats?.referrals?.length || 0}
+                  </p>
+                  <p className="text-sm text-blue-700">{t('referral.totalReferred')}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-6 text-center">
+                  <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                  <p className="text-2xl font-bold text-green-900">
+                    RP {formatRupiah(userStats?.referralEarnings || 0)}
+                  </p>
+                  <p className="text-sm text-green-700">{t('referral.totalEarnings')}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-6 text-center">
+                  <Percent className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                  <p className="text-2xl font-bold text-purple-900">10%</p>
+                  <p className="text-sm text-purple-700">{t('referral.commission')}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Your Referral Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="w-5 h-5" />
+                  {t('referral.yourCode')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6">
+                  <div className="text-center space-y-4">
+                    <div className="bg-white border-2 border-purple-300 rounded-lg p-4">
+                      <code className="text-2xl font-bold text-purple-700">
+                        {user?.referralCode || 'Loading...'}
+                      </code>
+                    </div>
+                    <p className="text-sm text-purple-700">
+                      {t('referral.shareInstructions')}
+                    </p>
+                    <Button
+                      onClick={() => {
+                        navigator.clipboard.writeText(user?.referralCode || '');
+                        toast({
+                          title: t('common.copied'),
+                          description: t('referral.codeCopied'),
+                        });
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      {t('referral.copyCode')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* How It Works */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('referral.howItWorks')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Share2 className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h4 className="font-semibold mb-2">{t('referral.step1Title')}</h4>
+                    <p className="text-sm text-gray-600">{t('referral.step1Description')}</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <UserPlus className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h4 className="font-semibold mb-2">{t('referral.step2Title')}</h4>
+                    <p className="text-sm text-gray-600">{t('referral.step2Description')}</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <DollarSign className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <h4 className="font-semibold mb-2">{t('referral.step3Title')}</h4>
+                    <p className="text-sm text-gray-600">{t('referral.step3Description')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Referral History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5" />
+                  {t('referral.history')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {userStats?.referrals && userStats.referrals.length > 0 ? (
+                    userStats.referrals.map((referral: any) => (
+                      <div key={referral.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <UserPlus className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {referral.email}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {t('referral.joinedOn')} {new Date(referral.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary">
+                          {t('referral.active')}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('referral.noReferrals')}</p>
+                      <p className="text-sm">{t('referral.startReferring')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Game Tab */}
+        {activeTab === "game" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                {t('game.title')}
+              </h2>
+              <p className="text-slate-600">
+                {t('game.description')}
+              </p>
+            </div>
+
+            {/* Game Leaderboard */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5" />
+                  {t('game.leaderboard')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {leaderboard && leaderboard.length > 0 ? (
+                    leaderboard.map((entry: any, index: number) => (
+                      <div 
+                        key={entry.id}
+                        className={`flex items-center justify-between p-4 rounded-lg ${
+                          index === 0 ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-300' :
+                          index === 1 ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-300' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-2 border-orange-300' :
+                          'bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                            index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                            index === 1 ? 'bg-gray-400 text-gray-900' :
+                            index === 2 ? 'bg-orange-400 text-orange-900' :
+                            'bg-blue-100 text-blue-900'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {entry.playerName}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {new Date(entry.dateAchieved).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">
+                            {entry.score.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {t('game.points')}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                      <p>{t('game.noScores')}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Your Best Score */}
+            {user && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="w-5 h-5" />
+                    {t('game.yourBest')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center p-6">
+                    <div className="text-4xl font-bold text-blue-600 mb-2">
+                      {userBestScore?.toLocaleString() || '0'}
+                    </div>
+                    <p className="text-gray-600">{t('game.bestScore')}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Game Instructions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('game.howToPlay')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p>{t('game.instructions')}</p>
+                  <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
+                    <li>{t('game.instruction1')}</li>
+                    <li>{t('game.instruction2')}</li>
+                    <li>{t('game.instruction3')}</li>
+                    <li>{t('game.instruction4')}</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Onboarding Walkthrough */}
+      {showOnboarding && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 z-50">
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center space-y-4">
+              {/* Virtual Pet Guide Image */}
+              <div className="w-24 h-24 mx-auto mb-4">
+                <img 
+                  src="/uploaded-images/Doluruu Grandpa_1749664964060.png" 
+                  alt="Doluruu Grandpa Guide"
+                  className="w-full h-full object-contain rounded-full border-4 border-purple-300"
+                />
+              </div>
+              
+              <h3 className="text-xl font-bold text-slate-900">
+                {onboardingSteps[onboardingStep]?.title}
+              </h3>
+              
+              <p className="text-slate-600">
+                {onboardingSteps[onboardingStep]?.description}
+              </p>
+              
+              <div className="flex justify-between items-center pt-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowOnboarding(false)}
+                >
+                  {t('onboarding.skip')}
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">
+                    {onboardingStep + 1} / {onboardingSteps.length}
+                  </span>
+                </div>
+                
+                <Button onClick={handleOnboardingNext}>
+                  {onboardingStep === onboardingSteps.length - 1 ? t('onboarding.finish') : t('onboarding.next')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Achievement Notification */}
+      {showAchievementModal && newAchievement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-100 rounded-lg p-8 max-w-md w-full text-center border-4 border-yellow-400">
+            <div className="text-6xl mb-4">🎉</div>
+            <h3 className="text-2xl font-bold text-yellow-900 mb-2">
+              {t('achievements.unlocked')}
+            </h3>
+            <div className="text-4xl mb-4">{newAchievement.icon}</div>
+            <h4 className="text-xl font-bold text-yellow-800 mb-2">
+              {newAchievement.title}
+            </h4>
+            <p className="text-yellow-700 mb-4">
+              {newAchievement.description}
+            </p>
+            <div className="bg-yellow-200 border-2 border-yellow-400 rounded-lg p-3 mb-6">
+              <p className="text-yellow-900 font-bold">
+                {t('achievements.yourReward')}: {newAchievement.reward}
+              </p>
+            </div>
+            <Button 
+              onClick={() => setShowAchievementModal(false)}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              {t('achievements.awesome')}!
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Appointment Modal */}
+      {showEditAppointmentModal && editingAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-4">{t("bookings.editBooking")}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("bookings.date")}
+                </label>
+                <Input
+                  type="date"
+                  value={editingAppointment.appointmentDate ? new Date(editingAppointment.appointmentDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setEditingAppointment(prev => ({ ...prev, appointmentDate: e.target.value }))}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("bookings.time")}
+                </label>
+                <Input
+                  type="time"
+                  value={editingAppointment.appointmentDate ? new Date(editingAppointment.appointmentDate).toTimeString().slice(0,5) : ''}
+                  onChange={(e) => {
+                    const currentDate = editingAppointment.appointmentDate ? new Date(editingAppointment.appointmentDate).toISOString().split('T')[0] : '';
+                    setEditingAppointment(prev => ({ ...prev, appointmentDate: `${currentDate}T${e.target.value}:00.000Z` }));
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button 
+                onClick={() => {
+                  const appointmentDate = new Date(editingAppointment.appointmentDate).toISOString();
+                  handleUpdateAppointment(editingAppointment.id, appointmentDate.split('T')[0], appointmentDate.split('T')[1].slice(0,5));
+                }}
+                className="flex-1"
+              >
+                {t("common.save")}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowEditAppointmentModal(false)}
+                className="flex-1"
+              >
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Out Modal */}
+      {showCashOutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-4">{t("credits.cashOut")}</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("credits.amount")}
+                </label>
+                <Input
+                  type="number"
+                  value={cashOutAmount}
+                  onChange={(e) => setCashOutAmount(e.target.value)}
+                  placeholder="0"
+                  min="50000"
+                  step="1000"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {t("credits.minimumCashOut")}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("credits.bankCode")}
+                </label>
+                <Select onValueChange={(value) => setBankCode(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("credits.selectBank")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BCA">BCA</SelectItem>
+                    <SelectItem value="BRI">BRI</SelectItem>
+                    <SelectItem value="BNI">BNI</SelectItem>
+                    <SelectItem value="MANDIRI">Mandiri</SelectItem>
+                    <SelectItem value="CIMB">CIMB Niaga</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("credits.accountNumber")}
+                </label>
+                <Input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder={t("credits.enterAccountNumber")}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <Button 
+                onClick={() => handleCashOut(parseInt(cashOutAmount), bankCode, accountNumber)}
+                disabled={!cashOutAmount || !bankCode || !accountNumber || parseInt(cashOutAmount) < 50000}
+                className="flex-1"
+              >
+                {t("credits.submitCashOut")}
+              </Button>
+              <Button variant="outline" onClick={() => setShowCashOutModal(false)} className="flex-1">
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {(() => {
                     // Filter to show only actual user-to-user listings
