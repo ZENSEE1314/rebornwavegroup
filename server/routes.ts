@@ -1989,14 +1989,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const toys = await storage.getToysByOwnerId(userId);
       console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
-      if (toys.length > 0) {
-        console.log("*** FIRST TOY:", JSON.stringify(toys[0], null, 2));
-        console.log("*** TOY ACTIVATION FIELD CHECK:", {
-          isActivated: toys[0].isActivated,
-          is_activated: toys[0].is_activated,
-          activated: toys[0].activated
+      toys.forEach((toy, index) => {
+        console.log(`*** TOY ${index + 1}:`, {
+          id: toy.id,
+          name: toy.name,
+          rarity: toy.rarity,
+          isActivated: toy.isActivated,
+          is_activated: toy.is_activated,
+          ownerId: toy.ownerId,
+          owner_id: toy.owner_id
         });
-      }
+      });
       res.json(toys);
     } catch (error) {
       console.error("Error fetching toys:", error);
@@ -2201,6 +2204,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertListingSchema.parse({
         ...req.body,
         sellerId: adminUserId,
+      });
+      
+      console.log("*** LISTING REQUEST DEBUG:", {
+        requestBody: req.body,
+        validatedData,
+        adminUserId
       });
       
       const listing = await storage.createListing(validatedData);

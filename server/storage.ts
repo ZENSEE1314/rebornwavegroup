@@ -853,6 +853,13 @@ export class DatabaseStorage implements IStorage {
       .from(toys)
       .where(eq(toys.id, listing.toyId));
 
+    console.log("*** OWNERSHIP DEBUG:", {
+      toyExists: !!toy,
+      toyOwnerId: toy?.owner_id,
+      listingSellerId: listing.sellerId,
+      match: toy?.owner_id === listing.sellerId
+    });
+
     if (!toy || toy.owner_id !== listing.sellerId) {
       throw new Error('You do not own this toy');
     }
