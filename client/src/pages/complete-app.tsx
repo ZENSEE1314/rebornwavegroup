@@ -5982,10 +5982,12 @@ export default function CompleteApp() {
               </Button>
             </div>
 
-            {/* Mobile: 3-Row Layout, Desktop: 5 Column Grid */}
-            <div className="md:grid md:grid-cols-5 md:gap-6 mobile-stats-grid">
-              {/* Mobile: First Row - Credits and Loyalty Points */}
-              <div className="mobile-row-2-cols">
+            {/* Dashboard Stats Layout */}
+            <div className="block md:hidden">
+              {/* Mobile: 3-Row Layout */}
+              <div className="space-y-2">
+                {/* Row 1: Credits and Loyalty Points */}
+                <div className="grid grid-cols-2 gap-2">
                   <Card className="bg-green-50 border-green-200 credits-card">
                     <CardContent className="p-2 text-center">
                       <DollarSign className="h-6 w-6 mx-auto text-green-600 mb-1" />
@@ -6030,8 +6032,9 @@ export default function CompleteApp() {
                   </Card>
               </div>
 
-              {/* Mobile: Second Row - Tokens and Referrals */}
-              <div className="mobile-row-2-cols">
+                
+                {/* Row 2: Tokens and Referrals */}
+                <div className="grid grid-cols-2 gap-2">
                   <Card className="bg-orange-50 border-orange-200 tokens-card">
                     <CardContent className="p-2 text-center">
                       <Gift className="h-6 w-6 mx-auto text-orange-600 mb-1" />
@@ -6071,17 +6074,16 @@ export default function CompleteApp() {
                       <Button 
                         size="sm" 
                         onClick={toggleAchievementRules}
-                        className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-1"
+                        className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-1 text-xs"
                       >
-                        <Trophy className="w-1 h-1 mr-0.5" />
-                        <span className="achievement-text-tiny">Achievement</span>
+                        <Trophy className="w-3 h-3 mr-0.5" />
+                        <span style={{fontSize: '10px'}}>Achievement</span>
                       </Button>
                     </CardContent>
                   </Card>
-              </div>
-
-              {/* Mobile: Third Row - Referral Earnings */}
-              <div className="mobile-row-full">
+                </div>
+                
+                {/* Row 3: Referral Earnings */}
                 <Card className="bg-yellow-50 border-yellow-200 earnings-card">
                   <CardContent className="p-2 text-center">
                     <DollarSign className="h-6 w-6 mx-auto text-yellow-600 mb-1" />
@@ -6092,8 +6094,10 @@ export default function CompleteApp() {
                   </CardContent>
                 </Card>
               </div>
+            </div>
 
-              {/* Desktop: 5 Column Layout (Hidden on Mobile) */}
+            {/* Desktop: 5 Column Layout (Hidden on Mobile) */}
+            <div className="hidden md:grid md:grid-cols-5 md:gap-6">
               <Card className="hidden md:block bg-green-50 border-green-200 credits-card">
                 <CardContent className="p-6 text-center">
                   <DollarSign className="h-8 w-8 mx-auto text-green-600 mb-2" />
