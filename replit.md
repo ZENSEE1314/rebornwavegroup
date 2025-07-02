@@ -33,6 +33,7 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Duplicate Check Removal**: Eliminated redundant listing validation in route handler since storage layer already performs comprehensive checks
 - **Error Message Enhancement**: Improved error handling to show actual error messages instead of generic "Failed to create listing"
 - **System Status**: Marketplace toy selling functionality now operational without validation conflicts
+- **Duplicate Listing Resolution**: ✅ Cancelled existing active listing (ID: 30) to resolve user's toy selling issue
 
 ### Mobile Dashboard Layout Optimization (July 2, 2025)
 - **FINALIZED MOBILE STATS LAYOUT**: ✅ COMPLETE 3-ROW MOBILE DASHBOARD WITH OPTIMIZED CARD ORGANIZATION

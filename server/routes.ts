@@ -2202,7 +2202,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(listing);
     } catch (error) {
       console.error("Error creating listing:", error);
-      res.status(500).json({ message: error.message || "Failed to create listing" });
+      if (error.message.includes('already listed')) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message || "Failed to create listing" });
+      }
     }
   });
 
