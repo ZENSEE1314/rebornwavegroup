@@ -187,16 +187,6 @@ button, .interactive {
     text-rendering: optimizeLegibility;
   }
 
-  /* Scrollbar hide utility */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
   /* Mobile optimization and responsiveness */
   @media (max-width: 768px) {
     html, body {
