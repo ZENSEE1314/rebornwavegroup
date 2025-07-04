@@ -5996,18 +5996,18 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-sm font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                       <div className="space-y-1 mt-1">
-                        <Button onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
+                        <Button onClick={() => setShowCreditTopUpModal(true)} className="bg-blue-600 hover:bg-blue-700 dashboard-button">
                           <Plus className="w-3 h-3 mr-1" />
                           Top Up
                         </Button>
-                        <Button onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
+                        <Button onClick={() => setShowCashOutModal(true)} className="bg-green-600 hover:bg-green-700 dashboard-button">
                           <DollarSign className="w-3 h-3 mr-1" />
                           Cash Out
                         </Button>
                         <Button 
                           variant="outline"
                           onClick={() => setShowCreditHistoryModal(true)}
-                          className="w-full dashboard-button"
+                          className="dashboard-button"
                         >
                           <Eye className="w-3 h-3 mr-1" />
                           History
@@ -6042,7 +6042,7 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-lg font-bold text-orange-800">{userTokens}</p>
                       <div className="space-y-1 mt-1">
-                        <Button onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
+                        <Button onClick={() => setShowTokenClaimModal(true)} className="bg-orange-600 hover:bg-orange-700 dashboard-button">
                           <Star className="w-3 h-3 mr-1" />
                           Claim
                         </Button>
@@ -6053,7 +6053,7 @@ export default function CompleteApp() {
                             setModalHistoryPage(1);
                             setShowHistoryModal(true);
                           }}
-                          className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 dashboard-button"
+                          className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 dashboard-button"
                         >
                           <Eye className="w-3 h-3 mr-1" />
                           History
@@ -6103,18 +6103,18 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                   <div className="space-y-1 mt-2">
-                    <Button onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
+                    <Button onClick={() => setShowCreditTopUpModal(true)} className="bg-blue-600 hover:bg-blue-700 dashboard-button">
                       <Plus className="w-3 h-3 mr-1" />
                       Top Up
                     </Button>
-                    <Button onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
+                    <Button onClick={() => setShowCashOutModal(true)} className="bg-green-600 hover:bg-green-700 dashboard-button">
                       <DollarSign className="w-3 h-3 mr-1" />
                       Cash Out
                     </Button>
                     <Button 
                       variant="outline"
                       onClick={() => setShowCreditHistoryModal(true)}
-                      className="w-full dashboard-button"
+                      className="dashboard-button"
                     >
                       <Eye className="w-3 h-3 mr-1" />
                       History
@@ -6145,7 +6145,7 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
                   <div className="space-y-2 mt-2">
-                    <Button onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
+                    <Button onClick={() => setShowTokenClaimModal(true)} className="bg-orange-600 hover:bg-orange-700 dashboard-button">
                       <Star className="w-3 h-3 mr-1" />
                       Claim
                     </Button>
@@ -6156,7 +6156,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 dashboard-button"
+                      className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 dashboard-button"
                     >
                       <Eye className="w-3 h-3 mr-1" />
                       History
