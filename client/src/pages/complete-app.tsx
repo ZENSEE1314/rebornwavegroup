@@ -3559,13 +3559,19 @@ export default function CompleteApp() {
       return apiRequest("DELETE", `/api/listings/${listingId}`, {});
     },
     onSuccess: () => {
-      // Invalidate all listing queries with different seasons
-      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
+      // Remove all cached listing queries completely
+      queryClient.removeQueries({ queryKey: ["/api/listings"] });
+      queryClient.removeQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
       queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
       
-      // Force refetch marketplace listings
-      queryClient.refetchQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
+      // Force immediate refetch with no cache
+      queryClient.refetchQueries({ 
+        queryKey: ["/api/listings", selectedMarketplaceSeason],
+        type: 'active'
+      });
+      
+      // Clear selected toy since it might no longer be available
+      setSelectedToyForSale(null);
       
       toast({
         title: "Success!",
