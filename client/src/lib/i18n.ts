@@ -4370,6 +4370,11 @@ export const translations: Translations = {
     zh: '取消销售',
     id: 'Batalkan Penjualan'
   },
+  'sale.yourListing': {
+    en: 'Your Listing',
+    zh: '您的商品',
+    id: 'Listing Anda'
+  },
   'purchase.pendingSeller': {
     en: 'Pending Seller Confirmation',
     zh: '等待卖家确认',
