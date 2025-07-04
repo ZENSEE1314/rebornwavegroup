@@ -5996,16 +5996,15 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-sm font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                       <div className="space-y-1 mt-1">
-                        <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
+                        <Button onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
                           <Plus className="w-3 h-3 mr-1" />
                           Top Up
                         </Button>
-                        <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
+                        <Button onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
                           <DollarSign className="w-3 h-3 mr-1" />
                           Cash Out
                         </Button>
                         <Button 
-                          size="sm" 
                           variant="outline"
                           onClick={() => setShowCreditHistoryModal(true)}
                           className="w-full dashboard-button"
@@ -6024,7 +6023,7 @@ export default function CompleteApp() {
                         {t('dashboard.loyaltyPoints')}
                       </p>
                       <p className="text-lg font-bold text-purple-800">{loyaltyPoints}</p>
-                      <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-1 bg-purple-600 hover:bg-purple-700 dashboard-button">
+                      <Button onClick={() => setActiveTab("loyalty")} className="mt-1 bg-purple-600 hover:bg-purple-700 dashboard-button">
                         <Star className="w-3 h-3 mr-1" />
                         Rewards
                       </Button>
@@ -6043,12 +6042,11 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-lg font-bold text-orange-800">{userTokens}</p>
                       <div className="space-y-1 mt-1">
-                        <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
+                        <Button onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
                           <Star className="w-3 h-3 mr-1" />
                           Claim
                         </Button>
                         <Button 
-                          size="sm" 
                           variant="outline"
                           onClick={() => {
                             setModalHistoryFilter("tokens");
@@ -6072,7 +6070,6 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-lg font-bold text-blue-800">{userReferrals.length}</p>
                       <Button 
-                        size="sm" 
                         onClick={toggleAchievementRules}
                         className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white dashboard-button"
                       >
@@ -6106,16 +6103,15 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                   <div className="space-y-1 mt-2">
-                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
+                    <Button onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 dashboard-button">
                       <Plus className="w-3 h-3 mr-1" />
                       Top Up
                     </Button>
-                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
+                    <Button onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 dashboard-button">
                       <DollarSign className="w-3 h-3 mr-1" />
                       Cash Out
                     </Button>
                     <Button 
-                      size="sm" 
                       variant="outline"
                       onClick={() => setShowCreditHistoryModal(true)}
                       className="w-full dashboard-button"
@@ -6134,7 +6130,7 @@ export default function CompleteApp() {
                     {t('dashboard.loyaltyPoints')}
                   </p>
                   <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
-                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700 dashboard-button">
+                  <Button onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700 dashboard-button">
                     <Star className="w-3 h-3 mr-1" />
                     Rewards
                   </Button>
@@ -6149,12 +6145,11 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
                   <div className="space-y-2 mt-2">
-                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
+                    <Button onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 dashboard-button">
                       <Star className="w-3 h-3 mr-1" />
                       Claim
                     </Button>
                     <Button 
-                      size="sm" 
                       variant="outline"
                       onClick={() => {
                         setModalHistoryFilter("tokens");
@@ -6178,7 +6173,6 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-2xl font-bold text-blue-800">{userReferrals.length}</p>
                   <Button 
-                    size="sm" 
                     onClick={toggleAchievementRules}
                     className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white dashboard-button"
                   >
