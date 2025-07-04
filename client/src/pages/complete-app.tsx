@@ -5879,21 +5879,20 @@ export default function CompleteApp() {
                     {(() => {
                       // Use user's toy inventory and filter out unavailable ones
                       const userOwnedToys = toyInventory || [];
+                      console.log('DROPDOWN DEBUG: toyInventory', userOwnedToys);
                       
                       const filteredToys = userOwnedToys.filter((toy: any) => {
                         // Only show toys that are not activated (pets can't be sold)
-                        return toy.isActivated === false;
+                        const canSell = toy.isActivated === false;
+                        console.log(`DROPDOWN DEBUG: toy ${toy.id} - ${toy.name}, isActivated: ${toy.isActivated}, canSell: ${canSell}`);
+                        return canSell;
                       });
                       
-                      // Clear selected toy if it's no longer available
-                      if (selectedToyForSale && !filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
-                        setSelectedToyForSale(null);
-                      }
-                      
+                      console.log('DROPDOWN DEBUG: filteredToys', filteredToys);
                       return filteredToys;
                     })().map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
-                        {toy.image} {toy.name} ({toy.rarity})
+                        {toy.image || '🧸'} {toy.name} ({toy.rarity})
                       </SelectItem>
                     ))}
                   </SelectContent>
