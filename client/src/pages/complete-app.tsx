@@ -5864,18 +5864,14 @@ export default function CompleteApp() {
                 <Select 
                   value={selectedToyForSale?.id?.toString() || ""}
                   onValueChange={(value) => {
-                    console.log('DROPDOWN DEBUG: onValueChange called with value:', value);
-                    console.log('DROPDOWN DEBUG: toyInventory during selection:', toyInventory);
-                    if (value && value !== "") {
-                      const toy = toyInventory?.find(toy => toy.id.toString() === value);
-                      console.log('DROPDOWN DEBUG: found toy:', toy);
-                      if (toy) {
-                        setSelectedToyForSale(toy);
-                        console.log('DROPDOWN DEBUG: toy selected successfully:', toy.name);
-                      }
-                    } else {
-                      console.log('DROPDOWN DEBUG: clearing selection');
-                      setSelectedToyForSale(null);
+                    console.log('🎯 SELECT TRIGGERED:', value);
+                    const availableToys = toyInventory || [];
+                    const foundToy = availableToys.find(toy => toy.id.toString() === value);
+                    console.log('🎯 FOUND TOY:', foundToy);
+                    
+                    if (foundToy) {
+                      setSelectedToyForSale(foundToy);
+                      console.log('🎯 SELECTION SET:', foundToy.name);
                     }
                   }}
                 >
@@ -5883,25 +5879,13 @@ export default function CompleteApp() {
                     <SelectValue placeholder={t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {(() => {
-                      // Use user's toy inventory and filter out unavailable ones
-                      const userOwnedToys = toyInventory || [];
-                      console.log('DROPDOWN DEBUG: toyInventory', userOwnedToys);
-                      
-                      const filteredToys = userOwnedToys.filter((toy: any) => {
-                        // Only show toys that are not activated (pets can't be sold)
-                        const canSell = toy.isActivated === false;
-                        console.log(`DROPDOWN DEBUG: toy ${toy.id} - ${toy.name}, isActivated: ${toy.isActivated}, canSell: ${canSell}`);
-                        return canSell;
-                      });
-                      
-                      console.log('DROPDOWN DEBUG: filteredToys', filteredToys);
-                      return filteredToys;
-                    })().map((toy) => (
-                      <SelectItem key={toy.id} value={toy.id.toString()}>
-                        {toy.image || '🧸'} {toy.name} ({toy.rarity})
-                      </SelectItem>
-                    ))}
+                    {(toyInventory || [])
+                      .filter((toy: any) => toy.isActivated === false)
+                      .map((toy: any) => (
+                        <SelectItem key={toy.id} value={toy.id.toString()}>
+                          {toy.image || '🧸'} {toy.name} ({toy.rarity})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
