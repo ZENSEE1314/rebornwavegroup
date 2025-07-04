@@ -5864,10 +5864,14 @@ export default function CompleteApp() {
                 <Select 
                   value={selectedToyForSale?.id?.toString() || ""} 
                   onValueChange={(value) => {
+                    console.log('DROPDOWN DEBUG: onValueChange called with value:', value);
+                    console.log('DROPDOWN DEBUG: toyInventory during selection:', toyInventory);
                     if (value) {
                       const toy = toyInventory.find(toy => toy.id.toString() === value);
+                      console.log('DROPDOWN DEBUG: found toy:', toy);
                       setSelectedToyForSale(toy);
                     } else {
+                      console.log('DROPDOWN DEBUG: clearing selection');
                       setSelectedToyForSale(null);
                     }
                   }}
