@@ -5877,15 +5877,17 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      console.log('Dropdown Debug - marketplaceListings:', marketplaceListings);
+                      // Use user's own toys (from /api/toys) instead of marketplace listings for dropdown
+                      const userOwnedToys = userToys || [];
+                      console.log('Dropdown Debug - userToys:', userOwnedToys);
                       console.log('Dropdown Debug - user?.id:', user?.id);
                       
-                      const filteredToys = marketplaceListings.filter((toy) => {
-                        // Only show toys owned by current user
-                        const isOwnedByUser = toy.ownerId === user?.id;
-                        
-                        // Hide toys that are already actively listed (API includes isListing flag)
-                        const isAlreadyListed = toy.isListing === true;
+                      const filteredToys = userOwnedToys.filter((toy: any) => {
+                        // Hide toys that are already actively listed 
+                        // Check if this toy has an active listing in marketplace
+                        const isAlreadyListed = marketplaceListings?.some((listing: any) => 
+                          listing.id === toy.id && listing.isListing === true
+                        );
                         
                         // Also hide toys that have pending transactions
                         const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
@@ -5898,15 +5900,14 @@ export default function CompleteApp() {
                         const isActivated = toy.isActivated === true;
                         
                         console.log(`Dropdown Debug - Toy ${toy.id} (${toy.name}):`, {
-                          isOwnedByUser,
                           isAlreadyListed,
                           hasPendingTransaction,
                           isActivated,
-                          shouldShow: isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated,
+                          shouldShow: !isAlreadyListed && !hasPendingTransaction && !isActivated,
                           toyData: toy
                         });
                         
-                        return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
+                        return !isAlreadyListed && !hasPendingTransaction && !isActivated;
                       });
                       
                       // Clear selected toy if it's no longer available
