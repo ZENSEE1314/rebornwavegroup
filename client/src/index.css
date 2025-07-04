@@ -20,15 +20,18 @@ button.dashboard-button,
   height: 32px !important; /* Force h-8 equivalent */
   min-height: 32px !important;
   max-height: 32px !important;
+  width: auto !important; /* Override full width */
+  min-width: fit-content !important;
   font-size: 0.75rem !important; /* text-xs */
   padding: 0 0.75rem !important; /* px-3 */
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  display: flex !important;
+  display: inline-flex !important; /* Change from flex to inline-flex */
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
   box-sizing: border-box !important;
+  white-space: nowrap !important; /* Prevent text wrapping */
 }
 
 /* Target shadcn Button component specifically */
@@ -36,6 +39,8 @@ button[class*="dashboard-button"] {
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;
+  width: auto !important;
+  min-width: fit-content !important;
   font-size: 0.75rem !important;
   padding: 0 0.75rem !important;
 }
