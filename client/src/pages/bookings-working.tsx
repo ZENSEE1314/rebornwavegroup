@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
+import MobileBackButton from "@/components/mobile-back-button";
 
 export default function Bookings() {
   const { toast } = useToast();
@@ -106,6 +107,9 @@ export default function Bookings() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Mobile Back Button */}
+      <MobileBackButton className="mb-4" />
+      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">My Appointments</h1>

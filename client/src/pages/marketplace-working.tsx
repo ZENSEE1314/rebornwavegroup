@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Star, Heart, ShoppingCart, Eye } from "lucide-react";
+import MobileBackButton from "@/components/mobile-back-button";
 
 export default function Marketplace() {
   const { toast } = useToast();
@@ -141,6 +142,9 @@ export default function Marketplace() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Mobile Back Button */}
+      <MobileBackButton className="mb-4" />
+      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Collectible Marketplace</h1>

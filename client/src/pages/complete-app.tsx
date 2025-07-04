@@ -27,6 +27,7 @@ import CreditTopUpModal from "@/components/CreditTopUpModal";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
+import MobileBackButton from "@/components/mobile-back-button";
 
 // Seasonal Collections Component
 function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: any) => void }) {
@@ -5452,6 +5453,9 @@ export default function CompleteApp() {
           <div className="flex items-center justify-between">
             {/* Left Side - Logo and Welcome Text */}
             <div className="flex items-center space-x-3 flex-1">
+              {/* Mobile Back Button */}
+              <MobileBackButton className="mr-2" onBack={() => setActiveTab("dashboard")} />
+              
               <Button
                 onClick={() => setActiveTab("dashboard")}
                 className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"

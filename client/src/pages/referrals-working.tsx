@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Users, DollarSign, TrendingUp, Copy, Share2, Gift, Award, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import MobileBackButton from "@/components/mobile-back-button";
 
 export default function Referrals() {
   const { toast } = useToast();
@@ -103,6 +104,9 @@ export default function Referrals() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Mobile Back Button */}
+      <MobileBackButton className="mb-4" />
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Referral Network</h1>
         <p className="text-slate-600 mt-2">Invite friends and earn 10% commission on their verified purchases</p>

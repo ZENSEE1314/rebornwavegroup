@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { User, CreditCard, History, Settings, DollarSign, Banknote, Copy } from "lucide-react";
 import { formatCurrency, formatDateTime, generateAvatarUrl, getStatusColor } from "@/lib/utils";
+import MobileBackButton from "@/components/mobile-back-button";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -70,6 +71,9 @@ export default function Profile() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Mobile Back Button */}
+      <MobileBackButton className="mb-4" />
+      
       <h1 className="text-3xl font-bold text-slate-900 mb-8">Profile</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
