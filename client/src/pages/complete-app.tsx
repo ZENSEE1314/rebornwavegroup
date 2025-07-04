@@ -5877,6 +5877,9 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
+                      console.log('Dropdown Debug - marketplaceListings:', marketplaceListings);
+                      console.log('Dropdown Debug - user?.id:', user?.id);
+                      
                       const filteredToys = marketplaceListings.filter((toy) => {
                         // Only show toys owned by current user
                         const isOwnedByUser = toy.ownerId === user?.id;
@@ -5893,6 +5896,15 @@ export default function CompleteApp() {
                         
                         // Hide activated toys (they became pets and can't be sold)
                         const isActivated = toy.isActivated === true;
+                        
+                        console.log(`Dropdown Debug - Toy ${toy.id} (${toy.name}):`, {
+                          isOwnedByUser,
+                          isAlreadyListed,
+                          hasPendingTransaction,
+                          isActivated,
+                          shouldShow: isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated,
+                          toyData: toy
+                        });
                         
                         return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
                       });
