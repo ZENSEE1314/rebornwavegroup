@@ -22,20 +22,37 @@ export function useWebSocket(enabled: boolean = true) {
         try {
           const data = JSON.parse(event.data);
           
+          // Helper function to safely invalidate queries
+          const safeInvalidateQueries = (predicateFn: (query: any) => boolean, errorContext: string) => {
+            try {
+              queryClient.invalidateQueries({ 
+                predicate: (query) => {
+                  try {
+                    return predicateFn(query);
+                  } catch (error) {
+                    console.warn(`Query predicate error (${errorContext}):`, error);
+                    return false;
+                  }
+                }
+              }).catch((error) => {
+                console.warn(`Query invalidation error (${errorContext}):`, error);
+              });
+            } catch (error) {
+              console.warn(`Safe invalidation error (${errorContext}):`, error);
+            }
+          };
+          
           if (data.type === 'PAYMENT_VERIFICATION_UPDATE') {
             console.log('Received payment verification update:', data.data);
             
-            // Invalidate relevant queries for real-time updates with predicate matching
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/payment-verifications') ||
-                       queryKey?.includes('/api/payment-verifications') ||
-                       queryKey?.includes('/api/user-stats') ||
-                       queryKey?.includes('/api/points-history') ||
-                       queryKey?.includes('/api/admin/commission-stats');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/payment-verifications') ||
+                     queryKey?.includes('/api/payment-verifications') ||
+                     queryKey?.includes('/api/user-stats') ||
+                     queryKey?.includes('/api/points-history') ||
+                     queryKey?.includes('/api/admin/commission-stats');
+            }, 'payment');
             
             // Show notification based on status
             if (data.data.status === 'approved' && data.data.pointsAwarded > 0) {
@@ -48,126 +65,108 @@ export function useWebSocket(enabled: boolean = true) {
           if (data.type === 'appointment_created' || data.type === 'appointment_updated' || data.type === 'appointment_status_changed') {
             console.log('Received appointment update:', data.type, data.data);
             
-            // Invalidate appointment-related queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/appointments') ||
-                       queryKey?.includes('/api/appointments') ||
-                       queryKey?.includes('/api/user-stats');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/appointments') ||
+                     queryKey?.includes('/api/appointments') ||
+                     queryKey?.includes('/api/user-stats');
+            }, 'appointment');
           }
           
           // Handle pet energy updates for real-time sleep energy system
           if (data.type === 'PET_ENERGY_UPDATE') {
             console.log('Received pet energy update:', data.data);
             
-            // Invalidate pet-related queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/pets') ||
-                       queryKey?.includes('/api/pets/') ||
-                       queryKey?.includes('sleep-progress');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/pets') ||
+                     queryKey?.includes('/api/pets/') ||
+                     queryKey?.includes('sleep-progress');
+            }, 'pet-energy');
           }
 
           // Handle marketplace updates for real-time listing generation
           if (data.type === 'MARKETPLACE_UPDATED') {
             console.log('Received marketplace update:', data.data);
             
-            // Invalidate marketplace-related queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/listings') ||
-                       queryKey?.includes('/api/admin/all-toys');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/listings') ||
+                     queryKey?.includes('/api/admin/all-toys');
+            }, 'marketplace');
           }
 
           // Handle user data updates for real-time admin user editing
           if (data.type === 'USER_DATA_UPDATED') {
             console.log('Received user data update:', data.userData);
             
-            // Invalidate user-related queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/users') ||
-                       queryKey?.includes('/api/user-stats') ||
-                       queryKey?.includes('/api/auth/user');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/users') ||
+                     queryKey?.includes('/api/user-stats') ||
+                     queryKey?.includes('/api/auth/user');
+            }, 'user-data');
           }
 
           // Handle token claim updates for real-time token system
           if (data.type === 'TOKEN_CLAIM_CREATED') {
             console.log('Received token claim update:', data.claim);
             
-            // Invalidate token-related queries for real-time updates (both user and admin)
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/tokens/history') ||
-                       queryKey?.includes('/api/token-claims') ||
-                       queryKey?.includes('/api/admin/token-claims') ||
-                       queryKey?.includes('/api/admin/token-transactions') ||
-                       queryKey?.includes('/api/user-stats') ||
-                       queryKey?.includes('/api/auth/user');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/tokens/history') ||
+                     queryKey?.includes('/api/token-claims') ||
+                     queryKey?.includes('/api/admin/token-claims') ||
+                     queryKey?.includes('/api/admin/token-transactions') ||
+                     queryKey?.includes('/api/user-stats') ||
+                     queryKey?.includes('/api/auth/user');
+            }, 'token-claim-created');
           }
 
           // Handle token claim approval for real-time admin updates
           if (data.type === 'TOKEN_CLAIM_UPDATED') {
             console.log('Received token claim approval update:', data.data);
             
-            // Aggressively invalidate all token-related queries for immediate UI updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/token-claims') ||
-                       queryKey?.includes('/api/admin/token-transactions') ||
-                       queryKey?.includes('/api/tokens/history') ||
-                       queryKey?.includes('/api/user-stats') ||
-                       queryKey?.includes('/api/admin/all-users');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/token-claims') ||
+                     queryKey?.includes('/api/admin/token-transactions') ||
+                     queryKey?.includes('/api/tokens/history') ||
+                     queryKey?.includes('/api/user-stats') ||
+                     queryKey?.includes('/api/admin/all-users');
+            }, 'token-claim-updated');
             
             // Force immediate refetch for real-time UI updates
-            queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] });
-            queryClient.removeQueries({ queryKey: ['/api/admin/token-transactions'] });
+            try {
+              queryClient.refetchQueries({ queryKey: ['/api/admin/token-transactions'] }).catch((error) => {
+                console.warn('Query refetch error:', error);
+              });
+              queryClient.removeQueries({ queryKey: ['/api/admin/token-transactions'] });
+            } catch (error) {
+              console.warn('Token query management error:', error);
+            }
           }
 
           // Handle season updates for real-time marketplace visibility changes
           if (data.type === 'SEASON_UPDATED' || data.type === 'SEASON_CREATED' || data.type === 'SEASON_DELETED') {
             console.log('Received season update:', data.type, data.data);
             
-            // Invalidate season-related queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/seasons') ||
-                       queryKey?.includes('/api/seasons') ||
-                       queryKey?.includes('/api/listings');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/seasons') ||
+                     queryKey?.includes('/api/seasons') ||
+                     queryKey?.includes('/api/listings');
+            }, 'season');
           }
 
           // Handle admin log updates for real-time admin dashboard
           if (data.type === 'ADMIN_LOG_CREATED') {
             console.log('Received admin log update:', data.logData);
             
-            // Invalidate admin logs queries for real-time updates
-            queryClient.invalidateQueries({ 
-              predicate: (query) => {
-                const queryKey = query.queryKey[0] as string;
-                return queryKey?.includes('/api/admin/logs');
-              }
-            });
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/logs');
+            }, 'admin-log');
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
