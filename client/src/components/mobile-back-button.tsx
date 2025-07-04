@@ -31,7 +31,7 @@ export default function MobileBackButton({ className, onBack }: MobileBackButton
   };
 
   return (
-    <div className={cn("md:hidden", className)}>
+    <div className={cn("", className)}>
       <Button
         onClick={handleBack}
         variant="ghost"
