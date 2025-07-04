@@ -7321,7 +7321,7 @@ export default function CompleteApp() {
                             
                             <div className="flex justify-between items-center">
                               <span className="text-2xl font-bold text-green-600">
-                                ${listing.price}
+                                Rp {listing.price ? parseInt(listing.price).toLocaleString('id-ID') : '0'}
                               </span>
                               <span className="text-sm text-slate-500">
                                 by {listing.sellerName || 'Unknown'}
