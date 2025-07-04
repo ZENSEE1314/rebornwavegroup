@@ -3457,6 +3457,22 @@ export default function CompleteApp() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Clear selected toy when marketplace listings change (e.g., after cancellation)
+  useEffect(() => {
+    if (selectedToyForSale && Array.isArray(marketplaceListings)) {
+      const filteredToys = marketplaceListings.filter((toy) => {
+        const isOwnedByUser = toy.ownerId === user?.id;
+        const isAlreadyListed = toy.isListing === true;
+        const isActivated = toy.isActivated === true;
+        return isOwnedByUser && !isAlreadyListed && !isActivated;
+      });
+      
+      if (!filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
+        setSelectedToyForSale(null);
+      }
+    }
+  }, [marketplaceListings, selectedToyForSale, user?.id]);
+
   // Fetch marketplace listings (for user buy/sell)
   const { data: listings = [] } = useQuery({
     queryKey: ["/api/listings"],
@@ -3557,8 +3573,14 @@ export default function CompleteApp() {
       return apiRequest("DELETE", `/api/listings/${listingId}`, {});
     },
     onSuccess: () => {
+      // Invalidate all listing queries with different seasons
       queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
       queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      
+      // Force refetch marketplace listings
+      queryClient.refetchQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
+      
       toast({
         title: "Success!",
         description: "Listing cancelled successfully!",
