@@ -5865,7 +5865,7 @@ export default function CompleteApp() {
                   value={selectedToyForSale?.id?.toString() || ""} 
                   onValueChange={(value) => {
                     if (value) {
-                      const toy = marketplaceListings.find(toy => toy.id.toString() === value);
+                      const toy = toyInventory.find(toy => toy.id.toString() === value);
                       setSelectedToyForSale(toy);
                     } else {
                       setSelectedToyForSale(null);
@@ -5877,8 +5877,8 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      // Use user's own toys and filter out unavailable ones
-                      const userOwnedToys = userToys || [];
+                      // Use user's toy inventory and filter out unavailable ones
+                      const userOwnedToys = toyInventory || [];
                       
                       const filteredToys = userOwnedToys.filter((toy: any) => {
                         // Only show toys that are not activated (pets can't be sold)
