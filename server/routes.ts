@@ -63,6 +63,8 @@ function startSleepEnergyTimer(petId: number) {
     sleepTimers.delete(petId);
     console.log(`*** TIMER CLEANUP: Cleared existing timer for pet ${petId}`);
   }
+  
+  console.log(`*** DEBUG: Starting new timer for pet ${petId}. Total timers before: ${sleepTimers.size}`);
 
   // Wait 5 minutes before starting energy increases
   const initialDelay = setTimeout(() => {
@@ -255,6 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`*** STARTUP: Pet ${pet.id} has been sleeping for ${Math.round(sleepDuration / 60000)} minutes, starting energy increases immediately`);
             
             // Start immediate energy increase timer (no 5-minute delay)
+            console.log(`*** DEBUG: Creating startup timer for pet ${pet.id} with 5-minute intervals`);
             const timer = setInterval(async () => {
               try {
                 const currentPet = await storage.getPetById(pet.id);
@@ -308,6 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }, 300000); // 5 minutes
             
             sleepTimers.set(pet.id, timer);
+            console.log(`*** DEBUG: Timer set for pet ${pet.id}. Total active timers: ${sleepTimers.size}`);
           } else {
             // Pet has been sleeping for less than 5 minutes, start normal timer with remaining delay
             const remainingDelay = fiveMinutes - sleepDuration;
