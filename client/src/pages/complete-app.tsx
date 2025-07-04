@@ -5951,32 +5951,32 @@ export default function CompleteApp() {
               </div>
             )}
 
-            {/* Mobile Only - 4 Navigation Buttons in Horizontal Row */}
-            <div className="flex md:hidden flex-row justify-center items-center gap-3 mb-6 px-4 w-full">
+            {/* Mobile Only - 4 Navigation Buttons in 2x2 Grid */}
+            <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
               <Button 
                 onClick={() => setActiveTab("purchase")} 
-                className="w-20 h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Camera className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("bookings")} 
-                className="w-20 h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Calendar className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("inventory")} 
-                className="w-20 h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Package className="w-8 h-8" />
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("referrals")} 
-                className="w-20 h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
               >
                 <Users className="w-8 h-8" />
               </Button>
