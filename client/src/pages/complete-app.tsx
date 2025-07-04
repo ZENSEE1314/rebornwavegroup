@@ -5453,8 +5453,18 @@ export default function CompleteApp() {
           <div className="flex items-center justify-between">
             {/* Left Side - Logo and Welcome Text */}
             <div className="flex items-center space-x-3 flex-1">
-              {/* Mobile Back Button */}
-              <MobileBackButton className="mr-2" onBack={() => setActiveTab("dashboard")} />
+              {/* Mobile Back Button - Show when not on dashboard tab */}
+              {activeTab !== "dashboard" && (
+                <Button
+                  onClick={() => setActiveTab("dashboard")}
+                  variant="ghost"
+                  size="sm"
+                  className="md:hidden flex items-center gap-2 text-slate-600 hover:text-slate-900 p-2 mr-2"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="text-sm font-medium">Back</span>
+                </Button>
+              )}
               
               <Button
                 onClick={() => setActiveTab("dashboard")}
