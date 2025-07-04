@@ -7322,10 +7322,7 @@ export default function CompleteApp() {
                             <div className="flex justify-between items-center">
                               <span className="text-2xl font-bold text-green-600">
                                 Rp {(() => {
-                                  console.log('Listing object:', listing);
-                                  console.log('Price value:', listing.price);
-                                  console.log('Price type:', typeof listing.price);
-                                  const price = listing.price || listing.basePrice || '0';
+                                  const price = listing.listingPrice || listing.price || listing.basePrice || '0';
                                   return parseInt(price.toString()).toLocaleString('id-ID');
                                 })()}
                               </span>
