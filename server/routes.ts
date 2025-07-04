@@ -64,7 +64,7 @@ function startSleepEnergyTimer(petId: number) {
   const initialDelay = setTimeout(() => {
     console.log(`*** REAL-TIME: Starting energy increases for pet ${petId} after 5-minute delay`);
     
-    // Start timer that increases energy every 30 seconds after the 5-minute delay
+    // Start timer that increases energy every 5 minutes after the 5-minute delay
     const timer = setInterval(async () => {
       try {
         const pet = await storage.getPetById(petId);
@@ -88,7 +88,7 @@ function startSleepEnergyTimer(petId: number) {
           return;
         }
 
-        // Increase energy by 1 point every 30 seconds
+        // Increase energy by 1 point every 5 minutes
         const newEnergy = Math.min(100, pet.energy + 1);
         await storage.updatePetStats(petId, { 
           energy: newEnergy,
@@ -119,7 +119,7 @@ function startSleepEnergyTimer(petId: number) {
       } catch (error) {
         console.error(`Error in sleep energy timer for pet ${petId}:`, error);
       }
-    }, 30000); // 30 seconds
+    }, 300000); // 5 minutes
 
     sleepTimers.set(petId, timer);
   }, 300000); // 5 minutes = 300,000 milliseconds
@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } catch (error) {
                 console.error(`Error in startup energy timer for pet ${pet.id}:`, error);
               }
-            }, 30000);
+            }, 300000); // 5 minutes
             
             sleepTimers.set(pet.id, timer);
           } else {
@@ -2940,8 +2940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // No energy sync needed - let real-time system handle energy increases
         energyToAdd = 0;
         
-        // Calculate time until next 30-second energy increase (real-time system interval)
-        const secondsUntilNext = 30 - (secondsSinceEnergyStart % 30);
+        // Calculate time until next 5-minute energy increase (real-time system interval)
+        const secondsUntilNext = (5 * 60) - (secondsSinceEnergyStart % (5 * 60));
         nextEnergyIn = secondsUntilNext / 60; // Convert to minutes
         
         console.log(`*** SLEEP DEBUG: Pet ${petId} - Past delay period - Current energy: ${pet.energy}%, Next increase in: ${nextEnergyIn.toFixed(1)} min`);

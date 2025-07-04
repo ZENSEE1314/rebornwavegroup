@@ -26,12 +26,20 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Sleep Energy System Updated to 5-Minute Intervals (July 4, 2025)
+- **MAJOR UPDATE**: ✅ SLEEP ENERGY NOW INCREASES EVERY 5 MINUTES INSTEAD OF 30 SECONDS
+- **Timer Interval Change**: Updated real-time energy system from 30-second to 5-minute intervals for more balanced gameplay
+- **Complete System Update**: Modified both real-time timers and sleep progress calculations to use 5-minute intervals
+- **Startup Timer Fix**: Updated initialization code that restarts existing sleeping pets to use 5-minute intervals
+- **Consistent Calculations**: Sleep progress endpoint now correctly calculates next energy increase based on 5-minute intervals
+- **System Status**: Energy increases occur every 5 minutes after the initial 5-minute delay period
+
 ### Sleep Energy Calculation Conflict Resolution (July 4, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED ENERGY JUMPING ISSUE - Fixed conflicting sleep energy calculation systems causing 6% to 52% jumps
-- **Root Cause Identified**: Sleep progress endpoint was syncing pets to arbitrary 50% baseline energy, conflicting with real-time 1%/30sec increases
+- **Root Cause Identified**: Sleep progress endpoint was syncing pets to arbitrary 50% baseline energy, conflicting with real-time increases
 - **Sync Logic Removal**: Eliminated problematic expected energy calculation that forced pets to artificial energy levels
 - **Unified Energy System**: Real-time energy timer now handles all energy increases consistently without interference
-- **Smooth Energy Progression**: Energy now increases naturally from current level every 30 seconds during sleep
+- **Smooth Energy Progression**: Energy now increases naturally from current level during sleep
 - **Debug Message Enhancement**: Updated sleep progress logging to show actual current energy without confusing "expected" values
 - **System Status**: Sleep energy now progresses smoothly without unexpected jumps or conflicts between calculation methods
 
