@@ -57,7 +57,11 @@ function broadcastAdminLogUpdate(logData: any) {
 function startSleepEnergyTimer(petId: number) {
   // Clear existing timer if any
   if (sleepTimers.has(petId)) {
-    clearInterval(sleepTimers.get(petId)!);
+    const existingTimer = sleepTimers.get(petId)!;
+    clearTimeout(existingTimer);
+    clearInterval(existingTimer);
+    sleepTimers.delete(petId);
+    console.log(`*** TIMER CLEANUP: Cleared existing timer for pet ${petId}`);
   }
 
   // Wait 5 minutes before starting energy increases
@@ -124,8 +128,7 @@ function startSleepEnergyTimer(petId: number) {
     sleepTimers.set(petId, timer);
   }, 300000); // 5 minutes = 300,000 milliseconds
 
-  // Store the initial delay timeout so it can be cleared if needed
-  sleepTimers.set(petId, initialDelay);
+  // Don't overwrite the timer reference - the interval timer will be stored when it starts
   console.log(`*** REAL-TIME: Started 5-minute delay timer for pet ${petId}`);
 }
 
