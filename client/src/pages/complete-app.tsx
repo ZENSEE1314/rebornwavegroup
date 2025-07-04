@@ -5862,14 +5862,15 @@ export default function CompleteApp() {
                   {t("marketplace.selectToy")}
                 </label>
                 <Select 
-                  value={selectedToyForSale?.id?.toString() || ""} 
                   onValueChange={(value) => {
                     console.log('DROPDOWN DEBUG: onValueChange called with value:', value);
                     console.log('DROPDOWN DEBUG: toyInventory during selection:', toyInventory);
                     if (value) {
-                      const toy = toyInventory.find(toy => toy.id.toString() === value);
+                      const toy = toyInventory?.find(toy => toy.id.toString() === value);
                       console.log('DROPDOWN DEBUG: found toy:', toy);
-                      setSelectedToyForSale(toy);
+                      if (toy) {
+                        setSelectedToyForSale(toy);
+                      }
                     } else {
                       console.log('DROPDOWN DEBUG: clearing selection');
                       setSelectedToyForSale(null);
@@ -5877,7 +5878,7 @@ export default function CompleteApp() {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t("marketplace.selectToyToSell")} />
+                    <SelectValue placeholder={selectedToyForSale ? `${selectedToyForSale.image || '🧸'} ${selectedToyForSale.name} (${selectedToyForSale.rarity})` : t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
