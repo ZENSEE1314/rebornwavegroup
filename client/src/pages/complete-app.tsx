@@ -7321,7 +7321,13 @@ export default function CompleteApp() {
                             
                             <div className="flex justify-between items-center">
                               <span className="text-2xl font-bold text-green-600">
-                                Rp {listing.price ? parseInt(listing.price).toLocaleString('id-ID') : '0'}
+                                Rp {(() => {
+                                  console.log('Listing object:', listing);
+                                  console.log('Price value:', listing.price);
+                                  console.log('Price type:', typeof listing.price);
+                                  const price = listing.price || listing.basePrice || '0';
+                                  return parseInt(price.toString()).toLocaleString('id-ID');
+                                })()}
                               </span>
                               <span className="text-sm text-slate-500">
                                 by {listing.sellerName || 'Unknown'}
