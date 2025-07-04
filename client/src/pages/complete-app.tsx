@@ -5831,39 +5831,55 @@ export default function CompleteApp() {
                 <label className="block text-sm font-medium mb-2">
                   {t("marketplace.selectToy")}
                 </label>
-                <Select onValueChange={(value) => setSelectedToyForSale(toyInventory.find(toy => toy.id.toString() === value))}>
+                <Select onValueChange={(value) => setSelectedToyForSale(marketplaceListings.find(toy => toy.id.toString() === value))}>
                   <SelectTrigger>
                     <SelectValue placeholder={t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {marketplaceListings.filter((toy) => {
-                      // Only show toys owned by current user
-                      const isOwnedByUser = toy.ownerId === user?.id;
+                    {(() => {
+                      console.log('=== DROPDOWN DEBUG ===');
+                      console.log('Total marketplaceListings:', marketplaceListings?.length || 0);
+                      console.log('User ID:', user?.id);
+                      console.log('Full marketplaceListings data:', marketplaceListings);
                       
-                      // Hide toys that are already actively listed (API includes isListing flag)
-                      const isAlreadyListed = toy.isListing === true;
-                      
-                      // Also hide toys that have pending transactions
-                      const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
-                        purchase.toyId === toy.id && 
-                        (purchase.status === 'pending_seller_confirmation' || 
-                         purchase.status === 'pending_buyer_confirmation')
-                      );
-                      
-                      // Hide activated toys (they became pets and can't be sold)
-                      const isActivated = toy.isActivated === true;
-                      
-                      // Debug logging to see filtering results
-                      console.log(`Toy ${toy.id} (${toy.name}):`, {
-                        isOwnedByUser,
-                        isAlreadyListed,
-                        hasPendingTransaction,
-                        isActivated,
-                        shouldShow: isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated
+                      const filteredToys = marketplaceListings.filter((toy) => {
+                        // Only show toys owned by current user
+                        const isOwnedByUser = toy.ownerId === user?.id;
+                        
+                        // Hide toys that are already actively listed (API includes isListing flag)
+                        const isAlreadyListed = toy.isListing === true;
+                        
+                        // Also hide toys that have pending transactions
+                        const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
+                          purchase.toyId === toy.id && 
+                          (purchase.status === 'pending_seller_confirmation' || 
+                           purchase.status === 'pending_buyer_confirmation')
+                        );
+                        
+                        // Hide activated toys (they became pets and can't be sold)
+                        const isActivated = toy.isActivated === true;
+                        
+                        const shouldShow = isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
+                        
+                        // Debug logging to see filtering results
+                        console.log(`Toy ${toy.id} (${toy.name}):`, {
+                          ownerId: toy.ownerId,
+                          userId: user?.id,
+                          isOwnedByUser,
+                          isAlreadyListed,
+                          hasPendingTransaction,
+                          isActivated,
+                          shouldShow
+                        });
+                        
+                        return shouldShow;
                       });
                       
-                      return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
-                    }).map((toy) => (
+                      console.log('Filtered toys count:', filteredToys.length);
+                      console.log('Filtered toys:', filteredToys);
+                      
+                      return filteredToys;
+                    })().map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
                         {toy.image} {toy.name} ({toy.rarity})
                       </SelectItem>
