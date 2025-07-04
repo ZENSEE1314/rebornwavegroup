@@ -5853,6 +5853,15 @@ export default function CompleteApp() {
                       // Hide activated toys (they became pets and can't be sold)
                       const isActivated = toy.isActivated === true;
                       
+                      // Debug logging to see filtering results
+                      console.log(`Toy ${toy.id} (${toy.name}):`, {
+                        isOwnedByUser,
+                        isAlreadyListed,
+                        hasPendingTransaction,
+                        isActivated,
+                        shouldShow: isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated
+                      });
+                      
                       return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
                     }).map((toy) => (
                       <SelectItem key={toy.id} value={toy.id.toString()}>
