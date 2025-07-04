@@ -181,13 +181,12 @@ export function useWebSocket(enabled: boolean = true) {
       };
 
       wsRef.current.onerror = (error) => {
-        console.log('WebSocket connection error - this is normal during development');
+        console.error('WebSocket error:', error);
         // Clear any existing reconnect timeout and try again
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
-        // Don't auto-reconnect to prevent error spam
-        // reconnectTimeoutRef.current = setTimeout(connect, 5000);
+        reconnectTimeoutRef.current = setTimeout(connect, 5000);
       };
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);

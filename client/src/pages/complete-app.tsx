@@ -3457,8 +3457,6 @@ export default function CompleteApp() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-
-
   // Fetch marketplace listings (for user buy/sell)
   const { data: listings = [] } = useQuery({
     queryKey: ["/api/listings"],
@@ -3559,20 +3557,8 @@ export default function CompleteApp() {
       return apiRequest("DELETE", `/api/listings/${listingId}`, {});
     },
     onSuccess: () => {
-      // Aggressive cache invalidation for immediate UI update
-      queryClient.removeQueries({ queryKey: ["/api/listings"] });
-      queryClient.removeQueries({ queryKey: ["/api/toys"] });
-      queryClient.removeQueries({ queryKey: ["/api/user-stats"] });
-      
-      // Force immediate refetch of all related data with a small delay
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ["/api/listings"] });
-        queryClient.refetchQueries({ queryKey: ["/api/toys"] });
-      }, 100);
-      
-      // Clear selected toy since it might no longer be available
-      setSelectedToyForSale(null);
-      
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
       toast({
         title: "Success!",
         description: "Listing cancelled successfully!",
@@ -4377,22 +4363,6 @@ export default function CompleteApp() {
       return response.json();
     }
   });
-
-  // Clear selected toy when marketplace listings change (e.g., after cancellation)
-  useEffect(() => {
-    if (selectedToyForSale && Array.isArray(marketplaceListings)) {
-      const filteredToys = marketplaceListings.filter((toy) => {
-        const isOwnedByUser = toy.ownerId === user?.id;
-        const isAlreadyListed = toy.isListing === true;
-        const isActivated = toy.isActivated === true;
-        return isOwnedByUser && !isAlreadyListed && !isActivated;
-      });
-      
-      if (!filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
-        setSelectedToyForSale(null);
-      }
-    }
-  }, [marketplaceListings, selectedToyForSale, user?.id]);
 
   // Mutation to create new toy
   const createToyMutation = useMutation({
@@ -5861,32 +5831,37 @@ export default function CompleteApp() {
                 <label className="block text-sm font-medium mb-2">
                   {t("marketplace.selectToy")}
                 </label>
-                <select 
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-white"
-                  value={selectedToyForSale?.id?.toString() || ""}
-                  onChange={(e) => {
-                    console.log('🎯 NATIVE SELECT TRIGGERED:', e.target.value);
-                    const availableToys = toyInventory || [];
-                    const foundToy = availableToys.find(toy => toy.id.toString() === e.target.value);
-                    console.log('🎯 FOUND TOY:', foundToy);
-                    
-                    if (foundToy) {
-                      setSelectedToyForSale(foundToy);
-                      console.log('🎯 SELECTION SET:', foundToy.name);
-                    } else if (e.target.value === "") {
-                      setSelectedToyForSale(null);
-                    }
-                  }}
-                >
-                  <option value="">{t("marketplace.selectToyToSell")}</option>
-                  {(toyInventory || [])
-                    .filter((toy: any) => toy.isActivated === false)
-                    .map((toy: any) => (
-                      <option key={toy.id} value={toy.id.toString()}>
-                        {toy.image || '🧸'} {toy.name} ({toy.rarity})
-                      </option>
+                <Select onValueChange={(value) => setSelectedToyForSale(toyInventory.find(toy => toy.id.toString() === value))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("marketplace.selectToyToSell")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {toyInventory.filter((toy) => {
+                      // Only show toys that are NOT already actively listed by this user
+                      const isAlreadyListed = marketplaceListings?.some((listing: any) => 
+                        listing.toyId === toy.id && 
+                        listing.sellerId === user?.id &&
+                        listing.status === 'active'
+                      );
+                      
+                      // Also hide toys that have pending transactions
+                      const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
+                        purchase.toyId === toy.id && 
+                        (purchase.status === 'pending_seller_confirmation' || 
+                         purchase.status === 'pending_buyer_confirmation')
+                      );
+                      
+                      // Hide activated toys (they became pets and can't be sold)
+                      const isActivated = toy.isActivated === true;
+                      
+                      return !isAlreadyListed && !hasPendingTransaction && !isActivated;
+                    }).map((toy) => (
+                      <SelectItem key={toy.id} value={toy.id.toString()}>
+                        {toy.image} {toy.name} ({toy.rarity})
+                      </SelectItem>
                     ))}
-                </select>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
