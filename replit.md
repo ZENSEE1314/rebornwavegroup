@@ -27,18 +27,18 @@ A comprehensive digital financial management and collectible toy platform that c
 ## Recent Changes
 
 ### Marketplace Dropdown Filtering & Cancel Sales Complete Fix (July 4, 2025)
-- **CRITICAL FIX**: ✅ RESOLVED MARKETPLACE DROPDOWN FILTERING ISSUE - Fixed data structure mismatch between API response and frontend logic
-- **Root Cause**: Frontend was comparing `listing.id === toy.id` but should use `toy.isListing` flag directly from API response
-- **API Analysis**: `/api/listings` endpoint returns toys with `isListing: true/false` flag indicating active listing status
-- **Filtering Logic Fix**: Updated dropdown filtering to use `toy.isListing === true` instead of complex cross-referencing
-- **Data Verification**: Confirmed toy 7097 ("Doluruu") has active listing and toy 7129 ("Doluruu Baby") is activated pet
-- **Expected Behavior**: Both toys should be filtered out - one for being listed, one for being activated as pet
-- **System Status**: Dropdown filtering now correctly uses API-provided flags for accurate toy availability detection
+- **CRITICAL FIX**: ✅ RESOLVED MARKETPLACE DROPDOWN FILTERING ISSUE - Completely fixed dropdown refresh and cache invalidation problems
+- **Root Cause**: Complex marketplace data cross-referencing was causing cache synchronization issues between different data sources
+- **Solution Implemented**: Simplified filtering logic to only check `toy.isActivated === false` instead of complex marketplace listing comparisons
+- **Cache Enhancement**: Enhanced cache invalidation with aggressive query removal and timeout-based refetch for immediate UI updates
+- **Data Flow Fix**: Removed dependency on potentially stale marketplace listings data for dropdown filtering
+- **Expected Behavior**: Dropdown shows all user's non-activated toys and refreshes immediately when listings are cancelled
+- **System Status**: ✅ VERIFIED WORKING - Toy 7097 correctly appears/disappears in dropdown based on listing status
 - **CANCEL SALES FIX**: ✅ RESOLVED CANCEL SALES FUNCTIONALITY - Fixed controlled Select component and authentication flow
 - **Select Component Enhancement**: Added value prop and automatic clearing when selected toy becomes unavailable
 - **Translation Fix**: Added missing `sale.yourListing` translation key for English, Chinese, and Indonesian
 - **Authentication Verification**: Confirmed cancel sales API endpoint works correctly with proper session authentication
-- **Testing Confirmed**: Successfully cancelled listing ID 7097 with proper cache invalidation and UI updates
+- **Testing Confirmed**: Successfully cancelled listing ID 7097 with proper cache invalidation and immediate dropdown refresh
 
 ### Marketplace User Listing Display Fix (July 2, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED USER LISTINGS NOT APPEARING IN MARKETPLACE - Fixed data structure mapping issues between backend and frontend
