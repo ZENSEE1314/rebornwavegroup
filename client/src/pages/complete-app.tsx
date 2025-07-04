@@ -7326,11 +7326,12 @@ export default function CompleteApp() {
                                   {t("sale.yourListing")}
                                 </Badge>
                                 <Button 
-                                  onClick={() => cancelListing(listing.id)}
+                                  onClick={() => cancelListing(listing.listingId || listing.id)}
                                   variant="outline"
-                                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                                  className="w-full border-red-600 text-red-600 hover:bg-red-50 text-xs px-3"
+                                  size="sm"
                                 >
-                                  <X className="w-4 h-4 mr-2" />
+                                  <X className="w-3 h-3 mr-1" />
                                   {t("sale.cancel")}
                                 </Button>
                               </div>
