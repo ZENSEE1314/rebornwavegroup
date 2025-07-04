@@ -4,9 +4,17 @@ import { queryClient } from '@/lib/queryClient';
 export function useWebSocket(enabled: boolean = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttempts = useRef<number>(0);
+  const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (!enabled) return;
+    
+    // Prevent multiple connections
+    if (wsRef.current?.readyState === WebSocket.OPEN || 
+        wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
 
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -16,6 +24,7 @@ export function useWebSocket(enabled: boolean = true) {
 
       wsRef.current.onopen = () => {
         console.log('WebSocket connected for real-time updates');
+        reconnectAttempts.current = 0; // Reset reconnection attempts on successful connection
       };
 
       wsRef.current.onmessage = (event) => {
@@ -189,11 +198,20 @@ export function useWebSocket(enabled: boolean = true) {
       };
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
-      // Schedule reconnect on connection failure
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+      // Schedule reconnect with exponential backoff
+      if (reconnectAttempts.current < maxReconnectAttempts) {
+        reconnectAttempts.current++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000); // Max 30 seconds
+        
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        
+        console.log(`WebSocket reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
+        reconnectTimeoutRef.current = setTimeout(connect, delay);
+      } else {
+        console.warn('WebSocket max reconnection attempts reached, stopping reconnection');
       }
-      reconnectTimeoutRef.current = setTimeout(connect, 5000);
     }
   }, [enabled]);
 

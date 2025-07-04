@@ -20,24 +20,27 @@ console.error = (...args: any[]) => {
   originalConsoleError.apply(console, args);
 };
 
-// Also suppress unhandled promise rejections related to WebSocket
-const originalUnhandledRejection = window.addEventListener;
-window.addEventListener = function(type: string, listener: any, options?: any) {
-  if (type === 'unhandledrejection') {
-    const wrappedListener = (event: any) => {
-      const error = event.reason?.message || event.reason || '';
-      if (typeof error === 'string' && 
-          (error.includes('WebSocket') || 
-           error.includes('websocket') ||
-           error.includes('janeway.replit.dev'))) {
-        event.preventDefault();
-        return;
-      }
-      return listener(event);
-    };
-    return originalUnhandledRejection.call(this, type, wrappedListener, options);
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  const error = event.reason?.message || event.reason || '';
+  const errorString = typeof error === 'string' ? error : JSON.stringify(error);
+  
+  // Suppress specific WebSocket and network-related errors
+  if (errorString.includes('WebSocket') || 
+      errorString.includes('websocket') ||
+      errorString.includes('janeway.replit.dev') ||
+      errorString.includes('CORS') ||
+      errorString.includes('Failed to fetch') ||
+      errorString.includes('Network Error') ||
+      errorString.includes('invalidateQueries') ||
+      errorString.includes('queryClient')) {
+    event.preventDefault();
+    console.warn('Suppressed network/WebSocket error:', errorString);
+    return;
   }
-  return originalUnhandledRejection.call(this, type, listener, options);
-};
+  
+  // Log other unhandled rejections for debugging
+  console.error('Unhandled Promise Rejection:', error);
+});
 
 createRoot(document.getElementById("root")!).render(<App />);
