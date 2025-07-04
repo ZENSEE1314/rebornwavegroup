@@ -3183,7 +3183,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {/* Purchase Calculator & Upload Form */}
         <Card>
           <CardHeader>
@@ -8166,7 +8166,7 @@ export default function CompleteApp() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
               {/* Your Referral Code */}
               <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 <CardHeader>
