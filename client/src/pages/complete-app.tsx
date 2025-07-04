@@ -5831,17 +5831,22 @@ export default function CompleteApp() {
                 <label className="block text-sm font-medium mb-2">
                   {t("marketplace.selectToy")}
                 </label>
-                <Select onValueChange={(value) => setSelectedToyForSale(marketplaceListings.find(toy => toy.id.toString() === value))}>
+                <Select 
+                  value={selectedToyForSale?.id?.toString() || ""} 
+                  onValueChange={(value) => {
+                    if (value) {
+                      const toy = marketplaceListings.find(toy => toy.id.toString() === value);
+                      setSelectedToyForSale(toy);
+                    } else {
+                      setSelectedToyForSale(null);
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder={t("marketplace.selectToyToSell")} />
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      console.log('=== DROPDOWN DEBUG ===');
-                      console.log('Total marketplaceListings:', marketplaceListings?.length || 0);
-                      console.log('User ID:', user?.id);
-                      console.log('Full marketplaceListings data:', marketplaceListings);
-                      
                       const filteredToys = marketplaceListings.filter((toy) => {
                         // Only show toys owned by current user
                         const isOwnedByUser = toy.ownerId === user?.id;
@@ -5859,24 +5864,13 @@ export default function CompleteApp() {
                         // Hide activated toys (they became pets and can't be sold)
                         const isActivated = toy.isActivated === true;
                         
-                        const shouldShow = isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
-                        
-                        // Debug logging to see filtering results
-                        console.log(`Toy ${toy.id} (${toy.name}):`, {
-                          ownerId: toy.ownerId,
-                          userId: user?.id,
-                          isOwnedByUser,
-                          isAlreadyListed,
-                          hasPendingTransaction,
-                          isActivated,
-                          shouldShow
-                        });
-                        
-                        return shouldShow;
+                        return isOwnedByUser && !isAlreadyListed && !hasPendingTransaction && !isActivated;
                       });
                       
-                      console.log('Filtered toys count:', filteredToys.length);
-                      console.log('Filtered toys:', filteredToys);
+                      // Clear selected toy if it's no longer available
+                      if (selectedToyForSale && !filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
+                        setSelectedToyForSale(null);
+                      }
                       
                       return filteredToys;
                     })().map((toy) => (
