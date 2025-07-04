@@ -3559,16 +3559,16 @@ export default function CompleteApp() {
       return apiRequest("DELETE", `/api/listings/${listingId}`, {});
     },
     onSuccess: () => {
-      // Remove all cached listing queries completely
+      // Aggressive cache invalidation for immediate UI update
       queryClient.removeQueries({ queryKey: ["/api/listings"] });
-      queryClient.removeQueries({ queryKey: ["/api/listings", selectedMarketplaceSeason] });
-      queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
+      queryClient.removeQueries({ queryKey: ["/api/toys"] });
+      queryClient.removeQueries({ queryKey: ["/api/user-stats"] });
       
-      // Force immediate refetch with no cache
-      queryClient.refetchQueries({ 
-        queryKey: ["/api/listings", selectedMarketplaceSeason],
-        type: 'active'
-      });
+      // Force immediate refetch of all related data with a small delay
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/listings"] });
+        queryClient.refetchQueries({ queryKey: ["/api/toys"] });
+      }, 100);
       
       // Clear selected toy since it might no longer be available
       setSelectedToyForSale(null);
@@ -5877,37 +5877,35 @@ export default function CompleteApp() {
                   </SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      // Use user's own toys (from /api/toys) instead of marketplace listings for dropdown
+                      // Use user's own toys and filter out unavailable ones
                       const userOwnedToys = userToys || [];
-                      console.log('Dropdown Debug - userToys:', userOwnedToys);
-                      console.log('Dropdown Debug - user?.id:', user?.id);
                       
                       const filteredToys = userOwnedToys.filter((toy: any) => {
-                        // Hide toys that are already actively listed 
-                        // Check if this toy has an active listing in marketplace
-                        const isAlreadyListed = marketplaceListings?.some((listing: any) => 
-                          listing.id === toy.id && listing.isListing === true
-                        );
+                        // Hide activated toys (they became pets and can't be sold)
+                        if (toy.isActivated === true) {
+                          return false;
+                        }
                         
-                        // Also hide toys that have pending transactions
+                        // Hide toys that have pending transactions
                         const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
                           purchase.toyId === toy.id && 
                           (purchase.status === 'pending_seller_confirmation' || 
                            purchase.status === 'pending_buyer_confirmation')
                         );
                         
-                        // Hide activated toys (they became pets and can't be sold)
-                        const isActivated = toy.isActivated === true;
+                        if (hasPendingTransaction) {
+                          return false;
+                        }
                         
-                        console.log(`Dropdown Debug - Toy ${toy.id} (${toy.name}):`, {
-                          isAlreadyListed,
-                          hasPendingTransaction,
-                          isActivated,
-                          shouldShow: !isAlreadyListed && !hasPendingTransaction && !isActivated,
-                          toyData: toy
-                        });
+                        // Hide toys that are currently listed for sale
+                        // Check both user's listings and general marketplace for this toy
+                        const isCurrentlyListed = marketplaceListings?.some((listing: any) => 
+                          listing.id === toy.id && 
+                          listing.ownerId === user?.id && 
+                          listing.isListing === true
+                        );
                         
-                        return !isAlreadyListed && !hasPendingTransaction && !isActivated;
+                        return !isCurrentlyListed;
                       });
                       
                       // Clear selected toy if it's no longer available
