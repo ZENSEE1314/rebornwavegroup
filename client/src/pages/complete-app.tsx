@@ -5881,31 +5881,8 @@ export default function CompleteApp() {
                       const userOwnedToys = userToys || [];
                       
                       const filteredToys = userOwnedToys.filter((toy: any) => {
-                        // Hide activated toys (they became pets and can't be sold)
-                        if (toy.isActivated === true) {
-                          return false;
-                        }
-                        
-                        // Hide toys that have pending transactions
-                        const hasPendingTransaction = userPendingPurchases?.some((purchase: any) => 
-                          purchase.toyId === toy.id && 
-                          (purchase.status === 'pending_seller_confirmation' || 
-                           purchase.status === 'pending_buyer_confirmation')
-                        );
-                        
-                        if (hasPendingTransaction) {
-                          return false;
-                        }
-                        
-                        // Hide toys that are currently listed for sale
-                        // Check both user's listings and general marketplace for this toy
-                        const isCurrentlyListed = marketplaceListings?.some((listing: any) => 
-                          listing.id === toy.id && 
-                          listing.ownerId === user?.id && 
-                          listing.isListing === true
-                        );
-                        
-                        return !isCurrentlyListed;
+                        // Only show toys that are not activated (pets can't be sold)
+                        return toy.isActivated === false;
                       });
                       
                       // Clear selected toy if it's no longer available
