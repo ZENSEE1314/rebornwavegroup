@@ -3554,21 +3554,9 @@ export default function CompleteApp() {
   // Cancel listing mutation
   const cancelListingMutation = useMutation({
     mutationFn: async (listingId: number) => {
-      console.log('Attempting to cancel listing:', listingId);
-      console.log('User authenticated:', !!user);
-      console.log('User ID:', user?.id);
-      
-      try {
-        const response = await apiRequest("DELETE", `/api/listings/${listingId}`, {});
-        console.log('Cancel listing response:', response);
-        return response;
-      } catch (error) {
-        console.error('Cancel listing error:', error);
-        throw error;
-      }
+      return apiRequest("DELETE", `/api/listings/${listingId}`, {});
     },
-    onSuccess: (data) => {
-      console.log('Cancel listing success:', data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/toys"] });
       toast({
@@ -3577,7 +3565,6 @@ export default function CompleteApp() {
       });
     },
     onError: (error: any) => {
-      console.error('Cancel listing mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to cancel listing",
