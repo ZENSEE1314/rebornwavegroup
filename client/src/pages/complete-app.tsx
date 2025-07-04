@@ -3457,21 +3457,7 @@ export default function CompleteApp() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Clear selected toy when marketplace listings change (e.g., after cancellation)
-  useEffect(() => {
-    if (selectedToyForSale && Array.isArray(marketplaceListings)) {
-      const filteredToys = marketplaceListings.filter((toy) => {
-        const isOwnedByUser = toy.ownerId === user?.id;
-        const isAlreadyListed = toy.isListing === true;
-        const isActivated = toy.isActivated === true;
-        return isOwnedByUser && !isAlreadyListed && !isActivated;
-      });
-      
-      if (!filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
-        setSelectedToyForSale(null);
-      }
-    }
-  }, [marketplaceListings, selectedToyForSale, user?.id]);
+
 
   // Fetch marketplace listings (for user buy/sell)
   const { data: listings = [] } = useQuery({
@@ -4385,6 +4371,22 @@ export default function CompleteApp() {
       return response.json();
     }
   });
+
+  // Clear selected toy when marketplace listings change (e.g., after cancellation)
+  useEffect(() => {
+    if (selectedToyForSale && Array.isArray(marketplaceListings)) {
+      const filteredToys = marketplaceListings.filter((toy) => {
+        const isOwnedByUser = toy.ownerId === user?.id;
+        const isAlreadyListed = toy.isListing === true;
+        const isActivated = toy.isActivated === true;
+        return isOwnedByUser && !isAlreadyListed && !isActivated;
+      });
+      
+      if (!filteredToys.find(toy => toy.id === selectedToyForSale.id)) {
+        setSelectedToyForSale(null);
+      }
+    }
+  }, [marketplaceListings, selectedToyForSale, user?.id]);
 
   // Mutation to create new toy
   const createToyMutation = useMutation({
