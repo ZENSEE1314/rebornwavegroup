@@ -2934,24 +2934,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         nextEnergyIn = (delayPeriod - secondsSinceSleepStart) / 60; // Convert to minutes
         console.log(`*** SLEEP DEBUG: Pet ${petId} in delay period - ${Math.floor(nextEnergyIn)} minutes remaining before energy starts`);
       } else {
-        // Past delay period - calculate energy gains every 5 minutes
+        // Past delay period - real-time system handles all energy increases
         const secondsSinceEnergyStart = secondsSinceSleepStart - delayPeriod;
-        const energyIntervals = Math.floor(secondsSinceEnergyStart / (5 * 60)); // 5-minute intervals
         
-        // Get current energy from real-time system or database
-        const currentEnergy = pet.energy || 0;
-        const expectedEnergy = Math.min(100, 50 + energyIntervals); // Start at 50%, add 1% per interval
+        // No energy sync needed - let real-time system handle energy increases
+        energyToAdd = 0;
         
-        // Check if we need to sync with real-time system
-        if (currentEnergy < expectedEnergy) {
-          energyToAdd = expectedEnergy - currentEnergy;
-        }
-        
-        // Calculate time until next interval
-        const secondsUntilNext = (5 * 60) - (secondsSinceEnergyStart % (5 * 60));
+        // Calculate time until next 30-second energy increase (real-time system interval)
+        const secondsUntilNext = 30 - (secondsSinceEnergyStart % 30);
         nextEnergyIn = secondsUntilNext / 60; // Convert to minutes
         
-        console.log(`*** SLEEP DEBUG: Pet ${petId} - Past delay period - Current: ${currentEnergy}%, Expected: ${expectedEnergy}%, Energy to add: ${energyToAdd}, Next in: ${nextEnergyIn.toFixed(1)} min`);
+        console.log(`*** SLEEP DEBUG: Pet ${petId} - Past delay period - Current energy: ${pet.energy}%, Next increase in: ${nextEnergyIn.toFixed(1)} min`);
       }
       
       const newEnergy = Math.min(100, (pet.energy || 0) + energyToAdd);

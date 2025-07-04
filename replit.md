@@ -26,6 +26,15 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Sleep Energy Calculation Conflict Resolution (July 4, 2025)
+- **CRITICAL FIX**: ✅ RESOLVED ENERGY JUMPING ISSUE - Fixed conflicting sleep energy calculation systems causing 6% to 52% jumps
+- **Root Cause Identified**: Sleep progress endpoint was syncing pets to arbitrary 50% baseline energy, conflicting with real-time 1%/30sec increases
+- **Sync Logic Removal**: Eliminated problematic expected energy calculation that forced pets to artificial energy levels
+- **Unified Energy System**: Real-time energy timer now handles all energy increases consistently without interference
+- **Smooth Energy Progression**: Energy now increases naturally from current level every 30 seconds during sleep
+- **Debug Message Enhancement**: Updated sleep progress logging to show actual current energy without confusing "expected" values
+- **System Status**: Sleep energy now progresses smoothly without unexpected jumps or conflicts between calculation methods
+
 ### Enhanced WebSocket Error Handling System Implementation (July 4, 2025)
 - **MAJOR STABILITY IMPROVEMENT**: ✅ COMPLETE WEBSOCKET ERROR MANAGEMENT WITH EXPONENTIAL BACKOFF
 - **Global Error Suppression**: Added comprehensive global unhandled promise rejection handler to suppress WebSocket and network-related errors
