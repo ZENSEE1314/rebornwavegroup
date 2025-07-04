@@ -997,23 +997,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateListingStatus(id: number, status: string): Promise<void> {
-    console.log(`*** LISTING UPDATE DEBUG: Attempting to update listing ${id} to status '${status}'`);
-    
-    const result = await db
+    await db
       .update(listings)
       .set({ status, updatedAt: new Date() })
-      .where(eq(listings.id, id))
-      .returning();
-    
-    console.log(`*** LISTING UPDATE DEBUG: Update result:`, result);
-    
-    // Verify the update worked
-    const [updated] = await db
-      .select()
-      .from(listings)
       .where(eq(listings.id, id));
-    
-    console.log(`*** LISTING UPDATE DEBUG: Current listing status after update:`, updated);
   }
 
   // Message operations
