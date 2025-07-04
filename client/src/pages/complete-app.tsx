@@ -5996,21 +5996,21 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-sm font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                       <div className="space-y-1 mt-1">
-                        <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-xs px-1">
-                          <Plus className="w-2 h-2 mr-1" />
+                        <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-xs px-3">
+                          <Plus className="w-3 h-3 mr-1" />
                           Top Up
                         </Button>
-                        <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-xs px-1">
-                          <DollarSign className="w-2 h-2 mr-1" />
+                        <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-xs px-3">
+                          <DollarSign className="w-3 h-3 mr-1" />
                           Cash Out
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => setShowCreditHistoryModal(true)}
-                          className="w-full text-xs px-1"
+                          className="w-full text-xs px-3"
                         >
-                          <Eye className="w-2 h-2 mr-1" />
+                          <Eye className="w-3 h-3 mr-1" />
                           History
                         </Button>
                       </div>
@@ -6024,8 +6024,8 @@ export default function CompleteApp() {
                         {t('dashboard.loyaltyPoints')}
                       </p>
                       <p className="text-lg font-bold text-purple-800">{loyaltyPoints}</p>
-                      <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-1 bg-purple-600 hover:bg-purple-700 text-xs px-1">
-                        <Star className="w-2 h-2 mr-1" />
+                      <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-1 bg-purple-600 hover:bg-purple-700 text-xs px-3">
+                        <Star className="w-3 h-3 mr-1" />
                         Rewards
                       </Button>
                     </CardContent>
@@ -6043,8 +6043,8 @@ export default function CompleteApp() {
                       </p>
                       <p className="text-lg font-bold text-orange-800">{userTokens}</p>
                       <div className="space-y-1 mt-1">
-                        <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-xs px-1">
-                          <Star className="w-2 h-2 mr-1" />
+                        <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-xs px-3">
+                          <Star className="w-3 h-3 mr-1" />
                           Claim
                         </Button>
                         <Button 
@@ -6055,9 +6055,9 @@ export default function CompleteApp() {
                             setModalHistoryPage(1);
                             setShowHistoryModal(true);
                           }}
-                          className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 text-xs px-1"
+                          className="w-full bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 text-xs px-3"
                         >
-                          <Eye className="w-2 h-2 mr-1" />
+                          <Eye className="w-3 h-3 mr-1" />
                           History
                         </Button>
                       </div>
@@ -6074,10 +6074,10 @@ export default function CompleteApp() {
                       <Button 
                         size="sm" 
                         onClick={toggleAchievementRules}
-                        className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-1 text-xs"
+                        className="mt-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 text-xs"
                       >
                         <Trophy className="w-3 h-3 mr-0.5" />
-                        <span style={{fontSize: '10px'}}>Achievement</span>
+                        Achievement
                       </Button>
                     </CardContent>
                   </Card>
@@ -6106,11 +6106,11 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-lg font-bold text-green-800">RP {formatRupiah(userCredits)}</p>
                   <div className="space-y-1 mt-2">
-                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-sm px-3">
+                    <Button size="sm" onClick={() => setShowCreditTopUpModal(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-xs px-3">
                       <Plus className="w-3 h-3 mr-1" />
                       Top Up
                     </Button>
-                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-sm px-3">
+                    <Button size="sm" onClick={() => setShowCashOutModal(true)} className="w-full bg-green-600 hover:bg-green-700 text-xs px-3">
                       <DollarSign className="w-3 h-3 mr-1" />
                       Cash Out
                     </Button>
@@ -6134,8 +6134,8 @@ export default function CompleteApp() {
                     {t('dashboard.loyaltyPoints')}
                   </p>
                   <p className="text-2xl font-bold text-purple-800">{loyaltyPoints}</p>
-                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700 text-sm px-3">
-                    <Star className="w-4 h-4 mr-1" />
+                  <Button size="sm" onClick={() => setActiveTab("loyalty")} className="mt-2 bg-purple-600 hover:bg-purple-700 text-xs px-3">
+                    <Star className="w-3 h-3 mr-1" />
                     Rewards
                   </Button>
                 </CardContent>
@@ -6149,8 +6149,8 @@ export default function CompleteApp() {
                   </p>
                   <p className="text-2xl font-bold text-orange-800">{userTokens}</p>
                   <div className="space-y-2 mt-2">
-                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-sm px-3">
-                      <Star className="w-4 h-4 mr-1" />
+                    <Button size="sm" onClick={() => setShowTokenClaimModal(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-xs px-3">
+                      <Star className="w-3 h-3 mr-1" />
                       Claim
                     </Button>
                     <Button 
@@ -6180,10 +6180,10 @@ export default function CompleteApp() {
                   <Button 
                     size="sm" 
                     onClick={toggleAchievementRules}
-                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3"
+                    className="mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 text-xs"
                   >
                     <Trophy className="w-3 h-3 mr-0.5" />
-                    <span style={{fontSize: '10px'}}>Achievement</span>
+                    Achievement
                   </Button>
                 </CardContent>
               </Card>
