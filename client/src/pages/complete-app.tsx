@@ -5861,33 +5861,32 @@ export default function CompleteApp() {
                 <label className="block text-sm font-medium mb-2">
                   {t("marketplace.selectToy")}
                 </label>
-                <Select 
+                <select 
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white"
                   value={selectedToyForSale?.id?.toString() || ""}
-                  onValueChange={(value) => {
-                    console.log('🎯 SELECT TRIGGERED:', value);
+                  onChange={(e) => {
+                    console.log('🎯 NATIVE SELECT TRIGGERED:', e.target.value);
                     const availableToys = toyInventory || [];
-                    const foundToy = availableToys.find(toy => toy.id.toString() === value);
+                    const foundToy = availableToys.find(toy => toy.id.toString() === e.target.value);
                     console.log('🎯 FOUND TOY:', foundToy);
                     
                     if (foundToy) {
                       setSelectedToyForSale(foundToy);
                       console.log('🎯 SELECTION SET:', foundToy.name);
+                    } else if (e.target.value === "") {
+                      setSelectedToyForSale(null);
                     }
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("marketplace.selectToyToSell")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(toyInventory || [])
-                      .filter((toy: any) => toy.isActivated === false)
-                      .map((toy: any) => (
-                        <SelectItem key={toy.id} value={toy.id.toString()}>
-                          {toy.image || '🧸'} {toy.name} ({toy.rarity})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">{t("marketplace.selectToyToSell")}</option>
+                  {(toyInventory || [])
+                    .filter((toy: any) => toy.isActivated === false)
+                    .map((toy: any) => (
+                      <option key={toy.id} value={toy.id.toString()}>
+                        {toy.image || '🧸'} {toy.name} ({toy.rarity})
+                      </option>
+                    ))}
+                </select>
               </div>
               
               <div>
