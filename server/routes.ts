@@ -1333,10 +1333,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
-      const user = await storage.getUser(adminUserId);
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -3463,7 +3463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/users', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -4438,7 +4438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/all-toys', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       const currentUser = await storage.getUser(adminUserId);
@@ -7636,9 +7636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all toys (templates + generated toys + live toys) for admin dashboard
-  app.get('/api/admin/all-toys', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/all-toys', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.id;
+      const adminUserId = getUserId(req);
       const user = await storage.getUser(adminUserId);
       
       if (user?.role !== 'admin') {
