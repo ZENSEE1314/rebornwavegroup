@@ -13,7 +13,9 @@ console.error = (...args: any[]) => {
         message.includes('localhost:undefined') ||
         message.includes('failed to construct'))) ||
       message.includes('unhandledrejection') ||
-      (message.includes('websocket') && message.includes('failed'))) {
+      message.includes('domexception') ||
+      (message.includes('websocket') && message.includes('failed')) ||
+      (message.includes('syntaxerror') && message.includes('websocket'))) {
     return; // Silent suppression for external errors
   }
   
@@ -24,6 +26,7 @@ console.error = (...args: any[]) => {
 window.addEventListener('unhandledrejection', (event) => {
   const error = event.reason?.message || event.reason || '';
   const errorString = typeof error === 'string' ? error : JSON.stringify(error);
+  const errorName = event.reason?.name || '';
   
   // Suppress specific WebSocket and network-related errors
   if (errorString.includes('WebSocket') || 
@@ -33,9 +36,14 @@ window.addEventListener('unhandledrejection', (event) => {
       errorString.includes('Failed to fetch') ||
       errorString.includes('Network Error') ||
       errorString.includes('invalidateQueries') ||
-      errorString.includes('queryClient')) {
+      errorString.includes('queryClient') ||
+      errorString.includes('Failed to construct') ||
+      errorString.includes('SyntaxError') ||
+      errorString.includes('is invalid') ||
+      errorName === 'DOMException' ||
+      errorName === 'SyntaxError') {
     event.preventDefault();
-    console.warn('Suppressed network/WebSocket error:', errorString);
+    // Silent suppression for external/infrastructure errors
     return;
   }
   

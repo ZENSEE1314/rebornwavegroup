@@ -22,7 +22,14 @@ export function useWebSocket(enabled: boolean = true) {
       const wsUrl = `${protocol}//${host}/ws`;
       
       console.log(`Attempting WebSocket connection to: ${wsUrl}`);
-      wsRef.current = new WebSocket(wsUrl);
+      
+      // Create WebSocket with additional error handling
+      try {
+        wsRef.current = new WebSocket(wsUrl);
+      } catch (wsError) {
+        console.warn('WebSocket constructor error:', wsError);
+        throw wsError;
+      }
 
       wsRef.current.onopen = () => {
         console.log('WebSocket connected for real-time updates');
