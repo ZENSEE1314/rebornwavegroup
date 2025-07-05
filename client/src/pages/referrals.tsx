@@ -49,10 +49,11 @@ export default function Referrals() {
 
   const handleCopyReferralCode = () => {
     if (user?.referralCode) {
-      navigator.clipboard.writeText(user.referralCode);
+      const referralLink = `${window.location.origin}/login?ref=${user.referralCode}`;
+      navigator.clipboard.writeText(referralLink);
       toast({
         title: "Copied!",
-        description: "Referral code copied to clipboard",
+        description: "Referral link copied to clipboard",
       });
     }
   };
@@ -62,7 +63,7 @@ export default function Referrals() {
       navigator.share({
         title: "Join Reborn Wave Group",
         text: `Use my referral code to join Reborn Wave Group and get exclusive benefits!`,
-        url: `${window.location.origin}?ref=${user.referralCode}`,
+        url: `${window.location.origin}/login?ref=${user.referralCode}`,
       });
     } else {
       handleCopyReferralCode();

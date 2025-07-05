@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -62,6 +62,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [resetToken, setResetToken] = useState("");
+  const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
 
   const loginForm = useForm<LoginFormData>({
@@ -82,10 +83,24 @@ export default function Login() {
       countryCode: "+1",
       phoneNumber: "",
       dateOfBirth: "",
-      gender: "",
+      gender: "male", // Set default gender instead of empty string
       referralCode: "",
     },
   });
+
+  // Check for referral code in URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode) {
+      setReferralCodeFromUrl(refCode);
+      // Pre-fill the referral code in the form
+      registerForm.setValue('referralCode', refCode);
+      // Switch to register tab if referral code is present
+      setActiveTab('register');
+    }
+  }, [registerForm]);
 
   const forgotPasswordForm = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -662,14 +677,20 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="referralCode" className="text-sm font-medium">
                     {t('auth.referralCodeOptional')}
+                    {referralCodeFromUrl && <span className="text-green-600 text-xs ml-2">(Pre-filled from referral link)</span>}
                   </Label>
                   <Input
                     id="referralCode"
                     placeholder={t('auth.referralCodeOptional')}
                     {...registerForm.register("referralCode")}
+                    readOnly={!!referralCodeFromUrl}
+                    className={referralCodeFromUrl ? "bg-gray-100 border-green-500 text-gray-700" : ""}
                   />
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {t('auth.referralCodeInfo')}
+                    {referralCodeFromUrl 
+                      ? "This referral code was automatically filled from your invitation link and cannot be changed."
+                      : t('auth.referralCodeInfo')
+                    }
                   </p>
                 </div>
 
