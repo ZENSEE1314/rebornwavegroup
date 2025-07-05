@@ -92,6 +92,8 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Empty State Handling**: Added proper "No sales data yet" message when no marketplace transactions exist
 - **Toy Price Display Fix**: ✅ FIXED TOY PRICE DISPLAY - Updated admin dashboard to show toy prices as "RP 1,000,000" instead of "$N/A"
 - **Field Mapping Fix**: Corrected price display to use `originalPrice` field from toys table instead of incorrect `basePrice` reference
+- **Toy Count Display Fix**: ✅ FIXED TOY COUNT DISPLAY ISSUE - Updated "Generated Toys" count to show 3000 instead of 1000
+- **Pagination Count Fix**: Corrected admin dashboard to use `pagination.totalCount` instead of filtering limited paginated data
 - **Data Accuracy**: Admin dashboard now accurately reflects real database state with proper formatting and currency display
 
 ### Enhanced WebSocket Error Handling System Implementation (July 4, 2025)

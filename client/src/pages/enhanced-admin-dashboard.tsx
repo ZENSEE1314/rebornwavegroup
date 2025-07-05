@@ -4891,7 +4891,7 @@ function EnhancedAdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-300">
-                        {allToysQuery?.data?.data?.filter((toy: any) => !toy.ownerId && toy.templateId)?.length || 0}
+                        {allToysQuery?.data?.pagination?.totalCount || 0}
                       </div>
                       <div className="text-sm text-gray-300">Generated Toys</div>
                       <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
