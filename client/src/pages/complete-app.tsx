@@ -6005,7 +6005,15 @@ export default function CompleteApp() {
               <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {/* Credits */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-4">
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('credits-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                         <DollarSign className="w-4 h-4 text-white" />
@@ -6014,7 +6022,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
                   </div>
-                  <div className="flex justify-around pb-4 px-4">
+                  <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowCreditTopUpModal(true)}
                       className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6047,7 +6055,15 @@ export default function CompleteApp() {
 
                 {/* Loyalty Points */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-4">
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('loyalty-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4 text-white" />
@@ -6056,7 +6072,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
                   </div>
-                  <div className="flex justify-around pb-4 px-4">
+                  <div id="loyalty-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
                       className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6084,7 +6100,15 @@ export default function CompleteApp() {
 
                 {/* Tokens */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-4">
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('tokens-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-4 h-4 text-white" />
@@ -6093,7 +6117,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold">{userTokens}</span>
                   </div>
-                  <div className="flex justify-around pb-4 px-4">
+                  <div id="tokens-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
                       className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6121,7 +6145,15 @@ export default function CompleteApp() {
 
                 {/* Referrals */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-4">
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('referrals-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-4 h-4 text-white" />
@@ -6130,7 +6162,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold">{userReferrals.length}</span>
                   </div>
-                  <div className="flex justify-around pb-4 px-4">
+                  <div id="referrals-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
                       className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6152,7 +6184,7 @@ export default function CompleteApp() {
                   </div>
                 </div>
 
-                {/* Referral Earnings */}
+                {/* Referral Earnings - No buttons */}
                 <div>
                   <div className="flex items-center justify-between p-4">
                     <div className="flex items-center space-x-3">
@@ -6163,30 +6195,6 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
                   </div>
-                  <div className="flex justify-around pb-4 px-4">
-                    <button 
-                      onClick={() => {
-                        setModalHistoryFilter("commission");
-                        setModalHistoryPage(1);
-                        setShowHistoryModal(true);
-                      }}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs">History</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowCashOutModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <ArrowLeft className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs">Withdraw</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -6196,7 +6204,15 @@ export default function CompleteApp() {
               <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {/* Credits */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-6">
+                  <div 
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('desktop-credits-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
                         <DollarSign className="w-5 h-5 text-white" />
@@ -6205,7 +6221,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(userCredits)}</span>
                   </div>
-                  <div className="flex justify-around pb-6 px-6">
+                  <div id="desktop-credits-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowCreditTopUpModal(true)}
                       className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6238,7 +6254,15 @@ export default function CompleteApp() {
 
                 {/* Loyalty Points */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-6">
+                  <div 
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('desktop-loyalty-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5 text-white" />
@@ -6247,7 +6271,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold text-xl">{loyaltyPoints}</span>
                   </div>
-                  <div className="flex justify-around pb-6 px-6">
+                  <div id="desktop-loyalty-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
                       className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6275,7 +6299,15 @@ export default function CompleteApp() {
 
                 {/* Tokens */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-6">
+                  <div 
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('desktop-tokens-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-5 h-5 text-white" />
@@ -6284,7 +6316,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold text-xl">{userTokens}</span>
                   </div>
-                  <div className="flex justify-around pb-6 px-6">
+                  <div id="desktop-tokens-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
                       className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6312,7 +6344,15 @@ export default function CompleteApp() {
 
                 {/* Referrals */}
                 <div className="border-b border-gray-200">
-                  <div className="flex items-center justify-between p-6">
+                  <div 
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      const buttonsDiv = document.getElementById('desktop-referrals-buttons');
+                      if (buttonsDiv) {
+                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                      }
+                    }}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5 text-white" />
@@ -6321,7 +6361,7 @@ export default function CompleteApp() {
                     </div>
                     <span className="text-gray-900 font-bold text-xl">{userReferrals.length}</span>
                   </div>
-                  <div className="flex justify-around pb-6 px-6">
+                  <div id="desktop-referrals-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
                       className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -6343,7 +6383,7 @@ export default function CompleteApp() {
                   </div>
                 </div>
 
-                {/* Referral Earnings */}
+                {/* Referral Earnings - No buttons */}
                 <div>
                   <div className="flex items-center justify-between p-6">
                     <div className="flex items-center space-x-4">
@@ -6353,30 +6393,6 @@ export default function CompleteApp() {
                       <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                     </div>
                     <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
-                  </div>
-                  <div className="flex justify-around pb-6 px-6">
-                    <button 
-                      onClick={() => {
-                        setModalHistoryFilter("commission");
-                        setModalHistoryPage(1);
-                        setShowHistoryModal(true);
-                      }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm">History</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowCashOutModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <ArrowLeft className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm">Withdraw</span>
-                    </button>
                   </div>
                 </div>
               </div>
