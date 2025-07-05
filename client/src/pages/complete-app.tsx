@@ -5919,11 +5919,11 @@ export default function CompleteApp() {
               </p>
             </div>
 
-            {/* Promotion Banners */}
+            {/* Promotion Banners - Single Column on Mobile */}
             {activePromotionBanners.length > 0 && (
-              <div className="w-full block md:grid md:grid-cols-2 md:gap-6">
+              <div className="w-full">
                 {activePromotionBanners.map((banner: any) => (
-                  <Card key={banner.id} className={`w-full mb-6 md:mb-0 text-white ${
+                  <Card key={banner.id} className={`w-full max-w-full mb-6 text-white ${
                     banner.backgroundColor === 'blue' ? 'bg-gradient-to-r from-blue-600 to-blue-800' :
                     banner.backgroundColor === 'green' ? 'bg-gradient-to-r from-green-500 to-green-700' :
                     banner.backgroundColor === 'orange' ? 'bg-gradient-to-r from-orange-500 to-orange-700' :
