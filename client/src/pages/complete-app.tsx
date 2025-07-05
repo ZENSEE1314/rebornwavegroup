@@ -5969,30 +5969,34 @@ export default function CompleteApp() {
             <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
               <Button 
                 onClick={() => setActiveTab("purchase")} 
-                className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
               >
-                <Camera className="w-8 h-8" />
+                <Camera className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium">{t('purchase.verification')}</span>
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("bookings")} 
-                className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
               >
-                <Calendar className="w-8 h-8" />
+                <Calendar className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium">{t('booking.title')}</span>
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("inventory")} 
-                className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
               >
-                <Package className="w-8 h-8" />
+                <Package className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium">{t('toys.myCollection')}</span>
               </Button>
 
               <Button 
                 onClick={() => setActiveTab("referrals")} 
-                className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center justify-center p-0"
+                className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
               >
-                <Users className="w-8 h-8" />
+                <Users className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium">{t('referral.program')}</span>
               </Button>
             </div>
 
