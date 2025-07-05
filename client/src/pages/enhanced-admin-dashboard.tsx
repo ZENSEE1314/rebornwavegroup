@@ -3536,6 +3536,181 @@ function EnhancedAdminDashboard() {
           {/* Content Management Tab */}
           <TabsContent value="content">
             <div className="space-y-6">
+              {/* Banner Management Section */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Package className="h-5 w-5 text-blue-400" />
+                      Promotion Banners
+                    </CardTitle>
+                    <Button 
+                      onClick={() => {
+                        setBannerForm({
+                          title: "",
+                          description: "",
+                          imageUrl: "",
+                          ctaText: "",
+                          ctaUrl: "",
+                          type: "banner",
+                          backgroundColor: "blue",
+                          displayOrder: 0,
+                          isActive: true,
+                          iconSymbol: ""
+                        });
+                        setEditingBanner(null);
+                        setShowBannerDialog(true);
+                      }}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Banner
+                    </Button>
+                  </div>
+                  <p className="text-gray-300 text-sm">Manage promotional banners displayed in the app</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {Array.isArray(promotionBanners.data || promotionBanners) && (promotionBanners.data || promotionBanners).length > 0 ? (
+                      (promotionBanners.data || promotionBanners).map((banner: any) => (
+                        <div key={banner.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-white font-semibold text-lg">{banner.title}</h3>
+                              <p className="text-gray-300 text-sm mt-1">{banner.description}</p>
+                              <div className="flex gap-2 mt-2">
+                                <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                                  {banner.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                                <Badge variant="outline" className="border-blue-400 text-blue-300">
+                                  {banner.type}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingBanner(banner);
+                                  setBannerForm({
+                                    title: banner.title,
+                                    description: banner.description,
+                                    imageUrl: banner.imageUrl || "",
+                                    ctaText: banner.ctaText || "",
+                                    ctaUrl: banner.ctaUrl || "",
+                                    type: banner.type,
+                                    backgroundColor: banner.backgroundColor || "blue",
+                                    displayOrder: banner.displayOrder || 0,
+                                    isActive: banner.isActive,
+                                    iconSymbol: banner.iconSymbol || ""
+                                  });
+                                  setShowBannerDialog(true);
+                                }}
+                                className="bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-400">No banners available</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Reward Items Management Section */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Gift className="h-5 w-5 text-purple-400" />
+                      Reward Items
+                    </CardTitle>
+                    <Button 
+                      onClick={() => {
+                        setRewardForm({
+                          name: "",
+                          description: "",
+                          type: "item",
+                          pointsCost: 0,
+                          stockQuantity: null,
+                          creditAmount: "",
+                          imageUrl: "",
+                          isActive: true
+                        });
+                        setEditingReward(null);
+                        setShowRewardDialog(true);
+                      }}
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Reward
+                    </Button>
+                  </div>
+                  <p className="text-gray-300 text-sm">Manage rewards that users can redeem with loyalty points</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {Array.isArray(rewardItems.data || rewardItems) && (rewardItems.data || rewardItems).length > 0 ? (
+                      (rewardItems.data || rewardItems).map((reward: any) => (
+                        <div key={reward.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-white font-semibold text-lg">{reward.name}</h3>
+                              <p className="text-gray-300 text-sm mt-1">{reward.description}</p>
+                              <div className="flex gap-2 mt-2">
+                                <Badge variant="outline" className="border-purple-400 text-purple-300">
+                                  {reward.pointsCost} points
+                                </Badge>
+                                <Badge variant={reward.isActive ? 'default' : 'secondary'}>
+                                  {reward.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                                {reward.type === 'credit' && (
+                                  <Badge variant="outline" className="border-green-400 text-green-300">
+                                    {reward.creditAmount} credits
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingReward(reward);
+                                  setRewardForm({
+                                    name: reward.name,
+                                    description: reward.description,
+                                    type: reward.type,
+                                    pointsCost: reward.pointsCost,
+                                    stockQuantity: reward.stockQuantity,
+                                    creditAmount: reward.creditAmount || "",
+                                    imageUrl: reward.imageUrl || "",
+                                    isActive: reward.isActive
+                                  });
+                                  setShowRewardDialog(true);
+                                }}
+                                className="bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-400">No reward items available</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Communication System */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Email Management */}
@@ -6474,6 +6649,139 @@ function EnhancedAdminDashboard() {
                 onClick={() => {
                   setShowBannerDialog(false);
                   setEditingBanner(null);
+                }}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reward Management Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="bg-gradient-to-br from-purple-900 to-blue-900 border-white/20">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingReward ? 'Edit Reward' : 'Create New Reward'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-white text-sm">Reward Name</label>
+              <Input
+                value={rewardForm.name}
+                onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
+                placeholder="Enter reward name"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Description</label>
+              <Input
+                value={rewardForm.description}
+                onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
+                placeholder="Reward description"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Reward Type</label>
+              <Select value={rewardForm.type} onValueChange={(value) => setRewardForm({...rewardForm, type: value})}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="item">Item</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="token">Token</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Points Cost</label>
+              <Input
+                type="number"
+                value={rewardForm.pointsCost}
+                onChange={(e) => setRewardForm({...rewardForm, pointsCost: parseInt(e.target.value) || 0})}
+                placeholder="Points required"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            {rewardForm.type === 'credit' && (
+              <div>
+                <label className="text-white text-sm">Credit Amount</label>
+                <Input
+                  value={rewardForm.creditAmount}
+                  onChange={(e) => setRewardForm({...rewardForm, creditAmount: e.target.value})}
+                  placeholder="Credit amount (e.g., 10000)"
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="text-white text-sm">Stock Quantity (Optional)</label>
+              <Input
+                type="number"
+                value={rewardForm.stockQuantity || ''}
+                onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                placeholder="Leave empty for unlimited"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-white text-sm">Image URL (Optional)</label>
+              <Input
+                value={rewardForm.imageUrl}
+                onChange={(e) => setRewardForm({...rewardForm, imageUrl: e.target.value})}
+                placeholder="Image URL for reward"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="rewardActive"
+                checked={rewardForm.isActive}
+                onChange={(e) => setRewardForm({...rewardForm, isActive: e.target.checked})}
+                className="rounded border-white/20"
+              />
+              <label htmlFor="rewardActive" className="text-white text-sm">Active</label>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (editingReward) {
+                    updateRewardMutation.mutate({
+                      id: editingReward.id,
+                      rewardData: rewardForm
+                    });
+                  } else {
+                    createRewardMutation.mutate(rewardForm);
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700 flex-1"
+                disabled={(createRewardMutation.isPending || updateRewardMutation.isPending) || !rewardForm.name}
+              >
+                {(createRewardMutation.isPending || updateRewardMutation.isPending) ? 
+                  (editingReward ? "Updating..." : "Creating...") : 
+                  (editingReward ? "Update Reward" : "Create Reward")
+                }
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRewardDialog(false);
+                  setEditingReward(null);
                 }}
                 className="border-white/20 text-white hover:bg-white/10"
               >
