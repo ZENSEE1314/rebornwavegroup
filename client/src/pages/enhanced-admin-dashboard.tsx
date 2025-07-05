@@ -3612,6 +3612,19 @@ function EnhancedAdminDashboard() {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${banner.title}"?`)) {
+                                    deleteBannerMutation.mutate(banner.id);
+                                  }
+                                }}
+                                disabled={deleteBannerMutation.isPending}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -3699,6 +3712,19 @@ function EnhancedAdminDashboard() {
                                 className="bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
                               >
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete "${reward.name}"?`)) {
+                                    deleteRewardMutation.mutate(reward.id);
+                                  }
+                                }}
+                                disabled={deleteRewardMutation.isPending}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
