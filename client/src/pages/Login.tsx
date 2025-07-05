@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users } from "lucide-react";
-import { FaGoogle, FaFacebook, FaInstagram } from "react-icons/fa";
+
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { useSearch } from "wouter";
@@ -307,25 +307,7 @@ export default function Login() {
     resetPasswordMutation.mutate(data);
   };
 
-  const handleOAuthLogin = (provider: "google" | "facebook" | "instagram") => {
-    // Store referral code from registration form in localStorage before OAuth redirect
-    const referralCodeValue = registerForm.getValues("referralCode");
-    if (referralCodeValue) {
-      localStorage.setItem("pendingReferralCode", referralCodeValue);
-    }
-    
-    if (provider === "google") {
-      window.location.href = "/api/auth/google";
-    } else if (provider === "facebook") {
-      window.location.href = "/api/auth/facebook";
-    } else if (provider === "instagram") {
-      toast({
-        title: "OAuth Setup Required",
-        description: "Instagram authentication requires additional configuration. Please use email/password login for now.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100 dark:from-purple-900 dark:via-pink-900 dark:to-indigo-900 p-4">
@@ -438,46 +420,7 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="space-y-3">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      {t('auth.orContinueWith')}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("google")}
-                    className="w-full"
-                  >
-                    <FaGoogle className="mr-2 h-4 w-4" />
-                    Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("facebook")}
-                    className="w-full"
-                  >
-                    <FaFacebook className="mr-2 h-4 w-4" />
-                    Facebook
-                  </Button>
-                </div>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => handleOAuthLogin("instagram")}
-                  className="w-full"
-                >
-                  <FaInstagram className="mr-2 h-4 w-4" />
-                  Instagram
-                </Button>
-              </div>
             </TabsContent>
 
             <TabsContent value="register" className="space-y-4">
@@ -720,46 +663,7 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="space-y-3">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      {t('auth.orSignUpWith')}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("google")}
-                    className="w-full"
-                  >
-                    <FaGoogle className="mr-2 h-4 w-4" />
-                    Google
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("facebook")}
-                    className="w-full"
-                  >
-                    <FaFacebook className="mr-2 h-4 w-4" />
-                    Facebook
-                  </Button>
-                </div>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => handleOAuthLogin("instagram")}
-                  className="w-full"
-                >
-                  <FaInstagram className="mr-2 h-4 w-4" />
-                  Instagram
-                </Button>
-              </div>
             </TabsContent>
 
             <TabsContent value="forgot-password" className="space-y-4">
