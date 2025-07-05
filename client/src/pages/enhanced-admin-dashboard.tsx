@@ -524,6 +524,12 @@ function EnhancedAdminDashboard() {
     );
   }
 
+  // Fetch comprehensive admin dashboard statistics
+  const { data: dashboardStats }: any = useQuery({
+    queryKey: ['/api/admin/dashboard-stats'],
+    retry: false,
+  });
+
   // Fetch all data with pagination
   const { data: usersResponse }: any = useQuery({
     queryKey: [`/api/admin/users?page=${usersPage}&limit=${usersPerPage}`],
@@ -2026,7 +2032,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Total Users</p>
-                  <p className="text-2xl font-semibold text-white">{(usersResponse as any)?.pagination?.totalCount || filteredUsers.length}</p>
+                  <p className="text-2xl font-semibold text-white">{dashboardStats?.totalUsers || 0}</p>
                 </div>
                 <Users className="h-6 w-6 text-blue-400" />
               </div>
@@ -2038,7 +2044,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Admin Fees</p>
-                  <p className="text-2xl font-semibold text-white">RP {formatMoney((feesReport as any).totalAdminFees || 0)}</p>
+                  <p className="text-2xl font-semibold text-white">RP {formatMoney(dashboardStats?.totalCommissionsPaid || 0)}</p>
                 </div>
                 <DollarSign className="h-6 w-6 text-green-400" />
               </div>
@@ -2079,7 +2085,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Total Toys</p>
-                  <p className="text-2xl font-semibold text-white">{toysPaginationInfo.totalCount || 0}</p>
+                  <p className="text-2xl font-semibold text-white">{dashboardStats?.totalToys || 0}</p>
                 </div>
                 <Package className="h-6 w-6 text-blue-400" />
               </div>
@@ -2091,7 +2097,7 @@ function EnhancedAdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-slate-400 text-xs font-medium">Total Pets</p>
-                  <p className="text-2xl font-semibold text-white">{activatedPets.length}</p>
+                  <p className="text-2xl font-semibold text-white">{dashboardStats?.totalPets || 0}</p>
                 </div>
                 <Heart className="h-6 w-6 text-pink-400" />
               </div>

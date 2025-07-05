@@ -751,7 +751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin commission stats endpoint
-  app.get("/api/admin/commission-stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/admin/commission-stats", requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -782,6 +782,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching commission stats:", error);
       res.status(500).json({ message: "Failed to fetch commission stats" });
+    }
+  });
+
+  // Admin dashboard comprehensive statistics endpoint
+  app.get("/api/admin/dashboard-stats", requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.id, adminUserId)).limit(1);
+      if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Get all stats in parallel for better performance
+      const [
+        totalUsersResult,
+        totalToysResult,
+        totalPetsResult,
+        pendingVerificationsResult,
+        totalTransactionsResult,
+        pendingTopUpsResult,
+        pendingCashOutsResult,
+        totalCommissionsResult,
+        activeEventsResult
+      ] = await Promise.all([
+        // Total users
+        db.select({ count: sql`count(*)` }).from(users),
+        
+        // Total toys (all toys including generated ones)
+        db.select({ count: sql`count(*)` }).from(schema.toys),
+        
+        // Total active pets
+        db.select({ count: sql`count(*)` }).from(pets).where(eq(pets.isActive, true)),
+        
+        // Pending payment verifications
+        db.select({ count: sql`count(*)` }).from(paymentVerifications).where(eq(paymentVerifications.status, 'pending')),
+        
+        // Total transactions
+        db.select({ count: sql`count(*)` }).from(transactions),
+        
+        // Pending top-ups
+        db.select({ count: sql`count(*)` }).from(paymentVerifications).where(eq(paymentVerifications.status, 'pending')),
+        
+        // Pending cash-outs
+        db.select({ count: sql`count(*)` }).from(schema.cashOutTransactions).where(eq(schema.cashOutTransactions.status, 'pending')),
+        
+        // Total commissions paid
+        db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(transactions).where(eq(transactions.type, 'referral_commission')),
+        
+        // Active events (using seasons as events)
+        db.select({ count: sql`count(*)` }).from(schema.seasons).where(eq(schema.seasons.isActive, true))
+      ]);
+
+      const stats = {
+        totalUsers: Number(totalUsersResult[0]?.count || 0),
+        totalToys: Number(totalToysResult[0]?.count || 0),
+        totalPets: Number(totalPetsResult[0]?.count || 0),
+        pendingVerifications: Number(pendingVerificationsResult[0]?.count || 0),
+        totalTransactions: Number(totalTransactionsResult[0]?.count || 0),
+        pendingTopUps: Number(pendingTopUpsResult[0]?.count || 0),
+        pendingCashOuts: Number(pendingCashOutsResult[0]?.count || 0),
+        totalCommissionsPaid: Number(totalCommissionsResult[0]?.total || 0),
+        activeEvents: Number(activeEventsResult[0]?.count || 0),
+        adminFees: 0, // This can be calculated based on commission percentage
+      };
+
+      console.log('*** ADMIN DASHBOARD STATS:', stats);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin dashboard stats" });
     }
   });
 
