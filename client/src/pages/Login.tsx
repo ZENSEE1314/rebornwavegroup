@@ -15,6 +15,7 @@ import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users } fr
 import { FaGoogle, FaFacebook, FaInstagram } from "react-icons/fa";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { useSearch } from "wouter";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -64,6 +65,7 @@ export default function Login() {
   const [resetToken, setResetToken] = useState("");
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
+  const searchParams = useSearch();
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -90,15 +92,36 @@ export default function Login() {
 
   // Check for referral code in URL parameters on component mount
   useEffect(() => {
+    // Try multiple methods to get URL parameters
+    const currentURL = window.location.href;
     const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    
+    let refCode = urlParams.get('ref');
+    
+    // If not found in search params, check hash params (for client-side routing)
+    if (!refCode) {
+      refCode = hashParams.get('ref');
+    }
+    
+    // Also try parsing from the full URL manually
+    if (!refCode) {
+      const refMatch = currentURL.match(/[?&]ref=([^&]+)/);
+      if (refMatch) {
+        refCode = decodeURIComponent(refMatch[1]);
+      }
+    }
+    
+    console.log('URL:', currentURL);
+    console.log('Search params:', window.location.search);
+    console.log('Hash:', window.location.hash);
+    console.log('Detected referral code:', refCode);
     
     if (refCode) {
       setReferralCodeFromUrl(refCode);
-      // Pre-fill the referral code in the form
       registerForm.setValue('referralCode', refCode);
-      // Switch to register tab if referral code is present
       setActiveTab('register');
+      console.log('Referral code set:', refCode);
     }
   }, [registerForm]);
 
@@ -686,6 +709,24 @@ export default function Login() {
                     readOnly={!!referralCodeFromUrl}
                     className={referralCodeFromUrl ? "bg-gray-100 border-green-500 text-gray-700" : ""}
                   />
+                  {/* Test button for debugging */}
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const testCode = "RWG-TEST123";
+                      setReferralCodeFromUrl(testCode);
+                      registerForm.setValue('referralCode', testCode);
+                      toast({
+                        title: "Test Referral Code Set",
+                        description: `Test code "${testCode}" has been applied`,
+                      });
+                    }}
+                    className="text-xs"
+                  >
+                    Test Referral Fill
+                  </Button>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     {referralCodeFromUrl 
                       ? "This referral code was automatically filled from your invitation link and cannot be changed."
