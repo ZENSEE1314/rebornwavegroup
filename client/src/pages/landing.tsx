@@ -128,9 +128,10 @@ export default function Landing() {
               </p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Mobile Layout: Our Vision first, then 3 boxes */}
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:items-center">
               {/* Our Vision - Shows first on mobile, left side on desktop */}
-              <div className="space-y-6 order-1 lg:order-1">
+              <div className="space-y-6">
                 <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
                   <h4 className="text-2xl font-bold text-white mb-6">{t('landing.ourVision')}</h4>
                   <p className="text-white/70 leading-relaxed mb-4">
@@ -143,7 +144,7 @@ export default function Landing() {
               </div>
               
               {/* Features & Location - Shows second on mobile, right side on desktop */}
-              <div className="space-y-6 order-2 lg:order-2">
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-4">
                   <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
