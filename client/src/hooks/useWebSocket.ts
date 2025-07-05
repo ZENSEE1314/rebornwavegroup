@@ -18,8 +18,10 @@ export function useWebSocket(enabled: boolean = true) {
 
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const host = window.location.host || `${window.location.hostname}:${window.location.port || (window.location.protocol === "https:" ? "443" : "80")}`;
+      const wsUrl = `${protocol}//${host}/ws`;
       
+      console.log(`Attempting WebSocket connection to: ${wsUrl}`);
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
