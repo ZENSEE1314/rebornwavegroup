@@ -1359,7 +1359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/change-password', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/change-password', requireAuth, async (req: any, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
       
@@ -1371,11 +1371,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "New password must be at least 6 characters long" });
       }
 
-      // Note: In a real implementation, you would verify the current password against the stored hash
-      // For this demo, we'll simulate password change success
-      // In production, you would:
-      // 1. Hash and compare currentPassword with stored password hash
-      // 2. Hash the newPassword and store it
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get user to verify current password
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const bcrypt = require('bcryptjs');
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password in database
+      await storage.updateUserPassword(userId, hashedNewPassword);
       
       res.json({ message: "Password changed successfully" });
     } catch (error) {
