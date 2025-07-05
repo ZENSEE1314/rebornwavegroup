@@ -15,10 +15,11 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle
 } from "lucide-react";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
+import doluruuGrandpaImage from "@assets/Doluruu Grandpa_1749903476706.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenealogyTree from "@/components/genealogy-tree";
@@ -28,6 +29,8 @@ import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import MobileBackButton from "@/components/mobile-back-button";
+import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
+import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 
 // Seasonal Collections Component
 function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: any) => void }) {
@@ -3449,6 +3452,15 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
 
 export default function CompleteApp() {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  
+  // Tooltip Guide State
+  const {
+    activeGuide,
+    startGuide,
+    completeGuide,
+    skipGuide
+  } = useTooltipGuide();
   
   // Marketplace state variables
   const [marketplaceView, setMarketplaceView] = useState<'seasons' | 'listings'>('seasons');
@@ -3624,7 +3636,6 @@ export default function CompleteApp() {
 
   // Get user credits for purchasing validation
   const userCredits = parseFloat(user?.credits || "0");
-  const { t } = useTranslation();
   
   // Enable WebSocket connection for real-time updates
   useWebSocket(true);
@@ -5495,6 +5506,23 @@ export default function CompleteApp() {
                 <LanguageSelector />
               </div>
               
+              {/* Help Button - Guide Access */}
+              <div className="relative group">
+                <Button
+                  onClick={() => startGuide('dashboard')}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
+                  title={t('tooltip.guiding')}
+                  data-tooltip-target="help-guide"
+                >
+                  <HelpCircle className="w-4 h-4 text-blue-600" />
+                </Button>
+                <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  {t('tooltip.guiding')}
+                </div>
+              </div>
+              
               {/* User Profile Icon */}
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
                 <User className="w-5 h-5 text-white" />
@@ -5615,6 +5643,7 @@ export default function CompleteApp() {
                     ? 'scale-105'
                     : ''
                 }`}
+                data-navigation-tab={tab.id}
               >
                 {/* Animated background for active state */}
                 {activeTab === tab.id && (
@@ -6004,7 +6033,7 @@ export default function CompleteApp() {
             <div className="block md:hidden">
               <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {/* Credits */}
-                <div className="border-b border-gray-200">
+                <div className="border-b border-gray-200" data-dashboard-element="credits-card">
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
@@ -6054,7 +6083,7 @@ export default function CompleteApp() {
                 </div>
 
                 {/* Loyalty Points */}
-                <div className="border-b border-gray-200">
+                <div className="border-b border-gray-200" data-dashboard-element="loyalty-card">
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
@@ -6099,7 +6128,7 @@ export default function CompleteApp() {
                 </div>
 
                 {/* Tokens */}
-                <div className="border-b border-gray-200">
+                <div className="border-b border-gray-200" data-dashboard-element="tokens-card">
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
@@ -9533,6 +9562,15 @@ export default function CompleteApp() {
         isOpen={showOnboarding}
         onClose={handleOnboardingClose}
         onComplete={handleOnboardingComplete}
+      />
+
+      {/* Contextual Tooltip Guide */}
+      <TooltipGuide
+        steps={guideConfigs[activeGuide] || []}
+        isActive={!!activeGuide}
+        onComplete={completeGuide}
+        onSkip={skipGuide}
+        characterImage={doluruuGrandpaImage}
       />
     </div>
   );

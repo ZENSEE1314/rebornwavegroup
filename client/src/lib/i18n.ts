@@ -6007,6 +6007,120 @@ export const translations: Translations = {
     en: 'Receive updates about appointments and promotions',
     zh: '接收关于预约和促销的更新',
     id: 'Terima pembaruan tentang janji temu dan promosi'
+  },
+
+  // Tooltip Guide System
+  'tooltip.guiding': {
+    en: 'Your Personal Guide',
+    zh: '您的个人向导',
+    id: 'Panduan Pribadi Anda'
+  },
+  'tooltip.progress': {
+    en: 'Progress',
+    zh: '进度',
+    id: 'Kemajuan'
+  },
+  'tooltip.previous': {
+    en: 'Previous',
+    zh: '上一个',
+    id: 'Sebelumnya'
+  },
+  'tooltip.next': {
+    en: 'Next',
+    zh: '下一个',
+    id: 'Selanjutnya'
+  },
+  'tooltip.finish': {
+    en: 'Finish Guide',
+    zh: '完成向导',
+    id: 'Selesai Panduan'
+  },
+  'tooltip.navigation': {
+    en: 'Navigation',
+    zh: '导航',
+    id: 'Navigasi'
+  },
+  'tooltip.feature': {
+    en: 'Feature',
+    zh: '功能',
+    id: 'Fitur'
+  },
+  'tooltip.action': {
+    en: 'Action',
+    zh: '操作',
+    id: 'Tindakan'
+  },
+  'tooltip.warning': {
+    en: 'Warning',
+    zh: '警告',
+    id: 'Peringatan'
+  },
+  'tooltip.tip': {
+    en: 'Tip',
+    zh: '提示',
+    id: 'Tips'
+  },
+
+  // Dashboard Tooltip Guide
+  'tooltip.dashboard.welcome.title': {
+    en: 'Welcome to Your Dashboard!',
+    zh: '欢迎来到您的仪表板！',
+    id: 'Selamat Datang di Dashboard Anda!'
+  },
+  'tooltip.dashboard.welcome.content': {
+    en: 'This is your main dashboard where you can see your current level, points, and credits. Keep coming back to track your progress!',
+    zh: '这是您的主仪表板，您可以在这里查看当前级别、积分和信用。继续回来跟踪您的进度！',
+    id: 'Ini adalah dashboard utama Anda di mana Anda dapat melihat level, poin, dan kredit terkini. Terus kembali untuk melacak kemajuan Anda!'
+  },
+  'tooltip.dashboard.credits.title': {
+    en: 'Your Credits Balance',
+    zh: '您的信用余额',
+    id: 'Saldo Kredit Anda'
+  },
+  'tooltip.dashboard.credits.content': {
+    en: 'Credits are your virtual currency for purchasing toys and services. Earn credits through payment verifications and use them in the marketplace.',
+    zh: '信用是您购买玩具和服务的虚拟货币。通过付款验证赚取信用，并在市场中使用它们。',
+    id: 'Kredit adalah mata uang virtual Anda untuk membeli mainan dan layanan. Dapatkan kredit melalui verifikasi pembayaran dan gunakan di marketplace.'
+  },
+  'tooltip.dashboard.loyalty.title': {
+    en: 'Loyalty Points System',
+    zh: '忠诚度积分系统',
+    id: 'Sistem Poin Loyalitas'
+  },
+  'tooltip.dashboard.loyalty.content': {
+    en: 'Earn loyalty points by caring for your pets and making purchases. Redeem these points for amazing rewards in the Loyalty Program section!',
+    zh: '通过照顾宠物和购买来赚取忠诚度积分。在忠诚度计划部分用这些积分兑换惊人的奖励！',
+    id: 'Dapatkan poin loyalitas dengan merawat hewan peliharaan dan berbelanja. Tukarkan poin ini untuk hadiah menakjubkan di bagian Program Loyalitas!'
+  },
+  'tooltip.dashboard.tokens.title': {
+    en: 'Game Tokens',
+    zh: '游戏代币',
+    id: 'Token Permainan'
+  },
+  'tooltip.dashboard.tokens.content': {
+    en: 'Tokens are used for special activities like the coin collection game. Earn tokens by completing pet care activities!',
+    zh: '代币用于特殊活动，如收集硬币游戏。通过完成宠物护理活动来赚取代币！',
+    id: 'Token digunakan untuk aktivitas khusus seperti permainan kumpulan koin. Dapatkan token dengan menyelesaikan aktivitas perawatan hewan!'
+  },
+  'tooltip.dashboard.navigation.title': {
+    en: 'Main Navigation Tabs',
+    zh: '主导航标签',
+    id: 'Tab Navigasi Utama'
+  },
+  'tooltip.dashboard.navigation.content': {
+    en: 'These tabs give you access to all major features: Pet Care, Payment Verification, Loyalty Program, Bookings, and Toy Marketplace.',
+    zh: '这些标签让您访问所有主要功能：宠物护理、付款验证、忠诚度计划、预订和玩具市场。',
+    id: 'Tab ini memberi Anda akses ke semua fitur utama: Perawatan Hewan, Verifikasi Pembayaran, Program Loyalitas, Pemesanan, dan Marketplace Mainan.'
+  },
+  'tooltip.dashboard.actions.title': {
+    en: 'Quick Action Buttons',
+    zh: '快速操作按钮',
+    id: 'Tombol Aksi Cepat'
+  },
+  'tooltip.dashboard.actions.content': {
+    en: 'These buttons provide quick access to commonly used features. Perfect for when you need to do something specific quickly!',
+    zh: '这些按钮提供对常用功能的快速访问。当您需要快速完成特定任务时非常完美！',
+    id: 'Tombol ini memberikan akses cepat ke fitur yang sering digunakan. Sempurna saat Anda perlu melakukan sesuatu dengan cepat!'
   }
 
 };
