@@ -652,6 +652,17 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Add marketplace earnings queries
+  const { data: marketplaceEarningsStats }: any = useQuery({
+    queryKey: ['/api/admin/marketplace-earnings-stats'],
+    retry: false,
+  });
+
+  const { data: marketplaceEarnings }: any = useQuery({
+    queryKey: ['/api/admin/marketplace-earnings'],
+    retry: false,
+  });
+
   // Filter toys (exclude templates, only generated toys)
   const filteredToys = useMemo(() => {
     const allToys = allToysQuery?.data?.data || [];
@@ -4715,27 +4726,37 @@ function EnhancedAdminDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
                         <div className="text-purple-400 text-sm font-medium">Commission Earnings</div>
-                        <div className="text-white text-2xl font-bold">RP 150,000</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.totalEarnings?.toLocaleString() || '0'}
+                        </div>
                         <div className="text-purple-300 text-xs">User-to-user sales (10%)</div>
                       </div>
                       <div className="bg-orange-900/20 border border-orange-400/30 rounded-lg p-4">
                         <div className="text-orange-400 text-sm font-medium">Season Sales</div>
-                        <div className="text-white text-2xl font-bold">RP 150,000</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.monthlyEarnings?.toLocaleString() || '0'}
+                        </div>
                         <div className="text-orange-300 text-xs">Random seasonal toy purchases</div>
                       </div>
                       <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-4">
                         <div className="text-green-400 text-sm font-medium">Total Earnings</div>
-                        <div className="text-white text-2xl font-bold">RP 300,000</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {((marketplaceEarningsStats?.totalEarnings || 0) + (marketplaceEarningsStats?.monthlyEarnings || 0)).toLocaleString()}
+                        </div>
                         <div className="text-green-300 text-xs">Combined platform revenue</div>
                       </div>
                       <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4">
                         <div className="text-blue-400 text-sm font-medium">Total Sales</div>
-                        <div className="text-white text-2xl font-bold">3</div>
+                        <div className="text-white text-2xl font-bold">
+                          {marketplaceEarningsStats?.totalSales || 0}
+                        </div>
                         <div className="text-blue-300 text-xs">Completed transactions</div>
                       </div>
                       <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
                         <div className="text-purple-400 text-sm font-medium">Avg Commission</div>
-                        <div className="text-white text-2xl font-bold">RP 100,000</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.averageCommission?.toLocaleString() || '0'}
+                        </div>
                         <div className="text-purple-300 text-xs">Per transaction</div>
                       </div>
                     </div>
@@ -4744,27 +4765,28 @@ function EnhancedAdminDashboard() {
                     <div className="bg-slate-700/50 rounded-lg p-4">
                       <h4 className="text-white font-medium mb-3">Recent High-Value Sales</h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between items-center bg-amber-900/20 rounded p-3 border border-amber-400/30">
-                          <div>
-                            <div className="text-white font-medium">Toy Sale - RP 1,500,000</div>
-                            <div className="text-amber-300 text-sm">Commission: RP 150,000 (10%)</div>
+                        {marketplaceEarnings?.data && marketplaceEarnings.data.length > 0 ? (
+                          marketplaceEarnings.data.slice(0, 5).map((earning: any, index: number) => (
+                            <div key={earning.id || index} className="flex justify-between items-center bg-slate-800/60 rounded p-3 border border-slate-600/50">
+                              <div>
+                                <div className="text-white font-medium">
+                                  Toy Sale - RP {parseInt(earning.amount).toLocaleString()}
+                                </div>
+                                <div className="text-gray-300 text-sm">
+                                  Commission: RP {(parseInt(earning.amount) * 0.1).toLocaleString()} (10%)
+                                </div>
+                              </div>
+                              <div className={`text-sm ${earning.status === 'confirmed' ? 'text-green-200' : 'text-yellow-200'}`}>
+                                {earning.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-gray-400 text-center py-8">
+                            <div className="text-lg mb-2">No sales data yet</div>
+                            <div className="text-sm">Marketplace earnings will appear here once users start trading toys</div>
                           </div>
-                          <div className="text-amber-200 text-sm">High Value</div>
-                        </div>
-                        <div className="flex justify-between items-center bg-green-900/20 rounded p-3 border border-green-400/30">
-                          <div>
-                            <div className="text-white font-medium">Toy Sale - RP 1,000,000</div>
-                            <div className="text-green-300 text-sm">Commission: RP 100,000 (10%)</div>
-                          </div>
-                          <div className="text-green-200 text-sm">Confirmed</div>
-                        </div>
-                        <div className="flex justify-between items-center bg-blue-900/20 rounded p-3 border border-blue-400/30">
-                          <div>
-                            <div className="text-white font-medium">Toy Sale - RP 500,000</div>
-                            <div className="text-blue-300 text-sm">Commission: RP 50,000 (10%)</div>
-                          </div>
-                          <div className="text-blue-200 text-sm">Confirmed</div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
