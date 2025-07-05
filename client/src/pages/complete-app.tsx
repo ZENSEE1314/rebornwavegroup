@@ -6004,182 +6004,189 @@ export default function CompleteApp() {
             <div className="block md:hidden">
               <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {/* Credits */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px] hidden">
-                        <button 
-                          onClick={() => setShowCreditTopUpModal(true)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Top Up
-                        </button>
-                        <button 
-                          onClick={() => setShowCashOutModal(true)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Cash Out
-                        </button>
-                        <button 
-                          onClick={() => setShowCreditHistoryModal(true)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          History
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-4 h-4 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
+                  </div>
+                  <div className="flex justify-around pb-4 px-4">
+                    <button 
+                      onClick={() => setShowCreditTopUpModal(true)}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Top Up</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCashOutModal(true)}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <ArrowLeft className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Cash Out</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCreditHistoryModal(true)}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Loyalty Points */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <Gift className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px] hidden">
-                        <button 
-                          onClick={() => setActiveTab("loyalty")}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          View Rewards
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                        <Gift className="w-4 h-4 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
+                  </div>
+                  <div className="flex justify-around pb-4 px-4">
+                    <button 
+                      onClick={() => setActiveTab("loyalty")}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Gift className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Rewards</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("points");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Tokens */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
-                      <Star className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium">{t('dashboard.tokens')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-900 font-bold">{userTokens}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px] hidden">
-                        <button 
-                          onClick={() => setShowTokenClaimModal(true)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Claim
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setModalHistoryFilter("tokens");
-                            setModalHistoryPage(1);
-                            setShowHistoryModal(true);
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          History
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium">{t('dashboard.tokens')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold">{userTokens}</span>
+                  </div>
+                  <div className="flex justify-around pb-4 px-4">
+                    <button 
+                      onClick={() => setShowTokenClaimModal(true)}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Claim</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("tokens");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Referrals */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Users className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium">{t("navigation.referrals")}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-900 font-bold">{userReferrals.length}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px] hidden">
-                        <button 
-                          onClick={() => setActiveTab("referrals")}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          View Referrals
-                        </button>
-                        <button 
-                          onClick={toggleAchievementRules}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Achievement
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <Users className="w-4 h-4 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium">{t("navigation.referrals")}</span>
                     </div>
+                    <span className="text-gray-900 font-bold">{userReferrals.length}</span>
+                  </div>
+                  <div className="flex justify-around pb-4 px-4">
+                    <button 
+                      onClick={() => setActiveTab("referrals")}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">View</span>
+                    </button>
+                    <button 
+                      onClick={toggleAchievementRules}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Trophy className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Awards</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Referral Earnings */}
-                <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-white" />
+                <div>
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
                     </div>
-                    <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
+                    <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
                   </div>
-                  <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
+                  <div className="flex justify-around pb-4 px-4">
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("commission");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">History</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCashOutModal(true)}
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <ArrowLeft className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs">Withdraw</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -6188,182 +6195,189 @@ export default function CompleteApp() {
             <div className="hidden md:block">
               <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {/* Credits */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium text-lg">{t('dashboard.credits')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(userCredits)}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                      <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px] hidden">
-                        <button 
-                          onClick={() => setShowCreditTopUpModal(true)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Top Up
-                        </button>
-                        <button 
-                          onClick={() => setShowCashOutModal(true)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Cash Out
-                        </button>
-                        <button 
-                          onClick={() => setShowCreditHistoryModal(true)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100"
-                        >
-                          History
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.credits')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(userCredits)}</span>
+                  </div>
+                  <div className="flex justify-around pb-6 px-6">
+                    <button 
+                      onClick={() => setShowCreditTopUpModal(true)}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Top Up</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCashOutModal(true)}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <ArrowLeft className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Cash Out</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCreditHistoryModal(true)}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Loyalty Points */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
-                      <Gift className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 font-bold text-xl">{loyaltyPoints}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                      <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px] hidden">
-                        <button 
-                          onClick={() => setActiveTab("loyalty")}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100"
-                        >
-                          View Rewards
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                        <Gift className="w-5 h-5 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold text-xl">{loyaltyPoints}</span>
+                  </div>
+                  <div className="flex justify-around pb-6 px-6">
+                    <button 
+                      onClick={() => setActiveTab("loyalty")}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Gift className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Rewards</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("points");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Tokens */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
-                      <Star className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium text-lg">{t('dashboard.tokens')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 font-bold text-xl">{userTokens}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                      <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px] hidden">
-                        <button 
-                          onClick={() => setShowTokenClaimModal(true)}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          Claim
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setModalHistoryFilter("tokens");
-                            setModalHistoryPage(1);
-                            setShowHistoryModal(true);
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100"
-                        >
-                          History
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
+                        <Star className="w-5 h-5 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.tokens')}</span>
                     </div>
+                    <span className="text-gray-900 font-bold text-xl">{userTokens}</span>
+                  </div>
+                  <div className="flex justify-around pb-6 px-6">
+                    <button 
+                      onClick={() => setShowTokenClaimModal(true)}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Star className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Claim</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("tokens");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">History</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Referrals */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-gray-900 font-medium text-lg">{t("navigation.referrals")}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 font-bold text-xl">{userReferrals.length}</span>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                        }}
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                      <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px] hidden">
-                        <button 
-                          onClick={() => setActiveTab("referrals")}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 border-b border-gray-100"
-                        >
-                          View Referrals
-                        </button>
-                        <button 
-                          onClick={toggleAchievementRules}
-                          className="w-full text-left px-4 py-3 text-sm hover:bg-gray-100"
-                        >
-                          Achievement
-                        </button>
+                <div className="border-b border-gray-200">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-white" />
                       </div>
+                      <span className="text-gray-900 font-medium text-lg">{t("navigation.referrals")}</span>
                     </div>
+                    <span className="text-gray-900 font-bold text-xl">{userReferrals.length}</span>
+                  </div>
+                  <div className="flex justify-around pb-6 px-6">
+                    <button 
+                      onClick={() => setActiveTab("referrals")}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">View</span>
+                    </button>
+                    <button 
+                      onClick={toggleAchievementRules}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Trophy className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Awards</span>
+                    </button>
                   </div>
                 </div>
 
                 {/* Referral Earnings */}
-                <div className="flex items-center justify-between p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-white" />
+                <div>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                     </div>
-                    <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
+                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
                   </div>
-                  <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
+                  <div className="flex justify-around pb-6 px-6">
+                    <button 
+                      onClick={() => {
+                        setModalHistoryFilter("commission");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">History</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowCashOutModal(true)}
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <ArrowLeft className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm">Withdraw</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
