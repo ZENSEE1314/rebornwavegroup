@@ -5921,7 +5921,7 @@ export default function CompleteApp() {
 
             {/* Promotion Banners */}
             {activePromotionBanners.length > 0 && (
-              <div className="space-y-6 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+              <div className="w-full flex flex-col gap-6 md:grid md:grid-cols-2" style={{ display: window.innerWidth < 768 ? 'flex' : undefined, flexDirection: window.innerWidth < 768 ? 'column' : undefined }}>
                 {activePromotionBanners.map((banner: any) => (
                   <Card key={banner.id} className={`text-white ${
                     banner.backgroundColor === 'blue' ? 'bg-gradient-to-r from-blue-600 to-blue-800' :
