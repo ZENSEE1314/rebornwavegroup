@@ -4783,7 +4783,7 @@ export default function CompleteApp() {
     : 100;
 
   const copyReferralCode = () => {
-    const referralLink = `${window.location.origin}?ref=${referralCode}`;
+    const referralLink = `${window.location.origin}/login?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     toast({
       title: t('referral.copied'),

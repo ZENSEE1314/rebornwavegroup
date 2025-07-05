@@ -112,16 +112,10 @@ export default function Login() {
       }
     }
     
-    console.log('URL:', currentURL);
-    console.log('Search params:', window.location.search);
-    console.log('Hash:', window.location.hash);
-    console.log('Detected referral code:', refCode);
-    
     if (refCode) {
       setReferralCodeFromUrl(refCode);
       registerForm.setValue('referralCode', refCode);
       setActiveTab('register');
-      console.log('Referral code set:', refCode);
     }
   }, [registerForm]);
 
@@ -709,24 +703,6 @@ export default function Login() {
                     readOnly={!!referralCodeFromUrl}
                     className={referralCodeFromUrl ? "bg-gray-100 border-green-500 text-gray-700" : ""}
                   />
-                  {/* Test button for debugging */}
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      const testCode = "RWG-TEST123";
-                      setReferralCodeFromUrl(testCode);
-                      registerForm.setValue('referralCode', testCode);
-                      toast({
-                        title: "Test Referral Code Set",
-                        description: `Test code "${testCode}" has been applied`,
-                      });
-                    }}
-                    className="text-xs"
-                  >
-                    Test Referral Fill
-                  </Button>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     {referralCodeFromUrl 
                       ? "This referral code was automatically filled from your invitation link and cannot be changed."
