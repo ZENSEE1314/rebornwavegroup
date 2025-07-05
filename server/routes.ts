@@ -1390,6 +1390,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const banner = await storage.createPromotionBanner(req.body);
+      
+      // Broadcast banner creation to all connected clients
+      const wss = (global as any).wss;
+      if (wss) {
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'BANNER_CREATED',
+              data: banner
+            }));
+          }
+        });
+      }
+      
       res.json(banner);
     } catch (error) {
       console.error("Error creating banner:", error);
@@ -1410,6 +1424,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updatePromotionBanner(parseInt(req.params.id), req.body);
+      
+      // Broadcast banner update to all connected clients
+      const wss = (global as any).wss;
+      if (wss) {
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'BANNER_UPDATED',
+              data: { id: parseInt(req.params.id), ...req.body }
+            }));
+          }
+        });
+      }
+      
       res.json({ message: "Banner updated successfully" });
     } catch (error) {
       console.error("Error updating banner:", error);
@@ -1430,6 +1458,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.deletePromotionBanner(parseInt(req.params.id));
+      
+      // Broadcast banner deletion to all connected clients
+      const wss = (global as any).wss;
+      if (wss) {
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'BANNER_DELETED',
+              data: { id: parseInt(req.params.id) }
+            }));
+          }
+        });
+      }
+      
       res.json({ message: "Banner deleted successfully" });
     } catch (error) {
       console.error("Error deleting banner:", error);

@@ -177,6 +177,17 @@ export function useWebSocket(enabled: boolean = true) {
               return queryKey?.includes('/api/admin/logs');
             }, 'admin-log');
           }
+
+          // Handle banner updates for real-time banner management
+          if (data.type === 'BANNER_CREATED' || data.type === 'BANNER_UPDATED' || data.type === 'BANNER_DELETED') {
+            console.log('Received banner update:', data.type, data.data);
+            
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/admin/banners') ||
+                     queryKey?.includes('/api/promotion-banners');
+            }, 'banner');
+          }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
