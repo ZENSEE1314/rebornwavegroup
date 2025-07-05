@@ -40,6 +40,7 @@ import {
   Upload,
   FileText,
   Trash2,
+  Smile,
   Zap,
   Filter,
   Settings,
@@ -418,6 +419,42 @@ function EnhancedAdminDashboard() {
     isActive: true,
     iconSymbol: ""
   });
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // 50 emoji options for banner icons
+  const emojiOptions = [
+    "🎉", "🎊", "🎈", "🎁", "💝", "🎀", "⭐", "✨", "🌟", "💫",
+    "🔥", "💥", "⚡", "💎", "👑", "🏆", "🥇", "🎯", "🎪", "🎭",
+    "🎨", "🎵", "🎶", "🎤", "🎸", "🎹", "🎺", "🎻", "🎧", "📢",
+    "💰", "💵", "💳", "🛍️", "🛒", "📦", "🎂", "🍰", "🧁", "🍭",
+    "🌈", "☀️", "🌙", "⭐", "🌸", "🌺", "🌻", "🌹", "💐", "🎌"
+  ];
+
+  // Function to handle image upload
+  const handleImageUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const { imageUrl } = await response.json();
+        setBannerForm({...bannerForm, imageUrl});
+        setBannerImageFile(null);
+        toast({ title: "Image uploaded successfully" });
+      } else {
+        toast({ title: "Failed to upload image", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Upload error", variant: "destructive" });
+    }
+  };
   const [eventForm, setEventForm] = useState({
     title: "",
     description: "",
@@ -6443,9 +6480,9 @@ function EnhancedAdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Banner Edit Dialog */}
+      {/* Enhanced Banner Edit Dialog */}
       <Dialog open={showBannerDialog} onOpenChange={setShowBannerDialog}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingBanner ? 'Edit Banner' : 'Create New Banner'}
@@ -6472,14 +6509,50 @@ function EnhancedAdminDashboard() {
               />
             </div>
 
+            {/* Enhanced Image Section */}
             <div>
-              <label className="text-white text-sm">Image URL</label>
-              <Input
-                value={bannerForm.imageUrl}
-                onChange={(e) => setBannerForm({...bannerForm, imageUrl: e.target.value})}
-                placeholder="Enter image URL"
-                className="bg-white/10 border-white/20 text-white"
-              />
+              <label className="text-white text-sm">Banner Image</label>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={bannerForm.imageUrl}
+                    onChange={(e) => setBannerForm({...bannerForm, imageUrl: e.target.value})}
+                    placeholder="Enter image URL or upload file"
+                    className="bg-white/10 border-white/20 text-white flex-1"
+                  />
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setBannerImageFile(file);
+                          handleImageUpload(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </Button>
+                  </label>
+                </div>
+                {bannerForm.imageUrl && (
+                  <div className="mt-2">
+                    <img
+                      src={bannerForm.imageUrl}
+                      alt="Banner preview"
+                      className="w-full h-32 object-cover rounded border border-white/20"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -6519,14 +6592,50 @@ function EnhancedAdminDashboard() {
               </Select>
             </div>
 
+            {/* Enhanced Emoji Picker */}
             <div>
               <label className="text-white text-sm">Icon Symbol</label>
-              <Input
-                value={bannerForm.iconSymbol}
-                onChange={(e) => setBannerForm({...bannerForm, iconSymbol: e.target.value})}
-                placeholder="Emoji or symbol (e.g., 🎉)"
-                className="bg-white/10 border-white/20 text-white"
-              />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={bannerForm.iconSymbol}
+                    onChange={(e) => setBannerForm({...bannerForm, iconSymbol: e.target.value})}
+                    placeholder="Selected emoji will appear here"
+                    className="bg-white/10 border-white/20 text-white flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    <Smile className="h-4 w-4 mr-2" />
+                    Choose Emoji
+                  </Button>
+                </div>
+                
+                {showEmojiPicker && (
+                  <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                    <p className="text-gray-300 text-sm mb-3">Select an emoji for your banner:</p>
+                    <div className="grid grid-cols-10 gap-2 max-h-48 overflow-y-auto">
+                      {emojiOptions.map((emoji, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            setBannerForm({...bannerForm, iconSymbol: emoji});
+                            setShowEmojiPicker(false);
+                          }}
+                          className="w-8 h-8 flex items-center justify-center text-xl hover:bg-white/10 rounded transition-colors"
+                          title={`Select ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -6565,6 +6674,8 @@ function EnhancedAdminDashboard() {
                 onClick={() => {
                   setShowBannerDialog(false);
                   setEditingBanner(null);
+                  setShowEmojiPicker(false);
+                  setBannerImageFile(null);
                 }}
                 className="border-white/20 text-white hover:bg-white/10"
               >
