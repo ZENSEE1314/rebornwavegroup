@@ -129,8 +129,8 @@ export default function Landing() {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              {/* About Content */}
-              <div className="space-y-6">
+              {/* Our Vision - Shows first on mobile, left side on desktop */}
+              <div className="space-y-6 order-1 lg:order-1">
                 <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
                   <h4 className="text-2xl font-bold text-white mb-6">{t('landing.ourVision')}</h4>
                   <p className="text-white/70 leading-relaxed mb-4">
@@ -142,9 +142,9 @@ export default function Landing() {
                 </div>
               </div>
               
-              {/* Features & Location */}
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Features & Location - Shows second on mobile, right side on desktop */}
+              <div className="space-y-6 order-2 lg:order-2">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
                       <span className="text-2xl">🏢</span>
@@ -159,19 +159,18 @@ export default function Landing() {
                     <h4 className="text-lg font-bold text-white mb-2">{t('landing.globalFirstTitle')}</h4>
                     <p className="text-white/70 text-sm">{t('landing.globalFirstDescription')}</p>
                   </div>
-                </div>
-                
-                <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
-                  <h4 className="text-xl font-bold text-white mb-4">{t('landing.visitUs')}</h4>
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
-                      <span className="text-sm">📍</span>
-                    </div>
-                    <div>
-                      <h5 className="text-white font-semibold">{t('landing.ourLocation')}</h5>
-                      <p className="text-white/70 text-sm">42RX+GWX, Jl. Gajah Mada, Sadai</p>
-                      <p className="text-white/70 text-sm">Kec. Bengkong, Kota Batam</p>
-                      <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
+                  <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
+                    <h4 className="text-xl font-bold text-white mb-4">{t('landing.visitUs')}</h4>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
+                        <span className="text-sm">📍</span>
+                      </div>
+                      <div>
+                        <h5 className="text-white font-semibold">{t('landing.ourLocation')}</h5>
+                        <p className="text-white/70 text-sm">42RX+GWX, Jl. Gajah Mada, Sadai</p>
+                        <p className="text-white/70 text-sm">Kec. Bengkong, Kota Batam</p>
+                        <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
+                      </div>
                     </div>
                   </div>
                 </div>
