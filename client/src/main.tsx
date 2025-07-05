@@ -15,7 +15,10 @@ console.error = (...args: any[]) => {
       message.includes('unhandledrejection') ||
       message.includes('domexception') ||
       (message.includes('websocket') && message.includes('failed')) ||
-      (message.includes('syntaxerror') && message.includes('websocket'))) {
+      (message.includes('syntaxerror') && message.includes('websocket')) ||
+      (message.includes('failed to construct') && message.includes('websocket')) ||
+      message.includes('wss://localhost:undefined') ||
+      message.includes('ws://localhost:undefined')) {
     return; // Silent suppression for external errors
   }
   

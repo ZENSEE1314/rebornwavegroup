@@ -13,7 +13,14 @@ export function useWebSocket(enabled: boolean = true) {
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
+      console.log('WebSocket already connected or connecting, skipping...');
       return;
+    }
+    
+    // Clean up any existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
 
     try {
