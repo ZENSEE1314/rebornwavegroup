@@ -83,6 +83,17 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Layout Improvement**: Updated promotion banners from grid to flex column layout on mobile to prevent 2-banner rows
 - **Responsive Design**: Maintained 2-column grid on desktop while ensuring single-column vertical stacking on mobile devices
 
+### Marketplace Earnings Display Bug Fix (July 5, 2025)
+- **CRITICAL BUG FIX**: ✅ RESOLVED MARKETPLACE EARNINGS HARDCODED VALUES ISSUE
+- **Database Integration**: Fixed admin dashboard marketplace earnings to show real database data instead of hardcoded sample values
+- **API Implementation**: Added proper marketplace earnings API queries (marketplaceEarningsStats and marketplaceEarnings)
+- **Revenue Cards Fix**: Updated all revenue summary cards to display actual database values (showing RP 0 since database is empty)
+- **Recent Sales Fix**: Replaced hardcoded high-value sales with real marketplace earnings data from database
+- **Empty State Handling**: Added proper "No sales data yet" message when no marketplace transactions exist
+- **Toy Price Display Fix**: ✅ FIXED TOY PRICE DISPLAY - Updated admin dashboard to show toy prices as "RP 1,000,000" instead of "$N/A"
+- **Field Mapping Fix**: Corrected price display to use `originalPrice` field from toys table instead of incorrect `basePrice` reference
+- **Data Accuracy**: Admin dashboard now accurately reflects real database state with proper formatting and currency display
+
 ### Enhanced WebSocket Error Handling System Implementation (July 4, 2025)
 - **MAJOR STABILITY IMPROVEMENT**: ✅ COMPLETE WEBSOCKET ERROR MANAGEMENT WITH EXPONENTIAL BACKOFF
 - **Global Error Suppression**: Added comprehensive global unhandled promise rejection handler to suppress WebSocket and network-related errors

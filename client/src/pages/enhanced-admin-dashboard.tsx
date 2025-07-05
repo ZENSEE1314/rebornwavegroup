@@ -5078,7 +5078,7 @@ function EnhancedAdminDashboard() {
                                 <div className="bg-slate-800/50 rounded p-2">
                                   <div className="text-xs text-gray-400">Price</div>
                                   <div className="text-sm text-white">
-                                    ${toy.basePrice || 'N/A'}
+                                    RP {(toy.originalPrice || toy.basePrice || 0).toLocaleString()}
                                   </div>
                                 </div>
                               </div>
