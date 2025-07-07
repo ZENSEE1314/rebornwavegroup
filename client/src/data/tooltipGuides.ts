@@ -212,42 +212,12 @@ export const bookingGuide = [
 
 // Guide trigger configurations
 export const guideConfigs = {
-  dashboard: {
-    id: 'dashboard-intro',
-    steps: dashboardGuide,
-    autoTrigger: true, // Auto-trigger for new users
-    triggerDelay: 2000 // Wait 2 seconds after page load
-  },
-  petcare: {
-    id: 'petcare-intro',
-    steps: petCareGuide,
-    autoTrigger: false, // Manual trigger only
-    triggerElement: '[data-tooltip="pet-care-tab"]'
-  },
-  marketplace: {
-    id: 'marketplace-intro',
-    steps: marketplaceGuide,
-    autoTrigger: false,
-    triggerElement: '[data-tooltip="marketplace-tab"]'
-  },
-  loyalty: {
-    id: 'loyalty-intro',
-    steps: loyaltyGuide,
-    autoTrigger: false,
-    triggerElement: '[data-tooltip="loyalty-tab"]'
-  },
-  payment: {
-    id: 'payment-intro',
-    steps: paymentGuide,
-    autoTrigger: false,
-    triggerElement: '[data-tooltip="payment-tab"]'
-  },
-  booking: {
-    id: 'booking-intro',
-    steps: bookingGuide,
-    autoTrigger: false,
-    triggerElement: '[data-tooltip="booking-tab"]'
-  }
+  dashboard: dashboardGuide,
+  petcare: petCareGuide,
+  marketplace: marketplaceGuide,
+  loyalty: loyaltyGuide,
+  payment: paymentGuide,
+  booking: bookingGuide
 };
 
 // Helper function to get guide by section
