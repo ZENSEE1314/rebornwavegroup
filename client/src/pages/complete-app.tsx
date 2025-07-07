@@ -5965,17 +5965,53 @@ export default function CompleteApp() {
       {/* Mobile-Optimized Content Area */}
       <div className="w-full px-3 md:px-4 py-4 md:py-8 pb-20 md:pb-8">
         
-        {/* Dashboard Tab */}
+        {/* Dynamic Role-Based Dashboard Tab */}
         {activeTab === "dashboard" && (
           <div className="space-y-4 md:space-y-8">
-            {/* Mobile-Optimized Welcome Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 md:p-8 text-white">
-              <h2 className="text-xl md:text-3xl font-bold mb-2">
-                {t('dashboard.welcome')}, {user?.firstName || 'Candy'}!
-              </h2>
-              <p className="text-blue-100 text-sm md:text-base">
-                Level {currentLoyaltyLevel.level} • {loyaltyPoints} {t('dashboard.points')} • RP {formatRupiah(userCredits)}
-              </p>
+            {/* Role-Based Welcome Section */}
+            <div className={`rounded-xl p-4 md:p-8 text-white ${
+              user?.role === 'admin' 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-700' 
+                : 'bg-gradient-to-r from-blue-600 to-purple-600'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl md:text-3xl font-bold mb-2">
+                    {user?.role === 'admin' ? (
+                      <>
+                        {t('dashboard.welcome')}, Admin {user?.firstName || 'User'}!
+                        <div className="inline-flex items-center ml-3 px-3 py-1 bg-white/20 rounded-full">
+                          <Settings className="w-4 h-4 mr-1" />
+                          <span className="text-sm font-medium">Administrator</span>
+                        </div>
+                      </>
+                    ) : (
+                      `${t('dashboard.welcome')}, ${user?.firstName || 'User'}!`
+                    )}
+                  </h2>
+                  <p className="text-blue-100 text-sm md:text-base">
+                    {user?.role === 'admin' ? (
+                      `System Administrator • ${loyaltyPoints} ${t('dashboard.points')} • RP ${formatRupiah(userCredits)}`
+                    ) : (
+                      `Level ${currentLoyaltyLevel.level} • ${loyaltyPoints} ${t('dashboard.points')} • RP ${formatRupiah(userCredits)}`
+                    )}
+                  </p>
+                </div>
+                
+                {/* Quick Admin Access */}
+                {user?.role === 'admin' && (
+                  <div className="hidden md:flex items-center space-x-3">
+                    <Button
+                      onClick={() => window.location.href = '/admin'}
+                      className="bg-white/20 hover:bg-white/30 text-white border-white/30 hover:border-white/50"
+                      size="sm"
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin Panel
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Promotion Banners - Single Column on Mobile */}
@@ -6024,93 +6060,223 @@ export default function CompleteApp() {
               </div>
             )}
 
-            {/* Mobile Only - 4 Navigation Buttons in 2x2 Grid */}
-            <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
-              <Button 
-                onClick={() => setActiveTab("purchase")} 
-                className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
-              >
-                <Camera className="w-6 h-6 mb-1" />
-                <span className="text-xs font-medium">{t('purchase.verification')}</span>
-              </Button>
+            {/* Role-Based Mobile Navigation Buttons */}
+            {user?.role === 'admin' ? (
+              // Admin Dashboard - Enhanced Management Controls
+              <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
+                <Button 
+                  onClick={() => window.location.href = '/admin'} 
+                  className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Settings className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Admin Panel</span>
+                </Button>
 
-              <Button 
-                onClick={() => setActiveTab("bookings")} 
-                className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
-              >
-                <Calendar className="w-6 h-6 mb-1" />
-                <span className="text-xs font-medium">{t('booking.title')}</span>
-              </Button>
+                <Button 
+                  onClick={() => setActiveTab("purchase")} 
+                  className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Eye className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Payments</span>
+                </Button>
 
-              <Button 
-                onClick={() => setActiveTab("inventory")} 
-                className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
-              >
-                <Package className="w-6 h-6 mb-1" />
-                <span className="text-xs font-medium">{t('toys.myCollection')}</span>
-              </Button>
+                <Button 
+                  onClick={() => setActiveTab("petcare")} 
+                  className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Heart className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Pet Management</span>
+                </Button>
 
-              <Button 
-                onClick={() => setActiveTab("referrals")} 
-                className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
-              >
-                <Users className="w-6 h-6 mb-1" />
-                <span className="text-xs font-medium">{t('referral.program')}</span>
-              </Button>
-            </div>
+                <Button 
+                  onClick={() => setActiveTab("marketplace")} 
+                  className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <TrendingUp className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Analytics</span>
+                </Button>
+              </div>
+            ) : (
+              // Regular User Dashboard - Core Features
+              <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
+                <Button 
+                  onClick={() => setActiveTab("purchase")} 
+                  className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Camera className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">{t('purchase.verification')}</span>
+                </Button>
 
-            {/* Dashboard Stats Layout - Column Style */}
+                <Button 
+                  onClick={() => setActiveTab("bookings")} 
+                  className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Calendar className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">{t('booking.title')}</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setActiveTab("inventory")} 
+                  className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Package className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">{t('toys.myCollection')}</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setActiveTab("referrals")} 
+                  className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Users className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">{t('referral.program')}</span>
+                </Button>
+              </div>
+            )}
+
+            {/* Role-Based Dashboard Stats Layout */}
             <div className="block md:hidden">
-              <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                {/* Credits */}
-                <div className="border-b border-gray-200" data-dashboard-element="credits-card">
-                  <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => {
-                      const buttonsDiv = document.getElementById('credits-buttons');
-                      if (buttonsDiv) {
-                        buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
-                      }
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                        <DollarSign className="w-4 h-4 text-white" />
+              {user?.role === 'admin' ? (
+                // Admin System Overview Stats
+                <div className="space-y-4">
+                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                    {/* System Users */}
+                    <div className="border-b border-gray-200" data-dashboard-element="system-users">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                            <Users className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">Total Users</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">2</span>
                       </div>
-                      <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
+
+                    {/* System Pets */}
+                    <div className="border-b border-gray-200" data-dashboard-element="system-pets">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-pink-600 rounded-full flex items-center justify-center">
+                            <Heart className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">Active Pets</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">5</span>
+                      </div>
+                    </div>
+
+                    {/* System Revenue */}
+                    <div className="border-b border-gray-200" data-dashboard-element="system-revenue">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">Total Revenue</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">RP 0</span>
+                      </div>
+                    </div>
+
+                    {/* Pending Approvals */}
+                    <div className="border-b border-gray-200" data-dashboard-element="pending-approvals">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">Pending Approvals</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">0</span>
+                      </div>
+                    </div>
                   </div>
-                  <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
-                    <button 
-                      onClick={() => setShowCreditTopUpModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Plus className="w-4 h-4" />
+
+                  {/* Admin Personal Stats */}
+                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                    <div className="p-4 bg-purple-50 border-b border-gray-200">
+                      <h3 className="text-sm font-semibold text-purple-900">Personal Account</h3>
+                    </div>
+                    
+                    {/* Admin Credits */}
+                    <div className="border-b border-gray-200" data-dashboard-element="admin-credits">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
                       </div>
-                      <span className="text-xs">Top Up</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowCashOutModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <ArrowLeft className="w-4 h-4" />
+                    </div>
+
+                    {/* Admin Points */}
+                    <div className="border-b border-gray-200" data-dashboard-element="admin-points">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                            <Gift className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
+                        </div>
+                        <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
                       </div>
-                      <span className="text-xs">Cash Out</span>
-                    </button>
-                    <button 
-                      onClick={() => setShowCreditHistoryModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <span className="text-xs">History</span>
-                    </button>
+                    </div>
                   </div>
                 </div>
+              ) : (
+                // Regular User Personal Stats
+                <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                  {/* Credits */}
+                  <div className="border-b border-gray-200" data-dashboard-element="credits-card">
+                    <div 
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => {
+                        const buttonsDiv = document.getElementById('credits-buttons');
+                        if (buttonsDiv) {
+                          buttonsDiv.style.display = buttonsDiv.style.display === 'none' ? 'flex' : 'none';
+                        }
+                      }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                          <DollarSign className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
+                      </div>
+                      <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
+                    </div>
+                    <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
+                      <button 
+                        onClick={() => setShowCreditTopUpModal(true)}
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs">Top Up</span>
+                      </button>
+                      <button 
+                        onClick={() => setShowCashOutModal(true)}
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <ArrowLeft className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs">Cash Out</span>
+                      </button>
+                      <button 
+                        onClick={() => setShowCreditHistoryModal(true)}
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs">History</span>
+                      </button>
+                    </div>
+                  </div>
 
                 {/* Loyalty Points */}
                 <div className="border-b border-gray-200" data-dashboard-element="loyalty-card">
@@ -6243,25 +6409,139 @@ export default function CompleteApp() {
                   </div>
                 </div>
 
-                {/* Referral Earnings - No buttons */}
-                <div>
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
-                        <DollarSign className="w-4 h-4 text-white" />
+                  {/* Referral Earnings - No buttons */}
+                  <div>
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
+                          <DollarSign className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
+                      <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
                     </div>
-                    <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Desktop: Column Style Layout (Hidden on Mobile) */}
+            {/* Desktop Role-Based Dashboard Layout */}
             <div className="hidden md:block">
-              <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                {/* Credits */}
+              {user?.role === 'admin' ? (
+                // Admin Desktop Dashboard with Enhanced Features
+                <div className="space-y-6">
+                  {/* Admin Quick Actions */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <Button
+                      onClick={() => window.location.href = '/admin'}
+                      className="h-24 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center"
+                    >
+                      <Settings className="w-8 h-8 mb-2" />
+                      <span className="text-sm font-medium">Admin Panel</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setActiveTab("purchase")}
+                      className="h-24 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center"
+                    >
+                      <Eye className="w-8 h-8 mb-2" />
+                      <span className="text-sm font-medium">Payment Review</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setActiveTab("petcare")}
+                      className="h-24 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center"
+                    >
+                      <Heart className="w-8 h-8 mb-2" />
+                      <span className="text-sm font-medium">Pet Management</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setActiveTab("marketplace")}
+                      className="h-24 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center"
+                    >
+                      <TrendingUp className="w-8 h-8 mb-2" />
+                      <span className="text-sm font-medium">Analytics</span>
+                    </Button>
+                  </div>
+
+                  {/* Admin System Stats Grid */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                              <Users className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">Total Users</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">2</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-pink-600 rounded-full flex items-center justify-center">
+                              <Heart className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">Active Pets</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">5</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                              <TrendingUp className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">Revenue</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">RP 0</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Account</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                              <DollarSign className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">{t('dashboard.credits')}</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">RP {formatRupiah(userCredits)}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                              <Gift className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">{t('dashboard.loyaltyPoints')}</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">{loyaltyPoints}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
+                              <Star className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-gray-700">{t('dashboard.tokens')}</span>
+                          </div>
+                          <span className="text-2xl font-bold text-gray-900">{userTokens}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Regular User Desktop Dashboard
+                <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                  {/* Credits */}
                 <div className="border-b border-gray-200">
                   <div 
                     className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -6442,19 +6722,20 @@ export default function CompleteApp() {
                   </div>
                 </div>
 
-                {/* Referral Earnings - No buttons */}
-                <div>
-                  <div className="flex items-center justify-between p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-white" />
+                  {/* Referral Earnings - No buttons */}
+                  <div>
+                    <div className="flex items-center justify-between p-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
+                      <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
 
