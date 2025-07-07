@@ -11,11 +11,106 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import PayPalButton from "./PayPalButton";
 import { Upload, CreditCard, Building, Wallet, History, Eye, X, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface CreditTopUpModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentCredits: string;
+}
+
+// Stripe Tab Component
+function StripeTab({ onClose }: { onClose: () => void }) {
+  const [, setLocation] = useLocation();
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+
+  const creditPackages = [
+    { amount: 500, price: "$5.00", credits: "5,000", popular: false },
+    { amount: 1000, price: "$10.00", credits: "10,000", popular: false },
+    { amount: 2000, price: "$20.00", credits: "20,000", popular: true },
+    { amount: 5000, price: "$50.00", credits: "50,000", popular: false },
+  ];
+
+  const handleStripePayment = () => {
+    if (!selectedAmount) return;
+    
+    const selectedPackage = creditPackages.find(pkg => pkg.amount === selectedAmount);
+    if (!selectedPackage) return;
+    
+    // Close modal and navigate to Stripe checkout
+    onClose();
+    setLocation(`/checkout?amount=${selectedAmount}&description=Pet Care Credits - ${selectedPackage.credits}`);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Stripe Payment</CardTitle>
+        <CardDescription>
+          Pay securely with Stripe. All major credit cards accepted. Credits added instantly.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>Select Credit Package</Label>
+          <div className="grid grid-cols-1 gap-3 mt-2">
+            {creditPackages.map((pkg) => (
+              <Card 
+                key={pkg.amount}
+                className={`cursor-pointer transition-all hover:scale-105 ${
+                  selectedAmount === pkg.amount 
+                    ? 'ring-2 ring-blue-500 bg-blue-50' 
+                    : 'hover:shadow-md'
+                }`}
+                onClick={() => setSelectedAmount(pkg.amount)}
+              >
+                <CardContent className="p-4 relative">
+                  {pkg.popular && (
+                    <div className="absolute -top-2 right-4 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                      Popular
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <div className="font-bold text-lg">{pkg.credits} Credits</div>
+                        <div className="text-sm text-gray-600">{pkg.price}</div>
+                      </div>
+                    </div>
+                    {selectedAmount === pkg.amount && (
+                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+          <div className="flex items-center gap-2 mb-2">
+            <CreditCard className="w-4 h-4 text-blue-600" />
+            <span className="font-medium text-blue-900">Secure Payment</span>
+          </div>
+          <p className="text-sm text-blue-800">
+            Payments are processed securely through Stripe. We accept Visa, Mastercard, American Express, and more.
+          </p>
+        </div>
+
+        <Button 
+          onClick={handleStripePayment}
+          disabled={!selectedAmount}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+        >
+          {selectedAmount 
+            ? `Pay ${creditPackages.find(pkg => pkg.amount === selectedAmount)?.price} with Stripe`
+            : "Select Amount to Continue"
+          }
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: CreditTopUpModalProps) {
@@ -286,8 +381,12 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
         )}
 
         <div className="flex-1 overflow-y-auto">
-          <Tabs defaultValue="paypal" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="stripe" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="stripe" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Stripe
+            </TabsTrigger>
             <TabsTrigger value="paypal" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               PayPal
@@ -301,6 +400,10 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
               Cash Deposit
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="stripe">
+            <StripeTab onClose={onClose} />
+          </TabsContent>
 
           <TabsContent value="paypal">
             <Card>

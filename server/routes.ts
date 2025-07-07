@@ -4,6 +4,7 @@ import path from "path";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
+import Stripe from "stripe";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, count, isNull } from "drizzle-orm";
@@ -11,6 +12,14 @@ import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
+
+// Initialize Stripe
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
 
 // Configure multer for file uploads
 const upload = multer({
@@ -7930,6 +7939,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching admin logs:', error);
       res.status(500).json({ message: "Failed to fetch admin logs" });
     }
+  });
+
+  // Stripe payment endpoints
+  app.post("/api/create-payment-intent", requireAuth, async (req: any, res) => {
+    try {
+      const { amount, description } = req.body;
+      
+      if (!amount || amount < 50) { // Minimum 50 cents
+        return res.status(400).json({ message: "Invalid amount. Minimum $0.50 required." });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount), // Amount in cents
+        currency: "usd",
+        metadata: {
+          userId: req.user.id,
+          description: description || "Pet Care Credits"
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  // Verify payment status
+  app.get("/api/verify-payment", requireAuth, async (req: any, res) => {
+    try {
+      const paymentIntentId = req.query.payment_intent as string;
+      
+      if (!paymentIntentId) {
+        return res.status(400).json({ message: "Payment intent ID required" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status === 'succeeded') {
+        // Add credits to user account
+        const creditAmount = (paymentIntent.amount / 100); // Convert cents to dollars
+        const userId = req.user.id;
+        
+        // Update user credits
+        await storage.addCreditsToUser(userId, creditAmount.toString());
+        
+        // Log the payment in credit history
+        await storage.createCreditTransaction(userId, creditAmount.toString(), 'credit', `Stripe payment - ${paymentIntent.id}`);
+        
+        res.json({ 
+          status: paymentIntent.status,
+          amount: paymentIntent.amount,
+          creditsAdded: creditAmount
+        });
+      } else {
+        res.json({ 
+          status: paymentIntent.status 
+        });
+      }
+    } catch (error: any) {
+      console.error('Error verifying payment:', error);
+      res.status(500).json({ message: "Error verifying payment: " + error.message });
+    }
+  });
+
+  // Webhook endpoint for Stripe events (for production use)
+  app.post("/api/webhook/stripe", express.raw({type: 'application/json'}), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      if (process.env.STRIPE_WEBHOOK_SECRET) {
+        event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
+      } else {
+        // For development, we can skip webhook verification
+        console.log('Stripe webhook received (no verification in development)');
+        event = req.body;
+      }
+    } catch (err: any) {
+      console.log(`Webhook signature verification failed.`, err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log('Payment succeeded:', paymentIntent.id);
+        // Additional processing can be added here
+        break;
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({received: true});
   });
 
   return httpServer;

@@ -19,6 +19,8 @@ import Profile from "@/pages/profile";
 import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
 import SimpleAdminTest from "@/pages/simple-admin-test";
 import SimpleCollections from "@/pages/simple-collections";
+import Checkout from "@/pages/checkout";
+import PaymentSuccess from "@/pages/payment-success";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
 import PetCareWithEnergy from "@/pages/pet-care-with-energy";
@@ -101,6 +103,8 @@ function Router() {
           <Route path="/loyalty-program" component={LoyaltyProgram} />
           <Route path="/seasonal-collections" component={SimpleCollections} />
           <Route path="/profile" component={Profile} />
+          <Route path="/checkout" component={Checkout} />
+          <Route path="/payment-success" component={PaymentSuccess} />
         </>
       )}
       <Route component={NotFound} />
