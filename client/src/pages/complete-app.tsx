@@ -5506,6 +5506,24 @@ export default function CompleteApp() {
                 <LanguageSelector />
               </div>
               
+              {/* Admin Dashboard Button - Only for admin users */}
+              {user?.role === 'admin' && (
+                <div className="relative group">
+                  <Button
+                    onClick={() => window.location.href = '/admin'}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
+                    title="Admin Dashboard"
+                  >
+                    <Settings className="w-4 h-4 text-purple-600" />
+                  </Button>
+                  <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Admin Dashboard
+                  </div>
+                </div>
+              )}
+
               {/* Help Button - Guide Access */}
               <div className="relative group">
                 <Button
