@@ -88,7 +88,7 @@ function Router() {
         <>
           {/* Default route - both admin and regular users can access main app */}
           <Route path="/" component={CompleteApp} />
-          <Route path="/admin" component={SimpleAdminTest} />
+          <Route path="/admin" component={EnhancedAdminDashboard} />
           <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />

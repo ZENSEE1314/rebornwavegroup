@@ -80,7 +80,8 @@ function AdminLogsSection() {
         return await response.json();
       } catch (error) {
         console.error('Failed to fetch admin logs:', error);
-        throw error;
+        // Return empty response instead of throwing to prevent page crashes
+        return { data: [], pagination: { page: currentPage, limit: 50, totalCount: 0 } };
       }
     },
     retry: 1,
@@ -527,6 +528,16 @@ function EnhancedAdminDashboard() {
   // Fetch comprehensive admin dashboard statistics
   const { data: dashboardStats }: any = useQuery({
     queryKey: ['/api/admin/dashboard-stats'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/admin/dashboard-stats', { credentials: 'include' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        console.error('Dashboard stats error:', error);
+        return { totalUsers: 0, totalToys: 0, totalPets: 0, totalPayments: 0, totalTransactions: 0, totalCommissions: 0 };
+      }
+    },
     retry: false,
   });
 
