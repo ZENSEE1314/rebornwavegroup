@@ -6062,16 +6062,8 @@ export default function CompleteApp() {
 
             {/* Role-Based Mobile Navigation Buttons */}
             {user?.role === 'admin' ? (
-              // Admin Dashboard - Enhanced Management Controls
+              // Admin Dashboard - Enhanced Management Controls (removed duplicate Admin Panel button)
               <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
-                <Button 
-                  onClick={() => window.location.href = '/admin'} 
-                  className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
-                >
-                  <Settings className="w-6 h-6 mb-1" />
-                  <span className="text-xs font-medium">Admin Panel</span>
-                </Button>
-
                 <Button 
                   onClick={() => setActiveTab("purchase")} 
                   className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
@@ -6094,6 +6086,14 @@ export default function CompleteApp() {
                 >
                   <TrendingUp className="w-6 h-6 mb-1" />
                   <span className="text-xs font-medium">Analytics</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setActiveTab("inventory")} 
+                  className="w-full h-20 bg-orange-600 hover:bg-orange-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Package className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Inventory</span>
                 </Button>
               </div>
             ) : (
