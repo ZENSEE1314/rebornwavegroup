@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Debug Test</title>
+</head>
+<body>
+    <h1>Testing Admin Page Access</h1>
+    <script>
+        // Test admin page access
+        fetch('/admin')
+            .then(response => {
+                console.log('Admin page response status:', response.status);
+                return response.text();
+            })
+            .then(html => {
+                console.log('Admin page HTML length:', html.length);
+                console.log('Contains React root:', html.includes('root'));
+                console.log('Contains error:', html.includes('error'));
+            })
+            .catch(error => {
+                console.error('Error accessing admin page:', error);
+            });
+
+        // Test admin API
+        fetch('/api/auth/user', { credentials: 'include' })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Auth check:', data);
+                if (data.role === 'admin') {
+                    return fetch('/api/admin/dashboard-stats', { credentials: 'include' });
+                }
+            })
+            .then(response => response ? response.json() : null)
+            .then(data => {
+                console.log('Admin API response:', data);
+            })
+            .catch(error => {
+                console.error('Error with admin API:', error);
+            });
+    </script>
+</body>
+</html>
