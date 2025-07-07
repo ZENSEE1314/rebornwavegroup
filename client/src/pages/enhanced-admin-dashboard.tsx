@@ -1980,7 +1980,7 @@ function EnhancedAdminDashboard() {
           </div>
           <div className="flex items-center space-x-4">
             <Button 
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => window.location.href = '/'}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <ArrowUp className="h-4 w-4 mr-2 rotate-180" />
