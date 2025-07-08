@@ -30,6 +30,7 @@ import {
   collectionSeries,
   marketplaceEarnings,
   adminLogs,
+  emailTemplates,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -82,6 +83,8 @@ import {
   type DailyCareStatus,
   type AdminLog,
   type InsertAdminLog,
+  type EmailTemplate,
+  type InsertEmailTemplate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull, gte } from "drizzle-orm";
@@ -265,6 +268,15 @@ export interface IStorage {
   getLastDailyTokenReward(userId: string): Promise<DailyTokenReward | undefined>;
   canClaimDailyTokenReward(userId: string): Promise<{ canClaim: boolean; nextClaimTime?: Date }>;
   claimDailyTokenReward(userId: string): Promise<{ success: boolean; tokensAwarded: number }>;
+  
+  // Email template operations
+  getAllEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplateById(id: number): Promise<EmailTemplate | undefined>;
+  getEmailTemplateByType(templateType: string): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: number, template: Partial<InsertEmailTemplate>): Promise<void>;
+  deleteEmailTemplate(id: number): Promise<void>;
+  getActiveEmailTemplates(): Promise<EmailTemplate[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3031,6 +3043,66 @@ export class DatabaseStorage implements IStorage {
       .from(adminLogs)
       .where(eq(adminLogs.targetUserId, targetUserId))
       .orderBy(desc(adminLogs.createdAt));
+  }
+
+  // Email template operations
+  async getAllEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db
+      .select()
+      .from(emailTemplates)
+      .orderBy(desc(emailTemplates.createdAt));
+  }
+
+  async getEmailTemplateById(id: number): Promise<EmailTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(emailTemplates)
+      .where(eq(emailTemplates.id, id));
+    return template;
+  }
+
+  async getEmailTemplateByType(templateType: string): Promise<EmailTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.templateType, templateType), eq(emailTemplates.isActive, true)));
+    return template;
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [newTemplate] = await db
+      .insert(emailTemplates)
+      .values({
+        ...template,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newTemplate;
+  }
+
+  async updateEmailTemplate(id: number, template: Partial<InsertEmailTemplate>): Promise<void> {
+    await db
+      .update(emailTemplates)
+      .set({
+        ...template,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailTemplates.id, id));
+  }
+
+  async deleteEmailTemplate(id: number): Promise<void> {
+    await db
+      .delete(emailTemplates)
+      .where(eq(emailTemplates.id, id));
+  }
+
+  async getActiveEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db
+      .select()
+      .from(emailTemplates)
+      .where(eq(emailTemplates.isActive, true))
+      .orderBy(desc(emailTemplates.createdAt));
   }
 }
 

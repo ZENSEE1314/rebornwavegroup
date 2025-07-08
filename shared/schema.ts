@@ -428,6 +428,20 @@ export const pets = pgTable("pets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Email templates for admin-created campaigns
+export const emailTemplates = pgTable("email_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(), // Template name for admin reference
+  subject: varchar("subject").notNull(),
+  htmlContent: text("html_content").notNull(),
+  textContent: text("text_content"),
+  templateType: varchar("template_type").notNull().default("custom"), // 'welcome', 'newsletter', 'custom'
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").notNull(), // Admin user ID
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Evolution images for different pet stages
 export const petEvolutionImages = pgTable("pet_evolution_images", {
   id: serial("id").primaryKey(),
@@ -831,6 +845,16 @@ export type InsertPendingPurchase = z.infer<typeof insertPendingPurchaseSchema>;
 export type InsertCreditHistory = z.infer<typeof insertCreditHistorySchema>;
 export type InsertPointsHistory = z.infer<typeof insertPointsHistorySchema>;
 export type InsertMarketplaceEarning = z.infer<typeof insertMarketplaceEarningSchema>;
+
+// Email template schemas
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
 
 export type Appointment = typeof appointments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;

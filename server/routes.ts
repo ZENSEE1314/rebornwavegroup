@@ -429,6 +429,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referralCode: referralCode || null,
       });
       
+      // Send welcome email automatically
+      try {
+        // Check if there's a custom welcome email template
+        const welcomeTemplate = await storage.getEmailTemplateByType('welcome');
+        
+        if (welcomeTemplate && welcomeTemplate.isActive) {
+          // Use custom welcome template
+          await sendEmail({
+            to: user.email,
+            from: 'admin@rebornwave.group',
+            subject: welcomeTemplate.subject,
+            html: welcomeTemplate.htmlContent.replace(/{{name}}/g, user.firstName || 'New Member'),
+            text: welcomeTemplate.textContent || undefined
+          });
+        } else {
+          // Use default welcome email
+          await sendWelcomeEmail(user.email, user.firstName || 'New Member');
+        }
+        
+        console.log(`Welcome email sent to ${user.email} for new user: ${user.firstName}`);
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail registration if email fails
+      }
+      
       // Set up session
       req.login(user, (err) => {
         if (err) {
@@ -7562,6 +7587,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Send evolution email error:', error);
       res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Email template management endpoints
+  app.get('/api/admin/email-templates', requireAuth, async (req: any, res) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error('Get email templates error:', error);
+      res.status(500).json({ message: 'Failed to fetch email templates' });
+    }
+  });
+
+  app.get('/api/admin/email-templates/:id', requireAuth, async (req: any, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      const template = await storage.getEmailTemplateById(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Email template not found' });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error('Get email template error:', error);
+      res.status(500).json({ message: 'Failed to fetch email template' });
+    }
+  });
+
+  app.post('/api/admin/email-templates', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const templateData = {
+        ...req.body,
+        createdBy: userId,
+      };
+      
+      const template = await storage.createEmailTemplate(templateData);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error('Create email template error:', error);
+      res.status(500).json({ message: 'Failed to create email template' });
+    }
+  });
+
+  app.put('/api/admin/email-templates/:id', requireAuth, async (req: any, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      await storage.updateEmailTemplate(templateId, req.body);
+      res.json({ message: 'Email template updated successfully' });
+    } catch (error) {
+      console.error('Update email template error:', error);
+      res.status(500).json({ message: 'Failed to update email template' });
+    }
+  });
+
+  app.delete('/api/admin/email-templates/:id', requireAuth, async (req: any, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      await storage.deleteEmailTemplate(templateId);
+      res.json({ message: 'Email template deleted successfully' });
+    } catch (error) {
+      console.error('Delete email template error:', error);
+      res.status(500).json({ message: 'Failed to delete email template' });
+    }
+  });
+
+  app.post('/api/admin/send-template-email', requireAuth, async (req: any, res) => {
+    try {
+      const { templateId, sendToAll, recipientEmail } = req.body;
+      
+      if (!templateId) {
+        return res.status(400).json({ message: 'Template ID is required' });
+      }
+      
+      const template = await storage.getEmailTemplateById(templateId);
+      if (!template || !template.isActive) {
+        return res.status(404).json({ message: 'Active email template not found' });
+      }
+      
+      let successCount = 0;
+      let failureCount = 0;
+      let totalUsers = 0;
+      
+      if (sendToAll) {
+        // Send to all users with email addresses
+        const users = await db.select({ email: schema.users.email })
+          .from(schema.users)
+          .where(isNotNull(schema.users.email));
+          
+        totalUsers = users.filter(u => u.email && u.email.trim() !== '').length;
+        
+        for (const user of users) {
+          if (user.email && user.email.trim() !== '') {
+            try {
+              const success = await sendEmail({
+                to: user.email,
+                from: 'admin@rebornwave.group',
+                subject: template.subject,
+                html: template.htmlContent,
+                text: template.textContent || undefined
+              });
+              
+              if (success) {
+                successCount++;
+              } else {
+                failureCount++;
+              }
+            } catch (error) {
+              console.error(`Email template send error for ${user.email}:`, error);
+              failureCount++;
+            }
+          }
+        }
+        
+        res.json({
+          message: `Template email campaign completed`,
+          successCount,
+          failureCount,
+          totalUsers
+        });
+      } else {
+        // Send to specific recipient
+        if (!recipientEmail) {
+          return res.status(400).json({ message: 'Recipient email is required' });
+        }
+        
+        const success = await sendEmail({
+          to: recipientEmail,
+          from: 'admin@rebornwave.group',
+          subject: template.subject,
+          html: template.htmlContent,
+          text: template.textContent || undefined
+        });
+        
+        if (success) {
+          res.json({ message: 'Template email sent successfully' });
+        } else {
+          res.status(500).json({ message: 'Failed to send template email' });
+        }
+      }
+    } catch (error) {
+      console.error('Send template email error:', error);
+      res.status(500).json({ message: 'Failed to send template email' });
     }
   });
 

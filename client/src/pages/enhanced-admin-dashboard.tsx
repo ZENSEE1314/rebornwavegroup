@@ -367,6 +367,35 @@ function EnhancedAdminDashboard() {
   const [bulkToyData, setBulkToyData] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Email template management states
+  const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
+  const [showEmailTemplateDialog, setShowEmailTemplateDialog] = useState(false);
+  const [editingEmailTemplate, setEditingEmailTemplate] = useState<any>(null);
+  const [emailTemplateForm, setEmailTemplateForm] = useState({
+    name: "",
+    subject: "",
+    content: "",
+    type: "custom"
+  });
+  const [newTemplate, setNewTemplate] = useState({
+    name: "",
+    subject: "",
+    templateType: "newsletter" as "newsletter" | "welcome" | "promotion",
+    htmlContent: "",
+    textContent: "",
+    isActive: true
+  });
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateTypeFilter, setTemplateTypeFilter] = useState("all");
+  const [sendTemplateDialog, setSendTemplateDialog] = useState(false);
+  const [selectedTemplateForSend, setSelectedTemplateForSend] = useState<any>(null);
+  const [sendToAll, setSendToAll] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
   
   // Advanced bulk generation states
   const [customSeason, setCustomSeason] = useState("");
@@ -379,7 +408,6 @@ function EnhancedAdminDashboard() {
   const [autoNumbering, setAutoNumbering] = useState(true);
 
   // Template toy creation states
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateToyForm, setTemplateToyForm] = useState({
     name: "",
     seasonId: "",
@@ -922,6 +950,101 @@ function EnhancedAdminDashboard() {
       toast({ 
         title: "Failed to send email", 
         description: error.message || "Please check your email configuration",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Email template mutations
+  const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
+    queryKey: ['/api/admin/email-templates'],
+    queryFn: () => apiRequest('GET', '/api/admin/email-templates')
+  });
+
+  const createEmailTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/email-templates', templateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template created successfully" });
+      setShowTemplateDialog(false);
+      setNewTemplate({
+        name: "",
+        subject: "",
+        templateType: "newsletter",
+        htmlContent: "",
+        textContent: "",
+        isActive: true
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const updateEmailTemplateMutation = useMutation({
+    mutationFn: async ({ id, ...templateData }: any) => {
+      return apiRequest('PUT', `/api/admin/email-templates/${id}`, templateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template updated successfully" });
+      setShowEditTemplateDialog(false);
+      setEditingTemplate(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const deleteEmailTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      return apiRequest('DELETE', `/api/admin/email-templates/${templateId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const sendTemplateEmailMutation = useMutation({
+    mutationFn: async ({ templateId, sendToAll, recipientEmail }: any) => {
+      return apiRequest('POST', '/api/admin/send-template-email', {
+        templateId,
+        sendToAll,
+        recipientEmail
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Template email sent successfully", 
+        description: data.successCount ? `Sent to ${data.successCount} recipients` : "Email sent successfully"
+      });
+      setSendTemplateDialog(false);
+      setSelectedTemplateForSend(null);
+      setSendToAll(false);
+      setRecipientEmail("");
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to send template email", 
+        description: error.message,
         variant: "destructive" 
       });
     }
@@ -1774,6 +1897,124 @@ function EnhancedAdminDashboard() {
       });
     }
   });
+
+  // Handler functions for email templates
+  const handleCreateEmailTemplate = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/admin/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailTemplateForm),
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template created successfully",
+          variant: "default"
+        });
+        
+        setShowEmailTemplateDialog(false);
+        setEmailTemplateForm({
+          name: "",
+          subject: "",
+          content: "",
+          type: "custom"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
+      console.error("Error creating email template:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create email template",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateEmailTemplate = async () => {
+    if (!editingEmailTemplate) return;
+    
+    try {
+      const response = await apiRequest("PUT", `/api/admin/email-templates/${editingEmailTemplate.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailTemplateForm),
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template updated successfully",
+          variant: "default"
+        });
+        
+        setShowEmailTemplateDialog(false);
+        setEditingEmailTemplate(null);
+        setEmailTemplateForm({
+          name: "",
+          subject: "",
+          content: "",
+          type: "custom"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
+      console.error("Error updating email template:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update email template",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteEmailTemplate = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this email template?")) return;
+    
+    try {
+      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template deleted successfully",
+          variant: "default"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
+      console.error("Error deleting email template:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete email template",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditEmailTemplate = (template: any) => {
+    setEditingEmailTemplate(template);
+    setEmailTemplateForm({
+      name: template.name,
+      subject: template.subject,
+      content: template.content,
+      type: template.type
+    });
+    setShowEmailTemplateDialog(true);
+  };
 
   // Handler functions for rewards
   const handleEditReward = (reward: any) => {
@@ -5378,297 +5619,146 @@ function EnhancedAdminDashboard() {
           {/* Email Management Tab */}
           <TabsContent value="emails">
             <Card className="bg-slate-800/60 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Email & WhatsApp Management</CardTitle>
-                <p className="text-gray-300">Send emails and WhatsApp messages to users</p>
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-white text-lg font-medium">Email Template Management</CardTitle>
+                    <p className="text-gray-300 mt-1">Create and manage email templates for automated communications</p>
+                  </div>
+                  <Button 
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
+                
+                <div className="flex gap-4 mt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search templates..."
+                      value={templateSearch}
+                      onChange={(e) => setTemplateSearch(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
+                    />
+                  </div>
+                  <Select value={templateTypeFilter} onValueChange={setTemplateTypeFilter}>
+                    <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="welcome">Welcome</SelectItem>
+                      <SelectItem value="newsletter">Newsletter</SelectItem>
+                      <SelectItem value="promotion">Promotion</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Custom Email Form */}
-                  <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                      <h3 className="text-white font-semibold">Send Custom Email</h3>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">To (Email Address)</label>
-                        <Input
-                          value={emailData.to}
-                          onChange={(e) => setEmailData({...emailData, to: e.target.value})}
-                          placeholder="recipient@example.com"
-                          className="bg-gray-800 border-gray-600 text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
-                        <Input
-                          value={emailData.subject}
-                          onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
-                          placeholder="Email subject"
-                          className="bg-gray-800 border-gray-600 text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Text Content</label>
-                        <textarea
-                          value={emailData.text}
-                          onChange={(e) => setEmailData({...emailData, text: e.target.value})}
-                          placeholder="Plain text email content"
-                          className="w-full p-3 rounded-md bg-gray-800 border border-gray-600 text-white min-h-[120px]"
-                        />
-                      </div>
-                      <Button
-                        onClick={() => sendBulkEmailMutation.mutate({
-                          subject: emailData.subject,
-                          text: emailData.text,
-                          sendToAll: false
-                        })}
-                        disabled={sendBulkEmailMutation.isPending || !emailData.to || !emailData.subject || !emailData.text}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                      >
-                        {sendBulkEmailMutation.isPending ? "Sending..." : "Send Email"}
-                      </Button>
-                      
-                      <Button
-                        onClick={() => {
-                          if (emailData.subject.trim() && emailData.text.trim()) {
-                            const confirmed = window.confirm(
-                              `Send this email to all users?\n\nSubject: ${emailData.subject}\n\nThis action cannot be undone.`
-                            );
-                            
-                            if (confirmed) {
-                              fetch('/api/admin/send-email', {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                credentials: 'include',
-                                body: JSON.stringify({
-                                  subject: emailData.subject,
-                                  html: emailData.text.replace(/\n/g, '<br>'),
-                                  sendToAll: true
-                                })
-                              })
-                              .then(response => response.json())
-                              .then(data => {
-                                if (data.successCount !== undefined) {
-                                  toast({
-                                    title: "Email Blast Completed",
-                                    description: `Sent to: ${data.successCount} users, Failed: ${data.failureCount}, Total: ${data.totalUsers}`,
-                                  });
-                                  setEmailData({...emailData, subject: '', text: ''});
-                                } else {
-                                  toast({
-                                    title: "Error",
-                                    description: data.message || 'Failed to send email blast',
-                                    variant: "destructive"
-                                  });
-                                }
-                              })
-                              .catch(error => {
-                                console.error('Error:', error);
-                                toast({
-                                  title: "Error",
-                                  description: 'Error sending email blast',
-                                  variant: "destructive"
-                                });
-                              });
-                            }
-                          } else {
-                            toast({
-                              title: "Error",
-                              description: "Please fill in both subject and text content",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold"
-                      >
-                        📧 Email Blast to All Users
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  {/* Quick Actions */}
-                  <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                      <h3 className="text-white font-semibold">Quick Email Actions</h3>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <h4 className="text-gray-300 font-medium">Send Welcome Email</h4>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Email address"
-                            value={emailData.to}
-                            onChange={(e) => setEmailData({...emailData, to: e.target.value})}
-                            className="bg-gray-800 border-gray-600 text-white"
-                          />
-                          <Input
-                            placeholder="Name"
-                            className="bg-gray-800 border-gray-600 text-white"
-                            id="welcome-name"
-                          />
-                        </div>
-                        <Button
-                          onClick={() => {
-                            const nameInput = document.getElementById('welcome-name') as HTMLInputElement;
-                            sendWelcomeEmailMutation.mutate({
-                              email: emailData.to,
-                              name: nameInput.value
-                            });
-                          }}
-                          disabled={sendWelcomeEmailMutation.isPending || !emailData.to}
-                          className="w-full bg-green-600 hover:bg-green-700"
-                        >
-                          {sendWelcomeEmailMutation.isPending ? "Sending..." : "Send Welcome Email"}
-                        </Button>
-                      </div>
-
-                      <div className="border-t border-gray-600 pt-4">
-                        <h4 className="text-gray-300 font-medium mb-3">Email Templates</h4>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => setEmailData({
-                              ...emailData,
-                              subject: "Account Update Notification",
-                              text: "Your account has been updated successfully. If you did not make this change, please contact support immediately."
-                            })}
-                            className="w-full border-blue-500 bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 hover:text-white font-bold text-sm py-3"
-                          >
-                            USE ACCOUNT UPDATE EMAIL TEMPLATE
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setEmailData({
-                              ...emailData,
-                              subject: "Payment Confirmation",
-                              text: "Your payment has been processed successfully. Thank you for your purchase!"
-                            })}
-                            className="w-full border-green-500 bg-green-600/20 text-green-300 hover:bg-green-600/40 hover:text-white font-bold text-sm py-3"
-                          >
-                            USE PAYMENT CONFIRMATION TEMPLATE
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* WhatsApp Blast Card */}
-                  <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                      <h3 className="text-white font-semibold">WhatsApp Blast</h3>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <h4 className="text-gray-300 font-medium">Send to Users with Mobile Numbers</h4>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
-                          <textarea
-                            placeholder="Hello! This is a message from Reborn Wave Group..."
-                            className="w-full p-3 rounded-md bg-gray-800 border border-gray-600 text-white min-h-[100px]"
-                            id="whatsapp-message"
-                          />
-                        </div>
-                        <div className="bg-green-600/10 p-3 rounded border border-green-600/20">
-                          <p className="text-green-300 text-sm">
-                            📱 Users with mobile numbers: {allUsersData?.filter((user: any) => user.phoneNumber && user.phoneNumber.trim() !== '').length || 0}
-                          </p>
-                          <p className="text-gray-400 text-xs mt-1">
-                            Only users who have provided mobile numbers will receive the message
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() => {
-                            const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
-                            const usersWithMobile = allUsersData?.filter((user: any) => user.phoneNumber) || [];
-                            
-                            if (messageInput.value.trim() && usersWithMobile.length > 0) {
-                              // Show confirmation
-                              const confirmed = window.confirm(
-                                `Send WhatsApp message to ${usersWithMobile.length} users with mobile numbers?`
-                              );
-                              
-                              if (confirmed) {
-                                // Call WhatsApp API
-                                fetch('/api/admin/send-whatsapp', {
-                                  method: 'POST',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  credentials: 'include',
-                                  body: JSON.stringify({
-                                    message: messageInput.value,
-                                    sendToAll: true
-                                  })
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                  if (data.successCount !== undefined) {
-                                    toast({
-                                      title: "WhatsApp Blast Completed",
-                                      description: `Sent to: ${data.successCount} users, Failed: ${data.failureCount}, Total: ${data.totalUsers}`,
-                                    });
-                                    messageInput.value = '';
-                                  } else {
-                                    toast({
-                                      title: "Error",
-                                      description: data.message || 'Failed to send WhatsApp message',
-                                      variant: "destructive"
-                                    });
-                                  }
-                                })
-                                .catch(error => {
-                                  console.error('Error:', error);
-                                  toast({
-                                    title: "Error",
-                                    description: 'Error sending WhatsApp message',
-                                    variant: "destructive"
-                                  });
-                                });
-                              }
-                            } else {
-                              toast({
-                                title: "Error",
-                                description: "Please enter a message and ensure users have mobile numbers",
-                                variant: "destructive"
-                              });
-                            }
-                          }}
-                          className="w-full bg-green-600 hover:bg-green-700"
-                        >
-                          Send WhatsApp Blast
-                        </Button>
-                      </div>
-
-                      <div className="border-t border-gray-600 pt-4">
-                        <h4 className="text-gray-300 font-medium mb-3">WhatsApp Templates</h4>
-                        <div className="space-y-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
-                              messageInput.value = "🎮 New exciting features are now available in Reborn Wave Group! Check out the latest updates in your pet care dashboard.";
-                            }}
-                            className="w-full border-purple-500 bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 hover:text-white font-bold text-sm py-3"
-                          >
-                            USE FEATURE UPDATE WHATSAPP TEMPLATE
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              const messageInput = document.getElementById('whatsapp-message') as HTMLTextAreaElement;
-                              messageInput.value = "🏆 Don't forget to claim your daily rewards! Your pets are waiting for you in Reborn Wave Group.";
-                            }}
-                            className="w-full border-orange-500 bg-orange-600/20 text-orange-300 hover:bg-orange-600/40 hover:text-white font-bold text-sm py-3"
-                          >
-                            USE DAILY REMINDER WHATSAPP TEMPLATE
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">Template Name</TableHead>
+                        <TableHead className="text-gray-300">Type</TableHead>
+                        <TableHead className="text-gray-300">Subject</TableHead>
+                        <TableHead className="text-gray-300">Status</TableHead>
+                        <TableHead className="text-gray-300">Created</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emailTemplatesLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                            Loading email templates...
+                          </TableCell>
+                        </TableRow>
+                      ) : !emailTemplatesData || emailTemplatesData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                            No email templates found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        emailTemplatesData
+                          .filter((template: any) => {
+                            const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                                                template.subject.toLowerCase().includes(templateSearch.toLowerCase());
+                            const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
+                            return matchesSearch && matchesType;
+                          })
+                          .map((template: any) => (
+                            <TableRow key={template.id}>
+                              <TableCell className="text-white font-medium">
+                                {template.name}
+                              </TableCell>
+                              <TableCell className="text-gray-300">
+                                <Badge variant={template.templateType === 'welcome' ? 'default' : 
+                                             template.templateType === 'promotion' ? 'destructive' : 'secondary'}>
+                                  {template.templateType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-gray-300 max-w-xs truncate">
+                                {template.subject}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={template.isActive ? 'default' : 'secondary'}>
+                                  {template.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-gray-300">
+                                {formatDate(template.createdAt)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedTemplateForSend(template);
+                                      setSendTemplateDialog(true);
+                                    }}
+                                    className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                                  >
+                                    <Send className="h-4 w-4 mr-1" />
+                                    Send
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingTemplate(template);
+                                      setShowEditTemplateDialog(true);
+                                    }}
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-black border-yellow-600 font-bold"
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      if (confirm(`Delete template "${template.name}"? This action cannot be undone.`)) {
+                                        deleteEmailTemplateMutation.mutate(template.id);
+                                      }
+                                    }}
+                                    className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -6795,6 +6885,98 @@ function EnhancedAdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Email Template Create/Edit Dialog */}
+      <Dialog open={showEmailTemplateDialog} onOpenChange={setShowEmailTemplateDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">
+              {editingEmailTemplate ? "Edit Email Template" : "Create Email Template"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="templateName" className="text-gray-300">Template Name</Label>
+              <Input
+                id="templateName"
+                value={emailTemplateForm.name}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, name: e.target.value})}
+                placeholder="Welcome Email, Newsletter, etc."
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="templateSubject" className="text-gray-300">Email Subject</Label>
+              <Input
+                id="templateSubject"
+                value={emailTemplateForm.subject}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, subject: e.target.value})}
+                placeholder="Welcome to Reborn Wave Group!"
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="templateContent" className="text-gray-300">Email Content</Label>
+              <Textarea
+                id="templateContent"
+                value={emailTemplateForm.content}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, content: e.target.value})}
+                placeholder="Enter email content here..."
+                className="bg-gray-800 border-gray-600 text-white min-h-40"
+                rows={10}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="templateType" className="text-gray-300">Template Type</Label>
+              <Select 
+                value={emailTemplateForm.type} 
+                onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, type: value})}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <SelectValue placeholder="Select template type" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectItem value="welcome" className="text-white">Welcome Email</SelectItem>
+                  <SelectItem value="newsletter" className="text-white">Newsletter</SelectItem>
+                  <SelectItem value="promotion" className="text-white">Promotion</SelectItem>
+                  <SelectItem value="notification" className="text-white">Notification</SelectItem>
+                  <SelectItem value="custom" className="text-white">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowEmailTemplateDialog(false);
+                  setEditingEmailTemplate(null);
+                  setEmailTemplateForm({
+                    name: "",
+                    subject: "",
+                    content: "",
+                    type: "custom"
+                  });
+                }}
+                className="border-slate-600 text-white hover:bg-slate-700"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={editingEmailTemplate ? handleUpdateEmailTemplate : handleCreateEmailTemplate}
+                disabled={!emailTemplateForm.name || !emailTemplateForm.subject || !emailTemplateForm.content}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {editingEmailTemplate ? "Update Template" : "Create Template"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
