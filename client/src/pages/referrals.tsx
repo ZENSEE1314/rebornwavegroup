@@ -126,7 +126,7 @@ export default function Referrals() {
                   <div>
                     <p className="text-slate-600 text-sm font-medium">Total Earnings</p>
                     <p className="text-2xl font-bold text-slate-800">
-                      ${referralEarnings?.earnings?.toFixed(2) || '0.00'}
+                      RP {(referralEarnings?.earnings || 0).toLocaleString()}
                     </p>
                     <p className="text-primary-600 text-sm font-medium">From referrals</p>
                   </div>
@@ -143,7 +143,7 @@ export default function Referrals() {
                   <div>
                     <p className="text-slate-600 text-sm font-medium">Network Growth</p>
                     <p className="text-2xl font-bold text-slate-800">
-                      {level1Referrals.length}
+                      {level1Referrals.length.toLocaleString()}
                     </p>
                     <p className="text-amber-600 text-sm font-medium">Active network</p>
                   </div>
@@ -185,9 +185,9 @@ export default function Referrals() {
                     <div className="space-y-2">
                       {level1Referrals.map((referral: any) => (
                         <div key={referral.id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
-                          <span className="font-medium">User #{referral.referredId}</span>
+                          <span className="font-medium">{referral.name || `User #${referral.referredId}`}</span>
                           <span className="text-sm text-emerald-600">
-                            Earned: ${referral.totalEarnings || '0.00'}
+                            Earned: RP {(referral.totalEarnings || 0).toLocaleString()}
                           </span>
                         </div>
                       ))}
@@ -211,7 +211,7 @@ export default function Referrals() {
             <h3 className="text-lg font-bold mb-4">Share Your Referral Code</h3>
             <div className="bg-white/20 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-between">
-                <code className="text-lg font-mono font-bold">{user?.referralCode}</code>
+                <code className="text-lg font-mono font-bold">{user?.referralCode || 'Loading...'}</code>
                 <Button 
                   variant="ghost" 
                   size="sm"
