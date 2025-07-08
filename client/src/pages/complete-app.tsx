@@ -174,7 +174,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                     <div className="mb-4">
                       <img 
                         src={toy.imageUrl || '/images/default-toy.png'} 
-                        alt={toy.name} 
+                        alt={toy?.name || 'Toy'} 
                         className="w-24 h-24 mx-auto object-contain"
                         onError={(e) => {
                           e.currentTarget.src = '/images/default-toy.png';
@@ -2349,7 +2349,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     }}
                   />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
                 <p className="text-sm text-slate-600 mb-4">{toy.series}</p>
                 
                 <div className="mb-4">
@@ -2499,15 +2499,15 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         }}
                       />
                     </div>
-                    <h4 className="font-semibold">{toy.name}</h4>
-                    <p className="text-xs text-gray-500 mb-1">{toy.series}</p>
+                    <h4 className="font-semibold">{toy?.name || 'Toy'}</h4>
+                    <p className="text-xs text-gray-500 mb-1">{toy?.series || ''}</p>
                     <p className="text-sm text-gray-600 mb-3">
                       <span className={`px-2 py-1 rounded-full text-xs ${
-                        toy.rarity === 'rare' ? 'bg-purple-100 text-purple-800' :
-                        toy.rarity === 'common' ? 'bg-gray-100 text-gray-800' :
+                        toy?.rarity === 'rare' ? 'bg-purple-100 text-purple-800' :
+                        toy?.rarity === 'common' ? 'bg-gray-100 text-gray-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>
-                        {toy.rarity}
+                        {toy?.rarity || 'Unknown'}
                       </span>
                     </p>
                     <Button 
@@ -2571,8 +2571,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                         }}
                       />
                     </div>
-                    <h4 className="font-semibold">{toy.name}</h4>
-                    <p className="text-xs text-gray-500 mb-1">{toy.series}</p>
+                    <h4 className="font-semibold">{toy?.name || 'Toy'}</h4>
+                    <p className="text-xs text-gray-500 mb-1">{toy?.series || ''}</p>
                     <div className="mb-3">
                       <Badge className="bg-green-100 text-green-800">
                         {t('common.active')}
@@ -2645,7 +2645,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           <Card key={`pet-clean-${safePets[currentPetIndex].id}-${Date.now()}-${safePets[currentPetIndex].hunger}-${safePets[currentPetIndex].happiness}-${safePets[currentPetIndex].cleanliness}-${safePets[currentPetIndex].energy}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{safePets[currentPetIndex].name}</CardTitle>
+                <CardTitle className="text-2xl">{safePets[currentPetIndex]?.name || 'Pet'}</CardTitle>
                 <Badge className={getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").color}>
                   {getGrowthStageInfo(safePets[currentPetIndex]?.growthStage || "baby").label}
                 </Badge>
@@ -2656,8 +2656,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   size="sm"
                   onClick={() => {
                     alert("Button clicked!");
-                    setNewPetName(safePets[currentPetIndex].name);
-                    setEditingPetName(safePets[currentPetIndex].id);
+                    setNewPetName(safePets[currentPetIndex]?.name || "");
+                    setEditingPetName(safePets[currentPetIndex]?.id || "");
                   }}
                   className="bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200"
                 >
@@ -2668,8 +2668,8 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <button
                   onClick={() => {
                     alert("HTML button works!");
-                    setNewPetName(safePets[currentPetIndex].name);
-                    setEditingPetName(safePets[currentPetIndex].id);
+                    setNewPetName(safePets[currentPetIndex]?.name || "");
+                    setEditingPetName(safePets[currentPetIndex]?.id || "");
                   }}
                   style={{
                     padding: '8px 16px',
@@ -5000,7 +5000,7 @@ export default function CompleteApp() {
       toast({
         title: t('account.invalidAccountNumber'),
         description: t('account.accountNumberDigits', { 
-          bankName: bank?.name, 
+          bankName: bank?.name || "", 
           minDigits: bank?.minDigits, 
           maxDigits: bank?.maxDigits 
         }),
@@ -5803,7 +5803,7 @@ export default function CompleteApp() {
                   <SelectContent>
                     {indonesianBanks.map((bank) => (
                       <SelectItem key={bank.code} value={bank.code}>
-                        {bank.icon} {bank.name}
+                        {bank.icon} {bank?.name || 'Bank'}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -5837,7 +5837,7 @@ export default function CompleteApp() {
                       return bank ? (
                         <span className={isValid ? "text-green-600" : "text-red-500"}>
                           {t("cashout.bankValidation", { 
-                            bankName: bank.name,
+                            bankName: bank?.name || "",
                             digits: bank.minDigits === bank.maxDigits ? bank.minDigits : `${bank.minDigits}-${bank.maxDigits}`,
                             status: isValid ? '✓' : '✗'
                           })}
@@ -7703,19 +7703,19 @@ export default function CompleteApp() {
                             {season.iconUrl ? (
                               <img 
                                 src={season.iconUrl} 
-                                alt={season.name}
+                                alt={season?.name || 'Season'}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                                 <span className="text-6xl font-bold text-white">
-                                  {season.name.charAt(0)}
+                                  {season?.name?.charAt(0) || 'S'}
                                 </span>
                               </div>
                             )}
                           </div>
                           <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                            {season.displayName || season.name}
+                            {season?.displayName || season?.name || 'Season'}
                           </h3>
                           
                           {/* Season Description */}
@@ -7738,7 +7738,7 @@ export default function CompleteApp() {
                           </div>
                           
                           <Button 
-                            onClick={() => purchaseRandomToy(season.name)}
+                            onClick={() => purchaseRandomToy(season?.name || 'Unknown')}
                             className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-3"
                             disabled={purchaseRandomToyMutation.isPending}
                           >
@@ -7804,7 +7804,7 @@ export default function CompleteApp() {
                           <div className="relative mb-4">
                             <img 
                               src={listing.imageUrl || '/api/placeholder/200/200'} 
-                              alt={listing.name}
+                              alt={listing?.name || 'Item'}
                               className="w-full h-48 object-cover rounded-lg"
                             />
                             <Badge 
@@ -7822,7 +7822,7 @@ export default function CompleteApp() {
                           
                           <div className="space-y-3">
                             <div>
-                              <h3 className="font-bold text-lg text-slate-900">{listing.name}</h3>
+                              <h3 className="font-bold text-lg text-slate-900">{listing?.name || 'Item'}</h3>
                               <div className="flex items-center space-x-2 mt-1">
                                 <Badge 
                                   variant="outline" 
@@ -7967,7 +7967,7 @@ export default function CompleteApp() {
                       .filter((toy: any) => !toy.isActivated && !toy.isForSale)
                       .map((toy: any) => (
                         <option key={toy.id} value={toy.id}>
-                          {toy.name} ({toy.rarity})
+                          {toy?.name || 'Toy'} ({toy?.rarity || 'Unknown'})
                         </option>
                       ))}
                   </select>
@@ -8555,7 +8555,7 @@ export default function CompleteApp() {
                         <div className="mb-4">
                           <img 
                             src={toyImage} 
-                            alt={toy.name} 
+                            alt={toy?.name || 'Toy'} 
                             className="w-32 h-32 mx-auto object-contain"
                           />
                         </div>
@@ -8836,7 +8836,7 @@ export default function CompleteApp() {
                   <p className="text-slate-600 mb-2">{user?.email || 'candy@example.com'}</p>
                   <p className="text-slate-600 mb-4">{phoneNumber}</p>
                   <Badge className="bg-blue-100 text-blue-800 mb-4">
-                    {currentLevelInfo.name}
+                    {currentLevelInfo?.name || 'Level'}
                   </Badge>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
