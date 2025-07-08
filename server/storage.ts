@@ -604,7 +604,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: appointments.updatedAt
       })
       .from(appointments)
-      .orderBy(desc(appointments.appointmentDate));
+      .orderBy(desc(appointments.createdAt));
 
     const appointmentsWithUsers = [];
     for (const appointment of appointmentsList) {

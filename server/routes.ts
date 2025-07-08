@@ -4610,9 +4610,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = (page - 1) * limit;
 
       const allAppointments = await storage.getAllAppointments();
-      const totalCount = allAppointments.length;
+      // Sort by creation date (newest first) to ensure admin sees latest bookings first
+      const sortedAppointments = allAppointments.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const totalCount = sortedAppointments.length;
       const totalPages = Math.ceil(totalCount / limit);
-      const paginatedAppointments = allAppointments.slice(offset, offset + limit);
+      const paginatedAppointments = sortedAppointments.slice(offset, offset + limit);
 
       res.json({
         data: paginatedAppointments,

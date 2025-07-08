@@ -26,6 +26,16 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Admin Appointment Booking Visibility & Sorting Fix (July 8, 2025)
+- **CRITICAL FIX COMPLETED**: ✅ RESOLVED ADMIN BOOKING VISIBILITY ISSUE - Fixed admin dashboard not showing newest user bookings first
+- **Root Cause Identified**: Admin appointments endpoint was sorting by appointment date instead of creation date
+- **Database Query Fix**: Updated `getAllAppointments()` method to sort by `createdAt` instead of `appointmentDate` for chronological order
+- **Frontend Sorting Enhancement**: Added additional client-side sorting in admin endpoint to ensure newest bookings appear first
+- **Booking Creation Fix**: Fixed appointment creation endpoint to properly handle `cost` field requirement (defaulting to "0.00")
+- **Complete Workflow Verified**: Created test booking (ID 28) successfully appears at top of admin dashboard immediately
+- **Real-Time Updates Confirmed**: Admin appointment list now shows newest user bookings first with proper chronological ordering
+- **System Status**: Complete admin appointment workflow now functional - users can book, appointments appear in admin dashboard immediately, admins can approve with real-time updates
+
 ### Admin Appointment Approval System Resolution (July 8, 2025)
 - **CRITICAL FIX COMPLETED**: ✅ RESOLVED ADMIN APPOINTMENT APPROVAL 500 ERROR - Fixed admin appointment approval endpoint returning 500 Internal Server Error
 - **Root Cause Identified**: Admin log creation failing due to incorrect field mapping - `entityType` field was null due to schema mismatch
