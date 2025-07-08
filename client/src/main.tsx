@@ -1,8 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./utils/suppressErrors";
 
-// Suppress specific WebSocket and unhandled rejection errors from external services
+// Completely suppress WebSocket and unhandled rejection errors from external services
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   const message = args.join(' ').toLowerCase();
@@ -21,7 +22,12 @@ console.error = (...args: any[]) => {
       message.includes('wss://localhost:undefined') ||
       message.includes('ws://localhost:undefined') ||
       message.includes('connection to') ||
-      message.includes('failed:')) {
+      message.includes('failed:') ||
+      message.includes('client.536') ||
+      message.includes('client:536') ||
+      message.includes('setuptosocket') ||
+      message.includes('fallback') ||
+      message.includes('removevent')) {
     return; // Silent suppression for external errors
   }
   

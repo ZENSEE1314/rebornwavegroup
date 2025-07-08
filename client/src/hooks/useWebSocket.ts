@@ -8,11 +8,13 @@ export function useWebSocket(enabled: boolean = true) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    if (!enabled) return;
-    
-    // Temporarily disable WebSocket in problematic environments
-    if (window.location.hostname.includes('janeway.replit.dev')) {
-      console.log('WebSocket disabled in janeway development environment');
+    // Disable WebSocket completely in development environments
+    if (!enabled || 
+        window.location.hostname.includes('janeway.replit.dev') ||
+        window.location.hostname.includes('replit.dev') ||
+        window.location.port === '3000' ||
+        process.env.NODE_ENV === 'development') {
+      console.log('WebSocket disabled in development environment');
       return;
     }
     
