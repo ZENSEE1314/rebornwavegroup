@@ -9603,7 +9603,7 @@ export default function CompleteApp() {
             <div className="space-y-4">
               {(() => {
                 const claims = modalHistoryFilter === 'tokens' ? (tokenClaimsHistory || []) :
-                              modalHistoryFilter === 'points' ? (pointsHistory || []) :
+                              modalHistoryFilter === 'points' ? (filteredPointHistory || []) :
                               modalHistoryFilter === 'credits' ? (allCreditHistory || []) :
                               [];
                 const itemsPerPage = 10;
