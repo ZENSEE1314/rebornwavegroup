@@ -599,6 +599,9 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
+  // Safe access to toy templates data
+  const toyTemplates = toyTemplatesResponse?.data || [];
+
   // Query for real toys (collectibles)
   const { data: toysResponse }: any = useQuery({
     queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
@@ -799,12 +802,11 @@ function EnhancedAdminDashboard() {
   // Filter toy templates (design blueprints) - completely separate from real toys
   const filteredToyTemplates = (() => {
     try {
-      if (!toyTemplatesResponse || !toyTemplatesResponse.data) {
-  
+      if (!toyTemplates || toyTemplates.length === 0) {
         return [];
       }
       
-      const templates = (toyTemplatesResponse.data || []) as any[];
+      const templates = toyTemplates as any[];
 
       
       return templates.filter((template: any) => {
@@ -6363,7 +6365,7 @@ function EnhancedAdminDashboard() {
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, rarity: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Select rarity" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="common">Common</SelectItem>
@@ -6382,7 +6384,7 @@ function EnhancedAdminDashboard() {
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, color: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Select color" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="red">Red</SelectItem>
@@ -6410,7 +6412,7 @@ function EnhancedAdminDashboard() {
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, gender: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
