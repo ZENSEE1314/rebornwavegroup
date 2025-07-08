@@ -16,7 +16,7 @@ import Referrals from "@/pages/referrals-working";
 import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
-import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
+import SafeAdminDashboard from "@/pages/SafeAdminDashboard";
 import SimpleAdminTest from "@/pages/simple-admin-test";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SimpleCollections from "@/pages/simple-collections";
@@ -91,16 +91,8 @@ function Router() {
         <>
           {/* Default route - both admin and regular users can access main app */}
           <Route path="/" component={CompleteApp} />
-          <Route path="/admin" component={() => (
-            <ErrorBoundary>
-              <EnhancedAdminDashboard />
-            </ErrorBoundary>
-          )} />
-          <Route path="/admin-dashboard" component={() => (
-            <ErrorBoundary>
-              <EnhancedAdminDashboard />
-            </ErrorBoundary>
-          )} />
+          <Route path="/admin" component={SafeAdminDashboard} />
+          <Route path="/admin-dashboard" component={SafeAdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
