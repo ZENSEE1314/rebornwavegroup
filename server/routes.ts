@@ -7891,13 +7891,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { amount, description } = req.body;
       
-      if (!amount || amount < 50) { // Minimum 50 cents
-        return res.status(400).json({ message: "Invalid amount. Minimum $0.50 required." });
+      if (!amount || amount < 100000) { // Minimum RP 100,000
+        return res.status(400).json({ message: "Invalid amount. Minimum RP 100,000 required." });
       }
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount), // Amount in cents
-        currency: "usd",
+        amount: Math.round(amount), // Amount in Rupiah (IDR is smallest unit)
+        currency: "idr",
         metadata: {
           userId: req.user.id,
           description: description || "Pet Care Credits"

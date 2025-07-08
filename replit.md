@@ -37,15 +37,19 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Production Ready**: Complete password change workflow with proper validation, authentication, and database persistence
 - **System Status**: Password change functionality now fully operational for all authenticated users
 
-### Complete PayPal Integration Removal (July 8, 2025)
+### Complete PayPal Integration Removal & Stripe IDR Currency Update (July 8, 2025)
 - **MAJOR CLEANUP**: ✅ COMPLETE PAYPAL INTEGRATION REMOVAL - Simplified payment system to Stripe-only
 - **Backend Cleanup**: Removed entire PayPal SDK integration including server/paypal.ts file and all PayPal route handlers
 - **Frontend Cleanup**: Removed PayPal button component and all PayPal references from CreditTopUpModal
 - **Route Cleanup**: Removed all PayPal API endpoints (/setup, /order, /order/:orderID/capture, /api/topup/paypal)
 - **UI Simplification**: Updated credit top-up modal from 4 tabs to 3 tabs (Stripe, Bank Transfer, Cash Deposit)
 - **Package Cleanup**: Uninstalled @paypal/paypal-server-sdk dependency from project
-- **User Experience**: Streamlined payment options focusing on Stripe for instant payments and traditional methods
-- **Production Ready**: Clean payment system without PayPal dependencies or complex setup requirements
+- **STRIPE CURRENCY UPDATE**: ✅ UPDATED STRIPE PAYMENT SYSTEM TO USE IDR (RUPIAH) CURRENCY
+- **Credit Package Restructure**: Replaced USD packages with IDR packages: RP 100,000 | RP 500,000 | RP 1,000,000 | RP 5,000,000 | RP 10,000,000 | RP 50,000,000 | RP 100,000,000
+- **Currency Conversion**: Updated payment intent creation from USD cents to IDR whole units with proper validation (minimum RP 100,000)
+- **UI Currency Display**: Updated checkout and credit selection interfaces to display amounts in proper IDR format with Indonesian locale formatting
+- **User Experience**: Streamlined payment options focusing on Stripe for instant payments plus traditional methods
+- **Production Ready**: Clean payment system without PayPal dependencies using Indonesian Rupiah currency
 
 ### Referral System Bug Fix Implementation (July 8, 2025)
 - **CRITICAL BUG FIX**: ✅ RESOLVED REFERRAL COUNT NOT DISPLAYING CORRECTLY - Fixed missing referral relationships in database

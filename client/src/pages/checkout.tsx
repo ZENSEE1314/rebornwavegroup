@@ -60,14 +60,14 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
           Complete Payment
         </CardTitle>
         <CardDescription>
-          {description} - ${(amount / 100).toFixed(2)}
+          {description} - RP {amount.toLocaleString('id-ID')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <PaymentElement />
           <Button type="submit" disabled={!stripe || isLoading} className="w-full">
-            {isLoading ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
+            {isLoading ? "Processing..." : `Pay RP ${amount.toLocaleString('id-ID')}`}
           </Button>
         </form>
       </CardContent>
@@ -77,7 +77,7 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
 
 export default function Checkout() {
   const [clientSecret, setClientSecret] = useState("");
-  const [amount, setAmount] = useState(2000); // Default $20.00
+  const [amount, setAmount] = useState(1000000); // Default RP 1,000,000
   const [description, setDescription] = useState("Pet Care Credits");
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function Checkout() {
 
     // Create PaymentIntent as soon as the page loads
     apiRequest("POST", "/api/create-payment-intent", { 
-      amount: urlAmount ? parseInt(urlAmount) : 2000,
+      amount: urlAmount ? parseInt(urlAmount) : 1000000,
       description: urlDescription || "Pet Care Credits"
     })
       .then((res) => res.json())

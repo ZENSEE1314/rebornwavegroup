@@ -25,10 +25,13 @@ function StripeTab({ onClose }: { onClose: () => void }) {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
   const creditPackages = [
-    { amount: 500, price: "$5.00", credits: "5,000", popular: false },
-    { amount: 1000, price: "$10.00", credits: "10,000", popular: false },
-    { amount: 2000, price: "$20.00", credits: "20,000", popular: true },
-    { amount: 5000, price: "$50.00", credits: "50,000", popular: false },
+    { amount: 100000, price: "RP 100,000", credits: "100,000", popular: false },
+    { amount: 500000, price: "RP 500,000", credits: "500,000", popular: false },
+    { amount: 1000000, price: "RP 1,000,000", credits: "1,000,000", popular: true },
+    { amount: 5000000, price: "RP 5,000,000", credits: "5,000,000", popular: false },
+    { amount: 10000000, price: "RP 10,000,000", credits: "10,000,000", popular: false },
+    { amount: 50000000, price: "RP 50,000,000", credits: "50,000,000", popular: false },
+    { amount: 100000000, price: "RP 100,000,000", credits: "100,000,000", popular: false },
   ];
 
   const handleStripePayment = () => {
