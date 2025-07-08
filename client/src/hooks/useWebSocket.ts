@@ -2,9 +2,10 @@ import { useEffect, useRef, useCallback } from 'react';
 import { queryClient } from '@/lib/queryClient';
 
 export function useWebSocket(enabled: boolean = true) {
-  // Allow WebSocket in development for real-time features
-  // Only block if explicitly disabled
-  const shouldDisableWebSocket = false; // Enable WebSocket for real-time functionality
+  // Disable WebSocket in development due to connection issues
+  // Use polling fallback instead for reliable real-time updates
+  const isDevelopment = window.location.hostname.includes('janeway.replit.dev');
+  const shouldDisableWebSocket = isDevelopment; // Disable WebSocket in development
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -339,13 +340,18 @@ export function useWebSocket(enabled: boolean = true) {
     };
   }, [enabled, connect, disconnect, shouldDisableWebSocket]);
   
-  // Start polling fallback immediately since WebSocket isn't working
+  // Start polling fallback in development or when WebSocket fails
   useEffect(() => {
-    startPollingFallback();
+    if (shouldDisableWebSocket) {
+      console.log('Development mode - using polling instead of WebSocket');
+      startPollingFallback();
+    }
     return () => {
-      stopPollingFallback();
+      if (shouldDisableWebSocket) {
+        stopPollingFallback();
+      }
     };
-  }, [startPollingFallback, stopPollingFallback]);
+  }, [shouldDisableWebSocket, startPollingFallback, stopPollingFallback]);
 
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
