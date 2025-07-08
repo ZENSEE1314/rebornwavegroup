@@ -842,19 +842,10 @@ export default function HomePage() {
                     </div>
                     <span className="font-bold text-green-600 text-xl">10%</span>
                   </div>
-                  <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
-                      <span className="font-medium">Level 2 Referrals</span>
-                    </div>
-                    <span className="font-bold text-blue-600 text-xl">3%</span>
-                  </div>
-                  <div className="flex justify-between items-center p-4 bg-purple-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
-                      <span className="font-medium">Level 3 Referrals</span>
-                    </div>
-                    <span className="font-bold text-purple-600 text-xl">2%</span>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-slate-600">
+                      Earn 10% commission on all verified purchases made by people you refer
+                    </p>
                   </div>
                   
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">

@@ -78,8 +78,6 @@ export default function Referrals() {
   };
 
   const level1Referrals = referrals?.filter((r: any) => r.level === 1) || [];
-  const level2Referrals = referrals?.filter((r: any) => r.level === 2) || [];
-  const level3Referrals = referrals?.filter((r: any) => r.level === 3) || [];
 
   if (isLoading) {
     return (
@@ -145,7 +143,7 @@ export default function Referrals() {
                   <div>
                     <p className="text-slate-600 text-sm font-medium">Network Growth</p>
                     <p className="text-2xl font-bold text-slate-800">
-                      {level1Referrals.length + level2Referrals.length + level3Referrals.length}
+                      {level1Referrals.length}
                     </p>
                     <p className="text-amber-600 text-sm font-medium">Active network</p>
                   </div>
@@ -199,53 +197,7 @@ export default function Referrals() {
                   )}
                 </div>
 
-                {/* Level 2 */}
-                <div className="border-l-4 border-primary-500 pl-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-slate-800">Level 2 - Indirect Referrals</h3>
-                    <Badge className="bg-primary-100 text-primary-700">
-                      {level2Referrals.length} users • 3% commission
-                    </Badge>
-                  </div>
-                  {level2Referrals.length > 0 ? (
-                    <div className="space-y-2">
-                      {level2Referrals.map((referral: any) => (
-                        <div key={referral.id} className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-                          <span className="font-medium">User #{referral.referredId}</span>
-                          <span className="text-sm text-primary-600">
-                            Earned: ${referral.totalEarnings || '0.00'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 text-sm">No level 2 referrals yet</p>
-                  )}
-                </div>
 
-                {/* Level 3 */}
-                <div className="border-l-4 border-amber-500 pl-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-slate-800">Level 3 - Extended Network</h3>
-                    <Badge className="bg-amber-100 text-amber-700">
-                      {level3Referrals.length} users • 2% commission
-                    </Badge>
-                  </div>
-                  {level3Referrals.length > 0 ? (
-                    <div className="space-y-2">
-                      {level3Referrals.map((referral: any) => (
-                        <div key={referral.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                          <span className="font-medium">User #{referral.referredId}</span>
-                          <span className="text-sm text-amber-600">
-                            Earned: ${referral.totalEarnings || '0.00'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 text-sm">No level 3 referrals yet</p>
-                  )}
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -279,7 +231,7 @@ export default function Referrals() {
                 Share Code
               </Button>
               <p className="text-emerald-100 text-sm text-center">
-                Earn up to 15% commission on referrals!
+                Earn 10% commission on referrals!
               </p>
             </div>
           </div>
@@ -328,20 +280,10 @@ export default function Referrals() {
                 <span className="font-bold text-emerald-600">10%</span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
-                  <span className="font-medium text-slate-800">2nd Level</span>
-                </div>
-                <span className="font-bold text-primary-600">3%</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
-                  <span className="font-medium text-slate-800">3rd Level</span>
-                </div>
-                <span className="font-bold text-amber-600">2%</span>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-slate-600">
+                  Earn 10% commission on all verified purchases made by people you refer
+                </p>
               </div>
             </CardContent>
           </Card>

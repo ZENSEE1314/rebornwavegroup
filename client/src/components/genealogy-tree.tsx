@@ -16,8 +16,6 @@ interface GenealogyNode {
 
 interface GenealogyTreeData {
   totalDirectReferrals: number;
-  totalLevel2Referrals: number;
-  totalLevel3Referrals: number;
   totalEarnings: number;
   levels: GenealogyNode[];
 }
@@ -54,8 +52,6 @@ export default function GenealogyTree() {
   const renderNode = (node: GenealogyNode, depth: number = 0) => {
     const marginLeft = depth * 40;
     const isLevel1 = depth === 0;
-    const isLevel2 = depth === 1;
-    const isLevel3 = depth === 2;
 
     return (
       <div key={node.id} className="relative">
@@ -135,26 +131,12 @@ export default function GenealogyTree() {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {genealogyData.totalDirectReferrals}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Level 1</div>
-        </div>
-        
-        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {genealogyData.totalLevel2Referrals}
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Level 2</div>
-        </div>
-        
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {genealogyData.totalLevel3Referrals}
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Level 3</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Direct Referrals</div>
         </div>
         
         <div className="bg-gray-50 dark:bg-gray-900/20 p-4 rounded-lg">
@@ -179,20 +161,10 @@ export default function GenealogyTree() {
 
       {/* Legend */}
       <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-        <h4 className="font-medium text-gray-900 dark:text-white mb-3">Legend</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-            <span className="text-gray-700 dark:text-gray-300">Level 1: Direct referrals (10% commission)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-            <span className="text-gray-700 dark:text-gray-300">Level 2: Indirect referrals (5% commission)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
-            <span className="text-gray-700 dark:text-gray-300">Level 3: Sub-referrals (2% commission)</span>
-          </div>
+        <h4 className="font-medium text-gray-900 dark:text-white mb-3">Commission Structure</h4>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+          <span className="text-gray-700 dark:text-gray-300">Direct referrals: 10% commission on verified purchases</span>
         </div>
       </div>
     </div>

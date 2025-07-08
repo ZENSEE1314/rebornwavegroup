@@ -244,20 +244,10 @@ export default function Dashboard() {
                 <span className="font-bold text-emerald-600">10%</span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold text-sm">2</div>
-                  <span className="font-medium text-slate-800">2nd Level</span>
-                </div>
-                <span className="font-bold text-primary-600">3%</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-sm">3</div>
-                  <span className="font-medium text-slate-800">3rd Level</span>
-                </div>
-                <span className="font-bold text-amber-600">2%</span>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-slate-600">
+                  Earn 10% commission on all verified purchases made by people you refer
+                </p>
               </div>
             </CardContent>
           </Card>
