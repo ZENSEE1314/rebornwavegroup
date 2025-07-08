@@ -7891,8 +7891,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { amount, description } = req.body;
       
-      if (!amount || amount < 100000) { // Minimum RP 100,000
-        return res.status(400).json({ message: "Invalid amount. Minimum RP 100,000 required." });
+      if (!amount || amount < 10000) { // Minimum RP 10,000
+        return res.status(400).json({ message: "Invalid amount. Minimum RP 10,000 required." });
       }
 
       const paymentIntent = await stripe.paymentIntents.create({

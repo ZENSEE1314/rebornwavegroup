@@ -25,6 +25,8 @@ function StripeTab({ onClose }: { onClose: () => void }) {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
   const creditPackages = [
+    { amount: 10000, price: "RP 10,000", credits: "10,000", popular: false },
+    { amount: 50000, price: "RP 50,000", credits: "50,000", popular: false },
     { amount: 100000, price: "RP 100,000", credits: "100,000", popular: false },
     { amount: 500000, price: "RP 500,000", credits: "500,000", popular: false },
     { amount: 1000000, price: "RP 1,000,000", credits: "1,000,000", popular: true },
@@ -56,7 +58,7 @@ function StripeTab({ onClose }: { onClose: () => void }) {
       <CardContent className="space-y-4">
         <div>
           <Label>Select Credit Package</Label>
-          <div className="grid grid-cols-1 gap-3 mt-2">
+          <div className="grid grid-cols-2 gap-3 mt-2">
             {creditPackages.map((pkg) => (
               <Card 
                 key={pkg.amount}
