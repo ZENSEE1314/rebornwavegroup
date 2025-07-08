@@ -7461,6 +7461,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('*** WHATSAPP ENDPOINT: Checking credentials...');
       console.log('*** WHATSAPP ENDPOINT: AccountSid exists:', !!accountSid);
+      console.log('*** WHATSAPP ENDPOINT: AccountSid value:', accountSid?.substring(0, 10) + '...');
+      console.log('*** WHATSAPP ENDPOINT: AccountSid starts with AC:', accountSid?.startsWith('AC'));
       console.log('*** WHATSAPP ENDPOINT: AuthToken exists:', !!authToken);
       console.log('*** WHATSAPP ENDPOINT: FromNumber exists:', !!fromNumber);
 
