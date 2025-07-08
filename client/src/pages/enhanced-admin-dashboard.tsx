@@ -6368,12 +6368,16 @@ function EnhancedAdminDashboard() {
                     value={templateToyForm?.rarity || "welcome"}
                     onChange={(e) => setTemplateToyForm(prev => ({...prev, rarity: e.target.value}))}
                     className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      color: 'white'
+                    }}
                   >
-                    <option value="welcome">Welcome Email</option>
-                    <option value="promotional">Promotional</option>
-                    <option value="notification">Notification</option>
-                    <option value="newsletter">Newsletter</option>
-                    <option value="reminder">Reminder</option>
+                    <option value="welcome" style={{ backgroundColor: '#1e293b', color: 'white' }}>Welcome Email</option>
+                    <option value="promotional" style={{ backgroundColor: '#1e293b', color: 'white' }}>Promotional</option>
+                    <option value="notification" style={{ backgroundColor: '#1e293b', color: 'white' }}>Notification</option>
+                    <option value="newsletter" style={{ backgroundColor: '#1e293b', color: 'white' }}>Newsletter</option>
+                    <option value="reminder" style={{ backgroundColor: '#1e293b', color: 'white' }}>Reminder</option>
                   </select>
                 </div>
 
@@ -6383,10 +6387,14 @@ function EnhancedAdminDashboard() {
                     value={templateToyForm?.gender || "active"}
                     onChange={(e) => setTemplateToyForm(prev => ({...prev, gender: e.target.value}))}
                     className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      color: 'white'
+                    }}
                   >
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
+                    <option value="active" style={{ backgroundColor: '#1e293b', color: 'white' }}>Active</option>
+                    <option value="draft" style={{ backgroundColor: '#1e293b', color: 'white' }}>Draft</option>
+                    <option value="archived" style={{ backgroundColor: '#1e293b', color: 'white' }}>Archived</option>
                   </select>
                 </div>
               </div>
@@ -6416,7 +6424,7 @@ function EnhancedAdminDashboard() {
                 <Button
                   variant="outline"
                   onClick={() => setShowTemplateDialog(false)}
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 text-white hover:bg-white/10 bg-gray-700/50"
                 >
                   Cancel
                 </Button>
