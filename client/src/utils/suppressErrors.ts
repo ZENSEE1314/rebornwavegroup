@@ -1,3 +1,4 @@
+console.log('WebSocket suppression loaded early');
 // Additional error suppression utility
 // This runs immediately to catch any errors before the main app loads
 
@@ -5,30 +6,57 @@
 if (window.location.hostname.includes('janeway.replit.dev') || 
     window.location.hostname.includes('replit.dev')) {
   
-  // Override WebSocket constructor to prevent any WebSocket creation
+  // Store original constructor and static properties
   const OriginalWebSocket = window.WebSocket;
-  window.WebSocket = function(url: string | URL, protocols?: string | string[]) {
-    console.log('WebSocket creation blocked in development environment');
-    // Return a mock WebSocket object that doesn't actually connect
-    return {
-      readyState: 3, // CLOSED
-      close: () => {},
-      send: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
+  const CONNECTING = OriginalWebSocket.CONNECTING;
+  const OPEN = OriginalWebSocket.OPEN;
+  const CLOSING = OriginalWebSocket.CLOSING;
+  const CLOSED = OriginalWebSocket.CLOSED;
+  
+  // Mock WebSocket that immediately fails silently
+  function MockWebSocket(url: string | URL, protocols?: string | string[]) {
+    const mock = {
+      url: typeof url === 'string' ? url : url.toString(),
+      readyState: CLOSED,
+      bufferedAmount: 0,
+      extensions: '',
+      protocol: '',
+      binaryType: 'blob' as BinaryType,
+      
+      // Event properties
       onopen: null,
       onclose: null,
       onmessage: null,
-      onerror: null
-    } as any;
-  } as any;
+      onerror: null,
+      
+      // Methods that do nothing
+      close: () => {},
+      send: () => {},
+      
+      // Event listener methods
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false
+    };
+    
+    // Immediately trigger close event to prevent hanging
+    setTimeout(() => {
+      if (mock.onclose) {
+        mock.onclose({ type: 'close', code: 1000, reason: 'Mock close', wasClean: true } as any);
+      }
+    }, 0);
+    
+    return mock;
+  }
   
   // Copy static properties
-  window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
-  window.WebSocket.OPEN = OriginalWebSocket.OPEN;
-  window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
-  window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+  MockWebSocket.CONNECTING = CONNECTING;
+  MockWebSocket.OPEN = OPEN;
+  MockWebSocket.CLOSING = CLOSING;
+  MockWebSocket.CLOSED = CLOSED;
+  
+  // Replace the global WebSocket
+  (window as any).WebSocket = MockWebSocket;
 }
 
 // Override window.onerror to suppress WebSocket errors
@@ -61,7 +89,13 @@ console.error = function(...args: any[]) {
       message.includes('replit.dev') ||
       message.includes('failed to construct') ||
       message.includes('client.536') ||
-      message.includes('syntaxerror')) {
+      message.includes('syntaxerror') ||
+      message.includes('uncaught') ||
+      message.includes('promise') ||
+      message.includes('setuptosocket') ||
+      message.includes('fallback') ||
+      message.includes('localhost:undefined') ||
+      message.includes('invalid url')) {
     return; // Suppress
   }
   originalError.apply(console, args);

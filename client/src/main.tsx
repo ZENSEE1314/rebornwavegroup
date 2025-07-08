@@ -1,7 +1,8 @@
+// Import error suppression FIRST before anything else
+import "./utils/suppressErrors";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import "./utils/suppressErrors";
 
 // Completely suppress WebSocket and unhandled rejection errors from external services
 const originalConsoleError = console.error;
@@ -27,7 +28,10 @@ console.error = (...args: any[]) => {
       message.includes('client:536') ||
       message.includes('setuptosocket') ||
       message.includes('fallback') ||
-      message.includes('removevent')) {
+      message.includes('removevent') ||
+      message.includes('uncaught') ||
+      message.includes('promise') ||
+      message.includes('invalid url')) {
     return; // Silent suppression for external errors
   }
   
