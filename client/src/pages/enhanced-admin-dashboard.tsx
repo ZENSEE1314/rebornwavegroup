@@ -536,14 +536,22 @@ function EnhancedAdminDashboard() {
     isUnlocked: true
   });
 
+  // Debug: Log user state
+  console.log('Admin Dashboard - User Object:', user);
+  console.log('Admin Dashboard - User Role:', user?.role);
+  console.log('Admin Dashboard - Is Admin Check:', user?.role === 'admin');
+
   // Check if user is admin
-  if (!user || (user as any).role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
           <CardContent className="text-center">
             <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
             <p>You don't have admin privileges to access this page.</p>
+            <p className="text-sm mt-2 text-gray-400">
+              User: {user?.email || 'Not logged in'}, Role: {user?.role || 'No role'}
+            </p>
           </CardContent>
         </Card>
       </div>
