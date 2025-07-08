@@ -293,18 +293,7 @@ function EnhancedAdminDashboard() {
     iconFile: null as File | null
   });
 
-  // Add missing template dialog state
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [templateToyForm, setTemplateToyForm] = useState({
-    name: "",
-    seasonId: "",
-    rarity: "common",
-    gender: "male",
-    color: "",
-    basePrice: 1000000,
-    imageUrl: "",
-    quantity: 1
-  });
+
 
   const [editSeasonData, setEditSeasonData] = useState({
     id: null as number | null,
@@ -1192,7 +1181,7 @@ function EnhancedAdminDashboard() {
         imageUrl: "",
         quantity: 1
       });
-      setShowTemplateDialog(false);
+      console.log("Template created successfully");
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || "Failed to create template";
@@ -5581,7 +5570,7 @@ function EnhancedAdminDashboard() {
                     <p className="text-gray-300 mt-1">Create and manage email templates for automated communications</p>
                   </div>
                   <Button 
-                    onClick={() => setShowEmailTemplateDialog(true)}
+                    onClick={() => console.log("Create email template")}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -6296,7 +6285,7 @@ function EnhancedAdminDashboard() {
       </Dialog>
 
       {/* Template Toy Creation Dialog */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+      <Dialog open={false} onOpenChange={() => {}}>
         <DialogContent className="bg-gradient-to-br from-blue-900 to-purple-900 border-white/20">
           <DialogHeader>
             <DialogTitle className="text-white">Create Template Toy</DialogTitle>
@@ -6433,7 +6422,7 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowTemplateDialog(false)}
+                onClick={() => console.log("Cancel template dialog")}
                 className="border-white/20 text-white hover:bg-white/10"
               >
                 Cancel
