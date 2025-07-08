@@ -1906,14 +1906,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointment = await storage.createAppointment(validatedData);
       
       // Broadcast appointment creation to all connected clients
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: 'appointment_created',
-            data: appointment
-          }));
-        }
-      });
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'appointment_created',
+              data: appointment
+            }));
+          }
+        });
+        console.log(`*** REALTIME: Broadcasted new appointment creation for appointment ${appointment.id}`);
+      }
       
       // Get user details for email
       const user = await storage.getUser(userId);
@@ -2032,14 +2035,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(appointmentId, 'pending');
       
       // Broadcast appointment update to all connected clients
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: 'appointment_updated',
-            data: { ...updatedAppointment, status: 'pending' }
-          }));
-        }
-      });
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'appointment_updated',
+              data: { ...updatedAppointment, status: 'pending' }
+            }));
+          }
+        });
+        console.log(`*** REALTIME: Broadcasted appointment reschedule for appointment ${appointmentId}`);
+      }
       
       // Send reschedule email
       const user = await storage.getUser(userId);
@@ -2091,14 +2097,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(appointmentId, status);
       
       // Broadcast appointment status change to all connected clients
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: 'appointment_status_changed',
-            data: { ...appointment, status }
-          }));
-        }
-      });
+      if ((global as any).wss) {
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'appointment_status_changed',
+              data: { ...appointment, status }
+            }));
+          }
+        });
+        console.log(`*** REALTIME: Broadcasted appointment status change by user for appointment ${appointmentId} to ${status}`);
+      }
       
       // Send cancellation email if status is cancelled
       if (status === 'cancelled') {
