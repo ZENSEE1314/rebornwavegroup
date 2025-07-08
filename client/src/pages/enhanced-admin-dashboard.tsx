@@ -798,30 +798,8 @@ function EnhancedAdminDashboard() {
     }
   })();
 
-  // Filter real toys (collectibles) - completely separate from templates
-  const filteredRealToys = (() => {
-    try {
-      const toys = (toysResponse?.data || []) as any[];
-      console.log('*** FILTERING REAL TOYS DEBUG:', { toys: toys.length });
-      
-      return toys.filter((toy: any) => {
-        if (!toy) return false;
-        
-        const searchMatch = !toySearch || 
-          toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
-          toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
-        const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
-        const ownerMatch = ownerFilter === "all" || 
-          (ownerFilter === "owned" && toy.ownerId) ||
-          (ownerFilter === "unowned" && !toy.ownerId);
-        
-        return searchMatch && rarityMatch && ownerMatch;
-      });
-    } catch (error) {
-      console.error('Error filtering real toys:', error);
-      return [];
-    }
-  })();
+  // Filter real toys (collectibles) - placeholder for removed toy management
+  const filteredRealToys = []; 
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
