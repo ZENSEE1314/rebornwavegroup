@@ -4660,14 +4660,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateAppointmentStatus(parseInt(id), status);
       
       // Add admin log entry for appointment approval/cancellation
-      await storage.createAdminLog({
+      const logData = {
         adminUserId,
-        action: `appointment_${status}`,
+        targetUserId: appointment.userId,
         targetType: 'appointment',
-        targetId: parseInt(id),
-        details: `${status === 'scheduled' ? 'Approved' : 'Cancelled'} appointment: ${appointment.title} for user ${appointment.userId}`,
-        ipAddress: req.ip || 'unknown'
-      });
+        targetId: parseInt(id).toString(),
+        action: status === 'scheduled' ? 'approve' : 'cancel',
+        entityType: 'appointment',
+        description: `${status === 'scheduled' ? 'Approved' : 'Cancelled'} appointment: ${appointment.title} for user ${appointment.userId}`,
+        newValues: {
+          appointmentId: parseInt(id),
+          userId: appointment.userId,
+          title: appointment.title,
+          status: status,
+          adminUserId: adminUserId
+        }
+      };
+      
+      await storage.createAdminLog(logData);
       
       console.log(`*** ADMIN LOG: ${currentUser.email} ${status === 'scheduled' ? 'approved' : 'cancelled'} appointment ${id} - ${appointment.title}`);
       
