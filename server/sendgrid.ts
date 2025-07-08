@@ -55,7 +55,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
 export async function sendWelcomeEmail(email: string, name: string): Promise<boolean> {
   return sendEmail({
     to: email,
-    from: 'noreply@rebornwavegroup.com', // Replace with your verified sender
+    from: 'admin@rebornwave.group', // Verified sender
     subject: 'Welcome to Reborn Wave Group!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -79,7 +79,7 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
 export async function sendPetEvolutionEmail(email: string, petName: string, newStage: string): Promise<boolean> {
   return sendEmail({
     to: email,
-    from: 'noreply@rebornwavegroup.com',
+    from: 'admin@rebornwave.group',
     subject: `🎉 ${petName} has evolved!`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
