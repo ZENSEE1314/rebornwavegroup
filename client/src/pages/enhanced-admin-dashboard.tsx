@@ -2941,9 +2941,12 @@ function EnhancedAdminDashboard() {
                                   </DialogHeader>
                                   <div className="flex-1 overflow-y-auto">
                                     <img 
-                                      src={verification.receiptImageUrl} 
+                                      src={verification.receiptImageUrl.startsWith('/') ? verification.receiptImageUrl : `/uploaded-images/${verification.receiptImageUrl}`} 
                                       alt="Payment receipt" 
                                       className="w-full h-auto object-contain max-h-[70vh]"
+                                      onError={(e) => {
+                                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                                      }}
                                     />
                                   </div>
                                 </DialogContent>
