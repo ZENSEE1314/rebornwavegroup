@@ -293,6 +293,19 @@ function EnhancedAdminDashboard() {
     iconFile: null as File | null
   });
 
+  // Add missing template dialog state
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [templateToyForm, setTemplateToyForm] = useState({
+    name: "",
+    seasonId: "",
+    rarity: "common",
+    gender: "male",
+    color: "",
+    basePrice: 1000000,
+    imageUrl: "",
+    quantity: 1
+  });
+
   const [editSeasonData, setEditSeasonData] = useState({
     id: null as number | null,
     name: "",
