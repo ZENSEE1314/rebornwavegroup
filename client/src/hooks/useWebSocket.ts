@@ -213,19 +213,23 @@ export function useWebSocket(enabled: boolean = true) {
         }
       };
 
-      wsRef.current.onclose = () => {
-
-        // Attempt to reconnect after 3 seconds
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        // Only reconnect if not manually closed
+        if (event.code !== 1000 && enabled) {
+          reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.warn('WebSocket error (suppressed):', error);
         // Clear any existing reconnect timeout and try again
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
-        reconnectTimeoutRef.current = setTimeout(connect, 5000);
+        if (enabled) {
+          reconnectTimeoutRef.current = setTimeout(connect, 5000);
+        }
       };
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);

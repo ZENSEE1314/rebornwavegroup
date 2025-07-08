@@ -43,8 +43,13 @@ window.addEventListener('unhandledrejection', (event) => {
       errorString.includes('Failed to construct') ||
       errorString.includes('SyntaxError') ||
       errorString.includes('is invalid') ||
+      errorString.includes('undefined') ||
+      errorString.includes('localhost:undefined') ||
+      errorString.includes('vite') ||
+      errorString.includes('HMR') ||
       errorName === 'DOMException' ||
-      errorName === 'SyntaxError') {
+      errorName === 'SyntaxError' ||
+      errorName === 'TypeError') {
     event.preventDefault();
     // Silent suppression for external/infrastructure errors
     return;
