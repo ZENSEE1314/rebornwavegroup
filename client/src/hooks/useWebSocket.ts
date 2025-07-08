@@ -98,7 +98,7 @@ export function useWebSocket(enabled: boolean = true) {
             }
           };
           
-          if (data.type === 'PAYMENT_VERIFICATION_UPDATE') {
+          if (data.type === 'PAYMENT_VERIFICATION_UPDATE' || data.type === 'PAYMENT_VERIFICATION_UPDATED') {
 
             
             safeInvalidateQueries((query) => {
@@ -107,8 +107,24 @@ export function useWebSocket(enabled: boolean = true) {
                      queryKey?.includes('/api/payment-verifications') ||
                      queryKey?.includes('/api/user-stats') ||
                      queryKey?.includes('/api/points-history') ||
-                     queryKey?.includes('/api/admin/commission-stats');
+                     queryKey?.includes('/api/admin/commission-stats') ||
+                     queryKey?.includes('/api/admin/dashboard-stats');
             }, 'payment');
+            
+            // Force immediate refetch for real-time updates
+            try {
+              queryClient.refetchQueries({ queryKey: ['/api/admin/payment-verifications'] }).catch((error) => {
+                console.warn('Payment verification refetch error:', error);
+              });
+              queryClient.refetchQueries({ queryKey: ['/api/admin/commission-stats'] }).catch((error) => {
+                console.warn('Commission stats refetch error:', error);
+              });
+              queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] }).catch((error) => {
+                console.warn('Dashboard stats refetch error:', error);
+              });
+            } catch (error) {
+              console.warn('Query refetch error:', error);
+            }
             
             // Show notification based on status
             if (data.data.status === 'approved' && data.data.pointsAwarded > 0) {

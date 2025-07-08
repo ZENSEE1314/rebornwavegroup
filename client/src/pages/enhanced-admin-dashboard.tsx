@@ -1865,9 +1865,11 @@ function EnhancedAdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "Payment verification approved with 10% referral commission" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      // Force immediate refetch for real-time updates
+      queryClient.refetchQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/commission-stats'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/logs'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] });
       setOpenApproveDialog(null);
     },
     onError: (error: any) => {
@@ -1890,8 +1892,10 @@ function EnhancedAdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "Payment verification rejected" });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      // Force immediate refetch for real-time updates
+      queryClient.refetchQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/logs'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] });
       setOpenRejectDialog(null);
     },
     onError: (error: any) => {
