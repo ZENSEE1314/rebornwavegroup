@@ -6151,7 +6151,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-gray-900 font-medium">Active Pets</span>
                         </div>
-                        <span className="text-gray-900 font-bold">5</span>
+                        <span className="text-gray-900 font-bold">{userStats?.pets?.length || 0}</span>
                       </div>
                     </div>
 
