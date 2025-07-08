@@ -56,6 +56,7 @@ import {
   Tag,
   Mail,
   MessageCircle,
+  MessageSquare,
   ImageIcon,
   Shield
 } from "lucide-react";
