@@ -5568,7 +5568,7 @@ function EnhancedAdminDashboard() {
                     <p className="text-gray-300 mt-1">Create and manage email templates for automated communications</p>
                   </div>
                   <Button 
-                    onClick={() => setShowTemplateDialog(true)}
+                    onClick={() => setShowEmailTemplateDialog(true)}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -6845,7 +6845,7 @@ function EnhancedAdminDashboard() {
         <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white">
-              {editingEmailTemplate ? "Edit Email Template" : "Create Email Template"}
+              Create Email Template
             </DialogTitle>
           </DialogHeader>
           
