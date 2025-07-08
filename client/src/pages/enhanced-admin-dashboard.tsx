@@ -4764,10 +4764,14 @@ function EnhancedAdminDashboard() {
                             <img 
                               src={template.imageUrl} 
                               alt={template.name} 
-                              className="w-12 h-12 rounded object-cover"
+                              className="w-12 h-12 rounded object-cover bg-gray-200"
                               onError={(e) => {
+                                console.log('Image load error for:', template.imageUrl);
                                 const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
+                                target.src = '/placeholder-toy.png'; // Fallback to placeholder instead of hiding
+                              }}
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', template.imageUrl);
                               }}
                             />
                           ) : (
