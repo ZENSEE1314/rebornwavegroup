@@ -5588,8 +5588,8 @@ function EnhancedAdminDashboard() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Search templates..."
-                      value={templateSearch}
-                      onChange={(e) => setTemplateSearch(e.target.value)}
+                      value={templateSearch || ''}
+                      onChange={(e) => setTemplateSearch(e.target.value || '')}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
                     />
                   </div>
@@ -5638,11 +5638,14 @@ function EnhancedAdminDashboard() {
                         emailTemplatesData
                           .filter((template: any) => {
                             if (!template || !template.name || !template.subject) return false;
-                            const searchTerm = templateSearch || '';
-                            const typeFilter = templateTypeFilter || 'all';
-                            const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                template.subject.toLowerCase().includes(searchTerm.toLowerCase());
-                            const matchesType = typeFilter === "all" || template.templateType === typeFilter;
+                            const searchTerm = (typeof templateSearch === 'string' ? templateSearch : '') || '';
+                            const typeFilter = (typeof templateTypeFilter === 'string' ? templateTypeFilter : 'all') || 'all';
+                            const templateName = template.name || '';
+                            const templateSubject = template.subject || '';
+                            const templateType = template.templateType || 'custom';
+                            const matchesSearch = templateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                templateSubject.toLowerCase().includes(searchTerm.toLowerCase());
+                            const matchesType = typeFilter === "all" || templateType === typeFilter;
                             return matchesSearch && matchesType;
                           })
                           .map((template: any) => (
@@ -6854,8 +6857,8 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateName" className="text-gray-300">Template Name</Label>
               <Input
                 id="templateName"
-                value={emailTemplateForm.name}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, name: e.target.value})}
+                value={emailTemplateForm.name || ''}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, name: e.target.value || ''})}
                 placeholder="Welcome Email, Newsletter, etc."
                 className="bg-gray-800 border-gray-600 text-white"
               />
@@ -6865,8 +6868,8 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateSubject" className="text-gray-300">Email Subject</Label>
               <Input
                 id="templateSubject"
-                value={emailTemplateForm.subject}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, subject: e.target.value})}
+                value={emailTemplateForm.subject || ''}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, subject: e.target.value || ''})}
                 placeholder="Welcome to Reborn Wave Group!"
                 className="bg-gray-800 border-gray-600 text-white"
               />
