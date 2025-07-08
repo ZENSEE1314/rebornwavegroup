@@ -4747,20 +4747,20 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {emailTemplatesLoading ? (
+                      {emailTemplatesQuery.isLoading ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                             Loading email templates...
                           </TableCell>
                         </TableRow>
-                      ) : !Array.isArray(emailTemplatesData) || emailTemplatesData.length === 0 ? (
+                      ) : !Array.isArray(emailTemplatesQuery.data) || emailTemplatesQuery.data.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                             No email templates found
                           </TableCell>
                         </TableRow>
                       ) : (
-                        (Array.isArray(emailTemplatesData) ? emailTemplatesData : [])
+                        (Array.isArray(emailTemplatesQuery.data) ? emailTemplatesQuery.data : [])
                           .filter((template: any) => {
                             const matchesSearch = template.name?.toLowerCase().includes(templateSearch.toLowerCase()) ||
                                                 template.subject?.toLowerCase().includes(templateSearch.toLowerCase());
