@@ -8,8 +8,31 @@ export function useWebSocket(enabled: boolean = true) {
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef<number>(0);
   const maxReconnectAttempts = 5;
+  
+  // Start polling fallback when WebSocket fails
+  const startPollingFallback = useCallback(() => {
+    if (pollingTimeoutRef.current) {
+      clearInterval(pollingTimeoutRef.current);
+    }
+    
+    pollingTimeoutRef.current = setInterval(() => {
+      // Refresh payment verifications every 3 seconds
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+    }, 3000);
+  }, []);
+  
+  // Stop polling fallback
+  const stopPollingFallback = useCallback(() => {
+    if (pollingTimeoutRef.current) {
+      clearInterval(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (!enabled || shouldDisableWebSocket) return;
@@ -277,9 +300,11 @@ export function useWebSocket(enabled: boolean = true) {
         reconnectTimeoutRef.current = setTimeout(connect, delay);
       } else {
         console.warn('WebSocket max reconnection attempts reached, stopping reconnection');
+        // Start polling fallback when WebSocket fails completely
+        startPollingFallback();
       }
     }
-  }, [enabled]);
+  }, [enabled, startPollingFallback]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -291,7 +316,8 @@ export function useWebSocket(enabled: boolean = true) {
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, []);
+    stopPollingFallback();
+  }, [stopPollingFallback]);
 
   useEffect(() => {
     if (enabled && !shouldDisableWebSocket) {
@@ -304,6 +330,14 @@ export function useWebSocket(enabled: boolean = true) {
       disconnect();
     };
   }, [enabled, connect, disconnect, shouldDisableWebSocket]);
+  
+  // Start polling fallback immediately since WebSocket isn't working
+  useEffect(() => {
+    startPollingFallback();
+    return () => {
+      stopPollingFallback();
+    };
+  }, [startPollingFallback, stopPollingFallback]);
 
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
