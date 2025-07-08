@@ -939,7 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/payment-verifications/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/admin/payment-verifications/:id", requireAuth, async (req: any, res) => {
     try {
       console.log(`*** APPROVAL DEBUG: Starting approval for verification ${req.params.id}`);
       console.log(`*** APPROVAL DEBUG: Request body:`, req.body);
@@ -963,6 +963,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [existingVerification] = await db.select().from(paymentVerifications).where(eq(paymentVerifications.id, parseInt(id))).limit(1);
       if (!existingVerification) {
         return res.status(404).json({ message: "Payment verification not found" });
+      }
+
+      // Prevent double approval/rejection
+      if (existingVerification.status !== 'pending') {
+        console.log(`*** APPROVAL DEBUG: Cannot modify verification ${id} - status is already ${existingVerification.status}`);
+        return res.status(400).json({ 
+          message: `Payment verification has already been ${existingVerification.status}`,
+          currentStatus: existingVerification.status
+        });
       }
 
       // Auto-calculate points based on amount (1 point per 1000 IDR) when approving

@@ -19,10 +19,18 @@ export function useWebSocket(enabled: boolean = true) {
     }
     
     pollingTimeoutRef.current = setInterval(() => {
-      // Refresh payment verifications every 3 seconds
+      // Refresh all admin dashboard queries every 3 seconds for real-time updates
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/points-history'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
+      
+      // Force refetch queries for immediate updates
+      queryClient.refetchQueries({ queryKey: ['/api/admin/payment-verifications'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/commission-stats'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] });
     }, 3000);
   }, []);
   
