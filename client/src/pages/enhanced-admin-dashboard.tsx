@@ -6725,7 +6725,76 @@ function EnhancedAdminDashboard() {
         </DialogContent>
       </Dialog>
 
-
+      {/* Password Change Dialog */}
+      {showPasswordDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md mx-4 text-white">
+            <h3 className="text-lg font-semibold mb-4">
+              Change Password for {selectedUserForPassword?.email}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  New Password
+                </label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Confirm Password
+                </label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => {
+                    if (newPassword !== confirmPassword) {
+                      toast({ title: "Passwords do not match", variant: "destructive" });
+                      return;
+                    }
+                    if (newPassword.length < 6) {
+                      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+                      return;
+                    }
+                    changeUserPasswordMutation.mutate({
+                      userId: selectedUserForPassword.id,
+                      newPassword
+                    });
+                  }}
+                  disabled={changeUserPasswordMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 flex-1"
+                >
+                  {changeUserPasswordMutation.isPending ? "Changing..." : "Change Password"}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordDialog(false);
+                    setSelectedUserForPassword(null);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  className="border-slate-600 text-white hover:bg-slate-700"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

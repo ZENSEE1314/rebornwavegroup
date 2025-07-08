@@ -1370,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users/:adminUserId/change-password', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/users/:userId/change-password', requireAuth, async (req: any, res) => {
     try {
       // Check if user is admin
       const adminUserId = getUserId(req);
@@ -1394,8 +1394,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Password must be at least 6 characters long" });
       }
 
-      // Note: In a real implementation, you would hash the password and store it
-      // For this demo, we'll simulate successful password change
+      // Hash new password
+      const bcrypt = require('bcryptjs');
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password in database
+      await storage.updateUserPassword(userId, hashedNewPassword);
+      
       res.json({ message: "Password changed successfully" });
     } catch (error) {
       console.error("Error changing user password:", error);
