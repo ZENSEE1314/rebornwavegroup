@@ -5527,6 +5527,46 @@ export const translations: Translations = {
     zh: '代币将在指定地点兑换。无需运费。',
     id: 'Token akan ditukar di lokasi yang disetujui. Tidak ada pengiriman diperlukan.'
   },
+  'tokens.history': {
+    en: 'Token History',
+    zh: '代币历史',
+    id: 'Riwayat Token'
+  },
+  'tokens.noHistory': {
+    en: 'No token claims found',
+    zh: '未找到代币申请',
+    id: 'Tidak ada klaim token ditemukan'
+  },
+  'loyalty.pointsHistory': {
+    en: 'Loyalty Points History',
+    zh: '忠诚度积分历史',
+    id: 'Riwayat Poin Loyalitas'
+  },
+  'loyalty.noPointsHistory': {
+    en: 'No loyalty points history found',
+    zh: '未找到忠诚度积分历史',
+    id: 'Tidak ada riwayat poin loyalitas ditemukan'
+  },
+  'account.creditHistory': {
+    en: 'Credit History',
+    zh: '信用历史',
+    id: 'Riwayat Kredit'
+  },
+  'account.noCreditHistory': {
+    en: 'No credit transactions found',
+    zh: '未找到信用交易',
+    id: 'Tidak ada transaksi kredit ditemukan'
+  },
+  'common.history': {
+    en: 'History',
+    zh: '历史',
+    id: 'Riwayat'
+  },
+  'common.noHistory': {
+    en: 'No history found',
+    zh: '未找到历史',
+    id: 'Tidak ada riwayat ditemukan'
+  },
   'admin.dashboard': {
     en: 'Admin Dashboard',
     zh: '管理员仪表板',

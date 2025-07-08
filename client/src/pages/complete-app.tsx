@@ -6257,7 +6257,11 @@ export default function CompleteApp() {
                         <span className="text-xs">Cash Out</span>
                       </button>
                       <button 
-                        onClick={() => setShowCreditHistoryModal(true)}
+                        onClick={() => {
+                          setModalHistoryFilter("credits");
+                          setModalHistoryPage(1);
+                          setShowHistoryModal(true);
+                        }}
                         className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                       >
                         <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
@@ -6570,7 +6574,11 @@ export default function CompleteApp() {
                       <span className="text-sm">Cash Out</span>
                     </button>
                     <button 
-                      onClick={() => setShowCreditHistoryModal(true)}
+                      onClick={() => {
+                        setModalHistoryFilter("credits");
+                        setModalHistoryPage(1);
+                        setShowHistoryModal(true);
+                      }}
                       className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
@@ -9584,36 +9592,39 @@ export default function CompleteApp() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">
-                {t('tokens.history')}
+                {modalHistoryFilter === 'tokens' ? t('tokens.history') : 
+                 modalHistoryFilter === 'points' ? t('loyalty.pointsHistory') : 
+                 modalHistoryFilter === 'credits' ? t('account.creditHistory') : 
+                 t('common.history')}
               </h3>
               <Button variant="ghost" onClick={() => setShowHistoryModal(false)}>✕</Button>
             </div>
 
             <div className="space-y-4">
               {(() => {
-                const claims = tokenClaimsHistory || [];
+                const claims = modalHistoryFilter === 'tokens' ? (tokenClaimsHistory || []) :
+                              modalHistoryFilter === 'points' ? (pointsHistory || []) :
+                              modalHistoryFilter === 'credits' ? (allCreditHistory || []) :
+                              [];
                 const itemsPerPage = 10;
                 const startIndex = (modalHistoryPage - 1) * itemsPerPage;
                 const endIndex = startIndex + itemsPerPage;
                 const paginatedClaims = claims.slice(startIndex, endIndex);
                 const totalPages = Math.ceil(claims.length / itemsPerPage);
 
-                console.log("Token History Modal Debug:", {
-                  totalClaims: claims.length,
-                  itemsPerPage,
-                  currentPage: modalHistoryPage,
-                  totalPages,
-                  startIndex,
-                  endIndex,
-                  paginatedClaims: paginatedClaims.length
-                });
-
                 if (claims.length === 0) {
                   return (
                     <div className="text-center py-8">
-                      <div className="text-gray-500 mb-4 text-4xl">🪙</div>
+                      <div className="text-gray-500 mb-4 text-4xl">
+                        {modalHistoryFilter === 'tokens' ? '🪙' : 
+                         modalHistoryFilter === 'points' ? '🎁' : 
+                         modalHistoryFilter === 'credits' ? '💰' : '📝'}
+                      </div>
                       <p className="text-gray-500">
-                        {t('tokens.noHistory')}
+                        {modalHistoryFilter === 'tokens' ? t('tokens.noHistory') :
+                         modalHistoryFilter === 'points' ? t('loyalty.noPointsHistory') :
+                         modalHistoryFilter === 'credits' ? t('account.noCreditHistory') :
+                         t('common.noHistory')}
                       </p>
                     </div>
                   );
@@ -9622,36 +9633,49 @@ export default function CompleteApp() {
                 return (
                   <>
                     <div className="space-y-3">
-                      {paginatedClaims.map((transaction: any, index: number) => (
-                        <div key={transaction.id || index} className={`border rounded-lg p-4 ${
-                          transaction.tokens !== undefined ? 
-                            (transaction.tokens > 0 ? 'bg-green-50' : 'bg-red-50') :
-                            (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'bg-green-50' : 
-                             transaction.type === 'pet_name_change' || transaction.type === 'energy_potion' ? 'bg-red-50' : 'bg-orange-50')
-                        }`}>
+                      {paginatedClaims.map((transaction: any, index: number) => {
+                        // Determine display values based on history filter type
+                        let amount, amountLabel, isPositive, bgClass, textClass;
+                        
+                        if (modalHistoryFilter === 'tokens') {
+                          amount = transaction.tokens !== undefined ? transaction.tokens : 
+                                   (transaction.tokensRequested || transaction.tokensAwarded || 0);
+                          amountLabel = t('common.tokens');
+                          isPositive = amount > 0 || transaction.type === 'token_claim';
+                        } else if (modalHistoryFilter === 'points') {
+                          amount = transaction.pointsEarned || transaction.points || 0;
+                          amountLabel = t('dashboard.loyaltyPoints');
+                          isPositive = amount > 0;
+                        } else if (modalHistoryFilter === 'credits') {
+                          amount = transaction.amount || 0;
+                          amountLabel = t('dashboard.credits');
+                          isPositive = (transaction.type === 'earned' || amount > 0);
+                        }
+                        
+                        bgClass = isPositive ? 'bg-green-50' : 'bg-red-50';
+                        textClass = isPositive ? 'text-green-600' : 'text-red-600';
+                        
+                        return (
+                        <div key={transaction.id || index} className={`border rounded-lg p-4 ${bgClass}`}>
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className={
-                                  transaction.tokens !== undefined ? 
-                                    (transaction.tokens > 0 ? 'text-green-600' : 'text-red-600') :
-                                    (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? 'text-green-600' : 'text-red-600')
-                                }>
-                                  {transaction.tokens !== undefined ? 
-                                    (transaction.tokens > 0 ? '➕' : '➖') :
-                                    (transaction.type === 'token_claim' || (transaction.pointsEarned && transaction.pointsEarned > 0) ? '➕' : '➖')
-                                  }
+                                <span className={textClass}>
+                                  {isPositive ? '➕' : '➖'}
                                 </span>
                                 <span className="font-semibold">
-                                  {transaction.tokens !== undefined ? 
-                                    `${transaction.tokens > 0 ? '+' : ''}${transaction.tokens}` : 
-                                    `${transaction.tokensRequested || transaction.tokensAwarded || 0 > 0 ? '+' : ''}${transaction.tokensRequested || transaction.tokensAwarded || 0}`
-                                  } {t('common.tokens')}
+                                  {modalHistoryFilter === 'credits' ? 
+                                    `${isPositive ? '+' : ''}RP ${Math.abs(amount).toLocaleString()}` :
+                                    `${isPositive ? '+' : ''}${Math.abs(amount)} ${amountLabel}`
+                                  }
                                 </span>
                               </div>
                               <p className="text-sm text-gray-800 mb-1">
                                 {transaction.description || 
-                                 (transaction.type === 'token_claim' ? `Token claim: ${transaction.tokensAwarded} tokens` : 'Token transaction')}
+                                 (modalHistoryFilter === 'tokens' && transaction.type === 'token_claim' ? `Token claim: ${transaction.tokensAwarded} tokens` : 
+                                  modalHistoryFilter === 'points' ? `Points ${transaction.type || 'transaction'}` :
+                                  modalHistoryFilter === 'credits' ? `Credit ${transaction.type || 'transaction'}` :
+                                  'Transaction')}
                               </p>
                               <p className="text-sm text-gray-600 mb-1">
                                 {new Date(transaction.createdAt || transaction.requestedAt).toLocaleString(t("date.format"), {
@@ -9681,7 +9705,8 @@ export default function CompleteApp() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Pagination Controls */}

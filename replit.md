@@ -26,6 +26,17 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Complete History Modal System Fix & Unification (July 8, 2025)
+- **CRITICAL BUG FIX**: ✅ RESOLVED HISTORY MODALS SHOWING INCORRECT DATA - Fixed credit and loyalty point history buttons showing token history instead
+- **Root Cause Resolution**: History modal was hardcoded to show tokens.history and tokenClaimsHistory data regardless of modalHistoryFilter value
+- **Unified History System**: Implemented proper conditional system in history modal to display correct content based on modalHistoryFilter type
+- **Data Source Integration**: Updated history modal to use allCreditHistory for credits, pointsHistory for points, and tokenClaimsHistory for tokens
+- **Dynamic Display Logic**: Created adaptive display system that formats amounts, labels, and styling based on history type (tokens/points/credits)
+- **Button Consistency**: Fixed both mobile and desktop credit history buttons to use unified modal system with setModalHistoryFilter("credits")
+- **Translation Integration**: Added missing translation keys for loyalty.pointsHistory, account.creditHistory, and no-history states
+- **Enhanced User Experience**: History modals now show proper titles, emojis, and formatted amounts (RP format for credits, numeric for points/tokens)
+- **Production Ready**: Unified history system eliminates confusion between separate modal systems and provides consistent user experience
+
 ### Password Change Functionality Implementation (July 5, 2025)
 - **CRITICAL FIX**: ✅ RESOLVED PASSWORD CHANGE BUTTON NOT WORKING - Fixed authentication middleware and implemented proper password verification
 - **Authentication Middleware Update**: Updated password change endpoint from deprecated `isAuthenticated` to modern `requireAuth` middleware
