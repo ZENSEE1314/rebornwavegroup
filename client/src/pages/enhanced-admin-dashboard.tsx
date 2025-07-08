@@ -6322,152 +6322,136 @@ function EnhancedAdminDashboard() {
 
       {/* Template Toy Creation Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="bg-gradient-to-br from-blue-900 to-purple-900 border-white/20">
+        <DialogContent className="bg-gradient-to-br from-blue-900 to-purple-900 border-white/20 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">Create Template Toy</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-white text-sm">Name</label>
-              <Input
-                value={templateToyForm.name || ""}
-                onChange={(e) => setTemplateToyForm({...templateToyForm, name: e.target.value})}
-                placeholder="Enter toy name"
-                className="bg-white/10 border-white/20 text-white"
-              />
-            </div>
-            
-            <div>
-              <label className="text-white text-sm">Season</label>
-              <Select 
-                value={templateToyForm.seasonId || ""} 
-                onValueChange={(value) => setTemplateToyForm({...templateToyForm, seasonId: value})}
-              >
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue placeholder="Select season" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No Season</SelectItem>
-                  {Array.isArray(allSeasons) && allSeasons.length > 0 && allSeasons.map((season: any) => (
-                    season && season.id && season.displayName ? (
-                      <SelectItem key={season.id} value={season.id.toString()}>
-                        {season.displayName}
-                      </SelectItem>
-                    ) : null
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          {showTemplateDialog && (
+            <div className="space-y-4">
               <div>
-                <label className="text-white text-sm">Rarity</label>
-                <Select 
-                  value={templateToyForm.rarity || "common"} 
-                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, rarity: value})}
-                >
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select rarity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="common">Common</SelectItem>
-                    <SelectItem value="rare">Rare</SelectItem>
-                    <SelectItem value="epic">Epic</SelectItem>
-                    <SelectItem value="legendary">Legendary</SelectItem>
-                    <SelectItem value="secret">Secret</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-white text-sm">Color</label>
-                <Select 
-                  value={templateToyForm.color || "blue"} 
-                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, color: value})}
-                >
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select color" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="red">Red</SelectItem>
-                    <SelectItem value="blue">Blue</SelectItem>
-                    <SelectItem value="green">Green</SelectItem>
-                    <SelectItem value="yellow">Yellow</SelectItem>
-                    <SelectItem value="purple">Purple</SelectItem>
-                    <SelectItem value="orange">Orange</SelectItem>
-                    <SelectItem value="pink">Pink</SelectItem>
-                    <SelectItem value="black">Black</SelectItem>
-                    <SelectItem value="white">White</SelectItem>
-                    <SelectItem value="gold">Gold</SelectItem>
-                    <SelectItem value="silver">Silver</SelectItem>
-                    <SelectItem value="rainbow">Rainbow</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-white text-sm">Gender</label>
-                <Select 
-                  value={templateToyForm.gender || "male"} 
-                  onValueChange={(value) => setTemplateToyForm({...templateToyForm, gender: value})}
-                >
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-white text-sm">Base Price (RP)</label>
+                <label className="text-white text-sm block mb-1">Name</label>
                 <Input
-                  type="number"
-                  min="100000"
-                  step="100000"
-                  value={templateToyForm.basePrice ? parseFloat(templateToyForm.basePrice) : 1000000}
-                  onChange={(e) => setTemplateToyForm({...templateToyForm, basePrice: (parseFloat(e.target.value) || 1000000).toString()})}
+                  value={templateToyForm?.name || ""}
+                  onChange={(e) => setTemplateToyForm(prev => ({...prev, name: e.target.value}))}
+                  placeholder="Enter toy name"
                   className="bg-white/10 border-white/20 text-white"
-                  placeholder="1000000"
                 />
               </div>
-            </div>
+              
+              <div>
+                <label className="text-white text-sm block mb-1">Season</label>
+                <select
+                  value={templateToyForm?.seasonId || ""}
+                  onChange={(e) => setTemplateToyForm(prev => ({...prev, seasonId: e.target.value}))}
+                  className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                >
+                  <option value="">No Season</option>
+                  {allSeasons?.map((season: any) => (
+                    <option key={season.id} value={season.id.toString()}>
+                      {season.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="text-white text-sm">Image URL (Optional)</label>
-              <Input
-                value={templateToyForm.imageUrl || ""}
-                onChange={(e) => setTemplateToyForm({...templateToyForm, imageUrl: e.target.value})}
-                placeholder="Enter image URL or leave blank for default"
-                className="bg-white/10 border-white/20 text-white"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white text-sm block mb-1">Rarity</label>
+                  <select
+                    value={templateToyForm?.rarity || "common"}
+                    onChange={(e) => setTemplateToyForm(prev => ({...prev, rarity: e.target.value}))}
+                    className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                  >
+                    <option value="common">Common</option>
+                    <option value="rare">Rare</option>
+                    <option value="epic">Epic</option>
+                    <option value="legendary">Legendary</option>
+                    <option value="secret">Secret</option>
+                  </select>
+                </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button
-                onClick={() => {
-                  if (templateToyForm.name && templateToyForm.name.trim()) {
-                    createToyTemplateMutation.mutate(templateToyForm);
-                  }
-                }}
-                className="bg-green-600 hover:bg-green-700 flex-1"
-                disabled={!templateToyForm.name || !templateToyForm.name.trim() || createToyTemplateMutation.isPending}
-              >
-                {createToyTemplateMutation.isPending ? "Creating..." : "Create Template Toy"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowTemplateDialog(false)}
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
+                <div>
+                  <label className="text-white text-sm block mb-1">Color</label>
+                  <select
+                    value={templateToyForm?.color || "blue"}
+                    onChange={(e) => setTemplateToyForm(prev => ({...prev, color: e.target.value}))}
+                    className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                  >
+                    <option value="red">Red</option>
+                    <option value="blue">Blue</option>
+                    <option value="green">Green</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="purple">Purple</option>
+                    <option value="orange">Orange</option>
+                    <option value="pink">Pink</option>
+                    <option value="black">Black</option>
+                    <option value="white">White</option>
+                    <option value="gold">Gold</option>
+                    <option value="silver">Silver</option>
+                    <option value="rainbow">Rainbow</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-white text-sm block mb-1">Gender</label>
+                  <select
+                    value={templateToyForm?.gender || "male"}
+                    onChange={(e) => setTemplateToyForm(prev => ({...prev, gender: e.target.value}))}
+                    className="w-full p-2 bg-white/10 border border-white/20 text-white rounded"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-white text-sm block mb-1">Base Price (RP)</label>
+                  <Input
+                    type="number"
+                    min="100000"
+                    step="100000"
+                    value={templateToyForm?.basePrice ? parseFloat(templateToyForm.basePrice) : 1000000}
+                    onChange={(e) => setTemplateToyForm(prev => ({...prev, basePrice: (parseFloat(e.target.value) || 1000000).toString()}))}
+                    className="bg-white/10 border-white/20 text-white"
+                    placeholder="1000000"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-white text-sm block mb-1">Image URL (Optional)</label>
+                <Input
+                  value={templateToyForm?.imageUrl || ""}
+                  onChange={(e) => setTemplateToyForm(prev => ({...prev, imageUrl: e.target.value}))}
+                  placeholder="Enter image URL or leave blank for default"
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => {
+                    if (templateToyForm?.name?.trim()) {
+                      createToyTemplateMutation.mutate(templateToyForm);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 flex-1"
+                  disabled={!templateToyForm?.name?.trim() || createToyTemplateMutation.isPending}
+                >
+                  {createToyTemplateMutation.isPending ? "Creating..." : "Create Template"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTemplateDialog(false)}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
