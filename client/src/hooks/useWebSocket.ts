@@ -2,20 +2,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import { queryClient } from '@/lib/queryClient';
 
 export function useWebSocket(enabled: boolean = true) {
-  // Completely disable WebSocket in development environment
-  const isDevelopment = window.location.hostname.includes('janeway.replit.dev') ||
-                       window.location.hostname.includes('replit.dev') ||
-                       window.location.port === '3000';
-  
-  if (isDevelopment) {
-    // Return early with no-op functions for development
-    return {
-      isConnected: false,
-      sendMessage: () => {},
-      disconnect: () => {},
-      connect: () => {}
-    };
-  }
+  // Allow WebSocket in development for real-time features
+  // Only block if explicitly disabled
+  const shouldDisableWebSocket = false; // Enable WebSocket for real-time functionality
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -23,7 +12,7 @@ export function useWebSocket(enabled: boolean = true) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || shouldDisableWebSocket) return;
     
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
@@ -46,8 +35,8 @@ export function useWebSocket(enabled: boolean = true) {
       
       // Check if we're in Replit environment (janeway.replit.dev URLs)
       if (window.location.hostname.includes('replit.dev')) {
-        // Use the same host as the current page for Replit
-        wsUrl = `${protocol}//${window.location.host}/ws`;
+        // Use port 5000 for WebSocket connection in Replit
+        wsUrl = `${protocol}//${window.location.hostname}:5000/ws`;
       } else {
         // For local development or other environments
         const currentHost = window.location.host;
@@ -305,7 +294,7 @@ export function useWebSocket(enabled: boolean = true) {
   }, []);
 
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !shouldDisableWebSocket) {
       connect();
     } else {
       disconnect();
@@ -314,7 +303,18 @@ export function useWebSocket(enabled: boolean = true) {
     return () => {
       disconnect();
     };
-  }, [enabled, connect, disconnect]);
+  }, [enabled, connect, disconnect, shouldDisableWebSocket]);
 
-  return { connect, disconnect };
+  const sendMessage = useCallback((message: any) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
+    }
+  }, []);
+
+  return {
+    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
+    sendMessage,
+    disconnect,
+    connect
+  };
 }
