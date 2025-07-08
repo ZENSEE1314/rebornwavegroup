@@ -216,8 +216,7 @@ export function useWebSocket(enabled: boolean = true) {
           }
 
           // Handle admin log updates for real-time admin dashboard
-          if (data.type === 'ADMIN_LOG_CREATED') {
-
+          if (data.type === 'ADMIN_LOG_CREATED' || data.type === 'ADMIN_LOG_UPDATE') {
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;

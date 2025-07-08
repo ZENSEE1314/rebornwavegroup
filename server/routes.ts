@@ -1089,19 +1089,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create admin log entry for this action
       try {
         await storage.createAdminLog({
-          adminId: adminId,
-          action: `${status === 'approved' ? 'APPROVED' : 'REJECTED'}_PAYMENT`,
-          resourceType: 'payment_verification',
-          resourceId: updatedVerification.id.toString(),
+          adminUserId: adminId,
+          targetUserId: updatedVerification.userId,
+          targetType: 'payment_verification',
+          targetId: updatedVerification.id.toString(),
+          action: status === 'approved' ? 'approve' : 'reject',
+          entityType: 'payment_verification',
           description: `${status === 'approved' ? 'Approved' : 'Rejected'} payment verification #${updatedVerification.id} for user ${updatedVerification.userId}${status === 'approved' ? ` and awarded ${calculatedPoints} loyalty points` : ''}${adminNotes ? ` - Notes: ${adminNotes}` : ''}`,
-          metadata: JSON.stringify({
+          newValues: {
             verificationId: updatedVerification.id,
             userId: updatedVerification.userId,
             amount: updatedVerification.amount,
             status: status,
             pointsAwarded: calculatedPoints || 0,
             adminNotes: adminNotes
-          })
+          }
         });
         console.log(`*** ADMIN LOG: Created log entry for payment ${status} action by admin ${adminId}`);
       } catch (logError) {
@@ -1129,6 +1131,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (global as any).wss.clients.forEach((client: any) => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(wsData));
+          }
+        });
+
+        // Also broadcast admin log update
+        const logUpdateData = {
+          type: 'ADMIN_LOG_UPDATE',
+          data: {
+            message: 'Admin logs updated',
+            timestamp: new Date().toISOString()
+          }
+        };
+        
+        (global as any).wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(logUpdateData));
           }
         });
         
