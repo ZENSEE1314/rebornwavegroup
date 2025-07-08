@@ -1054,7 +1054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`*** APPROVAL DEBUG: Creating commission history record`);
           await db.insert(commissionHistory).values({
             introducerId: userInfo[0].referredById,
-            referredUserId: updatedVerification.adminUserId,
+            referredUserId: updatedVerification.userId, // Fixed: use userId instead of adminUserId
             transactionAmount: transactionAmount.toString(),
             commissionAmount: commissionAmount.toString(),
             commissionRate: "0.10",
@@ -1074,13 +1074,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(
               and(
                 eq(referrals.referrerId, userInfo[0].referredById),
-                eq(referrals.referredId, updatedVerification.adminUserId)
+                eq(referrals.referredId, updatedVerification.userId) // Fixed: use userId instead of adminUserId
               )
             );
 
           console.log(`*** APPROVAL DEBUG: Commission processing completed - awarded RP ${commissionAmount} to user ${userInfo[0].referredById}`);
         } else {
-          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.adminUserId}`);
+          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.userId}`);
         }
       } else {
         console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
