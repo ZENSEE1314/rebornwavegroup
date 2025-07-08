@@ -320,13 +320,7 @@ function EnhancedAdminDashboard() {
 
 
 
-  // Simplified bulk generation states
-  const [selectedToyForBulk, setSelectedToyForBulk] = useState<number | null>(null);
-  const [bulkQuantity, setBulkQuantity] = useState(1);
-  const [bulkOverrides, setBulkOverrides] = useState({
-    seasonId: null as number | null,
-    color: null as string | null
-  });
+
   
   // Marketplace listing generation state
   const [marketplaceListingCount, setMarketplaceListingCount] = useState(10);
@@ -601,11 +595,7 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-  // Query for real toys (collectibles)
-  const { data: toysResponse }: any = useQuery({
-    queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
-    retry: false,
-  });
+
 
   const { data: appointmentsResponse }: any = useQuery({
     queryKey: ['/api/admin/appointments'],
@@ -642,11 +632,7 @@ function EnhancedAdminDashboard() {
 
 
 
-  // New queries for pet management and token claims with pagination
-  const { data: activatedPetsResponse }: any = useQuery({
-    queryKey: [`/api/admin/activated-pets?page=${petCurrentPage}&limit=10`],
-    retry: false,
-  });
+
 
   const { data: gameLeaderboard = [] } = useQuery({
     queryKey: ['/api/game-scores/leaderboard'],
@@ -726,19 +712,8 @@ function EnhancedAdminDashboard() {
     );
   }, [allToysQuery?.data?.data, toySearchTerm]);
 
-  // Filter active pets - server already provides paginated data (10 per page)
-  const filteredPets = useMemo(() => {
-    const allPets = activatedPetsResponse?.data || [];
-    
-    if (!petSearchTerm) return allPets;
-    
-    return allPets.filter((pet: any) => 
-      pet.name?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
-      pet.id?.toString().includes(petSearchTerm) ||
-      pet.currentStage?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
-      pet.userId?.toString().includes(petSearchTerm)
-    );
-  }, [activatedPetsResponse?.data, petSearchTerm]);
+  // Filter active pets - placeholder for removed pet management
+  const filteredPets = [];
 
   // Paginate toys
   const totalToyPages = Math.ceil(filteredToys.length / ITEMS_PER_PAGE);
@@ -747,10 +722,10 @@ function EnhancedAdminDashboard() {
     return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredToys, toyCurrentPage]);
 
-  // Paginate pets - use server-side pagination (already limited to 10 per page)
-  const totalPetPages = activatedPetsResponse?.pagination?.totalPages || 1;
-  const totalPetCount = activatedPetsResponse?.pagination?.totalCount || 0;
-  const currentPagePets = filteredPets; // Server already provides 10 items per page
+  // Paginate pets - placeholder for removed pet management
+  const totalPetPages = 1;
+  const totalPetCount = 0;
+  const currentPagePets = [];
 
 
 
@@ -759,9 +734,7 @@ function EnhancedAdminDashboard() {
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
-  const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
-  const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
@@ -795,8 +768,8 @@ function EnhancedAdminDashboard() {
     return searchMatch && typeMatch;
   });
 
-  // Use server-side pagination for toys
-  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
+  // Placeholder for removed toy pagination
+  const toysPaginationInfo = { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
   // Filter toy templates (design blueprints) - completely separate from real toys
   const filteredToyTemplates = (() => {
@@ -3814,7 +3787,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Total Toys</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-purple-400">{allToys.length}</div>
+                      <div className="text-2xl font-bold text-purple-400">0</div>
                       <p className="text-xs text-gray-400 mt-1">In the system</p>
                     </CardContent>
                   </Card>
@@ -3824,7 +3797,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Active Pets</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-pink-400">{activatedPets.length}</div>
+                      <div className="text-2xl font-bold text-pink-400">0</div>
                       <p className="text-xs text-gray-400 mt-1">Currently active</p>
                     </CardContent>
                   </Card>
@@ -4933,7 +4906,7 @@ function EnhancedAdminDashboard() {
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Pet Management</CardTitle>
                   <Button 
-                    onClick={() => downloadCSV(activatedPets, 'pets')}
+                    onClick={() => downloadCSV([], 'pets')}
                     variant="outline" 
                     size="sm"
                     className="bg-white/10 text-white border-white/20"
@@ -4961,7 +4934,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activatedPets.map((pet: any) => {
+                    {[].map((pet: any) => {
                       // Calculate days since creation
                       const createdDate = new Date(pet.createdAt);
                       const now = new Date();
@@ -5058,7 +5031,7 @@ function EnhancedAdminDashboard() {
                     })}
                   </TableBody>
                 </Table>
-                {activatedPets.length === 0 && (
+                {true && (
                   <div className="text-center py-8 text-gray-400">
                     No pets found
                   </div>
