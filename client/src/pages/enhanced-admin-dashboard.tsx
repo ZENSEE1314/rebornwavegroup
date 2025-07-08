@@ -392,6 +392,7 @@ function EnhancedAdminDashboard() {
   });
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateTypeFilter, setTemplateTypeFilter] = useState("all");
+  const [whatsappMessage, setWhatsappMessage] = useState("");
   const [sendTemplateDialog, setSendTemplateDialog] = useState(false);
   const [selectedTemplateForSend, setSelectedTemplateForSend] = useState<any>(null);
   const [sendToAll, setSendToAll] = useState(false);
@@ -2578,7 +2579,7 @@ function EnhancedAdminDashboard() {
                               onChange={(e) => setEditedUserData({...editedUserData, gender: e.target.value})}
                               className="bg-gray-800 border border-gray-600 text-white text-sm h-10 min-w-[100px] rounded-md px-2"
                             >
-                              <option value="">Select</option>
+                              <option value="unspecified">Select</option>
                               <option value="male">Male</option>
                               <option value="female">Female</option>
                             </select>
@@ -5762,6 +5763,51 @@ function EnhancedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* WhatsApp Messaging Section */}
+            <Card className="bg-slate-800/60 border-slate-700/50 mt-6">
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-white text-lg font-medium">WhatsApp Blast Messaging</CardTitle>
+                    <p className="text-gray-300 mt-1">Send WhatsApp messages to all users with mobile numbers</p>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Target: {allUsers?.filter(u => u.phoneNumber && u.phoneNumber.trim() !== '').length || 0} users with phone numbers
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-white text-sm font-medium mb-2 block">WhatsApp Message</label>
+                    <textarea
+                      value={whatsappMessage}
+                      onChange={(e) => setWhatsappMessage(e.target.value)}
+                      placeholder="Enter your WhatsApp message here..."
+                      className="w-full h-32 bg-white/10 border-white/20 text-white placeholder-gray-400 rounded-md p-3 resize-none"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => sendWhatsAppMutation.mutate({ message: whatsappMessage, sendToAll: true })}
+                    disabled={sendWhatsAppMutation.isPending || !whatsappMessage.trim()}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {sendWhatsAppMutation.isPending ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                        Sending WhatsApp...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Send WhatsApp to All Users
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Pet Management Tab */}
@@ -6355,7 +6401,7 @@ function EnhancedAdminDashboard() {
                   <SelectValue placeholder="Select season" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Season</SelectItem>
+                  <SelectItem value="none">No Season</SelectItem>
                   {allSeasons.map((season: any) => (
                     <SelectItem key={season.id} value={season.id.toString()}>
                       {season.displayName}
