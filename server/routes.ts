@@ -4650,6 +4650,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update appointment status
       await storage.updateAppointmentStatus(parseInt(id), status);
       
+      // Add admin log entry for appointment approval/cancellation
+      await storage.createAdminLog({
+        adminUserId,
+        action: `appointment_${status}`,
+        targetType: 'appointment',
+        targetId: parseInt(id),
+        details: `${status === 'scheduled' ? 'Approved' : 'Cancelled'} appointment: ${appointment.title} for user ${appointment.userId}`,
+        ipAddress: req.ip || 'unknown'
+      });
+      
+      console.log(`*** ADMIN LOG: ${currentUser.email} ${status === 'scheduled' ? 'approved' : 'cancelled'} appointment ${id} - ${appointment.title}`);
+      
+      // Broadcast admin log update to all connected clients
+      if ((global as any).wss) {
+        const logData = {
+          adminUserId,
+          action: `appointment_${status}`,
+          targetType: 'appointment',
+          targetId: parseInt(id),
+          details: `${status === 'scheduled' ? 'Approved' : 'Cancelled'} appointment: ${appointment.title} for user ${appointment.userId}`,
+          timestamp: new Date()
+        };
+        
+        broadcastAdminLogUpdate(logData);
+      }
+      
       // Get updated appointment data for broadcasting
       const updatedAppointment = { ...appointment, status };
       
@@ -6978,11 +7004,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all points history using storage method
       const allPointsHistory = await storage.getAllPointsHistory();
-      console.log("*** ADMIN POINTS HISTORY DEBUG:", {
-        count: allPointsHistory.length,
-        first5: allPointsHistory.slice(0, 5)
-      });
-
       res.json(allPointsHistory);
     } catch (error) {
       console.error("Error fetching points history:", error);
