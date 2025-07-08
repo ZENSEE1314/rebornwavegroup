@@ -7,7 +7,7 @@ import multer from "multer";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, count, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, count, isNull, isNotNull } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth } from "./multiAuth";
