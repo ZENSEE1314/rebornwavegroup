@@ -958,70 +958,14 @@ function EnhancedAdminDashboard() {
   // Email template mutations
   const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
     queryKey: ['/api/admin/email-templates'],
-    queryFn: () => apiRequest('GET', '/api/admin/email-templates')
-  });
-
-  const createEmailTemplateMutation = useMutation({
-    mutationFn: async (templateData: any) => {
-      return apiRequest('POST', '/api/admin/email-templates', templateData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      toast({ title: "Email template created successfully" });
-      setShowTemplateDialog(false);
-      setNewTemplate({
-        name: "",
-        subject: "",
-        templateType: "newsletter",
-        htmlContent: "",
-        textContent: "",
-        isActive: true
-      });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to create email template", 
-        description: error.message,
-        variant: "destructive" 
-      });
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/email-templates');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     }
   });
 
-  const updateEmailTemplateMutation = useMutation({
-    mutationFn: async ({ id, ...templateData }: any) => {
-      return apiRequest('PUT', `/api/admin/email-templates/${id}`, templateData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      toast({ title: "Email template updated successfully" });
-      setShowEditTemplateDialog(false);
-      setEditingTemplate(null);
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to update email template", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
 
-  const deleteEmailTemplateMutation = useMutation({
-    mutationFn: async (templateId: number) => {
-      return apiRequest('DELETE', `/api/admin/email-templates/${templateId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      toast({ title: "Email template deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Failed to delete email template", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  });
 
   const sendTemplateEmailMutation = useMutation({
     mutationFn: async ({ templateId, sendToAll, recipientEmail }: any) => {
@@ -1898,35 +1842,31 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  // Handler functions for email templates
-  const handleCreateEmailTemplate = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/admin/email-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailTemplateForm),
-        credentials: "include"
+  // Email template mutations using React Query pattern
+  const createEmailTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      const response = await apiRequest("POST", "/api/admin/email-templates", templateData);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Email template created successfully",
+        variant: "default"
       });
       
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Email template created successfully",
-          variant: "default"
-        });
-        
-        setShowEmailTemplateDialog(false);
-        setEmailTemplateForm({
-          name: "",
-          subject: "",
-          content: "",
-          type: "custom"
-        });
-        
-        // Refresh email templates list
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      }
-    } catch (error) {
+      setShowEmailTemplateDialog(false);
+      setEmailTemplateForm({
+        name: "",
+        subject: "",
+        content: "",
+        type: "custom"
+      });
+      
+      // Refresh email templates list
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+    },
+    onError: (error: any) => {
       console.error("Error creating email template:", error);
       toast({
         title: "Error",
@@ -1934,39 +1874,33 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
-  };
+  });
 
-  const handleUpdateEmailTemplate = async () => {
-    if (!editingEmailTemplate) return;
-    
-    try {
-      const response = await apiRequest("PUT", `/api/admin/email-templates/${editingEmailTemplate.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailTemplateForm),
-        credentials: "include"
+  const updateEmailTemplateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PUT", `/api/admin/email-templates/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Email template updated successfully",
+        variant: "default"
       });
       
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Email template updated successfully",
-          variant: "default"
-        });
-        
-        setShowEmailTemplateDialog(false);
-        setEditingEmailTemplate(null);
-        setEmailTemplateForm({
-          name: "",
-          subject: "",
-          content: "",
-          type: "custom"
-        });
-        
-        // Refresh email templates list
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      }
-    } catch (error) {
+      setShowEmailTemplateDialog(false);
+      setEditingEmailTemplate(null);
+      setEmailTemplateForm({
+        name: "",
+        subject: "",
+        content: "",
+        type: "custom"
+      });
+      
+      // Refresh email templates list
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+    },
+    onError: (error: any) => {
       console.error("Error updating email template:", error);
       toast({
         title: "Error",
@@ -1974,28 +1908,24 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
-  };
+  });
 
-  const handleDeleteEmailTemplate = async (templateId: string) => {
-    if (!confirm("Are you sure you want to delete this email template?")) return;
-    
-    try {
-      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`, {
-        method: "DELETE",
-        credentials: "include"
+  const deleteEmailTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Email template deleted successfully",
+        variant: "default"
       });
       
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Email template deleted successfully",
-          variant: "default"
-        });
-        
-        // Refresh email templates list
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-      }
-    } catch (error) {
+      // Refresh email templates list
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+    },
+    onError: (error: any) => {
       console.error("Error deleting email template:", error);
       toast({
         title: "Error",
@@ -2003,6 +1933,24 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
+  });
+
+  // Handler functions for email templates
+  const handleCreateEmailTemplate = () => {
+    createEmailTemplateMutation.mutate(emailTemplateForm);
+  };
+
+  const handleUpdateEmailTemplate = () => {
+    if (!editingEmailTemplate) return;
+    updateEmailTemplateMutation.mutate({ 
+      id: editingEmailTemplate.id, 
+      data: emailTemplateForm 
+    });
+  };
+
+  const handleDeleteEmailTemplate = (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this email template?")) return;
+    deleteEmailTemplateMutation.mutate(templateId);
   };
 
   const handleEditEmailTemplate = (template: any) => {
