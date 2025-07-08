@@ -1087,8 +1087,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create admin log entry for this action
+      console.log(`*** ADMIN LOG DEBUG: About to create log entry for payment ${status} action by admin ${adminId}`);
       try {
-        await storage.createAdminLog({
+        const logData = {
           adminUserId: adminId,
           targetUserId: updatedVerification.userId,
           targetType: 'payment_verification',
@@ -1104,10 +1105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pointsAwarded: calculatedPoints || 0,
             adminNotes: adminNotes
           }
-        });
-        console.log(`*** ADMIN LOG: Created log entry for payment ${status} action by admin ${adminId}`);
+        };
+        console.log(`*** ADMIN LOG DEBUG: Log data to insert:`, JSON.stringify(logData, null, 2));
+        
+        const createdLog = await storage.createAdminLog(logData);
+        console.log(`*** ADMIN LOG SUCCESS: Created log entry with ID ${createdLog.id} for payment ${status} action by admin ${adminId}`);
       } catch (logError) {
         console.error(`*** ADMIN LOG ERROR: Failed to create log entry:`, logError);
+        console.error(`*** ADMIN LOG ERROR STACK:`, logError instanceof Error ? logError.stack : 'No stack trace');
       }
 
       // Payment verification update completed
