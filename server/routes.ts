@@ -1395,9 +1395,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Hash new password
-      const bcrypt = require('bcryptjs');
+      const bcrypt = await import('bcryptjs');
       const saltRounds = 10;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      const hashedNewPassword = await bcrypt.default.hash(newPassword, saltRounds);
 
       // Update password in database
       await storage.updateUserPassword(userId, hashedNewPassword);
