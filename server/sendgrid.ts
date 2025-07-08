@@ -17,16 +17,35 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
-    await mailService.send({
+    console.log(`*** SENDGRID: Attempting to send email to: ${params.to}`);
+    console.log(`*** SENDGRID: From: ${params.from}`);
+    console.log(`*** SENDGRID: Subject: ${params.subject}`);
+    console.log(`*** SENDGRID: API Key configured: ${!!process.env.SENDGRID_API_KEY}`);
+    
+    const result = await mailService.send({
       to: params.to,
       from: params.from,
       subject: params.subject,
       text: params.text,
       html: params.html,
     });
+    
+    console.log(`*** SENDGRID: Email sent successfully to: ${params.to}`, result);
     return true;
-  } catch (error) {
-    console.error('SendGrid email error:', error);
+  } catch (error: any) {
+    console.error('*** SENDGRID ERROR: Full error details:', error);
+    console.error('*** SENDGRID ERROR: Error message:', error?.message);
+    console.error('*** SENDGRID ERROR: Error code:', error?.code);
+    
+    if (error?.response?.body) {
+      console.error('*** SENDGRID ERROR: Response body:', error.response.body);
+      if (error.response.body.errors) {
+        error.response.body.errors.forEach((err: any, index: number) => {
+          console.error(`*** SENDGRID ERROR ${index + 1}:`, err);
+        });
+      }
+    }
+    
     return false;
   }
 }
