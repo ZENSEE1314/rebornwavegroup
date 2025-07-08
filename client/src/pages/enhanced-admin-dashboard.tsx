@@ -799,12 +799,11 @@ function EnhancedAdminDashboard() {
   const filteredToyTemplates = (() => {
     try {
       if (!toyTemplatesResponse || !toyTemplatesResponse.data) {
-        console.log('*** TOY TEMPLATES: No data available yet');
         return [];
       }
       
       const templates = (toyTemplatesResponse.data || []) as any[];
-      console.log('*** FILTERING TOY TEMPLATES DEBUG:', { templates: templates.length, templateData: templates });
+
       
       return templates.filter((template: any) => {
         if (!template || !template.id) return false;
@@ -826,7 +825,7 @@ function EnhancedAdminDashboard() {
   const filteredRealToys = (() => {
     try {
       const toys = (toysResponse?.data || []) as any[];
-      console.log('*** FILTERING REAL TOYS DEBUG:', { toys: toys.length });
+
       
       return toys.filter((toy: any) => {
         if (!toy) return false;
@@ -1174,7 +1173,6 @@ function EnhancedAdminDashboard() {
         isActive: templateData.isActive !== false
       };
       
-      console.log("*** FRONTEND: Sending template data:", transformedData);
       return apiRequest('POST', '/api/admin/toy-templates', transformedData);
     },
     onSuccess: () => {
@@ -1416,7 +1414,6 @@ function EnhancedAdminDashboard() {
   const bulkGenerationMutation = useMutation({
     mutationFn: async (bulkData: any) => {
       const { baseToy, quantity } = bulkData;
-      console.log('*** FRONTEND: Starting bulk generation for', quantity, 'toys from template', baseToy.name);
       const response = await apiRequest('POST', '/api/admin/generate-toys-from-template', {
         templateId: baseToy.id,
         quantity: quantity
@@ -1424,7 +1421,6 @@ function EnhancedAdminDashboard() {
       return await response.json();
     },
     onSuccess: (data: any) => {
-      console.log('*** FRONTEND: Bulk generation successful:', data);
       toast({ 
         title: "Success", 
         description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
@@ -1482,7 +1478,7 @@ function EnhancedAdminDashboard() {
   // Season management mutations
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
-      console.log("*** CREATING SEASON:", seasonData);
+
       
       // If there's an image file, use FormData for file upload
       if (seasonData.iconFile) {
@@ -1513,7 +1509,7 @@ function EnhancedAdminDashboard() {
       }
     },
     onSuccess: (data) => {
-      console.log("*** CREATE SEASON SUCCESS:", data);
+
       toast({ title: "Season created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
       queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
@@ -1575,7 +1571,7 @@ function EnhancedAdminDashboard() {
 
   const editSeasonMutation = useMutation({
     mutationFn: async ({ seasonId, seasonData }: { seasonId: number; seasonData: any }) => {
-      console.log("*** EDITING SEASON:", seasonId, seasonData);
+
       
       // If there's an image file, use FormData for file upload
       if (seasonData.iconFile) {
@@ -3447,7 +3443,7 @@ function EnhancedAdminDashboard() {
                             <PaginationPrevious 
                               href="#" 
                               onClick={() => {
-                                console.log('Previous page');
+
                               }}
                             />
                           </PaginationItem>
@@ -3464,7 +3460,7 @@ function EnhancedAdminDashboard() {
                             <PaginationNext 
                               href="#" 
                               onClick={() => {
-                                console.log('Next page');
+
                               }}
                             />
                           </PaginationItem>
