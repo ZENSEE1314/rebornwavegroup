@@ -34,6 +34,7 @@ function StripeTab({ onClose }: { onClose: () => void }) {
     { amount: 10000000, price: "RP 10,000,000", credits: "10,000,000", popular: false },
     { amount: 50000000, price: "RP 50,000,000", credits: "50,000,000", popular: false },
     { amount: 100000000, price: "RP 100,000,000", credits: "100,000,000", popular: false },
+    { amount: 500000000, price: "RP 500,000,000", credits: "500,000,000", popular: false },
   ];
 
   const handleStripePayment = () => {

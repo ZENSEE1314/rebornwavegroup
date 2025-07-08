@@ -45,7 +45,7 @@ A comprehensive digital financial management and collectible toy platform that c
 - **UI Simplification**: Updated credit top-up modal from 4 tabs to 3 tabs (Stripe, Bank Transfer, Cash Deposit)
 - **Package Cleanup**: Uninstalled @paypal/paypal-server-sdk dependency from project
 - **STRIPE CURRENCY UPDATE**: ✅ UPDATED STRIPE PAYMENT SYSTEM TO USE IDR (RUPIAH) CURRENCY
-- **Credit Package Restructure**: Replaced USD packages with IDR packages: RP 10,000 | RP 50,000 | RP 100,000 | RP 500,000 | RP 1,000,000 | RP 5,000,000 | RP 10,000,000 | RP 50,000,000 | RP 100,000,000
+- **Credit Package Restructure**: Replaced USD packages with IDR packages: RP 10,000 | RP 50,000 | RP 100,000 | RP 500,000 | RP 1,000,000 | RP 5,000,000 | RP 10,000,000 | RP 50,000,000 | RP 100,000,000 | RP 500,000,000
 - **Currency Conversion**: Updated payment intent creation from USD cents to IDR whole units with proper validation (minimum RP 10,000)
 - **UI Layout Enhancement**: Implemented 2-column grid layout for credit packages displaying 9 packages in organized rows
 - **UI Currency Display**: Updated checkout and credit selection interfaces to display amounts in proper IDR format with Indonesian locale formatting
