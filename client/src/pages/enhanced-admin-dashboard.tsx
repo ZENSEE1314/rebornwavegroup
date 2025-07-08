@@ -6330,7 +6330,7 @@ function EnhancedAdminDashboard() {
             <div>
               <label className="text-white text-sm">Name</label>
               <Input
-                value={templateToyForm.name}
+                value={templateToyForm.name || ""}
                 onChange={(e) => setTemplateToyForm({...templateToyForm, name: e.target.value})}
                 placeholder="Enter toy name"
                 className="bg-white/10 border-white/20 text-white"
@@ -6340,7 +6340,7 @@ function EnhancedAdminDashboard() {
             <div>
               <label className="text-white text-sm">Season</label>
               <Select 
-                value={templateToyForm.seasonId} 
+                value={templateToyForm.seasonId || ""} 
                 onValueChange={(value) => setTemplateToyForm({...templateToyForm, seasonId: value})}
               >
                 <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -6348,10 +6348,12 @@ function EnhancedAdminDashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No Season</SelectItem>
-                  {allSeasons.map((season: any) => (
-                    <SelectItem key={season.id} value={season.id.toString()}>
-                      {season.displayName}
-                    </SelectItem>
+                  {Array.isArray(allSeasons) && allSeasons.length > 0 && allSeasons.map((season: any) => (
+                    season && season.id && season.displayName ? (
+                      <SelectItem key={season.id} value={season.id.toString()}>
+                        {season.displayName}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>
@@ -6361,7 +6363,7 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="text-white text-sm">Rarity</label>
                 <Select 
-                  value={templateToyForm.rarity} 
+                  value={templateToyForm.rarity || "common"} 
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, rarity: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -6380,7 +6382,7 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="text-white text-sm">Color</label>
                 <Select 
-                  value={templateToyForm.color} 
+                  value={templateToyForm.color || "blue"} 
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, color: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -6408,7 +6410,7 @@ function EnhancedAdminDashboard() {
               <div>
                 <label className="text-white text-sm">Gender</label>
                 <Select 
-                  value={templateToyForm.gender} 
+                  value={templateToyForm.gender || "male"} 
                   onValueChange={(value) => setTemplateToyForm({...templateToyForm, gender: value})}
                 >
                   <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -6427,7 +6429,7 @@ function EnhancedAdminDashboard() {
                   type="number"
                   min="100000"
                   step="100000"
-                  value={parseFloat(templateToyForm.basePrice)}
+                  value={templateToyForm.basePrice ? parseFloat(templateToyForm.basePrice) : 1000000}
                   onChange={(e) => setTemplateToyForm({...templateToyForm, basePrice: (parseFloat(e.target.value) || 1000000).toString()})}
                   className="bg-white/10 border-white/20 text-white"
                   placeholder="1000000"
@@ -6438,7 +6440,7 @@ function EnhancedAdminDashboard() {
             <div>
               <label className="text-white text-sm">Image URL (Optional)</label>
               <Input
-                value={templateToyForm.imageUrl}
+                value={templateToyForm.imageUrl || ""}
                 onChange={(e) => setTemplateToyForm({...templateToyForm, imageUrl: e.target.value})}
                 placeholder="Enter image URL or leave blank for default"
                 className="bg-white/10 border-white/20 text-white"
@@ -6448,12 +6450,12 @@ function EnhancedAdminDashboard() {
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => {
-                  if (templateToyForm.name.trim()) {
+                  if (templateToyForm.name && templateToyForm.name.trim()) {
                     createToyTemplateMutation.mutate(templateToyForm);
                   }
                 }}
                 className="bg-green-600 hover:bg-green-700 flex-1"
-                disabled={!templateToyForm.name.trim() || createToyTemplateMutation.isPending}
+                disabled={!templateToyForm.name || !templateToyForm.name.trim() || createToyTemplateMutation.isPending}
               >
                 {createToyTemplateMutation.isPending ? "Creating..." : "Create Template Toy"}
               </Button>
