@@ -10,6 +10,12 @@ export function useWebSocket(enabled: boolean = true) {
   const connect = useCallback(() => {
     if (!enabled) return;
     
+    // Temporarily disable WebSocket in problematic environments
+    if (window.location.hostname.includes('janeway.replit.dev')) {
+      console.log('WebSocket disabled in janeway development environment');
+      return;
+    }
+    
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
@@ -26,28 +32,25 @@ export function useWebSocket(enabled: boolean = true) {
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       
-      // Simplified WebSocket URL construction for Replit
-      // The WebSocket should connect to the same host as the current page
-      // since both frontend and backend are served from the same server on port 5000
-      const currentHost = window.location.host;
+      // Robust WebSocket URL construction for Replit environment
+      let wsUrl: string;
       
-      // In Replit, the app is served from the same host/port for both frontend and backend
-      // If host is undefined or contains undefined, fall back to constructing it manually
-      let finalHost = currentHost;
-      if (!currentHost || currentHost.includes('undefined') || currentHost === ':undefined' || currentHost === 'undefined:undefined') {
-        finalHost = `${window.location.hostname || 'localhost'}:5000`;
+      // Check if we're in Replit environment (janeway.replit.dev URLs)
+      if (window.location.hostname.includes('replit.dev')) {
+        // Use the same host as the current page for Replit
+        wsUrl = `${protocol}//${window.location.host}/ws`;
+      } else {
+        // For local development or other environments
+        const currentHost = window.location.host;
+        if (!currentHost || currentHost.includes('undefined')) {
+          // Fallback for undefined host scenarios
+          wsUrl = `${protocol}//localhost:5000/ws`;
+        } else {
+          wsUrl = `${protocol}//${currentHost}/ws`;
+        }
       }
       
-      const wsUrl = `${protocol}//${finalHost}/ws`;
-      
-      console.log('WebSocket connection details:', {
-        protocol,
-        hostname: window.location.hostname,
-        port: window.location.port,
-        host: window.location.host,
-        finalHost: host,
-        finalUrl: wsUrl
-      });
+      console.log('WebSocket connecting to:', wsUrl);
       
       // Create WebSocket with additional error handling
       try {

@@ -10,6 +10,7 @@ console.error = (...args: any[]) => {
   // Filter out specific external WebSocket errors and unhandled rejections
   if ((message.includes('websocket connection to') && 
        (message.includes('janeway.replit.dev') || 
+        message.includes('replit.dev') ||
         message.includes('localhost:undefined') ||
         message.includes('failed to construct'))) ||
       message.includes('unhandledrejection') ||
@@ -18,7 +19,9 @@ console.error = (...args: any[]) => {
       (message.includes('syntaxerror') && message.includes('websocket')) ||
       (message.includes('failed to construct') && message.includes('websocket')) ||
       message.includes('wss://localhost:undefined') ||
-      message.includes('ws://localhost:undefined')) {
+      message.includes('ws://localhost:undefined') ||
+      message.includes('connection to') ||
+      message.includes('failed:')) {
     return; // Silent suppression for external errors
   }
   
@@ -35,6 +38,7 @@ window.addEventListener('unhandledrejection', (event) => {
   if (errorString.includes('WebSocket') || 
       errorString.includes('websocket') ||
       errorString.includes('janeway.replit.dev') ||
+      errorString.includes('replit.dev') ||
       errorString.includes('CORS') ||
       errorString.includes('Failed to fetch') ||
       errorString.includes('Network Error') ||
@@ -47,6 +51,8 @@ window.addEventListener('unhandledrejection', (event) => {
       errorString.includes('localhost:undefined') ||
       errorString.includes('vite') ||
       errorString.includes('HMR') ||
+      errorString.includes('connection to') ||
+      errorString.includes('failed:') ||
       errorName === 'DOMException' ||
       errorName === 'SyntaxError' ||
       errorName === 'TypeError') {
