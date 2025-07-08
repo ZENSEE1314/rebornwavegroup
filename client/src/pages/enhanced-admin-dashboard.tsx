@@ -5593,7 +5593,7 @@ function EnhancedAdminDashboard() {
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
                     />
                   </div>
-                  <Select value={templateTypeFilter} onValueChange={setTemplateTypeFilter}>
+                  <Select value={templateTypeFilter || "all"} onValueChange={setTemplateTypeFilter}>
                     <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
                       <SelectValue placeholder="Filter by type" />
                     </SelectTrigger>
@@ -5602,6 +5602,8 @@ function EnhancedAdminDashboard() {
                       <SelectItem value="welcome">Welcome</SelectItem>
                       <SelectItem value="newsletter">Newsletter</SelectItem>
                       <SelectItem value="promotion">Promotion</SelectItem>
+                      <SelectItem value="notification">Notification</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -5636,9 +5638,11 @@ function EnhancedAdminDashboard() {
                         emailTemplatesData
                           .filter((template: any) => {
                             if (!template || !template.name || !template.subject) return false;
-                            const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
-                                                template.subject.toLowerCase().includes(templateSearch.toLowerCase());
-                            const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
+                            const searchTerm = templateSearch || '';
+                            const typeFilter = templateTypeFilter || 'all';
+                            const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                template.subject.toLowerCase().includes(searchTerm.toLowerCase());
+                            const matchesType = typeFilter === "all" || template.templateType === typeFilter;
                             return matchesSearch && matchesType;
                           })
                           .map((template: any) => (
@@ -6872,7 +6876,7 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateContent" className="text-gray-300">Email Content</Label>
               <Textarea
                 id="templateContent"
-                value={emailTemplateForm.content}
+                value={emailTemplateForm.content || ''}
                 onChange={(e) => setEmailTemplateForm({...emailTemplateForm, content: e.target.value})}
                 placeholder="Enter email content here..."
                 className="bg-gray-800 border-gray-600 text-white min-h-40"
@@ -6883,7 +6887,7 @@ function EnhancedAdminDashboard() {
             <div>
               <Label htmlFor="templateType" className="text-gray-300">Template Type</Label>
               <Select 
-                value={emailTemplateForm.type} 
+                value={emailTemplateForm.type || "custom"} 
                 onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, type: value})}
               >
                 <SelectTrigger className="bg-gray-800 border-gray-600 text-white">

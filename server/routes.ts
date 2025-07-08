@@ -6849,12 +6849,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: pointsHistory.description,
           status: pointsHistory.status,
           createdAt: pointsHistory.createdAt,
-          user: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          }
+          userFirstName: users.firstName,
+          userLastName: users.lastName,
+          userEmail: users.email
         })
         .from(pointsHistory)
         .leftJoin(users, eq(pointsHistory.userId, users.id))
