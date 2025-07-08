@@ -56,7 +56,6 @@ import {
   Tag,
   Mail,
   MessageCircle,
-  MessageSquare,
   ImageIcon,
   Shield
 } from "lucide-react";
@@ -320,7 +319,13 @@ function EnhancedAdminDashboard() {
 
 
 
-
+  // Simplified bulk generation states
+  const [selectedToyForBulk, setSelectedToyForBulk] = useState<number | null>(null);
+  const [bulkQuantity, setBulkQuantity] = useState(1);
+  const [bulkOverrides, setBulkOverrides] = useState({
+    seasonId: null as number | null,
+    color: null as string | null
+  });
   
   // Marketplace listing generation state
   const [marketplaceListingCount, setMarketplaceListingCount] = useState(10);
@@ -374,21 +379,19 @@ function EnhancedAdminDashboard() {
   const [emailTemplateForm, setEmailTemplateForm] = useState({
     name: "",
     subject: "",
-    htmlContent: "",
-    textContent: "",
-    templateType: "custom" as "custom" | "onboarding" | "reset_password" | "promotion" | "system_maintenance" | "welcome"
+    content: "",
+    type: "custom"
   });
   const [newTemplate, setNewTemplate] = useState({
     name: "",
     subject: "",
-    templateType: "custom" as "custom" | "onboarding" | "reset_password" | "promotion" | "system_maintenance" | "welcome",
+    templateType: "newsletter" as "newsletter" | "welcome" | "promotion",
     htmlContent: "",
     textContent: "",
     isActive: true
   });
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateTypeFilter, setTemplateTypeFilter] = useState("all");
-  const [whatsappMessage, setWhatsappMessage] = useState("");
   const [sendTemplateDialog, setSendTemplateDialog] = useState(false);
   const [selectedTemplateForSend, setSelectedTemplateForSend] = useState<any>(null);
   const [sendToAll, setSendToAll] = useState(false);
@@ -536,19 +539,14 @@ function EnhancedAdminDashboard() {
     isUnlocked: true
   });
 
-
-
   // Check if user is admin
-  if (!user || user.role !== 'admin') {
+  if (!user || (user as any).role !== 'admin') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <Card className="p-8">
           <CardContent className="text-center">
             <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
             <p>You don't have admin privileges to access this page.</p>
-            <p className="text-sm mt-2 text-gray-400">
-              User: {user?.email || 'Not logged in'}, Role: {user?.role || 'No role'}
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -600,7 +598,11 @@ function EnhancedAdminDashboard() {
     retry: false,
   });
 
-
+  // Query for real toys (collectibles)
+  const { data: toysResponse }: any = useQuery({
+    queryKey: [`/api/admin/all-toys?page=${toysPage}&limit=10`],
+    retry: false,
+  });
 
   const { data: appointmentsResponse }: any = useQuery({
     queryKey: ['/api/admin/appointments'],
@@ -637,7 +639,11 @@ function EnhancedAdminDashboard() {
 
 
 
-
+  // New queries for pet management and token claims with pagination
+  const { data: activatedPetsResponse }: any = useQuery({
+    queryKey: [`/api/admin/activated-pets?page=${petCurrentPage}&limit=10`],
+    retry: false,
+  });
 
   const { data: gameLeaderboard = [] } = useQuery({
     queryKey: ['/api/game-scores/leaderboard'],
@@ -717,8 +723,19 @@ function EnhancedAdminDashboard() {
     );
   }, [allToysQuery?.data?.data, toySearchTerm]);
 
-  // Filter active pets - placeholder for removed pet management
-  const filteredPets = [];
+  // Filter active pets - server already provides paginated data (10 per page)
+  const filteredPets = useMemo(() => {
+    const allPets = activatedPetsResponse?.data || [];
+    
+    if (!petSearchTerm) return allPets;
+    
+    return allPets.filter((pet: any) => 
+      pet.name?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.id?.toString().includes(petSearchTerm) ||
+      pet.currentStage?.toLowerCase().includes(petSearchTerm.toLowerCase()) ||
+      pet.userId?.toString().includes(petSearchTerm)
+    );
+  }, [activatedPetsResponse?.data, petSearchTerm]);
 
   // Paginate toys
   const totalToyPages = Math.ceil(filteredToys.length / ITEMS_PER_PAGE);
@@ -727,10 +744,10 @@ function EnhancedAdminDashboard() {
     return filteredToys.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredToys, toyCurrentPage]);
 
-  // Paginate pets - placeholder for removed pet management
-  const totalPetPages = 1;
-  const totalPetCount = 0;
-  const currentPagePets = [];
+  // Paginate pets - use server-side pagination (already limited to 10 per page)
+  const totalPetPages = activatedPetsResponse?.pagination?.totalPages || 1;
+  const totalPetCount = activatedPetsResponse?.pagination?.totalCount || 0;
+  const currentPagePets = filteredPets; // Server already provides 10 items per page
 
 
 
@@ -739,7 +756,9 @@ function EnhancedAdminDashboard() {
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const topUpRequests = topUpRequestsResponse || [];
   const allTransactions = (transactionsResponse as any)?.data || [];
+  const allToys = (toysResponse as any)?.data || [];
   const allAppointments = (appointmentsResponse as any)?.data || [];
+  const activatedPets = (activatedPetsResponse as any)?.data || [];
   const tokenClaims = (tokenClaimsResponse as any)?.data || [];
 
   const paymentVerifications = (paymentVerificationsResponse as any)?.data || [];
@@ -773,8 +792,8 @@ function EnhancedAdminDashboard() {
     return searchMatch && typeMatch;
   });
 
-  // Placeholder for removed toy pagination
-  const toysPaginationInfo = { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
+  // Use server-side pagination for toys
+  const toysPaginationInfo = toysResponse?.pagination || { page: 1, totalPages: 1, totalCount: 0, hasNext: false, hasPrev: false };
 
   // Filter toy templates (design blueprints) - completely separate from real toys
   const filteredToyTemplates = (() => {
@@ -803,8 +822,30 @@ function EnhancedAdminDashboard() {
     }
   })();
 
-  // Filter real toys (collectibles) - placeholder for removed toy management
-  const filteredRealToys = []; 
+  // Filter real toys (collectibles) - completely separate from templates
+  const filteredRealToys = (() => {
+    try {
+      const toys = (toysResponse?.data || []) as any[];
+      console.log('*** FILTERING REAL TOYS DEBUG:', { toys: toys.length });
+      
+      return toys.filter((toy: any) => {
+        if (!toy) return false;
+        
+        const searchMatch = !toySearch || 
+          toy.name?.toLowerCase().includes(toySearch.toLowerCase()) ||
+          toy.qrCode?.toLowerCase().includes(toySearch.toLowerCase());
+        const rarityMatch = rarityFilter === "all" || toy.rarity === rarityFilter;
+        const ownerMatch = ownerFilter === "all" || 
+          (ownerFilter === "owned" && toy.ownerId) ||
+          (ownerFilter === "unowned" && !toy.ownerId);
+        
+        return searchMatch && rarityMatch && ownerMatch;
+      });
+    } catch (error) {
+      console.error('Error filtering real toys:', error);
+      return [];
+    }
+  })();
 
   const filteredAppointments = (allAppointments as any[]).filter((appointment: any) => {
     const searchMatch = !appointmentSearch || 
@@ -915,7 +956,7 @@ function EnhancedAdminDashboard() {
   });
 
   // Email template mutations
-  const emailTemplatesQuery = useQuery({
+  const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
     queryKey: ['/api/admin/email-templates'],
     queryFn: () => apiRequest('GET', '/api/admin/email-templates')
   });
@@ -1442,7 +1483,7 @@ function EnhancedAdminDashboard() {
       console.log('*** FRONTEND: Bulk generation successful:', data);
       toast({ 
         title: "Success", 
-        description: `Generated ${data.toys?.length || '10'} toys successfully!`
+        description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
       });
       
       // Reset to page 1 to show newest toys immediately
@@ -1878,9 +1919,8 @@ function EnhancedAdminDashboard() {
         setEmailTemplateForm({
           name: "",
           subject: "",
-          htmlContent: "",
-          textContent: "",
-          templateType: "custom"
+          content: "",
+          type: "custom"
         });
         
         // Refresh email templates list
@@ -2538,7 +2578,7 @@ function EnhancedAdminDashboard() {
                               onChange={(e) => setEditedUserData({...editedUserData, gender: e.target.value})}
                               className="bg-gray-800 border border-gray-600 text-white text-sm h-10 min-w-[100px] rounded-md px-2"
                             >
-                              <option value="unspecified">Select</option>
+                              <option value="">Select</option>
                               <option value="male">Male</option>
                               <option value="female">Female</option>
                             </select>
@@ -3770,7 +3810,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Total Toys</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-purple-400">0</div>
+                      <div className="text-2xl font-bold text-purple-400">{allToys.length}</div>
                       <p className="text-xs text-gray-400 mt-1">In the system</p>
                     </CardContent>
                   </Card>
@@ -3780,7 +3820,7 @@ function EnhancedAdminDashboard() {
                       <CardTitle className="text-white text-sm">Active Pets</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-pink-400">0</div>
+                      <div className="text-2xl font-bold text-pink-400">{activatedPets.length}</div>
                       <p className="text-xs text-gray-400 mt-1">Currently active</p>
                     </CardContent>
                   </Card>
@@ -4568,125 +4608,1012 @@ function EnhancedAdminDashboard() {
 
               </div>
 
-              {/* Email Template Management */}
+              {/* Toy Template Management */}
               <Card className="bg-slate-800/60 border-slate-700/50">
                 <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <Mail className="h-5 w-5 text-blue-400" />
-                        Email Templates
-                      </CardTitle>
-                      <p className="text-gray-300 text-sm">Manage email templates for different communication needs</p>
-                    </div>
-                    <Button
-                      onClick={() => setShowEmailTemplateDialog(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Template
-                    </Button>
-                  </div>
+                  <CardTitle className="text-white">Create Template Toy</CardTitle>
+                  <p className="text-gray-300 text-sm">Create toy templates/avatars for bulk generation (no owner assigned)</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-gray-300">Template Name</TableHead>
-                          <TableHead className="text-gray-300">Type</TableHead>
-                          <TableHead className="text-gray-300">Subject</TableHead>
-                          <TableHead className="text-gray-300">Status</TableHead>
-                          <TableHead className="text-gray-300">Created</TableHead>
-                          <TableHead className="text-gray-300">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {emailTemplatesQuery.isLoading ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                              Loading email templates...
-                            </TableCell>
-                          </TableRow>
-                        ) : emailTemplatesQuery.data?.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                              No email templates found. Click "Create Template" to add your first template.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          emailTemplatesQuery.data?.map((template: any) => (
-                            <TableRow key={template.id} className="hover:bg-white/5">
-                              <TableCell className="text-white font-medium">{template.name}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-blue-300 border-blue-300">
-                                  {template.templateType === 'welcome' && 'Welcome'}
-                                  {template.templateType === 'onboarding' && 'Onboarding'}
-                                  {template.templateType === 'reset_password' && 'Password Reset'}
-                                  {template.templateType === 'promotion' && 'Promotion'}
-                                  {template.templateType === 'system_maintenance' && 'System Maintenance'}
-                                  {template.templateType === 'custom' && 'Custom'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-gray-300 max-w-xs truncate">{template.subject}</TableCell>
-                              <TableCell>
-                                <Badge variant={template.isActive ? "default" : "secondary"}>
-                                  {template.isActive ? "Active" : "Inactive"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-gray-300">
-                                {new Date(template.createdAt).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setEditingEmailTemplate(template);
-                                      setEmailTemplateForm({
-                                        name: template.name,
-                                        subject: template.subject,
-                                        htmlContent: template.htmlContent,
-                                        textContent: template.textContent || "",
-                                        templateType: template.templateType
-                                      });
-                                      setShowEmailTemplateDialog(true);
-                                    }}
-                                    className="border-blue-600 text-blue-300 hover:bg-blue-600/20"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      if (confirm('Are you sure you want to delete this email template?')) {
-                                        deleteEmailTemplateMutation.mutate(template.id);
-                                      }
-                                    }}
-                                    className="border-red-600 text-red-300 hover:bg-red-600/20"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-gray-300">Name</Label>
+                      <Input
+                        value={newToy.name}
+                        onChange={(e) => setNewToy({ ...newToy, name: e.target.value })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Toy name"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300">Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={newToy.color || ""}
+                          onChange={(e) => setNewToy({ ...newToy, color: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white flex-1"
+                          placeholder="Enter color or hex code (e.g., #FF5733)"
+                        />
+                        <input
+                          type="color"
+                          value={newToy.color?.startsWith('#') ? newToy.color : '#FF5733'}
+                          onChange={(e) => setNewToy({ ...newToy, color: e.target.value })}
+                          className="w-12 h-10 rounded border border-white/20 bg-white/10"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Rarity</Label>
+                      <Select value={newToy.rarity} onValueChange={(value) => setNewToy({ ...newToy, rarity: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Rarity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="common">Common</SelectItem>
+                          <SelectItem value="rare">Rare</SelectItem>
+                          <SelectItem value="epic">Epic</SelectItem>
+                          <SelectItem value="legendary">Legendary</SelectItem>
+                          <SelectItem value="secret">Secret</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Season</Label>
+                      <Select value={newToy.seasonId?.toString() || ""} onValueChange={(value) => setNewToy({ ...newToy, seasonId: value ? parseInt(value) : null })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select Season" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Season</SelectItem>
+                          {allSeasons.map((season: any) => (
+                            <SelectItem key={season.id} value={season.id.toString()}>
+                              {season.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300">Image Upload</Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="bg-white/10 border-white/20 text-white"
+                        disabled={uploading}
+                      />
+                      {uploading && (
+                        <div className="text-sm text-blue-300 mt-1">Uploading...</div>
+                      )}
+                      {newToy.imageUrl && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <img 
+                            src={newToy.imageUrl} 
+                            alt="Preview" 
+                            className="w-12 h-12 rounded object-cover border border-white/20"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setNewToy({ ...newToy, imageUrl: '' })}
+                            className="bg-red-600/20 border-red-600 text-red-300 hover:bg-red-600/30"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Gender</Label>
+                      <Select value={newToy.gender} onValueChange={(value: "male" | "female") => setNewToy({ ...newToy, gender: value })}>
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Price (RP)</Label>
+                      <Input
+                        type="number"
+                        value={newToy.price || ""}
+                        onChange={(e) => setNewToy({ ...newToy, price: parseFloat(e.target.value) || 0 })}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button 
+                        onClick={() => {
+                          createToyTemplateMutation.mutate({
+                            name: newToy.name,
+                            species: 'Doluruu', // Default species since you only have one
+                            rarity: newToy.rarity || 'common',
+                            color: newToy.color || 'blue',
+                            gender: newToy.gender || 'male',
+                            imageUrl: newToy.imageUrl || '',
+                            basePrice: newToy.price || 0,
+                            description: newToy.description || '',
+                            seasonId: newToy.seasonId || undefined,
+                            isActive: true
+                          });
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 w-full"
+                        disabled={!newToy.name || createToyMutation.isPending}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {createToyMutation.isPending ? "Creating..." : "Create Template"}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* List of Created Toys */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">
+                    List of Created Toys
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Manage all created toy templates</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {filteredToyTemplates.map((template: any) => (
+                      <div key={template.id} className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {template.imageUrl && template.imageUrl !== 'placeholder-image-url' ? (
+                            <img 
+                              src={template.imageUrl} 
+                              alt={template.name} 
+                              className="w-12 h-12 rounded object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-gray-600 flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No Image</span>
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="text-white font-medium">{template.name}</h4>
+                            <div className="flex items-center space-x-2 text-sm text-gray-300">
+                              <span>ID: {template.id}</span>
+                              <span>•</span>
+                              <span className="capitalize">{template.rarity}</span>
+                              <span>•</span>
+                              <span className="capitalize">{template.gender || 'male'}</span>
+                              {template.color && (
+                                <>
+                                  <span>•</span>
+                                  <span className="capitalize">{template.color}</span>
+                                </>
+                              )}
+
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getRarityColor(template.rarity)}>
+                            {template.rarity}
+                          </Badge>
+                          <Button
+                            onClick={() => {
+                              setEditingToy(template);
+                              setEditedToyData({
+                                name: template.name,
+                                rarity: template.rarity,
+                                color: template.color || '',
+                                price: template.basePrice || 0,
+                                gender: template.gender || 'male',
+                                seasonId: template.seasonId || null,
+                                imageUrl: template.imageUrl || ''
+                              });
+                              setShowEditToyDialog(true);
+                            }}
+                            size="sm"
+                            variant="outline"
+                            className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold border-2 border-yellow-400"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (confirm(`Delete template "${template.name}"? This action cannot be undone.`)) {
+                                deleteToyMutation.mutate(template.id);
+                              }
+                            }}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredToyTemplates.length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        No toy templates found matching your filters
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bulk Generator */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">Bulk Toy Generator</CardTitle>
+                  <p className="text-gray-300 text-sm">Select existing toys and specify quantities to generate</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {/* Toy Selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Select Base Toy</Label>
+                        <Select value={selectedToyForBulk?.toString() || ""} onValueChange={(value) => setSelectedToyForBulk(value ? parseInt(value) : null)}>
+                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Choose existing toy" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(filteredToyTemplates || []).slice(0, 50).filter((template: any) => template && template.id).map((template: any) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name} - {template.rarity} ({template.color || 'No color'})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Quantity to Generate</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="Enter quantity (1-100)"
+                          value={bulkQuantity}
+                          onChange={(e) => setBulkQuantity(parseInt(e.target.value) || 1)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Selected Toy Preview */}
+                    {selectedToyForBulk && (() => {
+                      const selectedToy = filteredToyTemplates.find((template: any) => template.id === selectedToyForBulk);
+                      return selectedToy ? (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-3">Selected Toy Preview</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-400">Name:</span>
+                              <div className="text-white">{selectedToy.name}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Color:</span>
+                              <div className="text-white">{selectedToy.color || 'Not specified'}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Rarity:</span>
+                              <div className="text-white capitalize">{selectedToy.rarity}</div>
+                            </div>
+
+                          </div>
+                          {selectedToy.imageUrl && (
+                            <div className="mt-3">
+                              <img 
+                                src={selectedToy.imageUrl} 
+                                alt={selectedToy.name}
+                                className="w-16 h-16 rounded object-cover"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
 
 
 
+                    {/* Generate Button */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-300">
+                        {selectedToyForBulk && bulkQuantity > 0 && (
+                          <span>Ready to generate {bulkQuantity} copies</span>
+                        )}
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          if (!selectedToyForBulk || bulkQuantity < 1) {
+                            toast({ title: "Error", description: "Please select a toy and specify quantity", variant: "destructive" });
+                            return;
+                          }
+                          const templateToClone = filteredToyTemplates.find((template: any) => template.id === selectedToyForBulk);
+                          if (!templateToClone) {
+                            toast({ title: "Error", description: "Selected template not found", variant: "destructive" });
+                            return;
+                          }
+                          
+                          const bulkData = {
+                            baseToy: templateToClone,
+                            quantity: bulkQuantity,
+                            overrides: bulkOverrides
+                          };
+                          
+                          bulkGenerationMutation.mutate(bulkData);
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700 w-full"
+                        disabled={!selectedToyForBulk || bulkQuantity < 1 || bulkGenerationMutation.isPending}
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        {bulkGenerationMutation.isPending ? "Generating..." : `Generate ${bulkQuantity} Toys`}
+                      </Button>
 
+                      {selectedToyForBulk && bulkQuantity > 0 && (
+                        <div className="text-xs text-slate-400 bg-white/5 rounded p-3 border border-white/10 mt-4">
+                          <div className="font-medium text-slate-300 mb-1">What this does:</div>
+                          Creates {bulkQuantity} individual collectible toys from the selected template. Each toy will have a unique QR code and be available for users to discover and collect.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
+              {/* Marketplace Earnings Dashboard */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-yellow-400" />
+                    Marketplace Earnings
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Platform revenue tracking from toy sales including high-value transactions</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Revenue Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
+                        <div className="text-purple-400 text-sm font-medium">Commission Earnings</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.totalEarnings?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-purple-300 text-xs">User-to-user sales (10%)</div>
+                      </div>
+                      <div className="bg-orange-900/20 border border-orange-400/30 rounded-lg p-4">
+                        <div className="text-orange-400 text-sm font-medium">Season Sales</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.monthlyEarnings?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-orange-300 text-xs">Random seasonal toy purchases</div>
+                      </div>
+                      <div className="bg-green-900/20 border border-green-400/30 rounded-lg p-4">
+                        <div className="text-green-400 text-sm font-medium">Total Earnings</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {((marketplaceEarningsStats?.totalEarnings || 0) + (marketplaceEarningsStats?.monthlyEarnings || 0)).toLocaleString()}
+                        </div>
+                        <div className="text-green-300 text-xs">Combined platform revenue</div>
+                      </div>
+                      <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4">
+                        <div className="text-blue-400 text-sm font-medium">Total Sales</div>
+                        <div className="text-white text-2xl font-bold">
+                          {marketplaceEarningsStats?.totalSales || 0}
+                        </div>
+                        <div className="text-blue-300 text-xs">Completed transactions</div>
+                      </div>
+                      <div className="bg-purple-900/20 border border-purple-400/30 rounded-lg p-4">
+                        <div className="text-purple-400 text-sm font-medium">Avg Commission</div>
+                        <div className="text-white text-2xl font-bold">
+                          RP {marketplaceEarningsStats?.averageCommission?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-purple-300 text-xs">Per transaction</div>
+                      </div>
+                    </div>
+
+                    {/* Recent High-Value Sales */}
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <h4 className="text-white font-medium mb-3">Recent High-Value Sales</h4>
+                      <div className="space-y-2">
+                        {marketplaceEarnings?.data && marketplaceEarnings.data.length > 0 ? (
+                          marketplaceEarnings.data.slice(0, 5).map((earning: any, index: number) => (
+                            <div key={earning.id || index} className="flex justify-between items-center bg-slate-800/60 rounded p-3 border border-slate-600/50">
+                              <div>
+                                <div className="text-white font-medium">
+                                  Toy Sale - RP {parseInt(earning.amount).toLocaleString()}
+                                </div>
+                                <div className="text-gray-300 text-sm">
+                                  Commission: RP {(parseInt(earning.amount) * 0.1).toLocaleString()} (10%)
+                                </div>
+                              </div>
+                              <div className={`text-sm ${earning.status === 'confirmed' ? 'text-green-200' : 'text-yellow-200'}`}>
+                                {earning.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-gray-400 text-center py-8">
+                            <div className="text-lg mb-2">No sales data yet</div>
+                            <div className="text-sm">Marketplace earnings will appear here once users start trading toys</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Revenue Information */}
+                    <div className="bg-yellow-900/20 border border-yellow-400/30 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-yellow-400 mt-0.5">
+                          <DollarSign className="h-5 w-5" />
+                        </div>
+                        <div className="text-sm">
+                          <div className="text-yellow-300 font-medium mb-1">Revenue Tracking Active</div>
+                          <div className="text-yellow-200 text-xs space-y-1">
+                            <div>• Automatically records 10% platform commission from all marketplace sales</div>
+                            <div>• Tracks high-value transactions (1M+ IDR) for revenue monitoring</div>
+                            <div>• Real-time earnings updates when buyers confirm purchases</div>
+                            <div>• Commission deducted from seller payments and tracked separately</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Marketplace Listing Generator */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5 text-green-400" />
+                    Random Marketplace Listings
+                  </CardTitle>
+                  <p className="text-gray-300 text-sm">Populate marketplace with random toys from unowned inventory</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-gray-300">Number of Listings</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="50"
+                          placeholder="Enter count (1-50)"
+                          value={marketplaceListingCount}
+                          onChange={(e) => setMarketplaceListingCount(parseInt(e.target.value) || 10)}
+                          className="bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={() => generateMarketplaceListingsMutation.mutate(marketplaceListingCount)}
+                          disabled={generateMarketplaceListingsMutation.isPending || marketplaceListingCount < 1}
+                          className="bg-green-600 hover:bg-green-700 text-white w-full"
+                        >
+                          {generateMarketplaceListingsMutation.isPending ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingBag className="h-4 w-4 mr-2" />
+                              Generate Listings
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-900/20 border border-blue-400/30 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-blue-400 mt-0.5">
+                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="text-sm">
+                          <div className="text-blue-300 font-medium mb-1">How it works:</div>
+                          <ul className="text-blue-200 space-y-1 text-xs">
+                            <li>• Selects random unowned toys from inventory</li>
+                            <li>• Generates prices based on rarity (Common: 25-100k IDR, Legendary: 500k-1.5M IDR)</li>
+                            <li>• Creates marketplace listings with system as seller</li>
+                            <li>• Updates toy status to "for sale" automatically</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* All Toys Database */}
+            <Card className="bg-slate-800/60 border-slate-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">All Toys Database</CardTitle>
+                <p className="text-gray-300 text-sm">Complete overview of generated toys and active pets in the system</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Quick Stats Overview */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-300">
+                        {allToysQuery?.data?.pagination?.totalCount || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">Generated Toys</div>
+                      <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
+                    </div>
+                    <div className="bg-green-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-300">
+                        {activatedPetsResponse?.data?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">Active Pets</div>
+                      <div className="text-xs text-gray-400 mt-1">Being cared for</div>
+                    </div>
+                    <div className="bg-purple-600/20 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-purple-300">
+                        {toysResponse?.data?.filter((toy: any) => toy.isListed)?.length || 0}
+                      </div>
+                      <div className="text-sm text-gray-300">On Market</div>
+                      <div className="text-xs text-gray-400 mt-1">For sale</div>
+                    </div>
+                  </div>
+
+                  {/* Generated Toys Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                        Generated Toys ({filteredToys.length})
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Search toys..."
+                          value={toySearchTerm}
+                          onChange={(e) => setToySearchTerm(e.target.value)}
+                          className="w-48 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {currentPageToys.map((toy: any) => (
+                        <div key={toy.id} className="bg-yellow-600/10 rounded-lg p-4 border border-yellow-600/20">
+                          <div className="flex items-start gap-4">
+                            {/* Toy Image */}
+                            <div className="flex-shrink-0">
+                              {toy.imageUrl && toy.imageUrl !== 'placeholder-image-url' ? (
+                                <img 
+                                  src={toy.imageUrl} 
+                                  alt={toy.name}
+                                  className="w-20 h-20 rounded object-cover border-2 border-gray-600"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">📦</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* QR Code */}
+                            <div className="flex-shrink-0">
+                              {toy.qrCode ? (
+                                <div className="relative group">
+                                  <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(toy.qrCode)}`}
+                                    alt="QR Code"
+                                    className="w-20 h-20 rounded border-2 border-gray-600 cursor-pointer"
+                                    onClick={async () => {
+                                      try {
+                                        // Fetch the QR code image as blob
+                                        const response = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(toy.qrCode)}`);
+                                        const blob = await response.blob();
+                                        
+                                        // Create download link
+                                        const link = document.createElement('a');
+                                        const url = URL.createObjectURL(blob);
+                                        link.href = url;
+                                        link.download = `toy-${toy.id}-qr-${toy.qrCode.substring(0, 8)}.png`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        URL.revokeObjectURL(url);
+                                        
+                                        toast({
+                                          title: "QR Code Downloaded!",
+                                          description: `QR code for ${toy.name} has been downloaded.`,
+                                          duration: 2000,
+                                        });
+                                      } catch (error) {
+                                        console.error('Download failed:', error);
+                                        toast({
+                                          title: "Download Failed",
+                                          description: "Unable to download QR code. Please try again.",
+                                          variant: "destructive",
+                                          duration: 3000,
+                                        });
+                                      }
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
+                                    <span className="text-xs text-white text-center px-1">Click to download</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">No QR</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Toy Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="text-white font-semibold text-lg">{toy.name}</h4>
+                                  <div className="mt-1 space-y-1">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">ID:</span>
+                                      <span className="text-yellow-300 font-mono">#{toy.id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">Owner:</span>
+                                      <span className="text-gray-300">{toy.ownerId || 'null'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-500 font-medium"
+                                  onClick={() => {
+                                    setEditingToy(toy);
+                                    setEditedToyData({
+                                      name: toy.name,
+                                      gender: toy.gender,
+                                      color: toy.color,
+                                      rarity: toy.rarity,
+                                      basePrice: toy.basePrice || 0,
+                                      qrCode: toy.qrCode
+                                    });
+                                    setShowEditToyDialog(true);
+                                  }}
+                                >
+                                  Edit Toy
+                                </Button>
+                              </div>
+
+                              {/* Toy Properties */}
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2">
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Gender</div>
+                                  <div className="text-sm text-white flex items-center gap-1">
+                                    {toy.gender === 'male' ? '♂' : '♀'}
+                                    <span className={toy.gender === 'male' ? 'text-blue-400' : 'text-pink-400'}>
+                                      {toy.gender}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Color</div>
+                                  <div className="text-sm text-white flex items-center gap-2">
+                                    <div 
+                                      className="w-3 h-3 rounded-full border border-gray-600"
+                                      style={{ backgroundColor: toy.color }}
+                                    ></div>
+                                    <span>{toy.color}</span>
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Rarity</div>
+                                  <div className={`text-sm font-medium ${
+                                    toy.rarity === 'legendary' ? 'text-orange-400' :
+                                    toy.rarity === 'epic' ? 'text-purple-400' :
+                                    toy.rarity === 'rare' ? 'text-blue-400' :
+                                    toy.rarity === 'uncommon' ? 'text-green-400' :
+                                    'text-gray-400'
+                                  }`}>
+                                    {toy.rarity}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Season</div>
+                                  <div className="text-sm text-white">
+                                    {toy.season?.name || toy.seasonName || 'N/A'}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <div className="text-xs text-gray-400">Price</div>
+                                  <div className="text-sm text-white">
+                                    RP {(toy.originalPrice || toy.basePrice || 0).toLocaleString()}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* QR Code Details */}
+                              {toy.qrCode && (
+                                <div className="mt-3 bg-slate-800/30 rounded p-2">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="text-xs text-gray-400">QR Code</div>
+                                      <div className="text-sm text-white font-mono break-all">{toy.qrCode}</div>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-gray-400 hover:text-white p-2"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(toy.qrCode);
+                                        toast({
+                                          title: "QR Code Copied!",
+                                          description: "The QR code has been copied to your clipboard.",
+                                          duration: 2000,
+                                        });
+                                      }}
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                      </svg>
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )) || (
+                        <div className="text-center py-8 text-gray-400">No generated toys found</div>
+                      )}
+                    </div>
+                    
+                    {/* Toy Pagination */}
+                    {totalToyPages > 1 && (
+                      <div className="flex justify-center gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setToyCurrentPage(Math.max(1, toyCurrentPage - 1))}
+                          disabled={toyCurrentPage === 1}
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
+                        >
+                          ← Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalToyPages) }, (_, i) => {
+                            const pageNum = toyCurrentPage <= 3 ? i + 1 : toyCurrentPage - 2 + i;
+                            if (pageNum > totalToyPages) return null;
+                            return (
+                              <Button
+                                key={pageNum}
+                                size="sm"
+                                variant={toyCurrentPage === pageNum ? "default" : "outline"}
+                                onClick={() => setToyCurrentPage(pageNum)}
+                                className={toyCurrentPage === pageNum 
+                                  ? "bg-yellow-600 text-white font-bold min-w-[40px]" 
+                                  : "text-white border-white/40 hover:bg-white/20 bg-white/10 font-medium min-w-[40px]"
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setToyCurrentPage(Math.min(totalToyPages, toyCurrentPage + 1))}
+                          disabled={toyCurrentPage === totalToyPages}
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
+                        >
+                          Next →
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active Pets Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                        Active Pets ({totalPetCount}) - Page {petCurrentPage} of {totalPetPages}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Search pets..."
+                          value={petSearchTerm}
+                          onChange={(e) => setPetSearchTerm(e.target.value)}
+                          className="w-48 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {currentPagePets.map((pet: any) => (
+                        <div key={pet.id} className="bg-green-600/10 rounded-lg p-4 border border-green-600/20">
+                          <div className="flex items-start gap-4">
+                            {/* Pet Image */}
+                            <div className="flex-shrink-0">
+                              {pet.imageUrl && pet.imageUrl !== 'placeholder-image-url' ? (
+                                <img 
+                                  src={pet.imageUrl} 
+                                  alt={pet.name}
+                                  className="w-20 h-20 rounded object-cover border-2 border-gray-600"
+                                />
+                              ) : (
+                                <div className="w-20 h-20 bg-gray-700 rounded border-2 border-gray-600 flex items-center justify-center">
+                                  <span className="text-xs text-gray-400">🎮</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Pet Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="text-white font-semibold text-lg">{pet.name}</h4>
+                                  <div className="mt-1 space-y-1">
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">ID:</span>
+                                      <span className="text-green-300 font-mono">#{pet.id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-gray-400">Owner:</span>
+                                      <span className="text-blue-300 font-mono">{pet.userId || pet.ownerId || 'Unassigned'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-green-600 hover:bg-green-700 text-white border-green-500 font-medium"
+                                  onClick={() => {
+                                    setEditingPet(pet);
+                                    setEditedPetData({
+                                      name: pet.name,
+                                      currentStage: pet.currentStage,
+                                      health: pet.health,
+                                      happiness: pet.happiness,
+                                      energy: pet.energy,
+                                      tokens: pet.totalTokensEarned
+                                    });
+                                    setShowEditPetDialog(true);
+                                  }}
+                                >
+                                  Edit Pet
+                                </Button>
+                              </div>
+
+                              {/* Pet Stats Grid */}
+                              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <div className="bg-blue-600/20 rounded p-2 border border-blue-600/30">
+                                  <div className="text-xs text-blue-300 font-medium">Stage</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.currentStage || 'Baby'}
+                                  </div>
+                                </div>
+                                <div className="bg-red-600/20 rounded p-2 border border-red-600/30">
+                                  <div className="text-xs text-red-300 font-medium">Health</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.health || 100}%
+                                  </div>
+                                </div>
+                                <div className="bg-yellow-600/20 rounded p-2 border border-yellow-600/30">
+                                  <div className="text-xs text-yellow-300 font-medium">Happiness</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.happiness ?? 0}%
+                                  </div>
+                                </div>
+                                <div className="bg-green-600/20 rounded p-2 border border-green-600/30">
+                                  <div className="text-xs text-green-300 font-medium">Energy</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.energy ?? 0}%
+                                  </div>
+                                </div>
+                                <div className="bg-purple-600/20 rounded p-2 border border-purple-600/30">
+                                  <div className="text-xs text-purple-300 font-medium">Hunger</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.hunger ?? 0}%
+                                  </div>
+                                </div>
+                                <div className="bg-cyan-600/20 rounded p-2 border border-cyan-600/30">
+                                  <div className="text-xs text-cyan-300 font-medium">Cleanliness</div>
+                                  <div className="text-sm text-white font-semibold">
+                                    {pet.cleanliness ?? 0}%
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Additional Pet Info */}
+                              <div className="mt-3 bg-slate-800/40 rounded p-3 border border-slate-600/50">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-400">Age:</span>
+                                    <span className="text-blue-300 ml-2 font-medium">
+                                      {(() => {
+                                        const createdDate = new Date(pet.createdAt);
+                                        const now = new Date();
+                                        const diffInDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                                        return Math.max(diffInDays, 1);
+                                      })()} days
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Tokens:</span>
+                                    <span className="text-green-300 ml-2 font-medium">{pet.totalTokensEarned || 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )) || (
+                        <div className="text-center py-8 text-gray-400">No active pets found</div>
+                      )}
+                    </div>
+                    
+                    {/* Pet Pagination */}
+                    {totalPetPages > 1 && (
+                      <div className="flex justify-center gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPetCurrentPage(Math.max(1, petCurrentPage - 1))}
+                          disabled={petCurrentPage === 1}
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
+                        >
+                          ← Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPetPages) }, (_, i) => {
+                            const pageNum = petCurrentPage <= 3 ? i + 1 : petCurrentPage - 2 + i;
+                            if (pageNum > totalPetPages) return null;
+                            return (
+                              <Button
+                                key={pageNum}
+                                size="sm"
+                                variant={petCurrentPage === pageNum ? "default" : "outline"}
+                                onClick={() => setPetCurrentPage(pageNum)}
+                                className={petCurrentPage === pageNum 
+                                  ? "bg-green-600 text-white font-bold min-w-[40px]" 
+                                  : "text-white border-white/40 hover:bg-white/20 bg-white/10 font-medium min-w-[40px]"
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPetCurrentPage(Math.min(totalPetPages, petCurrentPage + 1))}
+                          disabled={petCurrentPage === totalPetPages}
+                          className="bg-gray-700 text-white border-gray-600 hover:bg-gray-600 font-medium px-4 py-2"
+                        >
+                          Next →
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
+
 
 
           {/* Email Management Tab */}
@@ -4744,23 +5671,23 @@ function EnhancedAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {emailTemplatesQuery.isLoading ? (
+                      {emailTemplatesLoading ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                             Loading email templates...
                           </TableCell>
                         </TableRow>
-                      ) : !Array.isArray(emailTemplatesQuery.data) || emailTemplatesQuery.data.length === 0 ? (
+                      ) : !emailTemplatesData || emailTemplatesData.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                             No email templates found
                           </TableCell>
                         </TableRow>
                       ) : (
-                        (Array.isArray(emailTemplatesQuery.data) ? emailTemplatesQuery.data : [])
+                        emailTemplatesData
                           .filter((template: any) => {
-                            const matchesSearch = template.name?.toLowerCase().includes(templateSearch.toLowerCase()) ||
-                                                template.subject?.toLowerCase().includes(templateSearch.toLowerCase());
+                            const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                                                template.subject.toLowerCase().includes(templateSearch.toLowerCase());
                             const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
                             return matchesSearch && matchesType;
                           })
@@ -4784,7 +5711,7 @@ function EnhancedAdminDashboard() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-gray-300">
-                                {new Date(template.createdAt).toLocaleDateString()}
+                                {formatDate(template.createdAt)}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
@@ -4835,51 +5762,6 @@ function EnhancedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* WhatsApp Messaging Section */}
-            <Card className="bg-slate-800/60 border-slate-700/50 mt-6">
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-white text-lg font-medium">WhatsApp Blast Messaging</CardTitle>
-                    <p className="text-gray-300 mt-1">Send WhatsApp messages to all users with mobile numbers</p>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    Target: {allUsers?.filter(u => u.phoneNumber && u.phoneNumber.trim() !== '').length || 0} users with phone numbers
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-white text-sm font-medium mb-2 block">WhatsApp Message</label>
-                    <textarea
-                      value={whatsappMessage}
-                      onChange={(e) => setWhatsappMessage(e.target.value)}
-                      placeholder="Enter your WhatsApp message here..."
-                      className="w-full h-32 bg-white/10 border-white/20 text-white placeholder-gray-400 rounded-md p-3 resize-none"
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => sendWhatsAppMutation.mutate({ message: whatsappMessage, sendToAll: true })}
-                    disabled={sendWhatsAppMutation.isPending || !whatsappMessage.trim()}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {sendWhatsAppMutation.isPending ? (
-                      <>
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                        Sending WhatsApp...
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Send WhatsApp to All Users
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Pet Management Tab */}
@@ -4889,7 +5771,7 @@ function EnhancedAdminDashboard() {
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-white">Pet Management</CardTitle>
                   <Button 
-                    onClick={() => downloadCSV([], 'pets')}
+                    onClick={() => downloadCSV(activatedPets, 'pets')}
                     variant="outline" 
                     size="sm"
                     className="bg-white/10 text-white border-white/20"
@@ -4917,7 +5799,7 @@ function EnhancedAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[].map((pet: any) => {
+                    {activatedPets.map((pet: any) => {
                       // Calculate days since creation
                       const createdDate = new Date(pet.createdAt);
                       const now = new Date();
@@ -5014,7 +5896,7 @@ function EnhancedAdminDashboard() {
                     })}
                   </TableBody>
                 </Table>
-                {true && (
+                {activatedPets.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
                     No pets found
                   </div>
@@ -5473,7 +6355,7 @@ function EnhancedAdminDashboard() {
                   <SelectValue placeholder="Select season" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Season</SelectItem>
+                  <SelectItem value="">No Season</SelectItem>
                   {allSeasons.map((season: any) => (
                     <SelectItem key={season.id} value={season.id.toString()}>
                       {season.displayName}
@@ -6037,47 +6919,34 @@ function EnhancedAdminDashboard() {
             </div>
             
             <div>
+              <Label htmlFor="templateContent" className="text-gray-300">Email Content</Label>
+              <Textarea
+                id="templateContent"
+                value={emailTemplateForm.content}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, content: e.target.value})}
+                placeholder="Enter email content here..."
+                className="bg-gray-800 border-gray-600 text-white min-h-40"
+                rows={10}
+              />
+            </div>
+            
+            <div>
               <Label htmlFor="templateType" className="text-gray-300">Template Type</Label>
               <Select 
-                value={emailTemplateForm.templateType} 
-                onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, templateType: value as any})}
+                value={emailTemplateForm.type} 
+                onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, type: value})}
               >
                 <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
                   <SelectValue placeholder="Select template type" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-600">
                   <SelectItem value="welcome" className="text-white">Welcome Email</SelectItem>
-                  <SelectItem value="onboarding" className="text-white">Onboarding Email</SelectItem>
-                  <SelectItem value="reset_password" className="text-white">Reset Password Email</SelectItem>
-                  <SelectItem value="promotion" className="text-white">Promotion Email</SelectItem>
-                  <SelectItem value="system_maintenance" className="text-white">System Maintenance Email</SelectItem>
-                  <SelectItem value="custom" className="text-white">Custom Email</SelectItem>
+                  <SelectItem value="newsletter" className="text-white">Newsletter</SelectItem>
+                  <SelectItem value="promotion" className="text-white">Promotion</SelectItem>
+                  <SelectItem value="notification" className="text-white">Notification</SelectItem>
+                  <SelectItem value="custom" className="text-white">Custom</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="templateHtmlContent" className="text-gray-300">HTML Content</Label>
-              <Textarea
-                id="templateHtmlContent"
-                value={emailTemplateForm.htmlContent}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, htmlContent: e.target.value})}
-                placeholder="Enter HTML email content here... You can use variables like {{firstName}}, {{email}}, etc."
-                className="bg-gray-800 border-gray-600 text-white min-h-40"
-                rows={8}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="templateTextContent" className="text-gray-300">Text Content (Optional)</Label>
-              <Textarea
-                id="templateTextContent"
-                value={emailTemplateForm.textContent}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, textContent: e.target.value})}
-                placeholder="Enter plain text version here (fallback for email clients that don't support HTML)"
-                className="bg-gray-800 border-gray-600 text-white min-h-20"
-                rows={4}
-              />
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">
@@ -6089,9 +6958,8 @@ function EnhancedAdminDashboard() {
                   setEmailTemplateForm({
                     name: "",
                     subject: "",
-                    htmlContent: "",
-                    textContent: "",
-                    templateType: "custom"
+                    content: "",
+                    type: "custom"
                   });
                 }}
                 className="border-slate-600 text-white hover:bg-slate-700"
@@ -6100,7 +6968,7 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button 
                 onClick={editingEmailTemplate ? handleUpdateEmailTemplate : handleCreateEmailTemplate}
-                disabled={!emailTemplateForm.name || !emailTemplateForm.subject || !emailTemplateForm.htmlContent}
+                disabled={!emailTemplateForm.name || !emailTemplateForm.subject || !emailTemplateForm.content}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {editingEmailTemplate ? "Update Template" : "Create Template"}
