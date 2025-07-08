@@ -17,6 +17,7 @@ import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
 import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
+import SimpleAdminDashboard from "@/pages/simple-admin-dashboard";
 import SimpleAdminTest from "@/pages/simple-admin-test";
 import SimpleCollections from "@/pages/simple-collections";
 import Checkout from "@/pages/checkout";
@@ -90,8 +91,9 @@ function Router() {
         <>
           {/* Default route - both admin and regular users can access main app */}
           <Route path="/" component={CompleteApp} />
-          <Route path="/admin" component={EnhancedAdminDashboard} />
-          <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
+          <Route path="/admin" component={SimpleAdminDashboard} />
+          <Route path="/admin-dashboard" component={SimpleAdminDashboard} />
+          <Route path="/admin-full" component={EnhancedAdminDashboard} />
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
