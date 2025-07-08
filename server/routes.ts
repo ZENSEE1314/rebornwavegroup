@@ -830,6 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingTopUpsResult,
         pendingCashOutsResult,
         totalCommissionsResult,
+        totalRevenueResult,
         activeEventsResult
       ] = await Promise.all([
         // Total users
@@ -856,6 +857,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Total commissions paid
         db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(transactions).where(eq(transactions.type, 'referral_commission')),
         
+        // Total revenue from approved payment verifications
+        db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(paymentVerifications).where(eq(paymentVerifications.status, 'approved')),
+        
         // Active events (using seasons as events)
         db.select({ count: sql`count(*)` }).from(schema.seasons).where(eq(schema.seasons.isActive, true))
       ]);
@@ -869,6 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingTopUps: Number(pendingTopUpsResult[0]?.count || 0),
         pendingCashOuts: Number(pendingCashOutsResult[0]?.count || 0),
         totalCommissionsPaid: Number(totalCommissionsResult[0]?.total || 0),
+        totalRevenue: Number(totalRevenueResult[0]?.total || 0),
         activeEvents: Number(activeEventsResult[0]?.count || 0),
         adminFees: 0, // This can be calculated based on commission percentage
       };

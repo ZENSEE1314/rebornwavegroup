@@ -2304,10 +2304,10 @@ function EnhancedAdminDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-xs font-medium">Transactions</p>
-                  <p className="text-2xl font-semibold text-white">{(feesReport as any).totalTransactions || 0}</p>
+                  <p className="text-slate-400 text-xs font-medium">Total Revenue</p>
+                  <p className="text-2xl font-semibold text-white">RP {formatMoney(dashboardStats?.totalRevenue || 0)}</p>
                 </div>
-                <CreditCard className="h-6 w-6 text-purple-400" />
+                <TrendingUp className="h-6 w-6 text-green-400" />
               </div>
             </CardContent>
           </Card>
@@ -2345,8 +2345,8 @@ function EnhancedAdminDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-xs font-medium">Total Pets</p>
-                  <p className="text-2xl font-semibold text-white">{activatedPets?.length || 0}</p>
+                  <p className="text-slate-400 text-xs font-medium">Active Pets</p>
+                  <p className="text-2xl font-semibold text-white">{dashboardStats?.totalPets || 0}</p>
                 </div>
                 <Heart className="h-6 w-6 text-pink-400" />
               </div>
