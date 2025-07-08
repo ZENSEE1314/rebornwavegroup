@@ -274,12 +274,12 @@ function playDoluruuSound() {
       
       const voices = speechSynthesis.getVoices();
       const preferredVoice = voices.find(voice => 
-        voice.name.toLowerCase().includes('female') || 
-        voice.name.toLowerCase().includes('child') ||
-        voice.name.toLowerCase().includes('cute') ||
-        voice.name.toLowerCase().includes('samantha') ||
-        voice.name.toLowerCase().includes('karen') ||
-        voice.lang.includes('en-US')
+        voice?.name?.toLowerCase().includes('female') || 
+        voice?.name?.toLowerCase().includes('child') ||
+        voice?.name?.toLowerCase().includes('cute') ||
+        voice?.name?.toLowerCase().includes('samantha') ||
+        voice?.name?.toLowerCase().includes('karen') ||
+        voice?.lang?.includes('en-US')
       ) || voices[0];
       
       if (preferredVoice) {
@@ -323,14 +323,14 @@ function playFemaleCuteVoice(message: string) {
         
         // Priority order for female voices
         const femaleVoice = voices.find(voice => 
-          voice.name.toLowerCase().includes('zira') ||
-          voice.name.toLowerCase().includes('hazel') ||
-          voice.name.toLowerCase().includes('samantha') ||
-          voice.name.toLowerCase().includes('karen') ||
-          voice.name.toLowerCase().includes('susan') ||
-          voice.name.toLowerCase().includes('anna') ||
-          voice.name.toLowerCase().includes('emma') ||
-          voice.name.toLowerCase().includes('female')
+          voice?.name?.toLowerCase().includes('zira') ||
+          voice?.name?.toLowerCase().includes('hazel') ||
+          voice?.name?.toLowerCase().includes('samantha') ||
+          voice?.name?.toLowerCase().includes('karen') ||
+          voice?.name?.toLowerCase().includes('susan') ||
+          voice?.name?.toLowerCase().includes('anna') ||
+          voice?.name?.toLowerCase().includes('emma') ||
+          voice?.name?.toLowerCase().includes('female')
         );
         
         if (femaleVoice) {
@@ -696,7 +696,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
   };
 
   const catchCoin = (coinId: number) => {
-    setCoins(prev => prev.filter(coin => coin.id !== coinId));
+    setCoins(prev => prev.filter(coin => coin?.id !== coinId));
     setScore(prev => prev + 10);
   };
 
@@ -748,14 +748,14 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
             <div className="relative h-64 bg-gradient-to-b from-blue-100 to-green-100 rounded-lg overflow-hidden border-2">
               {coins.map(coin => (
                 <div
-                  key={coin.id}
+                  key={coin?.id || Math.random()}
                   className="absolute text-2xl cursor-pointer hover:scale-110 transition-transform"
                   style={{
                     left: `${coin.x}%`,
                     top: `${coin.y}%`,
                     transform: 'translate(-50%, -50%)'
                   }}
-                  onClick={() => catchCoin(coin.id)}
+                  onClick={() => catchCoin(coin?.id)}
                 >
                   🪙
                 </div>
@@ -789,7 +789,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
               {leaderboard.length > 0 ? (
                 leaderboard.map((entry: any, index: number) => (
                   <div 
-                    key={entry.id} 
+                    key={entry?.id || Math.random()} 
                     className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center space-x-3">
@@ -942,12 +942,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
     if (safePets.length > 0 && safePets[currentPetIndex]) {
       // Only log when pet stats change significantly
       const pet = safePets[currentPetIndex];
-      const key = `${pet.id}-${pet.hunger}-${pet.happiness}-${pet.cleanliness}-${pet.energy}`;
+      const key = `${pet?.id}-${pet?.hunger}-${pet?.happiness}-${pet?.cleanliness}-${pet?.energy}`;
       const lastKey = localStorage.getItem('lastPetKey');
       
       if (key !== lastKey) {
         console.log('Pet stats updated:', {
-          id: pet.id,
+          id: pet?.id,
           name: pet.name,
           hunger: pet.hunger,
           happiness: pet.happiness,
@@ -967,7 +967,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
           if (!pet?.id) continue;
           
           try {
-            const response = await fetch(`/api/pets/${pet.id}/auto-decay`, {
+            const response = await fetch(`/api/pets/${pet?.id}/auto-decay`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1156,7 +1156,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       
       // Immediately update local state for instant UI feedback
       const currentPets = Array.isArray(pets) ? pets : [];
-      const currentPet = currentPets.find(pet => pet.id === petId);
+      const currentPet = currentPets.find(pet => pet?.id === petId);
       
       console.log('Current pet found:', currentPet);
       
@@ -1547,10 +1547,10 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
             const canEarnTokens = !isDead && days >= 1 && hunger > 0 && happiness > 0;
 
             return (
-              <Card key={pet.id} className="overflow-hidden">
+              <Card key={pet?.id || Math.random()} className="overflow-hidden">
                 <CardHeader className={`text-white ${isDead ? 'bg-gradient-to-r from-gray-600 to-gray-800' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}>
                   <CardTitle className="flex items-center justify-between">
-                    {editingPetName === pet.id ? (
+                    {editingPetName === pet?.id ? (
                       <div className="flex items-center gap-2 w-full">
                         <Input
                           value={newPetName}
@@ -1614,7 +1614,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setEditingPetName(pet.id);
+                            setEditingPetName(pet?.id);
                             setNewPetName(pet.name || "");
                           }}
                           disabled={!user || user.loyaltyPoints < 5}
@@ -9182,7 +9182,7 @@ export default function CompleteApp() {
                   <div>
                     <div className="space-y-3">
                       {paginatedCredits.map((entry: any) => (
-                        <div key={entry.id} className="border rounded-lg p-4 bg-green-50">
+                        <div key={entry?.id || Math.random()} className="border rounded-lg p-4 bg-green-50">
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="font-medium">{entry.description}</p>
