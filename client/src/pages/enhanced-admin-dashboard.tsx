@@ -975,13 +975,12 @@ function EnhancedAdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
       toast({ title: "Email template created successfully" });
       setShowTemplateDialog(false);
-      setNewTemplate({
+      setTemplateToyForm({
         name: "",
-        subject: "",
-        templateType: "newsletter",
-        htmlContent: "",
-        textContent: "",
-        isActive: true
+        color: "",
+        imageUrl: "",
+        rarity: "welcome",
+        gender: "active"
       });
     },
     onError: (error: any) => {
@@ -6402,28 +6401,35 @@ function EnhancedAdminDashboard() {
               <div className="flex gap-2 pt-4">
                 <Button
                   onClick={() => {
-                    if (templateToyForm?.name?.trim()) {
-                      // Create email template instead of toy template
+                    if (templateToyForm?.name?.trim() && templateToyForm?.color?.trim()) {
+                      // Create email template with proper database structure
                       const emailTemplateData = {
                         name: templateToyForm.name,
                         subject: templateToyForm.color,
-                        content: templateToyForm.imageUrl,
-                        type: templateToyForm.rarity,
+                        htmlContent: templateToyForm.imageUrl || `<p>Default email content for ${templateToyForm.name}</p>`,
+                        templateType: templateToyForm.rarity || 'welcome',
                         isActive: templateToyForm.gender === 'active'
                       };
-                      // You can create an email template mutation here
-                      toast({ title: "Email template created successfully" });
-                      setShowTemplateDialog(false);
+                      createEmailTemplateMutation.mutate(emailTemplateData);
                     }
                   }}
                   className="bg-green-600 hover:bg-green-700 flex-1"
-                  disabled={!templateToyForm?.name?.trim()}
+                  disabled={!templateToyForm?.name?.trim() || !templateToyForm?.color?.trim() || createEmailTemplateMutation.isPending}
                 >
-                  Create Email Template
+                  {createEmailTemplateMutation.isPending ? "Creating..." : "Create Email Template"}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowTemplateDialog(false)}
+                  onClick={() => {
+                    setShowTemplateDialog(false);
+                    setTemplateToyForm({
+                      name: "",
+                      color: "",
+                      imageUrl: "",
+                      rarity: "welcome",
+                      gender: "active"
+                    });
+                  }}
                   className="border-white/20 text-white hover:bg-white/10 bg-gray-700/50"
                 >
                   Cancel
