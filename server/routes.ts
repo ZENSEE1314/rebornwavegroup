@@ -6839,20 +6839,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      // Get all points history with user information
+      // Get all points history with user information - simplified query to fix orderSelectedFields error
       const allPointsHistory = await db
-        .select({
-          id: pointsHistory.id,
-          userId: pointsHistory.userId,
-          type: pointsHistory.type,
-          amount: pointsHistory.amount,
-          description: pointsHistory.description,
-          status: pointsHistory.status,
-          createdAt: pointsHistory.createdAt,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          userEmail: users.email
-        })
+        .select()
         .from(pointsHistory)
         .leftJoin(users, eq(pointsHistory.userId, users.id))
         .orderBy(desc(pointsHistory.createdAt));

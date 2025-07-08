@@ -1846,7 +1846,14 @@ function EnhancedAdminDashboard() {
   // Email template mutations using React Query pattern
   const createEmailTemplateMutation = useMutation({
     mutationFn: async (templateData: any) => {
-      const response = await apiRequest("POST", "/api/admin/email-templates", templateData);
+      const payload = {
+        name: templateData.name || '',
+        subject: templateData.subject || '',
+        htmlContent: templateData.content || '',
+        templateType: templateData.type || 'custom',
+        isActive: true
+      };
+      const response = await apiRequest("POST", "/api/admin/email-templates", payload);
       return await response.json();
     },
     onSuccess: () => {
@@ -5635,18 +5642,22 @@ function EnhancedAdminDashboard() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        emailTemplatesData
+                        (emailTemplatesData || [])
                           .filter((template: any) => {
                             if (!template || !template.name || !template.subject) return false;
-                            const searchTerm = (typeof templateSearch === 'string' ? templateSearch : '') || '';
-                            const typeFilter = (typeof templateTypeFilter === 'string' ? templateTypeFilter : 'all') || 'all';
-                            const templateName = template.name || '';
-                            const templateSubject = template.subject || '';
-                            const templateType = template.templateType || 'custom';
-                            const matchesSearch = templateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                templateSubject.toLowerCase().includes(searchTerm.toLowerCase());
-                            const matchesType = typeFilter === "all" || templateType === typeFilter;
-                            return matchesSearch && matchesType;
+                            try {
+                              const searchTerm = String(templateSearch || '').toLowerCase();
+                              const typeFilter = String(templateTypeFilter || 'all');
+                              const templateName = String(template.name || '').toLowerCase();
+                              const templateSubject = String(template.subject || '').toLowerCase();
+                              const templateType = String(template.templateType || 'custom');
+                              const matchesSearch = templateName.includes(searchTerm) || templateSubject.includes(searchTerm);
+                              const matchesType = typeFilter === "all" || templateType === typeFilter;
+                              return matchesSearch && matchesType;
+                            } catch (error) {
+                              console.error('Template filtering error:', error);
+                              return false;
+                            }
                           })
                           .map((template: any) => (
                             <TableRow key={template.id}>
