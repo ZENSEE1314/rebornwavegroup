@@ -12,7 +12,7 @@ import Login from "@/pages/Login";
 import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
-import Referrals from "@/pages/referrals-working";
+import Referrals from "@/pages/referrals";
 import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";

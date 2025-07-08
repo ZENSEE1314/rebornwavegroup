@@ -73,19 +73,12 @@ export default function GenealogyTree() {
         >
           <div className={`
             p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-lg
-            ${isLevel1 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700' :
-              isLevel2 ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 dark:from-green-900/20 dark:to-emerald-900/20 dark:border-green-700' :
-              'bg-gradient-to-r from-purple-50 to-violet-50 border-purple-200 dark:from-purple-900/20 dark:to-violet-900/20 dark:border-purple-700'}
+            bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700
           `}>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center text-white font-bold
-                  ${isLevel1 ? 'bg-blue-500' : isLevel2 ? 'bg-green-500' : 'bg-purple-500'}
-                `}>
-                  {isLevel1 && <Crown className="w-5 h-5" />}
-                  {isLevel2 && <Users className="w-5 h-5" />}
-                  {isLevel3 && <TrendingUp className="w-4 h-4" />}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-blue-500">
+                  <Crown className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 dark:text-white">
@@ -98,12 +91,7 @@ export default function GenealogyTree() {
               </div>
               
               <div className="text-right">
-                <div className={`
-                  text-lg font-bold
-                  ${isLevel1 ? 'text-blue-600 dark:text-blue-400' :
-                    isLevel2 ? 'text-green-600 dark:text-green-400' :
-                    'text-purple-600 dark:text-purple-400'}
-                `}>
+                <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(node.earnings)}
                 </div>
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">

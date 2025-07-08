@@ -160,7 +160,7 @@ function getUserId(req: any): string | null {
   if (req.user?.id) {
     return req.user.id;
   }
-  // For JWT-based authentication (Replit Auth)
+  // Handle legacy Firebase authentication pattern (for backward compatibility)
   if (req.user?.claims?.sub) {
     return req.user.claims.sub;
   }
@@ -1753,9 +1753,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get('/api/users/referrals', isAuthenticated, async (req: any, res) => {
+  app.get('/api/users/referrals', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User ID not found" });
+      }
       const referrals = await storage.getReferralsByUserId(adminUserId);
       res.json(referrals);
     } catch (error) {
@@ -1764,9 +1767,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/users/referral-earnings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/users/referral-earnings', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User ID not found" });
+      }
       const earnings = await storage.calculateReferralEarnings(adminUserId);
       res.json({ earnings });
     } catch (error) {
