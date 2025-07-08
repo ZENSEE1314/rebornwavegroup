@@ -3731,6 +3731,25 @@ export default function CompleteApp() {
     refetchOnWindowFocus: false,
   });
 
+  // Admin dashboard statistics (only for admin users)
+  const { data: dashboardStats }: any = useQuery({
+    queryKey: ['/api/admin/dashboard-stats'],
+    enabled: user?.role === 'admin',
+    refetchInterval: 30000,
+    staleTime: 5000,
+    retry: 3,
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/admin/dashboard-stats', { credentials: 'include' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        console.error('Dashboard stats error:', error);
+        return { totalUsers: 0, totalToys: 0, totalPets: 0, totalRevenue: 0 };
+      }
+    },
+  });
+
   // Genealogy tree data - less frequently updated
   const { data: genealogyData, isLoading: genealogyLoading } = useQuery({
     queryKey: ['/api/users/genealogy-tree'],
@@ -6138,7 +6157,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-gray-900 font-medium">Total Users</span>
                         </div>
-                        <span className="text-gray-900 font-bold">2</span>
+                        <span className="text-gray-900 font-bold">{dashboardStats?.totalUsers || 0}</span>
                       </div>
                     </div>
 
@@ -6151,7 +6170,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-gray-900 font-medium">Active Pets</span>
                         </div>
-                        <span className="text-gray-900 font-bold">{userStats?.pets?.length || 0}</span>
+                        <span className="text-gray-900 font-bold">{dashboardStats?.totalPets || 0}</span>
                       </div>
                     </div>
 
@@ -6164,7 +6183,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-gray-900 font-medium">Total Revenue</span>
                         </div>
-                        <span className="text-gray-900 font-bold">RP 0</span>
+                        <span className="text-gray-900 font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                       </div>
                     </div>
 
@@ -6471,7 +6490,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">Total Users</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">2</span>
+                          <span className="text-2xl font-bold text-gray-900">{dashboardStats?.totalUsers || 0}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -6481,7 +6500,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">Active Pets</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">5</span>
+                          <span className="text-2xl font-bold text-gray-900">{dashboardStats?.totalPets || 0}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -6491,7 +6510,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">Revenue</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">RP 0</span>
+                          <span className="text-2xl font-bold text-gray-900">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                         </div>
                       </div>
                     </div>
