@@ -30,10 +30,7 @@ export function setupSession(app: Express) {
                        process.env.REPLIT_DB_URL || // Replit database indicator
                        process.env.REPL_OWNER; // Replit environment indicator
 
-  console.log('*** SESSION CONFIG DEBUG: isLiveServer:', isLiveServer);
-  console.log('*** SESSION CONFIG DEBUG: NODE_ENV:', process.env.NODE_ENV);
-  console.log('*** SESSION CONFIG DEBUG: REPL_DEPLOYMENT:', process.env.REPL_DEPLOYMENT);
-  console.log('*** SESSION CONFIG DEBUG: Host detection for session config');
+
 
   app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-for-dev',
@@ -82,19 +79,19 @@ export function setupLocalAuth() {
 
 
   passport.serializeUser((user: any, done) => {
-    console.log('*** SERIALIZE DEBUG: Serializing user with ID:', user.id, 'Email:', user.email);
+
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      console.log('*** DESERIALIZE DEBUG: Attempting to deserialize user with ID:', id);
+
       const user = await storage.getUser(id);
       if (!user) {
-        console.log('*** DESERIALIZE DEBUG: User not found during deserialization:', id);
+
         return done(null, false);
       }
-      console.log('*** DESERIALIZE DEBUG: User deserialized successfully:', user.email, 'User object:', !!user);
+
       done(null, user);
     } catch (error) {
       console.error('*** DESERIALIZE DEBUG: Deserialization error:', error);
@@ -170,30 +167,27 @@ export function setupAuthRoutes(app: Express) {
 
   // Email/Password Login
   app.post('/api/auth/login', (req: Request, res: Response, next) => {
-    console.log('*** LOGIN DEBUG: Login attempt for:', req.body.email);
-    console.log('*** LOGIN DEBUG: Session ID before auth:', req.sessionID);
-    console.log('*** LOGIN DEBUG: Current session:', req.session);
+
+
     
     passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
-        console.log('*** LOGIN DEBUG: Authentication error:', err);
+
         return res.status(500).json({ message: 'Authentication error' });
       }
       if (!user) {
-        console.log('*** LOGIN DEBUG: User not found or invalid credentials:', info);
+
         return res.status(401).json({ message: info?.message || 'Invalid credentials' });
       }
 
-      console.log('*** LOGIN DEBUG: User authenticated successfully:', user.email);
+
       req.login(user, (err) => {
         if (err) {
-          console.log('*** LOGIN DEBUG: req.login() failed:', err);
+
           return res.status(500).json({ message: 'Login failed' });
         }
         
-        console.log('*** LOGIN DEBUG: Login successful, session ID:', req.sessionID);
-        console.log('*** LOGIN DEBUG: Session after login:', req.session);
-        console.log('*** LOGIN DEBUG: User in session:', req.user);
+
         
         res.json({
           id: user.id,
@@ -388,20 +382,17 @@ If you didn't request this password reset, please ignore this email.
 
   // Check authentication status endpoint
   app.get('/api/auth/user', (req: Request, res: Response) => {
-    console.log('*** AUTH CHECK: Session ID:', req.sessionID);
-    console.log('*** AUTH CHECK: isAuthenticated():', req.isAuthenticated());
-    console.log('*** AUTH CHECK: req.user exists:', !!req.user);
-    console.log('*** AUTH CHECK: req.user data:', req.user);
+
     
     // Give a brief moment for session to settle
     setTimeout(() => {
       if (!req.isAuthenticated() || !req.user) {
-        console.log('*** AUTH CHECK: No authentication found');
+
         return res.status(401).json({ message: 'Not authenticated' });
       }
       
       const user = req.user as any;
-      console.log('*** AUTH CHECK: Returning user data for:', user.email);
+
       res.json({
         id: user.id,
         email: user.email,
@@ -456,20 +447,14 @@ If you didn't request this password reset, please ignore this email.
 
 // Authentication middleware
 export function requireAuth(req: Request, res: Response, next: Function) {
-  console.log("*** REQUIRE AUTH DEBUG: Method:", req.method, "Path:", req.path);
-  console.log("*** REQUIRE AUTH DEBUG: isAuthenticated():", req.isAuthenticated());
-  console.log("*** REQUIRE AUTH DEBUG: req.user:", req.user);
-  console.log("*** REQUIRE AUTH DEBUG: session ID:", req.sessionID);
-  console.log("*** REQUIRE AUTH DEBUG: session cookie:", req.session.cookie);
-  console.log("*** REQUIRE AUTH DEBUG: host:", req.get('host'));
-  console.log("*** REQUIRE AUTH DEBUG: user-agent:", req.get('user-agent'));
+
   
   if (!req.isAuthenticated() || !req.user) {
-    console.log("*** REQUIRE AUTH DEBUG: Authentication failed - redirecting to login");
+
     return res.status(401).json({ message: 'Unauthorized', redirect: '/login' });
   }
   
-  console.log("*** REQUIRE AUTH DEBUG: Authentication successful");
+
   next();
 }
 

@@ -13,7 +13,7 @@ export function useWebSocket(enabled: boolean = true) {
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
-      console.log('WebSocket already connected or connecting, skipping...');
+
       return;
     }
     
@@ -28,7 +28,7 @@ export function useWebSocket(enabled: boolean = true) {
       const host = window.location.host || `${window.location.hostname}:${window.location.port || (window.location.protocol === "https:" ? "443" : "80")}`;
       const wsUrl = `${protocol}//${host}/ws`;
       
-      console.log(`Attempting WebSocket connection to: ${wsUrl}`);
+
       
       // Create WebSocket with additional error handling
       try {
@@ -39,7 +39,7 @@ export function useWebSocket(enabled: boolean = true) {
       }
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected for real-time updates');
+
         reconnectAttempts.current = 0; // Reset reconnection attempts on successful connection
       };
 
@@ -68,7 +68,7 @@ export function useWebSocket(enabled: boolean = true) {
           };
           
           if (data.type === 'PAYMENT_VERIFICATION_UPDATE') {
-            console.log('Received payment verification update:', data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -82,13 +82,13 @@ export function useWebSocket(enabled: boolean = true) {
             // Show notification based on status
             if (data.data.status === 'approved' && data.data.pointsAwarded > 0) {
               // Points awarded notification will be handled by the UI
-              console.log(`Payment approved: ${data.data.pointsAwarded} points awarded`);
+
             }
           }
           
           // Handle appointment events for real-time admin updates
           if (data.type === 'appointment_created' || data.type === 'appointment_updated' || data.type === 'appointment_status_changed') {
-            console.log('Received appointment update:', data.type, data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -100,7 +100,7 @@ export function useWebSocket(enabled: boolean = true) {
           
           // Handle pet energy updates for real-time sleep energy system
           if (data.type === 'PET_ENERGY_UPDATE') {
-            console.log('Received pet energy update:', data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -112,7 +112,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle marketplace updates for real-time listing generation
           if (data.type === 'MARKETPLACE_UPDATED') {
-            console.log('Received marketplace update:', data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -123,7 +123,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle user data updates for real-time admin user editing
           if (data.type === 'USER_DATA_UPDATED') {
-            console.log('Received user data update:', data.userData);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -135,7 +135,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle token claim updates for real-time token system
           if (data.type === 'TOKEN_CLAIM_CREATED') {
-            console.log('Received token claim update:', data.claim);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -150,7 +150,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle token claim approval for real-time admin updates
           if (data.type === 'TOKEN_CLAIM_UPDATED') {
-            console.log('Received token claim approval update:', data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -174,7 +174,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle season updates for real-time marketplace visibility changes
           if (data.type === 'SEASON_UPDATED' || data.type === 'SEASON_CREATED' || data.type === 'SEASON_DELETED') {
-            console.log('Received season update:', data.type, data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -186,7 +186,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle admin log updates for real-time admin dashboard
           if (data.type === 'ADMIN_LOG_CREATED') {
-            console.log('Received admin log update:', data.logData);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -196,7 +196,7 @@ export function useWebSocket(enabled: boolean = true) {
 
           // Handle banner updates for real-time banner management
           if (data.type === 'BANNER_CREATED' || data.type === 'BANNER_UPDATED' || data.type === 'BANNER_DELETED') {
-            console.log('Received banner update:', data.type, data.data);
+
             
             safeInvalidateQueries((query) => {
               const queryKey = query.queryKey[0] as string;
@@ -210,7 +210,7 @@ export function useWebSocket(enabled: boolean = true) {
       };
 
       wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected, attempting to reconnect...');
+
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(connect, 3000);
       };
@@ -234,7 +234,7 @@ export function useWebSocket(enabled: boolean = true) {
           clearTimeout(reconnectTimeoutRef.current);
         }
         
-        console.log(`WebSocket reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
+
         reconnectTimeoutRef.current = setTimeout(connect, delay);
       } else {
         console.warn('WebSocket max reconnection attempts reached, stopping reconnection');

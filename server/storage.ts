@@ -865,12 +865,7 @@ export class DatabaseStorage implements IStorage {
       .from(toys)
       .where(eq(toys.id, listing.toyId));
 
-    console.log("*** OWNERSHIP DEBUG:", {
-      toyExists: !!toy,
-      toyOwnerId: toy?.ownerId,
-      listingSellerId: listing.sellerId,
-      match: toy?.ownerId === listing.sellerId
-    });
+
 
     if (!toy || toy.ownerId !== listing.sellerId) {
       throw new Error('You do not own this toy');
@@ -1159,7 +1154,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPendingPurchasesByUserId(userId: string): Promise<any[]> {
-    console.log("*** STORAGE DEBUG: Getting purchases for userId:", userId);
+
     const result = await db
       .select({
         id: pendingPurchases.id,
@@ -1185,7 +1180,7 @@ export class DatabaseStorage implements IStorage {
       .where(or(eq(pendingPurchases.sellerId, userId), eq(pendingPurchases.buyerId, userId)))
       .orderBy(pendingPurchases.createdAt);
     
-    console.log("*** STORAGE DEBUG: Found results:", result.length, result);
+
     return result;
   }
 

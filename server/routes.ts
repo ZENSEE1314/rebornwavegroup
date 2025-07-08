@@ -70,14 +70,14 @@ function startSleepEnergyTimer(petId: number) {
     clearTimeout(existingTimer);
     clearInterval(existingTimer);
     sleepTimers.delete(petId);
-    console.log(`*** TIMER CLEANUP: Cleared existing timer for pet ${petId}`);
+
   }
   
-  console.log(`*** DEBUG: Starting new timer for pet ${petId}. Total timers before: ${sleepTimers.size}`);
+
 
   // Wait 5 minutes before starting energy increases
   const initialDelay = setTimeout(() => {
-    console.log(`*** REAL-TIME: Starting energy increases for pet ${petId} after 5-minute delay`);
+
     
     // Start timer that increases energy every 5 minutes after the 5-minute delay
     const timer = setInterval(async () => {
@@ -96,7 +96,7 @@ function startSleepEnergyTimer(petId: number) {
             isSleeping: false, 
             sleepStartTime: null 
           });
-          console.log(`*** REAL-TIME: Pet ${petId} auto-woke up - energy reached 100%`);
+
           // Stop timer after waking up
           clearInterval(timer);
           sleepTimers.delete(petId);
@@ -110,7 +110,7 @@ function startSleepEnergyTimer(petId: number) {
           lastEnergyUpdate: new Date()
         });
         
-        console.log(`*** REAL-TIME: Pet ${petId} energy increased to ${newEnergy}%`);
+
         
         // Broadcast real-time energy update via WebSocket
         if ((global as any).wss) {
@@ -140,7 +140,7 @@ function startSleepEnergyTimer(petId: number) {
   }, 300000); // 5 minutes = 300,000 milliseconds
 
   // Don't overwrite the timer reference - the interval timer will be stored when it starts
-  console.log(`*** REAL-TIME: Started 5-minute delay timer for pet ${petId}`);
+
 }
 
 function stopSleepEnergyTimer(petId: number) {
@@ -150,7 +150,7 @@ function stopSleepEnergyTimer(petId: number) {
     clearTimeout(timer);
     clearInterval(timer);
     sleepTimers.delete(petId);
-    console.log(`*** REAL-TIME: Stopped energy timer for pet ${petId}`);
+
   }
 }
 
