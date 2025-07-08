@@ -113,7 +113,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
         <div className="flex flex-wrap justify-center gap-2 mb-6">
           {seasons.map((season) => (
             <Button
-              key={season.id}
+              key={season?.id || 'season'}
               variant={selectedSeason?.id === season.id ? "default" : "outline"}
               onClick={() => setSelectedSeason(season)}
               className="mb-2"
@@ -128,13 +128,13 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
       {selectedSeason && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {sectors.map((sector) => {
-            const progress = getUserProgress(sector.id);
+            const progress = getUserProgress(sector?.id || '');
             const total = sector.totalToys || 0;
             const percentage = total > 0 ? (progress / total) * 100 : 0;
             
             return (
               <Card 
-                key={sector.id}
+                key={sector?.id || 'sector'}
                 className={`cursor-pointer transition-all hover:shadow-lg ${
                   selectedSector?.id === sector.id ? 'ring-2 ring-blue-500' : ''
                 }`}
@@ -163,12 +163,12 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
             <h4 className="text-xl font-bold text-slate-900">
               {selectedSector?.name || 'Collection'} Collection
             </h4>
-            <p className="text-gray-600">{selectedSector.description}</p>
+            <p className="text-gray-600">{selectedSector?.description || ''}</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {seasonalToys.map((toy) => (
-              <Card key={toy.id} className="hover:shadow-lg transition-shadow">
+              <Card key={toy?.id || 'toy'} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="text-center">
                     <div className="mb-4">
@@ -185,7 +185,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                     <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
                       {toy?.rarity || 'Unknown'}
                     </Badge>
-                    <p className="text-sm text-gray-600 mt-2">{toy.description}</p>
+                    <p className="text-sm text-gray-600 mt-2">{toy?.description || ''}</p>
                     
                     {toy.isOwned ? (
                       <Badge className="mt-3 w-full bg-green-100 text-green-800 border-green-300">
@@ -216,10 +216,10 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {toyTemplates.map((toy) => (
-              <div key={toy.id} className="text-center">
+              <div key={toy?.id || 'toy'} className="text-center">
                 <img 
                   src={toy.imageUrl || '/images/default-toy.png'} 
-                  alt={toy.name} 
+                  alt={toy?.name || 'Toy'} 
                   className="w-full aspect-square object-cover rounded-lg hover:scale-105 transition-transform cursor-pointer mb-2"
                   onError={(e) => {
                     e.currentTarget.src = '/images/default-toy.png';
@@ -2335,7 +2335,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <div className="mb-4">
                   <img 
                     src={toy.imageUrl || toy.image || "/api/placeholder/100/100"} 
-                    alt={toy.name} 
+                    alt={toy?.name || 'Toy'} 
                     className="w-24 h-24 mx-auto object-contain"
                     onError={(e) => {
                       // Try the attached assets path if the original fails
@@ -2492,7 +2492,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
                       <img 
                         src={toy.imageUrl} 
-                        alt={toy.name}
+                        alt={toy?.name || 'Toy'}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjNmNGY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjM3MzkxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn6e4PC90ZXh0Pgo8L3N2Zz4=';
@@ -2564,7 +2564,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                     <div className="w-20 h-20 mx-auto mb-3 rounded-lg overflow-hidden">
                       <img 
                         src={toy.imageUrl} 
-                        alt={toy.name}
+                        alt={toy?.name || 'Toy'}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjNmNGY2Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjM3MzkxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn6e4PC90ZXh0Pgo8L3N2Zz4=';
@@ -4737,7 +4737,7 @@ export default function CompleteApp() {
       .filter(reward => reward.isActive)
       .map(reward => ({
         id: reward.id,
-        name: reward.name,
+        name: reward?.name || "",
         pointsCost: reward.pointsCost,
         category: reward.type || 'general',
         claimed: false,
@@ -5151,8 +5151,8 @@ export default function CompleteApp() {
       toast({
         title: t('rewards.redeemed'),
         description: result.creditAdded 
-          ? t('rewards.redeemedWithCredit', { name: selectedReward.name, credit: result.creditAdded })
-          : t('rewards.redeemedSuccess', { name: selectedReward.name })
+          ? t('rewards.redeemedWithCredit', { name: selectedReward?.name || 'Reward', credit: result.creditAdded })
+          : t('rewards.redeemedSuccess', { name: selectedReward?.name || 'Reward' })
       });
       
       setShowRedeemConfirmation(false);
@@ -7719,9 +7719,9 @@ export default function CompleteApp() {
                           </h3>
                           
                           {/* Season Description */}
-                          {season.description && (
+                          {season?.description && (
                             <p className="text-slate-600 mb-4">
-                              {season.description}
+                              {season?.description || ''}
                             </p>
                           )}
                         </div>
