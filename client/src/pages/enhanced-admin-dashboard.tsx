@@ -5677,17 +5677,17 @@ function EnhancedAdminDashboard() {
                             Loading email templates...
                           </TableCell>
                         </TableRow>
-                      ) : !emailTemplatesData || emailTemplatesData.length === 0 ? (
+                      ) : !Array.isArray(emailTemplatesData) || emailTemplatesData.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                             No email templates found
                           </TableCell>
                         </TableRow>
                       ) : (
-                        emailTemplatesData
+                        (Array.isArray(emailTemplatesData) ? emailTemplatesData : [])
                           .filter((template: any) => {
-                            const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
-                                                template.subject.toLowerCase().includes(templateSearch.toLowerCase());
+                            const matchesSearch = template.name?.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                                                template.subject?.toLowerCase().includes(templateSearch.toLowerCase());
                             const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
                             return matchesSearch && matchesType;
                           })
@@ -5711,7 +5711,7 @@ function EnhancedAdminDashboard() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-gray-300">
-                                {formatDate(template.createdAt)}
+                                {new Date(template.createdAt).toLocaleDateString()}
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
