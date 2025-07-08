@@ -167,7 +167,7 @@ function getUserId(req: any): string | null {
   return null;
 }
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
-import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
+
 import { promises as fs } from "fs";
 import { 
   insertAppointmentSchema,
@@ -677,19 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded images as static files
   app.use('/uploaded-images', express.static(path.join(process.cwd(), 'uploaded-images')));
 
-  // PayPal payment routes
-  app.get("/setup", async (req, res) => {
-    await loadPaypalDefault(req, res);
-  });
 
-  app.post("/order", async (req, res) => {
-    // Request body should contain: { intent, amount, currency }
-    await createPaypalOrder(req, res);
-  });
-
-  app.post("/order/:orderID/capture", async (req, res) => {
-    await capturePaypalOrder(req, res);
-  });
 
   // Payment verification routes
   app.post("/api/payment-verifications", isAuthenticated, async (req: any, res) => {
@@ -1148,49 +1136,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Credit top-up routes
-  // PayPal routes required by PayPalButton component
-  app.get("/setup", async (req, res) => {
-    await loadPaypalDefault(req, res);
-  });
-
-  app.post("/order", async (req, res) => {
-    await createPaypalOrder(req, res);
-  });
-
-  app.post("/order/:orderID/capture", async (req, res) => {
-    await capturePaypalOrder(req, res);
-  });
-
-  app.post('/api/topup/paypal', isAuthenticated, async (req: any, res) => {
-    try {
-      const adminUserId = req.user.claims.sub;
-      const { amount, currency = 'IDR' } = req.body;
-
-      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 10000) {
-        return res.status(400).json({ error: "Invalid amount (minimum IDR 10,000)" });
-      }
-
-      // Create payment transaction record
-      const transaction = await storage.createPaymentTransaction({
-        adminUserId,
-        amount: amount.toString(),
-        currency,
-        paymentMethod: 'paypal',
-        status: 'pending',
-        description: `Credit top-up via PayPal - $${amount}`,
-        metadata: { topUpAmount: amount },
-      });
-
-      res.json({ 
-        success: true, 
-        transactionId: transaction.id,
-        message: "PayPal payment initiated. Credits will be added upon successful payment completion."
-      });
-    } catch (error) {
-      console.error("Error creating PayPal top-up:", error);
-      res.status(500).json({ error: "Failed to initiate PayPal top-up" });
-    }
-  });
 
   app.post('/api/topup/bank-transfer', isAuthenticated, async (req: any, res) => {
     try {

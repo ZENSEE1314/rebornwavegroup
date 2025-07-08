@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import PayPalButton from "./PayPalButton";
+
 import { Upload, CreditCard, Building, Wallet, History, Eye, X, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -174,26 +174,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     }
   };
 
-  const paypalTopUpMutation = useMutation({
-    mutationFn: async (data: { amount: number }) => {
-      return await apiRequest("POST", "/api/topup/paypal", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "PayPal Payment Initiated",
-        description: "Complete the PayPal payment to add credits to your account.",
-      });
-      setAmount("");
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Payment Failed",
-        description: error.message || "Failed to initiate PayPal payment",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   const bankTransferMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -240,19 +221,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
     },
   });
 
-  const handlePayPalTopUp = () => {
-    const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum < 10000) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid amount (minimum IDR 10,000)",
-        variant: "destructive",
-      });
-      return;
-    }
 
-    paypalTopUpMutation.mutate({ amount: amountNum });
-  };
 
   const handleBankTransfer = () => {
     const amountNum = parseFloat(amount);
@@ -382,14 +351,10 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
 
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="stripe" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="stripe" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               Stripe
-            </TabsTrigger>
-            <TabsTrigger value="paypal" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              PayPal
             </TabsTrigger>
             <TabsTrigger value="bank" className="flex items-center gap-2">
               <Building className="h-4 w-4" />
@@ -405,51 +370,7 @@ export default function CreditTopUpModal({ isOpen, onClose, currentCredits }: Cr
             <StripeTab onClose={onClose} />
           </TabsContent>
 
-          <TabsContent value="paypal">
-            <Card>
-              <CardHeader>
-                <CardTitle>PayPal Payment</CardTitle>
-                <CardDescription>
-                  Pay securely with PayPal. Credits will be added instantly after payment.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="paypal-amount">Amount (IDR)</Label>
-                  <Input
-                    id="paypal-amount"
-                    type="number"
-                    step="1000"
-                    min="10000"
-                    placeholder="Enter amount in Rupiah"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Minimum: IDR 10,000</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Button 
-                    onClick={handlePayPalTopUp}
-                    disabled={paypalTopUpMutation.isPending || !amount}
-                    className="w-full"
-                  >
-                    {paypalTopUpMutation.isPending ? "Processing..." : "Continue with PayPal"}
-                  </Button>
-                  
-                  {amount && parseFloat(amount) > 0 && (
-                    <div className="mt-4">
-                      <PayPalButton 
-                        amount={amount}
-                        currency="USD"
-                        intent="capture"
-                      />
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           <TabsContent value="bank">
             <Card>
