@@ -536,10 +536,7 @@ function EnhancedAdminDashboard() {
     isUnlocked: true
   });
 
-  // Debug: Log user state
-  console.log('Admin Dashboard - User Object:', user);
-  console.log('Admin Dashboard - User Role:', user?.role);
-  console.log('Admin Dashboard - Is Admin Check:', user?.role === 'admin');
+
 
   // Check if user is admin
   if (!user || user.role !== 'admin') {
@@ -1445,7 +1442,7 @@ function EnhancedAdminDashboard() {
       console.log('*** FRONTEND: Bulk generation successful:', data);
       toast({ 
         title: "Success", 
-        description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
+        description: `Generated ${data.toys?.length || '10'} toys successfully!`
       });
       
       // Reset to page 1 to show newest toys immediately
