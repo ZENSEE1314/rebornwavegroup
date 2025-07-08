@@ -4232,25 +4232,25 @@ export default function CompleteApp() {
     const categories = {};
     
     appointmentEvents
-      .filter(event => event.isActive)
+      .filter(event => event?.isActive)
       .forEach(event => {
-        if (!categories[event.category]) {
-          categories[event.category] = {
-            name: event.category === 'beauty' 
+        if (!categories[event?.category]) {
+          categories[event?.category] = {
+            name: event?.category === 'beauty' 
               ? t('booking.beautyServices')
-              : event.category === 'entertainment'
+              : event?.category === 'entertainment'
               ? t('booking.entertainment') 
-              : event.category === 'restaurant'
+              : event?.category === 'restaurant'
               ? t('booking.cafeRestaurant')
-              : event.category.charAt(0).toUpperCase() + event.category.slice(1), // Use custom category name as-is
+              : (event?.category || '').charAt(0).toUpperCase() + (event?.category || '').slice(1), // Use custom category name as-is
             options: [],
             startingPrice: "0"
           };
         }
         
-        categories[event.category].options.push({
-          value: event.title.toLowerCase().replace(/\s+/g, '_'),
-          label: event.title,
+        categories[event?.category]?.options.push({
+          value: (event?.title || '').toLowerCase().replace(/\s+/g, '_'),
+          label: event?.title || '',
           cost: 0 // Flexible pricing - will be determined during booking
         });
       });
@@ -4278,11 +4278,11 @@ export default function CompleteApp() {
       if (newAppointment.date && newAppointment.service) {
         try {
           const selectedCategory = serviceCategories[newAppointment.category];
-          const selectedService = selectedCategory?.options.find(opt => opt.value === newAppointment.service);
+          const selectedService = selectedCategory?.options?.find(opt => opt?.value === newAppointment.service);
           
           if (selectedService) {
             const response = await fetch(
-              `/api/appointments/availability?date=${newAppointment.date}&service=${encodeURIComponent(selectedService.label)}`
+              `/api/appointments/availability?date=${newAppointment.date}&service=${encodeURIComponent(selectedService?.label || '')}`
             );
             
             if (response.ok) {
@@ -4549,9 +4549,9 @@ export default function CompleteApp() {
 
   // Filter appointments
   const filteredAppointments = sortedAppointments.filter(appointment => {
-    const statusMatch = appointmentsFilter === 'all' || appointment.status === appointmentsFilter;
+    const statusMatch = appointmentsFilter === 'all' || appointment?.status === appointmentsFilter;
     const dateMatch = !appointmentsDateFilter || 
-      new Date(appointment.createdAt).toISOString().split('T')[0] === appointmentsDateFilter;
+      new Date(appointment?.createdAt || new Date()).toISOString().split('T')[0] === appointmentsDateFilter;
     return statusMatch && dateMatch;
   });
 
@@ -4839,11 +4839,11 @@ export default function CompleteApp() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          title: selectedService.label,
+          title: selectedService?.label || '',
           description: `${newAppointment.category} service booking`,
           appointmentDate: appointmentDateTime.toISOString(),
           duration: 60,
-          cost: selectedService.cost.toString()
+          cost: (selectedService?.cost || 0).toString()
         })
       });
 
@@ -7603,7 +7603,7 @@ export default function CompleteApp() {
                               ) : (
                                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                   {apt.status !== 'cancelled' && (
-                                    <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt.id)}>
+                                    <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt?.id)}>
                                       <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
                                       <span className="hidden sm:inline ml-1">{t("appointment.reschedule")}</span>
                                     </Button>
