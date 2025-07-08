@@ -13,7 +13,7 @@ export function useWebSocket(enabled: boolean = true) {
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
-
+      console.log('WebSocket already connected or connecting, skipping...');
       return;
     }
     
@@ -28,7 +28,7 @@ export function useWebSocket(enabled: boolean = true) {
       const host = window.location.host || `${window.location.hostname}:${window.location.port || (window.location.protocol === "https:" ? "443" : "80")}`;
       const wsUrl = `${protocol}//${host}/ws`;
       
-
+      console.log(`Attempting WebSocket connection to: ${wsUrl}`);
       
       // Create WebSocket with additional error handling
       try {
@@ -39,7 +39,7 @@ export function useWebSocket(enabled: boolean = true) {
       }
 
       wsRef.current.onopen = () => {
-
+        console.log('WebSocket connected for real-time updates');
         reconnectAttempts.current = 0; // Reset reconnection attempts on successful connection
       };
 
@@ -210,7 +210,7 @@ export function useWebSocket(enabled: boolean = true) {
       };
 
       wsRef.current.onclose = () => {
-
+        console.log('WebSocket disconnected, attempting to reconnect...');
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(connect, 3000);
       };

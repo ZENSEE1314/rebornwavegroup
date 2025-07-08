@@ -88,10 +88,13 @@ export function setupLocalAuth() {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
+      console.log('*** DESERIALIZE DEBUG: Attempting to deserialize user with ID:', id);
       const user = await storage.getUser(id);
       if (!user) {
+        console.log('*** DESERIALIZE DEBUG: User not found during deserialization:', id);
         return done(null, false);
       }
+      console.log('*** DESERIALIZE DEBUG: User deserialized successfully:', user.email, 'User object:', !!user);
       done(null, user);
     } catch (error) {
       console.error('*** DESERIALIZE DEBUG: Deserialization error:', error);
@@ -453,11 +456,20 @@ If you didn't request this password reset, please ignore this email.
 
 // Authentication middleware
 export function requireAuth(req: Request, res: Response, next: Function) {
+  console.log("*** REQUIRE AUTH DEBUG: Method:", req.method, "Path:", req.path);
+  console.log("*** REQUIRE AUTH DEBUG: isAuthenticated():", req.isAuthenticated());
+  console.log("*** REQUIRE AUTH DEBUG: req.user:", req.user);
+  console.log("*** REQUIRE AUTH DEBUG: session ID:", req.sessionID);
+  console.log("*** REQUIRE AUTH DEBUG: session cookie:", req.session.cookie);
+  console.log("*** REQUIRE AUTH DEBUG: host:", req.get('host'));
+  console.log("*** REQUIRE AUTH DEBUG: user-agent:", req.get('user-agent'));
   
   if (!req.isAuthenticated() || !req.user) {
+    console.log("*** REQUIRE AUTH DEBUG: Authentication failed - redirecting to login");
     return res.status(401).json({ message: 'Unauthorized', redirect: '/login' });
   }
   
+  console.log("*** REQUIRE AUTH DEBUG: Authentication successful");
   next();
 }
 

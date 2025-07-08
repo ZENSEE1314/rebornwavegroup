@@ -293,8 +293,6 @@ function EnhancedAdminDashboard() {
     iconFile: null as File | null
   });
 
-
-
   const [editSeasonData, setEditSeasonData] = useState({
     id: null as number | null,
     name: "",
@@ -370,13 +368,27 @@ function EnhancedAdminDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Email template management states - cleaned up to prevent conflicts
+  // Email template management states
+  const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
   const [showEmailTemplateDialog, setShowEmailTemplateDialog] = useState(false);
+  const [editingEmailTemplate, setEditingEmailTemplate] = useState<any>(null);
   const [emailTemplateForm, setEmailTemplateForm] = useState({
     name: "",
     subject: "",
     content: "",
     type: "custom"
+  });
+  const [newTemplate, setNewTemplate] = useState({
+    name: "",
+    subject: "",
+    templateType: "newsletter" as "newsletter" | "welcome" | "promotion",
+    htmlContent: "",
+    textContent: "",
+    isActive: true
   });
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateTypeFilter, setTemplateTypeFilter] = useState("all");
@@ -787,11 +799,12 @@ function EnhancedAdminDashboard() {
   const filteredToyTemplates = (() => {
     try {
       if (!toyTemplatesResponse || !toyTemplatesResponse.data) {
+        console.log('*** TOY TEMPLATES: No data available yet');
         return [];
       }
       
       const templates = (toyTemplatesResponse.data || []) as any[];
-
+      console.log('*** FILTERING TOY TEMPLATES DEBUG:', { templates: templates.length, templateData: templates });
       
       return templates.filter((template: any) => {
         if (!template || !template.id) return false;
@@ -813,7 +826,7 @@ function EnhancedAdminDashboard() {
   const filteredRealToys = (() => {
     try {
       const toys = (toysResponse?.data || []) as any[];
-
+      console.log('*** FILTERING REAL TOYS DEBUG:', { toys: toys.length });
       
       return toys.filter((toy: any) => {
         if (!toy) return false;
@@ -943,21 +956,72 @@ function EnhancedAdminDashboard() {
   });
 
   // Email template mutations
-  const { data: emailTemplatesData, isLoading: emailTemplatesLoading, error: emailTemplatesError } = useQuery({
+  const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
     queryKey: ['/api/admin/email-templates'],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest('GET', '/api/admin/email-templates');
-        const data = await response.json();
-        return Array.isArray(data) ? data : [];
-      } catch (error) {
-        console.error('Failed to fetch email templates:', error);
-        return [];
-      }
+    queryFn: () => apiRequest('GET', '/api/admin/email-templates')
+  });
+
+  const createEmailTemplateMutation = useMutation({
+    mutationFn: async (templateData: any) => {
+      return apiRequest('POST', '/api/admin/email-templates', templateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template created successfully" });
+      setShowTemplateDialog(false);
+      setNewTemplate({
+        name: "",
+        subject: "",
+        templateType: "newsletter",
+        htmlContent: "",
+        textContent: "",
+        isActive: true
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
     }
   });
 
+  const updateEmailTemplateMutation = useMutation({
+    mutationFn: async ({ id, ...templateData }: any) => {
+      return apiRequest('PUT', `/api/admin/email-templates/${id}`, templateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template updated successfully" });
+      setShowEditTemplateDialog(false);
+      setEditingTemplate(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
 
+  const deleteEmailTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      return apiRequest('DELETE', `/api/admin/email-templates/${templateId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      toast({ title: "Email template deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete email template", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
 
   const sendTemplateEmailMutation = useMutation({
     mutationFn: async ({ templateId, sendToAll, recipientEmail }: any) => {
@@ -1166,6 +1230,7 @@ function EnhancedAdminDashboard() {
         isActive: templateData.isActive !== false
       };
       
+      console.log("*** FRONTEND: Sending template data:", transformedData);
       return apiRequest('POST', '/api/admin/toy-templates', transformedData);
     },
     onSuccess: () => {
@@ -1181,7 +1246,7 @@ function EnhancedAdminDashboard() {
         imageUrl: "",
         quantity: 1
       });
-      console.log("Template created successfully");
+      setShowTemplateDialog(false);
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || "Failed to create template";
@@ -1407,6 +1472,7 @@ function EnhancedAdminDashboard() {
   const bulkGenerationMutation = useMutation({
     mutationFn: async (bulkData: any) => {
       const { baseToy, quantity } = bulkData;
+      console.log('*** FRONTEND: Starting bulk generation for', quantity, 'toys from template', baseToy.name);
       const response = await apiRequest('POST', '/api/admin/generate-toys-from-template', {
         templateId: baseToy.id,
         quantity: quantity
@@ -1414,6 +1480,7 @@ function EnhancedAdminDashboard() {
       return await response.json();
     },
     onSuccess: (data: any) => {
+      console.log('*** FRONTEND: Bulk generation successful:', data);
       toast({ 
         title: "Success", 
         description: `Generated ${data.toys?.length || bulkQuantity} toys successfully!`
@@ -1471,7 +1538,7 @@ function EnhancedAdminDashboard() {
   // Season management mutations
   const createSeasonMutation = useMutation({
     mutationFn: async (seasonData: any) => {
-
+      console.log("*** CREATING SEASON:", seasonData);
       
       // If there's an image file, use FormData for file upload
       if (seasonData.iconFile) {
@@ -1502,7 +1569,7 @@ function EnhancedAdminDashboard() {
       }
     },
     onSuccess: (data) => {
-
+      console.log("*** CREATE SEASON SUCCESS:", data);
       toast({ title: "Season created successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/seasons'] });
       queryClient.invalidateQueries({ queryKey: ['/api/collection-series'] });
@@ -1564,7 +1631,7 @@ function EnhancedAdminDashboard() {
 
   const editSeasonMutation = useMutation({
     mutationFn: async ({ seasonId, seasonData }: { seasonId: number; seasonData: any }) => {
-
+      console.log("*** EDITING SEASON:", seasonId, seasonData);
       
       // If there's an image file, use FormData for file upload
       if (seasonData.iconFile) {
@@ -1831,38 +1898,35 @@ function EnhancedAdminDashboard() {
     }
   });
 
-  // Email template mutations using React Query pattern
-  const createEmailTemplateMutation = useMutation({
-    mutationFn: async (templateData: any) => {
-      const payload = {
-        name: templateData.name || '',
-        subject: templateData.subject || '',
-        htmlContent: templateData.content || '',
-        templateType: templateData.type || 'custom',
-        isActive: true
-      };
-      const response = await apiRequest("POST", "/api/admin/email-templates", payload);
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Email template created successfully",
-        variant: "default"
+  // Handler functions for email templates
+  const handleCreateEmailTemplate = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/admin/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailTemplateForm),
+        credentials: "include"
       });
       
-      setShowEmailTemplateDialog(false);
-      setEmailTemplateForm({
-        name: "",
-        subject: "",
-        content: "",
-        type: "custom"
-      });
-      
-      // Refresh email templates list
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-    },
-    onError: (error: any) => {
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template created successfully",
+          variant: "default"
+        });
+        
+        setShowEmailTemplateDialog(false);
+        setEmailTemplateForm({
+          name: "",
+          subject: "",
+          content: "",
+          type: "custom"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
       console.error("Error creating email template:", error);
       toast({
         title: "Error",
@@ -1870,33 +1934,39 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
-  });
+  };
 
-  const updateEmailTemplateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PUT", `/api/admin/email-templates/${id}`, data);
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Email template updated successfully",
-        variant: "default"
+  const handleUpdateEmailTemplate = async () => {
+    if (!editingEmailTemplate) return;
+    
+    try {
+      const response = await apiRequest("PUT", `/api/admin/email-templates/${editingEmailTemplate.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailTemplateForm),
+        credentials: "include"
       });
       
-      setShowEmailTemplateDialog(false);
-      setEditingEmailTemplate(null);
-      setEmailTemplateForm({
-        name: "",
-        subject: "",
-        content: "",
-        type: "custom"
-      });
-      
-      // Refresh email templates list
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-    },
-    onError: (error: any) => {
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template updated successfully",
+          variant: "default"
+        });
+        
+        setShowEmailTemplateDialog(false);
+        setEditingEmailTemplate(null);
+        setEmailTemplateForm({
+          name: "",
+          subject: "",
+          content: "",
+          type: "custom"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
       console.error("Error updating email template:", error);
       toast({
         title: "Error",
@@ -1904,24 +1974,28 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
-  });
+  };
 
-  const deleteEmailTemplateMutation = useMutation({
-    mutationFn: async (templateId: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`);
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Email template deleted successfully",
-        variant: "default"
+  const handleDeleteEmailTemplate = async (templateId: string) => {
+    if (!confirm("Are you sure you want to delete this email template?")) return;
+    
+    try {
+      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`, {
+        method: "DELETE",
+        credentials: "include"
       });
       
-      // Refresh email templates list
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
-    },
-    onError: (error: any) => {
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email template deleted successfully",
+          variant: "default"
+        });
+        
+        // Refresh email templates list
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      }
+    } catch (error) {
       console.error("Error deleting email template:", error);
       toast({
         title: "Error",
@@ -1929,24 +2003,6 @@ function EnhancedAdminDashboard() {
         variant: "destructive"
       });
     }
-  });
-
-  // Handler functions for email templates
-  const handleCreateEmailTemplate = () => {
-    createEmailTemplateMutation.mutate(emailTemplateForm);
-  };
-
-  const handleUpdateEmailTemplate = () => {
-    if (!editingEmailTemplate) return;
-    updateEmailTemplateMutation.mutate({ 
-      id: editingEmailTemplate.id, 
-      data: emailTemplateForm 
-    });
-  };
-
-  const handleDeleteEmailTemplate = (templateId: string) => {
-    if (!confirm("Are you sure you want to delete this email template?")) return;
-    deleteEmailTemplateMutation.mutate(templateId);
   };
 
   const handleEditEmailTemplate = (template: any) => {
@@ -3443,7 +3499,7 @@ function EnhancedAdminDashboard() {
                             <PaginationPrevious 
                               href="#" 
                               onClick={() => {
-
+                                console.log('Previous page');
                               }}
                             />
                           </PaginationItem>
@@ -3460,7 +3516,7 @@ function EnhancedAdminDashboard() {
                             <PaginationNext 
                               href="#" 
                               onClick={() => {
-
+                                console.log('Next page');
                               }}
                             />
                           </PaginationItem>
@@ -5570,7 +5626,7 @@ function EnhancedAdminDashboard() {
                     <p className="text-gray-300 mt-1">Create and manage email templates for automated communications</p>
                   </div>
                   <Button 
-                    onClick={() => console.log("Create email template")}
+                    onClick={() => setShowTemplateDialog(true)}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -5583,12 +5639,12 @@ function EnhancedAdminDashboard() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Search templates..."
-                      value={templateSearch || ''}
-                      onChange={(e) => setTemplateSearch(e.target.value || '')}
+                      value={templateSearch}
+                      onChange={(e) => setTemplateSearch(e.target.value)}
                       className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-300"
                     />
                   </div>
-                  <Select value={templateTypeFilter || "all"} onValueChange={setTemplateTypeFilter}>
+                  <Select value={templateTypeFilter} onValueChange={setTemplateTypeFilter}>
                     <SelectTrigger className="w-48 bg-white/10 border-white/20 text-white">
                       <SelectValue placeholder="Filter by type" />
                     </SelectTrigger>
@@ -5597,8 +5653,6 @@ function EnhancedAdminDashboard() {
                       <SelectItem value="welcome">Welcome</SelectItem>
                       <SelectItem value="newsletter">Newsletter</SelectItem>
                       <SelectItem value="promotion">Promotion</SelectItem>
-                      <SelectItem value="notification">Notification</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -5630,22 +5684,12 @@ function EnhancedAdminDashboard() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        (emailTemplatesData || [])
+                        emailTemplatesData
                           .filter((template: any) => {
-                            if (!template || !template.name || !template.subject) return false;
-                            try {
-                              const searchTerm = String(templateSearch || '').toLowerCase();
-                              const typeFilter = String(templateTypeFilter || 'all');
-                              const templateName = String(template.name || '').toLowerCase();
-                              const templateSubject = String(template.subject || '').toLowerCase();
-                              const templateType = String(template.templateType || 'custom');
-                              const matchesSearch = templateName.includes(searchTerm) || templateSubject.includes(searchTerm);
-                              const matchesType = typeFilter === "all" || templateType === typeFilter;
-                              return matchesSearch && matchesType;
-                            } catch (error) {
-                              console.error('Template filtering error:', error);
-                              return false;
-                            }
+                            const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+                                                template.subject.toLowerCase().includes(templateSearch.toLowerCase());
+                            const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
+                            return matchesSearch && matchesType;
                           })
                           .map((template: any) => (
                             <TableRow key={template.id}>
@@ -6285,7 +6329,7 @@ function EnhancedAdminDashboard() {
       </Dialog>
 
       {/* Template Toy Creation Dialog */}
-      <Dialog open={false} onOpenChange={() => {}}>
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="bg-gradient-to-br from-blue-900 to-purple-900 border-white/20">
           <DialogHeader>
             <DialogTitle className="text-white">Create Template Toy</DialogTitle>
@@ -6422,7 +6466,7 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => console.log("Cancel template dialog")}
+                onClick={() => setShowTemplateDialog(false)}
                 className="border-white/20 text-white hover:bg-white/10"
               >
                 Cancel
@@ -6847,7 +6891,7 @@ function EnhancedAdminDashboard() {
         <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-white">
-              Create Email Template
+              {editingEmailTemplate ? "Edit Email Template" : "Create Email Template"}
             </DialogTitle>
           </DialogHeader>
           
@@ -6856,8 +6900,8 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateName" className="text-gray-300">Template Name</Label>
               <Input
                 id="templateName"
-                value={emailTemplateForm.name || ''}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, name: e.target.value || ''})}
+                value={emailTemplateForm.name}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, name: e.target.value})}
                 placeholder="Welcome Email, Newsletter, etc."
                 className="bg-gray-800 border-gray-600 text-white"
               />
@@ -6867,8 +6911,8 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateSubject" className="text-gray-300">Email Subject</Label>
               <Input
                 id="templateSubject"
-                value={emailTemplateForm.subject || ''}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, subject: e.target.value || ''})}
+                value={emailTemplateForm.subject}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, subject: e.target.value})}
                 placeholder="Welcome to Reborn Wave Group!"
                 className="bg-gray-800 border-gray-600 text-white"
               />
@@ -6878,7 +6922,7 @@ function EnhancedAdminDashboard() {
               <Label htmlFor="templateContent" className="text-gray-300">Email Content</Label>
               <Textarea
                 id="templateContent"
-                value={emailTemplateForm.content || ''}
+                value={emailTemplateForm.content}
                 onChange={(e) => setEmailTemplateForm({...emailTemplateForm, content: e.target.value})}
                 placeholder="Enter email content here..."
                 className="bg-gray-800 border-gray-600 text-white min-h-40"
@@ -6889,7 +6933,7 @@ function EnhancedAdminDashboard() {
             <div>
               <Label htmlFor="templateType" className="text-gray-300">Template Type</Label>
               <Select 
-                value={emailTemplateForm.type || "custom"} 
+                value={emailTemplateForm.type} 
                 onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, type: value})}
               >
                 <SelectTrigger className="bg-gray-800 border-gray-600 text-white">

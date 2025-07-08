@@ -73,6 +73,7 @@ function startSleepEnergyTimer(petId: number) {
     console.log(`*** TIMER CLEANUP: Cleared existing timer for pet ${petId}`);
   }
   
+  console.log(`*** DEBUG: Starting new timer for pet ${petId}. Total timers before: ${sleepTimers.size}`);
 
   // Wait 5 minutes before starting energy increases
   const initialDelay = setTimeout(() => {
@@ -265,6 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`*** STARTUP: Pet ${pet.id} has been sleeping for ${Math.round(sleepDuration / 60000)} minutes, starting energy increases immediately`);
             
             // Start immediate energy increase timer (no 5-minute delay)
+            console.log(`*** DEBUG: Creating startup timer for pet ${pet.id} with 5-minute intervals`);
             const timer = setInterval(async () => {
               try {
                 const currentPet = await storage.getPetById(pet.id);
@@ -318,6 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }, 300000); // 5 minutes
             
             sleepTimers.set(pet.id, timer);
+            console.log(`*** DEBUG: Timer set for pet ${pet.id}. Total active timers: ${sleepTimers.size}`);
           } else {
             // Pet has been sleeping for less than 5 minutes, start normal timer with remaining delay
             const remainingDelay = fiveMinutes - sleepDuration;
@@ -333,6 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Global request logger for debugging pet care endpoints
   app.use((req, res, next) => {
     if (req.path.includes('/api/pets') && req.path.includes('/care/')) {
+      console.log('🔍 PET CARE REQUEST INTERCEPTED:');
       console.log('Method:', req.method);
       console.log('Path:', req.path);
       console.log('URL:', req.url);
@@ -341,6 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Log ALL POST requests to find the mysterious endpoint
     if (req.method === 'POST' && req.path.includes('/api/pets')) {
+      console.log('🚨 ALL PET POST REQUEST:', req.method, req.path);
     }
     next();
   });
@@ -936,6 +941,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/admin/payment-verifications/:id", isAuthenticated, async (req: any, res) => {
     try {
+      console.log(`*** APPROVAL DEBUG: Starting approval for verification ${req.params.id}`);
+      console.log(`*** APPROVAL DEBUG: Request body:`, req.body);
       
       const adminUserId = getUserId(req);
       if (!adminUserId) {
@@ -944,6 +951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const currentUser = await db.select().from(users).where(eq(users.id, adminUserId)).limit(1);
       if (!currentUser[0] || currentUser[0].role !== 'admin') {
+        console.log(`*** APPROVAL DEBUG: Admin access denied for user ${adminUserId}`);
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -962,8 +970,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'approved') {
         const amount = parseFloat(existingVerification.amount);
         calculatedPoints = Math.floor(amount / 1000); // 1 point per 1000 IDR
+        console.log(`*** APPROVAL DEBUG: Auto-calculated ${calculatedPoints} points from amount ${amount} IDR`);
       }
 
+      console.log(`*** APPROVAL DEBUG: Updating verification ${id} to status ${status} with ${calculatedPoints} points`);
 
       const [updatedVerification] = await db
         .update(paymentVerifications)
@@ -979,17 +989,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       if (!updatedVerification) {
+        console.log(`*** APPROVAL DEBUG: No verification found with id ${id}`);
         return res.status(404).json({ message: "Payment verification not found" });
       }
 
+      console.log(`*** APPROVAL DEBUG: Updated verification:`, updatedVerification);
 
       // If approved, award points to user and handle referral commission
       if (status === 'approved' && calculatedPoints > 0) {
+        console.log(`*** APPROVAL DEBUG: Processing approval with ${calculatedPoints} points`);
         
         // Get user information to find introducer
         const userInfo = await db.select().from(users).where(eq(users.id, updatedVerification.userId)).limit(1);
+        console.log(`*** APPROVAL DEBUG: User info found:`, userInfo[0]);
         
         // Award points to user
+        console.log(`*** APPROVAL DEBUG: Awarding ${calculatedPoints} points to user ${updatedVerification.userId}`);
         await db
           .update(users)
           .set({
@@ -999,6 +1014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(users.id, updatedVerification.userId));
 
         // Record points history
+        console.log(`*** APPROVAL DEBUG: Recording points history`);
         await db.insert(pointsHistory).values({
           userId: updatedVerification.userId,
           points: calculatedPoints,
@@ -1009,9 +1025,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Handle 10% referral commission for introducer
         if (userInfo[0]?.referredById) {
+          console.log(`*** APPROVAL DEBUG: Processing referral commission for introducer ${userInfo[0].referredById}`);
           const transactionAmount = parseFloat(updatedVerification.amount);
           const commissionAmount = Math.floor(transactionAmount * 0.1); // 10% commission in RP
           
+          console.log(`*** APPROVAL DEBUG: Commission calculation - amount: ${transactionAmount}, commission: ${commissionAmount}`);
           
           // Add commission to introducer's credits (actual RP credits)
           await db
@@ -1023,6 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(users.id, userInfo[0].referredById));
 
           // Record commission in credit history
+          console.log(`*** APPROVAL DEBUG: Creating credit history record`);
           await storage.createCreditHistory({
             userId: userInfo[0].referredById,
             amount: commissionAmount.toString(),
@@ -1032,6 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Record commission in dedicated commission history
+          console.log(`*** APPROVAL DEBUG: Creating commission history record`);
           await db.insert(commissionHistory).values({
             introducerId: userInfo[0].referredById,
             referredUserId: updatedVerification.adminUserId,
@@ -1045,6 +1065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Update referral relationship total earnings
+          console.log(`*** APPROVAL DEBUG: Updating referral relationship earnings`);
           await db
             .update(referrals)
             .set({
@@ -1057,9 +1078,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               )
             );
 
+          console.log(`*** APPROVAL DEBUG: Commission processing completed - awarded RP ${commissionAmount} to user ${userInfo[0].referredById}`);
         } else {
+          console.log(`*** APPROVAL DEBUG: No referrer found for user ${updatedVerification.adminUserId}`);
         }
       } else {
+        console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
       }
 
       // Payment verification update completed
@@ -1757,7 +1781,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!adminUserId) {
         return res.status(401).json({ message: "User ID not found" });
       }
+      console.log(`*** GENEALOGY DEBUG: Building tree for user ${adminUserId}`);
       const genealogyTree = await storage.buildReferralGenealogyTree(adminUserId);
+      console.log(`*** GENEALOGY DEBUG: Result for ${adminUserId}:`, JSON.stringify(genealogyTree, null, 2));
       res.json(genealogyTree);
     } catch (error) {
       console.error("Error building genealogy tree:", error);
@@ -2089,6 +2115,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User ID not found" });
       }
       const toys = await storage.getToysByOwnerId(userId);
+      console.log("*** TOYS DEBUG: User", userId, "has toys:", toys.length);
+      toys.forEach((toy, index) => {
+        console.log(`*** TOY ${index + 1}:`, {
+          id: toy.id,
+          name: toy.name,
+          rarity: toy.rarity,
+          isActivated: toy.isActivated,
+          is_activated: toy.is_activated,
+          ownerId: toy.ownerId,
+          owner_id: toy.owner_id
+        });
+      });
       res.json(toys);
     } catch (error) {
       console.error("Error fetching toys:", error);
@@ -2293,6 +2331,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertListingSchema.parse({
         ...req.body,
         sellerId: adminUserId,
+      });
+      
+      console.log("*** LISTING REQUEST DEBUG:", {
+        requestBody: req.body,
+        validatedData,
+        adminUserId
       });
       
       const listing = await storage.createListing(validatedData);
@@ -2650,7 +2694,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingPet = existingPets.find(pet => pet.toyId === toyId);
       if (existingPet) {
         // Pet already exists, just update toy activation status and return success
+        console.log('*** PET ALREADY EXISTS, UPDATING TOY ACTIVATION STATUS:', toyId);
         await storage.updateToy(toyId, { isActivated: true });
+        console.log('*** TOY ACTIVATION STATUS UPDATED FOR EXISTING PET');
         return res.json({ 
           message: "Pet already activated for this toy!", 
           pet: existingPet 
@@ -2683,6 +2729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Update toy activation status
+      console.log('*** UPDATING TOY ACTIVATION STATUS:', toyId);
       await storage.updateToy(toyId, { isActivated: true });
       console.log('*** TOY ACTIVATION STATUS UPDATED');
       
@@ -3012,6 +3059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Still in delay period
         energyToAdd = 0;
         nextEnergyIn = (delayPeriod - secondsSinceSleepStart) / 60; // Convert to minutes
+        console.log(`*** SLEEP DEBUG: Pet ${petId} in delay period - ${Math.floor(nextEnergyIn)} minutes remaining before energy starts`);
       } else {
         // Past delay period - real-time system handles all energy increases
         const secondsSinceEnergyStart = secondsSinceSleepStart - delayPeriod;
@@ -3023,6 +3071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const secondsUntilNext = (5 * 60) - (secondsSinceEnergyStart % (5 * 60));
         nextEnergyIn = secondsUntilNext / 60; // Convert to minutes
         
+        console.log(`*** SLEEP DEBUG: Pet ${petId} - Past delay period - Current energy: ${pet.energy}%, Next increase in: ${nextEnergyIn.toFixed(1)} min`);
       }
       
       const newEnergy = Math.min(100, (pet.energy || 0) + energyToAdd);
@@ -3814,11 +3863,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pending-purchases', isAuthenticated, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
+      console.log("*** ROUTE DEBUG: API called for user:", adminUserId);
       if (!adminUserId) {
+        console.log("*** ROUTE DEBUG: No adminUserId found");
         return res.status(401).json({ message: "User ID not found" });
       }
       
       const purchases = await storage.getPendingPurchasesByUserId(adminUserId);
+      console.log("*** ROUTE DEBUG: Returning purchases:", purchases.length);
       res.json(purchases);
     } catch (error) {
       console.error("*** ROUTE ERROR:", error);
@@ -4053,10 +4105,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       
       if (!userId) {
+        console.log("*** PETS ENDPOINT: No user ID found");
         return res.status(401).json({ message: "User not authenticated" });
       }
       
+      console.log("*** PETS ENDPOINT: Fetching pets for user:", userId);
       const pets = await storage.getPetsByUserId(userId);
+      console.log("*** PETS ENDPOINT: Found pets:", pets?.length || 0);
       
       res.json(pets);
     } catch (error) {
@@ -4232,6 +4287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new toy template
   app.post('/api/admin/toy-templates', requireAuth, async (req: any, res) => {
     try {
+      console.log("*** TOY TEMPLATE CREATION: Starting authentication check");
       console.log("*** Session user:", req.user);
       console.log("*** Session:", req.session);
       
@@ -4251,6 +4307,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
+      console.log("*** TOY TEMPLATE CREATION: Request body:", JSON.stringify(req.body, null, 2));
+      console.log("*** TOY TEMPLATE CREATION: Request body types:", Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]}`));
 
       const validatedData = schema.insertToyTemplateSchema.parse(req.body);
       
@@ -4316,14 +4374,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk generate real toys from template
   app.post('/api/admin/generate-toys-from-template', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('*** BULK GENERATION DEBUG: Starting toy generation from template');
+      console.log('*** BULK GENERATION DEBUG: Request body:', req.body);
       const adminUserId = getUserId(req);
+      console.log('*** BULK GENERATION DEBUG: Admin user ID:', adminUserId);
       const currentUser = await storage.getUser(adminUserId);
+      console.log('*** BULK GENERATION DEBUG: Current user:', currentUser?.email);
       
       if (!currentUser || currentUser.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { templateId, quantity } = req.body;
+      console.log('*** BULK GENERATION DEBUG: Request data:', { templateId, quantity });
 
       if (!templateId || !quantity || quantity <= 0) {
         return res.status(400).json({ error: "Template ID and valid quantity required" });
@@ -4340,6 +4403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const templateData = template[0];
+      console.log('*** BULK GENERATION DEBUG: Found template:', templateData.name);
 
       // Generate QR codes and create toys
       const toys = [];
@@ -4363,7 +4427,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log('*** BULK GENERATION DEBUG: Creating toys:', toys.length);
       const createdToys = await db.insert(schema.toys).values(toys).returning();
+      console.log('*** BULK GENERATION DEBUG: Successfully created toys:', createdToys.length);
 
       res.json({ 
         message: `Successfully generated ${quantity} toys from template`,
@@ -4948,6 +5014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const toyId = parseInt(req.params.toyId);
       const toyData = req.body;
       
+      console.log(`*** TOY UPDATE: Updating toy ID ${toyId} with data:`, toyData);
       
       // Get the toy before updating to check if it's a template
       const toyBefore = await storage.getToy(toyId);
@@ -4955,9 +5022,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Toy not found" });
       }
       
+      console.log(`*** TOY UPDATE: Found toy "${toyBefore.name}" (ID: ${toyId}, ownerId: ${toyBefore.ownerId}, isTemplate: ${toyBefore.isTemplate})`);
       
       await storage.updateToy(toyId, toyData);
       
+      console.log(`*** TOY UPDATE: Successfully updated toy ID ${toyId}`);
       
       res.json({ message: "Toy updated successfully" });
     } catch (error) {
@@ -4982,6 +5051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { name, seasonId, rarity, color, gender, imageUrl, quantity } = req.body;
       
+      console.log(`*** TEMPLATE TOY: Creating ${quantity} template toys named "${name}"`);
       
       const createdToys = [];
       
@@ -5007,6 +5077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdToys.push(createdToy);
       }
       
+      console.log(`*** TEMPLATE TOY: Successfully created ${createdToys.length} template toys`);
       
       res.json({ 
         message: `Successfully created ${createdToys.length} template toy(s)`,
@@ -5202,7 +5273,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalIconUrl = `/uploaded-images/${req.file.filename}`;
       }
       
-
+      console.log("*** EDIT SEASON DEBUG:", {
+        seasonId,
+        requestBody: req.body,
+        uploadedFile: req.file?.filename,
+        parsedData: { name, displayName, description, backgroundColor, iconUrl: finalIconUrl, price, showInMarketplace }
+      });
       
       const result = await db.update(schema.seasons)
         .set({ 
@@ -6022,9 +6098,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/seasons/:seasonId/toys', async (req: any, res) => {
     try {
+      console.log(`*** PUBLIC SEASONAL TOYS API: Starting request for season ${req.params.seasonId}`);
       const { seasonId } = req.params;
       const { sectorId } = req.query;
       const userId = getUserId(req) || null;
+      console.log(`*** PUBLIC SEASONAL TOYS API: userId=${userId}, sectorId=${sectorId}`);
 
       // Get regular toys from the season
       let regularToys: any[] = [];
@@ -6052,10 +6130,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let templateToys: any[] = [];
       if (!sectorId) {
         try {
+          console.log(`*** SEASONAL TOYS API: Fetching toy templates for season ${seasonId}`);
           templateToys = await db.select().from(schema.toyTemplates)
             .where(eq(schema.toyTemplates.seasonId, parseInt(seasonId)))
             .orderBy(schema.toyTemplates.rarity, schema.toyTemplates.name);
           
+          console.log(`*** SEASONAL TOYS API: Found ${templateToys.length} toy templates`);
+          console.log("*** SEASONAL TOYS API: Template toys:", JSON.stringify(templateToys, null, 2));
           
           // Transform template toys to match expected format
           templateToys = templateToys.map(template => ({
@@ -6097,6 +6178,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return a.name.localeCompare(b.name);
       });
 
+      console.log(`*** SEASONAL TOYS DEBUG: Season ${seasonId}, Sector ${sectorId || 'all'}, Found ${regularToys.length} toys + ${templateToys.length} templates`);
+      console.log(`*** SEASONAL TOYS RESULT:`, JSON.stringify(allToys, null, 2));
 
       res.json(allToys);
     } catch (error) {
@@ -6148,6 +6231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referrals: referrals
       };
 
+      console.log('*** USER STATS from DB:', stats);
       
       // OPTIMIZATION: Enable caching for better performance (30 seconds)
       res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
@@ -6839,9 +6923,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      // Get all points history with user information - simplified query to fix orderSelectedFields error
+      // Get all points history with user information
       const allPointsHistory = await db
-        .select()
+        .select({
+          id: pointsHistory.id,
+          userId: pointsHistory.userId,
+          type: pointsHistory.type,
+          amount: pointsHistory.amount,
+          description: pointsHistory.description,
+          status: pointsHistory.status,
+          createdAt: pointsHistory.createdAt,
+          user: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email
+          }
+        })
         .from(pointsHistory)
         .leftJoin(users, eq(pointsHistory.userId, users.id))
         .orderBy(desc(pointsHistory.createdAt));
@@ -7372,10 +7470,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp messaging via Twilio
   app.post('/api/admin/send-whatsapp', requireAuth, async (req: any, res) => {
     try {
+      console.log('*** WHATSAPP ENDPOINT: Request received:', req.body);
+      console.log('*** WHATSAPP ENDPOINT: User:', req.user?.email);
       
       const { message, sendToAll } = req.body;
       
       if (!message) {
+        console.log('*** WHATSAPP ENDPOINT: Message is required');
         return res.status(400).json({ message: 'Message is required' });
       }
 
@@ -7383,8 +7484,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authToken = process.env.TWILIO_AUTH_TOKEN;
       const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
+      console.log('*** WHATSAPP ENDPOINT: Checking credentials...');
+      console.log('*** WHATSAPP ENDPOINT: AccountSid exists:', !!accountSid);
+      console.log('*** WHATSAPP ENDPOINT: AccountSid value:', accountSid?.substring(0, 10) + '...');
+      console.log('*** WHATSAPP ENDPOINT: AccountSid starts with AC:', accountSid?.startsWith('AC'));
+      console.log('*** WHATSAPP ENDPOINT: AuthToken exists:', !!authToken);
+      console.log('*** WHATSAPP ENDPOINT: AuthToken length:', authToken?.length);
+      console.log('*** WHATSAPP ENDPOINT: FromNumber exists:', !!fromNumber);
+      console.log('*** WHATSAPP ENDPOINT: FromNumber value:', fromNumber);
 
       if (!accountSid || !authToken || !fromNumber) {
+        console.log('*** WHATSAPP ENDPOINT: Twilio credentials not configured');
         return res.status(500).json({ message: 'Twilio credentials not configured' });
       }
 
@@ -7392,11 +7502,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const client = twilio.default(accountSid, authToken);
 
       if (sendToAll) {
+        console.log('*** WHATSAPP ENDPOINT: Sending to all users with phone numbers');
         // Send to all users with mobile numbers
         const users = await db.select({ phoneNumber: schema.users.phoneNumber })
           .from(schema.users)
           .where(isNotNull(schema.users.phoneNumber));
         
+        console.log(`*** WHATSAPP ENDPOINT: Found ${users.length} users with phone numbers`);
         
         let successCount = 0;
         let failureCount = 0;
@@ -7404,12 +7516,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const user of users) {
           if (user.phoneNumber && user.phoneNumber.trim() !== '') {
             try {
+              console.log(`*** WHATSAPP ENDPOINT: Sending to ${user.phoneNumber}`);
               await client.messages.create({
                 body: message,
                 from: `whatsapp:${fromNumber}`,
                 to: `whatsapp:${user.phoneNumber}`
               });
               successCount++;
+              console.log(`*** WHATSAPP ENDPOINT: Success for ${user.phoneNumber}`);
             } catch (error) {
               console.error(`*** WHATSAPP ENDPOINT: Error for ${user.phoneNumber}:`, error);
               failureCount++;
@@ -7417,6 +7531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        console.log(`*** WHATSAPP ENDPOINT: Completed - Success: ${successCount}, Failed: ${failureCount}`);
         
         res.json({ 
           message: `WhatsApp blast completed`,
@@ -7906,6 +8021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message.toString());
+        console.log('WebSocket message received:', data);
       } catch (error) {
         console.error('Invalid WebSocket message:', error);
       }
@@ -8041,6 +8157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object;
+        console.log('Payment succeeded:', paymentIntent.id);
         // Additional processing can be added here
         break;
       default:
