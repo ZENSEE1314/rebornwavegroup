@@ -4277,7 +4277,7 @@ export default function CompleteApp() {
     const checkAvailability = async () => {
       if (newAppointment.date && newAppointment.service) {
         try {
-          const selectedCategory = serviceCategories[newAppointment.category];
+          const selectedCategory = serviceCategories?.[newAppointment.category];
           const selectedService = selectedCategory?.options?.find(opt => opt?.value === newAppointment.service);
           
           if (selectedService) {
@@ -4827,8 +4827,8 @@ export default function CompleteApp() {
       return;
     }
 
-    const selectedCategory = serviceCategories[newAppointment.category];
-    const selectedService = selectedCategory.options.find(opt => opt.value === newAppointment.service);
+    const selectedCategory = serviceCategories?.[newAppointment.category];
+    const selectedService = selectedCategory?.options?.find(opt => opt?.value === newAppointment.service);
     
     try {
       // Create appointment in database with proper date format
@@ -6743,8 +6743,8 @@ export default function CompleteApp() {
                         <SelectValue placeholder={t('dashboard.selectCategory')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(serviceCategories).map(([key, category]) => (
-                          <SelectItem key={key} value={key}>{category.name}</SelectItem>
+                        {Object.entries(serviceCategories || {}).map(([key, category]) => (
+                          <SelectItem key={key} value={key}>{category?.name || key}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -6755,9 +6755,9 @@ export default function CompleteApp() {
                           <SelectValue placeholder={t("booking.selectService")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {serviceCategories[newAppointment.category].options.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                          {(serviceCategories?.[newAppointment.category]?.options || []).map((option) => (
+                            <SelectItem key={option?.value || ''} value={option?.value || ''}>
+                              {option?.label || 'Service'}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -7386,11 +7386,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">💄</div>
                   <h3 className="text-lg font-semibold text-pink-800 mb-2">
-                    {serviceCategories.beauty.name}
+                    {serviceCategories?.beauty?.name || 'Beauty Services'}
                   </h3>
                   <p className="text-sm text-pink-600 mb-4">Hair Spa, Facials, Nails</p>
                   <Badge className="bg-pink-100 text-pink-800">
-                    {t("common.startingFrom")} RP {serviceCategories.beauty.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories?.beauty?.startingPrice || 0}
                   </Badge>
                 </CardContent>
               </Card>
@@ -7399,11 +7399,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">🎮</div>
                   <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    {serviceCategories.entertainment.name}
+                    {serviceCategories?.entertainment?.name || 'Entertainment'}
                   </h3>
                   <p className="text-sm text-blue-600 mb-4">Claw Machine, KTV Rooms</p>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {t("common.startingFrom")} RP {serviceCategories.entertainment.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories?.entertainment?.startingPrice || 0}
                   </Badge>
                 </CardContent>
               </Card>
@@ -7412,11 +7412,11 @@ export default function CompleteApp() {
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">🍽️</div>
                   <h3 className="text-lg font-semibold text-green-800 mb-2">
-                    {serviceCategories.restaurant.name}
+                    {serviceCategories?.restaurant?.name || 'Restaurant'}
                   </h3>
                   <p className="text-sm text-green-600 mb-4">Breakfast, Lunch, Dinner</p>
                   <Badge className="bg-green-100 text-green-800">
-                    {t("common.startingFrom")} RP {serviceCategories.restaurant.startingPrice}
+                    {t("common.startingFrom")} RP {serviceCategories?.restaurant?.startingPrice || 0}
                   </Badge>
                 </CardContent>
               </Card>
@@ -7434,8 +7434,8 @@ export default function CompleteApp() {
                       <SelectValue placeholder={t('booking.selectCategory')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(serviceCategories).map(([key, category]) => (
-                        <SelectItem key={key} value={key}>{category.name}</SelectItem>
+                      {Object.entries(serviceCategories || {}).map(([key, category]) => (
+                        <SelectItem key={key} value={key}>{category?.name || key}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -7446,9 +7446,9 @@ export default function CompleteApp() {
                         <SelectValue placeholder={t("booking.selectService")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories[newAppointment.category].options.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                        {(serviceCategories?.[newAppointment.category]?.options || []).map((option) => (
+                          <SelectItem key={option?.value || ''} value={option?.value || ''}>
+                            {option?.label || 'Service'}
                           </SelectItem>
                         ))}
                       </SelectContent>
