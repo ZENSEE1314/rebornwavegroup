@@ -1584,6 +1584,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(pointsHistory.createdAt));
   }
 
+  async getAllPointsHistory(): Promise<PointsHistory[]> {
+    return await db
+      .select()
+      .from(pointsHistory)
+      .orderBy(desc(pointsHistory.createdAt));
+  }
+
   // Admin-specific operations
   async getAllTransactions(): Promise<Transaction[]> {
     return await db.select({

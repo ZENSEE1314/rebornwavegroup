@@ -6976,23 +6976,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      // Get all points history with user information
-      const allPointsHistory = await db
-        .select({
-          id: pointsHistory.id,
-          userId: pointsHistory.userId,
-          type: pointsHistory.type,
-          amount: pointsHistory.amount,
-          description: pointsHistory.description,
-          status: pointsHistory.status,
-          createdAt: pointsHistory.createdAt,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          userEmail: users.email
-        })
-        .from(pointsHistory)
-        .leftJoin(users, eq(pointsHistory.userId, users.id))
-        .orderBy(desc(pointsHistory.createdAt));
+      // Get all points history using storage method
+      const allPointsHistory = await storage.getAllPointsHistory();
+      console.log("*** ADMIN POINTS HISTORY DEBUG:", {
+        count: allPointsHistory.length,
+        first5: allPointsHistory.slice(0, 5)
+      });
 
       res.json(allPointsHistory);
     } catch (error) {
