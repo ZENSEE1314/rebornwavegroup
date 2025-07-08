@@ -21,6 +21,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     console.log(`*** SENDGRID: From: ${params.from}`);
     console.log(`*** SENDGRID: Subject: ${params.subject}`);
     console.log(`*** SENDGRID: API Key configured: ${!!process.env.SENDGRID_API_KEY}`);
+    console.log(`*** SENDGRID: API Key starts with: ${process.env.SENDGRID_API_KEY?.substring(0, 10)}...`);
     
     const result = await mailService.send({
       to: params.to,

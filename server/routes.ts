@@ -7388,7 +7388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`*** EMAIL ENDPOINT: Sending to ${user.email}`);
               const success = await sendEmail({
                 to: user.email,
-                from: 'noreply@rebornwavegroup.com',
+                from: 'test@example.com',
                 subject,
                 text,
                 html
