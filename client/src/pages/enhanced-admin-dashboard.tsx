@@ -368,27 +368,13 @@ function EnhancedAdminDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Email template management states
-  const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
+  // Email template management states - cleaned up to prevent conflicts
   const [showEmailTemplateDialog, setShowEmailTemplateDialog] = useState(false);
-  const [editingEmailTemplate, setEditingEmailTemplate] = useState<any>(null);
   const [emailTemplateForm, setEmailTemplateForm] = useState({
     name: "",
     subject: "",
     content: "",
     type: "custom"
-  });
-  const [newTemplate, setNewTemplate] = useState({
-    name: "",
-    subject: "",
-    templateType: "newsletter" as "newsletter" | "welcome" | "promotion",
-    htmlContent: "",
-    textContent: "",
-    isActive: true
   });
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateTypeFilter, setTemplateTypeFilter] = useState("all");
