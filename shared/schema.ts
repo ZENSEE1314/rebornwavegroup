@@ -435,7 +435,7 @@ export const emailTemplates = pgTable("email_templates", {
   subject: varchar("subject").notNull(),
   htmlContent: text("html_content").notNull(),
   textContent: text("text_content"),
-  templateType: varchar("template_type").notNull().default("custom"), // 'welcome', 'newsletter', 'custom'
+  templateType: varchar("template_type").notNull().default("custom"), // 'welcome', 'onboarding', 'reset_password', 'promotion', 'system_maintenance', 'custom'
   isActive: boolean("is_active").default(true),
   createdBy: varchar("created_by").notNull(), // Admin user ID
   createdAt: timestamp("created_at").defaultNow(),

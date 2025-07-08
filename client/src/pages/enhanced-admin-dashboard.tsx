@@ -380,13 +380,14 @@ function EnhancedAdminDashboard() {
   const [emailTemplateForm, setEmailTemplateForm] = useState({
     name: "",
     subject: "",
-    content: "",
-    type: "custom"
+    htmlContent: "",
+    textContent: "",
+    templateType: "custom" as "custom" | "onboarding" | "reset_password" | "promotion" | "system_maintenance" | "welcome"
   });
   const [newTemplate, setNewTemplate] = useState({
     name: "",
     subject: "",
-    templateType: "newsletter" as "newsletter" | "welcome" | "promotion",
+    templateType: "custom" as "custom" | "onboarding" | "reset_password" | "promotion" | "system_maintenance" | "welcome",
     htmlContent: "",
     textContent: "",
     isActive: true
@@ -1921,8 +1922,9 @@ function EnhancedAdminDashboard() {
         setEmailTemplateForm({
           name: "",
           subject: "",
-          content: "",
-          type: "custom"
+          htmlContent: "",
+          textContent: "",
+          templateType: "custom"
         });
         
         // Refresh email templates list
@@ -6966,34 +6968,47 @@ function EnhancedAdminDashboard() {
             </div>
             
             <div>
-              <Label htmlFor="templateContent" className="text-gray-300">Email Content</Label>
-              <Textarea
-                id="templateContent"
-                value={emailTemplateForm.content}
-                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, content: e.target.value})}
-                placeholder="Enter email content here..."
-                className="bg-gray-800 border-gray-600 text-white min-h-40"
-                rows={10}
-              />
-            </div>
-            
-            <div>
               <Label htmlFor="templateType" className="text-gray-300">Template Type</Label>
               <Select 
-                value={emailTemplateForm.type} 
-                onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, type: value})}
+                value={emailTemplateForm.templateType} 
+                onValueChange={(value) => setEmailTemplateForm({...emailTemplateForm, templateType: value as any})}
               >
                 <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
                   <SelectValue placeholder="Select template type" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-600">
                   <SelectItem value="welcome" className="text-white">Welcome Email</SelectItem>
-                  <SelectItem value="newsletter" className="text-white">Newsletter</SelectItem>
-                  <SelectItem value="promotion" className="text-white">Promotion</SelectItem>
-                  <SelectItem value="notification" className="text-white">Notification</SelectItem>
-                  <SelectItem value="custom" className="text-white">Custom</SelectItem>
+                  <SelectItem value="onboarding" className="text-white">Onboarding Email</SelectItem>
+                  <SelectItem value="reset_password" className="text-white">Reset Password Email</SelectItem>
+                  <SelectItem value="promotion" className="text-white">Promotion Email</SelectItem>
+                  <SelectItem value="system_maintenance" className="text-white">System Maintenance Email</SelectItem>
+                  <SelectItem value="custom" className="text-white">Custom Email</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="templateHtmlContent" className="text-gray-300">HTML Content</Label>
+              <Textarea
+                id="templateHtmlContent"
+                value={emailTemplateForm.htmlContent}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, htmlContent: e.target.value})}
+                placeholder="Enter HTML email content here... You can use variables like {{firstName}}, {{email}}, etc."
+                className="bg-gray-800 border-gray-600 text-white min-h-40"
+                rows={8}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="templateTextContent" className="text-gray-300">Text Content (Optional)</Label>
+              <Textarea
+                id="templateTextContent"
+                value={emailTemplateForm.textContent}
+                onChange={(e) => setEmailTemplateForm({...emailTemplateForm, textContent: e.target.value})}
+                placeholder="Enter plain text version here (fallback for email clients that don't support HTML)"
+                className="bg-gray-800 border-gray-600 text-white min-h-20"
+                rows={4}
+              />
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">
@@ -7005,8 +7020,9 @@ function EnhancedAdminDashboard() {
                   setEmailTemplateForm({
                     name: "",
                     subject: "",
-                    content: "",
-                    type: "custom"
+                    htmlContent: "",
+                    textContent: "",
+                    templateType: "custom"
                   });
                 }}
                 className="border-slate-600 text-white hover:bg-slate-700"
@@ -7015,7 +7031,7 @@ function EnhancedAdminDashboard() {
               </Button>
               <Button 
                 onClick={editingEmailTemplate ? handleUpdateEmailTemplate : handleCreateEmailTemplate}
-                disabled={!emailTemplateForm.name || !emailTemplateForm.subject || !emailTemplateForm.content}
+                disabled={!emailTemplateForm.name || !emailTemplateForm.subject || !emailTemplateForm.htmlContent}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {editingEmailTemplate ? "Update Template" : "Create Template"}
