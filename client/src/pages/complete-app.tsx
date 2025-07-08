@@ -118,7 +118,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
               onClick={() => setSelectedSeason(season)}
               className="mb-2"
             >
-              {season.name}
+              {season?.name || 'Season'}
             </Button>
           ))}
         </div>
@@ -142,7 +142,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
               >
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl mb-2">{sector.icon}</div>
-                  <h4 className="font-semibold text-sm mb-2">{sector.name}</h4>
+                  <h4 className="font-semibold text-sm mb-2">{sector?.name || 'Sector'}</h4>
                   <div className="space-y-2">
                     <Progress value={percentage} className="h-2" />
                     <p className="text-xs text-gray-600">
@@ -161,7 +161,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
         <div className="space-y-4">
           <div className="text-center">
             <h4 className="text-xl font-bold text-slate-900">
-              {selectedSector.name} Collection
+              {selectedSector?.name || 'Collection'} Collection
             </h4>
             <p className="text-gray-600">{selectedSector.description}</p>
           </div>
@@ -181,9 +181,9 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                         }}
                       />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
-                    <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                      {toy.rarity}
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
+                    <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
+                      {toy?.rarity || 'Unknown'}
                     </Badge>
                     <p className="text-sm text-gray-600 mt-2">{toy.description}</p>
                     
@@ -209,7 +209,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
         <div className="space-y-4">
           <div className="text-center">
             <h4 className="text-xl font-bold text-slate-900">
-              {selectedSeason.displayName || selectedSeason.name} Collection
+              {selectedSeason?.displayName || selectedSeason?.name || 'Season'} Collection
             </h4>
             <p className="text-gray-600">Seasonal toys available in this collection</p>
           </div>
@@ -226,7 +226,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                   }}
                 />
                 <div className="text-sm">
-                  <div className="font-semibold text-slate-800 mb-1">{toy.name}</div>
+                  <div className="font-semibold text-slate-800 mb-1">{toy?.name || 'Toy'}</div>
                   <div className="flex justify-center items-center gap-2 text-xs">
                     <span className={`px-2 py-1 rounded-full ${
                       toy.gender === 'male' 
@@ -8559,10 +8559,10 @@ export default function CompleteApp() {
                             className="w-32 h-32 mx-auto object-contain"
                           />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">{toy.name}</h3>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
                         <div className="flex justify-center gap-2 mb-2 flex-wrap">
-                          <Badge className={getRarityColor(toy.rarity)} variant="secondary">
-                            {toy.rarity}
+                          <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
+                            {toy?.rarity || 'Unknown'}
                           </Badge>
                           {toy.gender && (
                             <Badge variant="outline" className={
