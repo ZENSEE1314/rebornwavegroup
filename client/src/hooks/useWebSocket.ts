@@ -25,14 +25,29 @@ export function useWebSocket(enabled: boolean = true) {
 
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      // Fix for undefined port issue
-      let host = window.location.host;
-      if (!host || host === 'undefined:undefined') {
-        host = `${window.location.hostname}:${window.location.port || "3000"}`;
-      }
-      const wsUrl = `${protocol}//${host}/ws`;
       
-      console.log('Connecting to WebSocket:', wsUrl);
+      // Simplified WebSocket URL construction for Replit
+      // The WebSocket should connect to the same host as the current page
+      // since both frontend and backend are served from the same server on port 5000
+      const currentHost = window.location.host;
+      
+      // In Replit, the app is served from the same host/port for both frontend and backend
+      // If host is undefined or contains undefined, fall back to constructing it manually
+      let finalHost = currentHost;
+      if (!currentHost || currentHost.includes('undefined') || currentHost === ':undefined' || currentHost === 'undefined:undefined') {
+        finalHost = `${window.location.hostname || 'localhost'}:5000`;
+      }
+      
+      const wsUrl = `${protocol}//${finalHost}/ws`;
+      
+      console.log('WebSocket connection details:', {
+        protocol,
+        hostname: window.location.hostname,
+        port: window.location.port,
+        host: window.location.host,
+        finalHost: host,
+        finalUrl: wsUrl
+      });
       
       // Create WebSocket with additional error handling
       try {
