@@ -955,12 +955,17 @@ function EnhancedAdminDashboard() {
   });
 
   // Email template mutations
-  const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
+  const { data: emailTemplatesData, isLoading: emailTemplatesLoading, error: emailTemplatesError } = useQuery({
     queryKey: ['/api/admin/email-templates'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/email-templates');
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      try {
+        const response = await apiRequest('GET', '/api/admin/email-templates');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Failed to fetch email templates:', error);
+        return [];
+      }
     }
   });
 
@@ -5630,6 +5635,7 @@ function EnhancedAdminDashboard() {
                       ) : (
                         emailTemplatesData
                           .filter((template: any) => {
+                            if (!template || !template.name || !template.subject) return false;
                             const matchesSearch = template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
                                                 template.subject.toLowerCase().includes(templateSearch.toLowerCase());
                             const matchesType = templateTypeFilter === "all" || template.templateType === templateTypeFilter;
