@@ -416,7 +416,7 @@ function EnhancedAdminDashboard() {
     color: "blue",
     gender: "male",
     imageUrl: "",
-    quantity: 1
+    basePrice: "1000000.00"
   });
   
   // Edit toy owner dialog states
@@ -1247,7 +1247,7 @@ function EnhancedAdminDashboard() {
         color: "blue",
         gender: "male",
         imageUrl: "",
-        quantity: 1
+        basePrice: "1000000.00"
       });
       setShowTemplateDialog(false);
     },
@@ -6420,14 +6420,15 @@ function EnhancedAdminDashboard() {
               </div>
 
               <div>
-                <label className="text-white text-sm">Quantity</label>
+                <label className="text-white text-sm">Base Price (RP)</label>
                 <Input
                   type="number"
-                  min="1"
-                  max="100"
-                  value={templateToyForm.quantity}
-                  onChange={(e) => setTemplateToyForm({...templateToyForm, quantity: parseInt(e.target.value) || 1})}
+                  min="100000"
+                  step="100000"
+                  value={parseFloat(templateToyForm.basePrice)}
+                  onChange={(e) => setTemplateToyForm({...templateToyForm, basePrice: (parseFloat(e.target.value) || 1000000).toString()})}
                   className="bg-white/10 border-white/20 text-white"
+                  placeholder="1000000"
                 />
               </div>
             </div>
