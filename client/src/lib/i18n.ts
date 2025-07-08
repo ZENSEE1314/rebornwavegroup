@@ -5562,11 +5562,7 @@ export const translations: Translations = {
     zh: '历史',
     id: 'Riwayat'
   },
-  'common.noHistory': {
-    en: 'No history found',
-    zh: '未找到历史',
-    id: 'Tidak ada riwayat ditemukan'
-  },
+
   'admin.dashboard': {
     en: 'Admin Dashboard',
     zh: '管理员仪表板',

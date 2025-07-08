@@ -1220,21 +1220,20 @@ function EnhancedAdminDashboard() {
   // Proper toy template creation mutation for toy_templates table
   const createToyTemplateMutation = useMutation({
     mutationFn: async (templateData: any) => {
-      // Transform data to match schema requirements
+      // Transform data to match schema requirements, excluding quantity field
       const transformedData = {
         name: templateData.name,
         rarity: templateData.rarity || 'common',
         color: templateData.color || 'blue',
         gender: templateData.gender || 'male',
-        imageUrl: templateData.imageUrl || null,
-        basePrice: templateData.basePrice ? String(templateData.basePrice) : '0.00',
+        imageUrl: templateData.imageUrl?.trim() || null,
+        basePrice: templateData.basePrice ? String(templateData.basePrice) : '1000000.00', // Default price
         description: templateData.description || null,
         // Convert empty string seasonId to null for proper validation
         seasonId: templateData.seasonId && templateData.seasonId !== "" ? parseInt(templateData.seasonId) : null,
         isActive: templateData.isActive !== false
       };
       
-
       return apiRequest('POST', '/api/admin/toy-templates', transformedData);
     },
     onSuccess: () => {

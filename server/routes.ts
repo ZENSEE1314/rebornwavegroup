@@ -4287,28 +4287,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new toy template
   app.post('/api/admin/toy-templates', requireAuth, async (req: any, res) => {
     try {
-      console.log("*** TOY TEMPLATE CREATION: Starting authentication check");
-      console.log("*** Session user:", req.user);
-      console.log("*** Session:", req.session);
-      
       const adminUserId = getUserId(req);
-      console.log("*** Admin User ID:", adminUserId);
       
       if (!adminUserId) {
-        console.log("*** Authentication failed: No user ID");
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       const currentUser = await storage.getUser(adminUserId);
-      console.log("*** Current user from storage:", currentUser);
       
       if (!currentUser || currentUser.role !== 'admin') {
-        console.log("*** Access denied: Not admin user");
         return res.status(403).json({ message: "Admin access required" });
       }
-
-      console.log("*** TOY TEMPLATE CREATION: Request body:", JSON.stringify(req.body, null, 2));
-      console.log("*** TOY TEMPLATE CREATION: Request body types:", Object.keys(req.body).map(key => `${key}: ${typeof req.body[key]}`));
 
       const validatedData = schema.insertToyTemplateSchema.parse(req.body);
       
