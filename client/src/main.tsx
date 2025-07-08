@@ -4,26 +4,15 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-// Completely suppress WebSocket and unhandled rejection errors from external services
+// Allow WebSocket connections for real-time functionality
+// Suppress only specific external errors while allowing WebSocket connections
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   const message = args.join(' ').toLowerCase();
   
-  // Filter out specific external WebSocket errors and unhandled rejections
-  if ((message.includes('websocket connection to') && 
-       (message.includes('janeway.replit.dev') || 
-        message.includes('replit.dev') ||
-        message.includes('localhost:undefined') ||
-        message.includes('failed to construct'))) ||
-      message.includes('unhandledrejection') ||
+  // Filter out specific external errors but allow WebSocket connections
+  if (message.includes('unhandledrejection') ||
       message.includes('domexception') ||
-      (message.includes('websocket') && message.includes('failed')) ||
-      (message.includes('syntaxerror') && message.includes('websocket')) ||
-      (message.includes('failed to construct') && message.includes('websocket')) ||
-      message.includes('wss://localhost:undefined') ||
-      message.includes('ws://localhost:undefined') ||
-      message.includes('connection to') ||
-      message.includes('failed:') ||
       message.includes('client.536') ||
       message.includes('client:536') ||
       message.includes('setuptosocket') ||

@@ -35,8 +35,8 @@ export function useWebSocket(enabled: boolean = true) {
       
       // Check if we're in Replit environment (janeway.replit.dev URLs)
       if (window.location.hostname.includes('replit.dev')) {
-        // Use port 5000 for WebSocket connection in Replit
-        wsUrl = `${protocol}//${window.location.hostname}:5000/ws`;
+        // Use ws:// for port 5000 in Replit development environment
+        wsUrl = `ws://${window.location.hostname}:5000/ws`;
       } else {
         // For local development or other environments
         const currentHost = window.location.host;
