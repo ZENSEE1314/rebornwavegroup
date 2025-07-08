@@ -672,7 +672,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
       try {
         // Submit score to backend (no tokens earned)
         await apiRequest('POST', '/api/game-scores', {
-          petId: pet.id,
+          petId: pet?.id,
           score: score,
           tokensEarned: 0
         });
@@ -799,7 +799,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
                           {entry.user?.firstName || entry.user?.email || 'Anonymous'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {t('game.pet')} {entry.pet?.name || 'Unknown'}
+                          {t('game.pet')} {entry?.pet?.name || 'Unknown'}
                         </div>
                       </div>
                     </div>
@@ -948,11 +948,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
       if (key !== lastKey) {
         console.log('Pet stats updated:', {
           id: pet?.id,
-          name: pet.name,
-          hunger: pet.hunger,
-          happiness: pet.happiness,
-          cleanliness: pet.cleanliness,
-          energy: pet.energy
+          name: pet?.name,
+          hunger: pet?.hunger,
+          happiness: pet?.happiness,
+          cleanliness: pet?.cleanliness,
+          energy: pet?.energy
         });
         localStorage.setItem('lastPetKey', key);
       }
@@ -1575,12 +1575,12 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                             
                             if (user && user.tokens >= 5) {
                               console.log("Triggering pet name edit mutation:", {
-                                petId: pet.id,
+                                petId: pet?.id,
                                 newName: newPetName.trim(),
                                 currentTokens: user.tokens
                               });
                               editPetNameMutation.mutate({
-                                petId: pet.id,
+                                petId: pet?.id,
                                 newName: newPetName.trim()
                               });
                             } else {
@@ -2040,15 +2040,15 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           }
                           if (pet.isSleeping) {
                             playFemaleCuteVoice("Rise and shine! Time to wake up for feeding!");
-                            await wakeMutation.mutateAsync(pet.id);
+                            await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
                               playFemaleCuteVoice("Yummy time! Feeding your pet now!");
-                              careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
+                              careActivityMutation.mutate({ petId: pet?.id, careType: 'fed' });
                             }, 1000);
                           } else {
                             playFemaleCuteVoice("Yummy time! Feeding your pet now!");
-                            careActivityMutation.mutate({ petId: pet.id, careType: 'fed' });
+                            careActivityMutation.mutate({ petId: pet?.id, careType: 'fed' });
                           }
                         }}
                         disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
@@ -2077,15 +2077,15 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           }
                           if (pet.isSleeping) {
                             playFemaleCuteVoice("Rise and shine! Time to wake up for bath time!");
-                            await wakeMutation.mutateAsync(pet.id);
+                            await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
                               playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
-                              careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
+                              careActivityMutation.mutate({ petId: pet?.id, careType: 'bathed' });
                             }, 1000);
                           } else {
                             playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
-                            careActivityMutation.mutate({ petId: pet.id, careType: 'bathed' });
+                            careActivityMutation.mutate({ petId: pet?.id, careType: 'bathed' });
                           }
                         }}
                         disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
@@ -2124,15 +2124,15 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           }
                           if (pet.isSleeping) {
                             playFemaleCuteVoice("Rise and shine! Time to wake up for playtime!");
-                            await wakeMutation.mutateAsync(pet.id);
+                            await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
                               playFemaleCuteVoice("Playtime! Let's have some fun together!");
-                              careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
+                              careActivityMutation.mutate({ petId: pet?.id, careType: 'play' });
                             }, 1000);
                           } else {
                             playFemaleCuteVoice("Playtime! Let's have some fun together!");
-                            careActivityMutation.mutate({ petId: pet.id, careType: 'play' });
+                            careActivityMutation.mutate({ petId: pet?.id, careType: 'play' });
                           }
                         }}
                         disabled={careActivityMutation.isPending || wakeMutation.isPending || energy < 5}
@@ -2151,7 +2151,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50 border-blue-200"
                           onClick={() => {
                             playFemaleCuteVoice("Rise and shine! Time to wake up, sweetie!");
-                            wakeMutation.mutate(pet.id);
+                            wakeMutation.mutate(pet?.id);
                           }}
                           disabled={wakeMutation.isPending}
                         >
@@ -2167,7 +2167,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                           className="flex items-center gap-2 p-4 h-auto flex-col"
                           onClick={() => {
                             playFemaleCuteVoice("Sleep tight! Sweet dreams, my precious pet!");
-                            sleepMutation.mutate(pet.id);
+                            sleepMutation.mutate(pet?.id);
                           }}
                           disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
                         >
@@ -2184,7 +2184,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                       <Button
                         variant="outline"
                         className="flex items-center gap-2 p-4 h-auto flex-col bg-purple-50 border-purple-200"
-                        onClick={() => energyPotionMutation.mutate({ petId: pet.id })}
+                        onClick={() => energyPotionMutation.mutate({ petId: pet?.id })}
                         disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
                       >
                         <span className="text-2xl">⚡</span>
@@ -2790,7 +2790,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   className="h-20 flex-col gap-2"
                   onClick={() => {
                     playFemaleCuteVoice("Yummy time! Feeding your pet now!");
-                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'fed' });
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'fed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
@@ -2803,7 +2803,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   className="h-20 flex-col gap-2"
                   onClick={() => {
                     playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
-                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'bathed' });
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'bathed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
@@ -2816,7 +2816,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   className="h-20 flex-col gap-2"
                   onClick={() => {
                     playFemaleCuteVoice("Playtime! Let's have some fun together!");
-                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'play' });
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'play' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
                 >
@@ -2829,7 +2829,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                   className="h-20 flex-col gap-2"
                   onClick={() => {
                     playFemaleCuteVoice("Sweet dreams! Time for a cozy nap!");
-                    careActivityMutation.mutate({ petId: safePets[currentPetIndex].id, careType: 'slept' });
+                    careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'slept' });
                   }}
                   disabled={careActivityMutation.isPending}
                 >
@@ -2839,7 +2839,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 <Button
                   variant="outline"
                   className="h-20 flex-col gap-2 bg-purple-50 border-purple-200"
-                  onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex].id })}
+                  onClick={() => energyPotionMutation.mutate({ petId: safePets[currentPetIndex]?.id })}
                   disabled={energyPotionMutation.isPending || (user?.tokens || 0) < 2}
                 >
                   <span className="text-2xl">⚡</span>
