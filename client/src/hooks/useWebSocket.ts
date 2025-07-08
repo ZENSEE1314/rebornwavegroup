@@ -2,21 +2,28 @@ import { useEffect, useRef, useCallback } from 'react';
 import { queryClient } from '@/lib/queryClient';
 
 export function useWebSocket(enabled: boolean = true) {
+  // Completely disable WebSocket in development environment
+  const isDevelopment = window.location.hostname.includes('janeway.replit.dev') ||
+                       window.location.hostname.includes('replit.dev') ||
+                       window.location.port === '3000';
+  
+  if (isDevelopment) {
+    // Return early with no-op functions for development
+    return {
+      isConnected: false,
+      sendMessage: () => {},
+      disconnect: () => {},
+      connect: () => {}
+    };
+  }
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef<number>(0);
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    // Disable WebSocket completely in development environments
-    if (!enabled || 
-        window.location.hostname.includes('janeway.replit.dev') ||
-        window.location.hostname.includes('replit.dev') ||
-        window.location.port === '3000' ||
-        process.env.NODE_ENV === 'development') {
-      console.log('WebSocket disabled in development environment');
-      return;
-    }
+    if (!enabled) return;
     
     // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN || 

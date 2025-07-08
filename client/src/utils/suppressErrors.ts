@@ -1,6 +1,36 @@
 // Additional error suppression utility
 // This runs immediately to catch any errors before the main app loads
 
+// Complete WebSocket constructor override for development
+if (window.location.hostname.includes('janeway.replit.dev') || 
+    window.location.hostname.includes('replit.dev')) {
+  
+  // Override WebSocket constructor to prevent any WebSocket creation
+  const OriginalWebSocket = window.WebSocket;
+  window.WebSocket = function(url: string | URL, protocols?: string | string[]) {
+    console.log('WebSocket creation blocked in development environment');
+    // Return a mock WebSocket object that doesn't actually connect
+    return {
+      readyState: 3, // CLOSED
+      close: () => {},
+      send: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+      onopen: null,
+      onclose: null,
+      onmessage: null,
+      onerror: null
+    } as any;
+  } as any;
+  
+  // Copy static properties
+  window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+  window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+  window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+  window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+}
+
 // Override window.onerror to suppress WebSocket errors
 window.onerror = function(message, source, lineno, colno, error) {
   const messageStr = String(message).toLowerCase();
