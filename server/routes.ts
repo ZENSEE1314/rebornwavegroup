@@ -1086,6 +1086,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`*** APPROVAL DEBUG: Skipping point award - status: ${status}, points: ${pointsAwarded}`);
       }
 
+      // Create admin log entry for this action
+      try {
+        await storage.createAdminLog({
+          adminId: adminId,
+          action: `${status === 'approved' ? 'APPROVED' : 'REJECTED'}_PAYMENT`,
+          resourceType: 'payment_verification',
+          resourceId: updatedVerification.id.toString(),
+          description: `${status === 'approved' ? 'Approved' : 'Rejected'} payment verification #${updatedVerification.id} for user ${updatedVerification.userId}${status === 'approved' ? ` and awarded ${calculatedPoints} loyalty points` : ''}${adminNotes ? ` - Notes: ${adminNotes}` : ''}`,
+          metadata: JSON.stringify({
+            verificationId: updatedVerification.id,
+            userId: updatedVerification.userId,
+            amount: updatedVerification.amount,
+            status: status,
+            pointsAwarded: calculatedPoints || 0,
+            adminNotes: adminNotes
+          })
+        });
+        console.log(`*** ADMIN LOG: Created log entry for payment ${status} action by admin ${adminId}`);
+      } catch (logError) {
+        console.error(`*** ADMIN LOG ERROR: Failed to create log entry:`, logError);
+      }
+
       // Payment verification update completed
       console.log(`Payment verification ${updatedVerification.id} updated to ${updatedVerification.status}`);
 
