@@ -25,10 +25,14 @@ export function useWebSocket(enabled: boolean = true) {
 
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = window.location.host || `${window.location.hostname}:${window.location.port || (window.location.protocol === "https:" ? "443" : "80")}`;
+      // Fix for undefined port issue
+      let host = window.location.host;
+      if (!host || host === 'undefined:undefined') {
+        host = `${window.location.hostname}:${window.location.port || "3000"}`;
+      }
       const wsUrl = `${protocol}//${host}/ws`;
       
-
+      console.log('Connecting to WebSocket:', wsUrl);
       
       // Create WebSocket with additional error handling
       try {
