@@ -57,7 +57,8 @@ import {
   Mail,
   MessageCircle,
   ImageIcon,
-  Shield
+  Shield,
+  Send
 } from "lucide-react";
 
 // Admin Logs Section Component
@@ -958,7 +959,10 @@ function EnhancedAdminDashboard() {
   // Email template mutations
   const { data: emailTemplatesData, isLoading: emailTemplatesLoading } = useQuery({
     queryKey: ['/api/admin/email-templates'],
-    queryFn: () => apiRequest('GET', '/api/admin/email-templates')
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/email-templates');
+      return response.json();
+    }
   });
 
   const createEmailTemplateMutation = useMutation({
@@ -1901,12 +1905,7 @@ function EnhancedAdminDashboard() {
   // Handler functions for email templates
   const handleCreateEmailTemplate = async () => {
     try {
-      const response = await apiRequest("POST", "/api/admin/email-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailTemplateForm),
-        credentials: "include"
-      });
+      const response = await apiRequest("POST", "/api/admin/email-templates", emailTemplateForm);
       
       if (response.ok) {
         toast({
@@ -1940,12 +1939,7 @@ function EnhancedAdminDashboard() {
     if (!editingEmailTemplate) return;
     
     try {
-      const response = await apiRequest("PUT", `/api/admin/email-templates/${editingEmailTemplate.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailTemplateForm),
-        credentials: "include"
-      });
+      const response = await apiRequest("PUT", `/api/admin/email-templates/${editingEmailTemplate.id}`, emailTemplateForm);
       
       if (response.ok) {
         toast({
@@ -1980,10 +1974,7 @@ function EnhancedAdminDashboard() {
     if (!confirm("Are you sure you want to delete this email template?")) return;
     
     try {
-      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
+      const response = await apiRequest("DELETE", `/api/admin/email-templates/${templateId}`);
       
       if (response.ok) {
         toast({
