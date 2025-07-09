@@ -861,7 +861,7 @@ function EnhancedAdminDashboard() {
   // Mutations
   const updateCreditsMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: string }) => {
-      return apiRequest('POST', '/api/admin/update-credits', { userId, amount });
+      return apiRequest('PATCH', `/api/admin/users/${userId}/credits`, { credits: amount });
     },
     onSuccess: () => {
       toast({ title: "Credits updated successfully" });

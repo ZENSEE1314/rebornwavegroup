@@ -5869,13 +5869,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, amount } = req.body;
-      await storage.updateUserCredits(adminUserId, amount);
       
-      // Create transaction record
-      await storage.createTransaction({
-        adminUserId,
+      // FIXED: Update target user's credits, not admin's credits
+      await storage.updateUserCredits(targetUserId, amount);
+      
+      // Create simple credit history record (not transaction that triggers payment logic)
+      await db.insert(creditHistory).values({
+        userId: targetUserId,
+        amount: amount,
         type: 'credit',
-        amount,
         description: `Admin credit adjustment by ${currentUser.firstName} ${currentUser.lastName}`,
         relatedId: null
       });
