@@ -17,6 +17,7 @@ import {
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
   Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import logoImage from "@assets/2-removebg-preview.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import doluruuGrandpaImage from "@assets/Doluruu Grandpa_1749903476706.png";
@@ -3453,6 +3454,12 @@ export default function CompleteApp() {
   const [showCreateListingModal, setShowCreateListingModal] = useState(false);
   const [selectedToyForSale, setSelectedToyForSale] = useState<any>(null);
   const [newListingPrice, setNewListingPrice] = useState("");
+  
+  // Confirmation dialog state variables
+  const [showPetActivationConfirm, setShowPetActivationConfirm] = useState(false);
+  const [showMarketplacePurchaseConfirm, setShowMarketplacePurchaseConfirm] = useState(false);
+  const [pendingToyActivation, setPendingToyActivation] = useState<any>(null);
+  const [pendingMarketplacePurchase, setPendingMarketplacePurchase] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -3652,10 +3659,42 @@ export default function CompleteApp() {
     },
   });
 
-  // Function to activate toy as pet - moved to top level for global access
+  // Confirmation dialog handlers
+  const showPetActivationDialog = (toy: any) => {
+    setPendingToyActivation(toy);
+    setShowPetActivationConfirm(true);
+  };
+
+  const confirmPetActivation = () => {
+    if (pendingToyActivation) {
+      console.log('*** FRONTEND: Confirming pet activation for toy:', pendingToyActivation);
+      activateToyAsPetMutation.mutate(pendingToyActivation);
+      setShowPetActivationConfirm(false);
+      setPendingToyActivation(null);
+    }
+  };
+
+  const showMarketplacePurchaseDialog = (listing: any) => {
+    setPendingMarketplacePurchase(listing);
+    setShowMarketplacePurchaseConfirm(true);
+  };
+
+  const confirmMarketplacePurchase = () => {
+    if (pendingMarketplacePurchase) {
+      buyToyMutation.mutate(pendingMarketplacePurchase);
+      setShowMarketplacePurchaseConfirm(false);
+      setPendingMarketplacePurchase(null);
+    }
+  };
+
+  // Function to activate toy as pet - updated to use confirmation dialog
   const activateToyAsPet = (toy: any) => {
-    console.log('*** FRONTEND: Attempting to activate toy as pet:', toy);
-    activateToyAsPetMutation.mutate(toy);
+    showPetActivationDialog(toy);
+  };
+
+  // Update buyToy function to use confirmation dialog
+  const buyToy = (listing: any) => {
+    showMarketplacePurchaseDialog(listing);
   };
   
   const [activeTab, setActiveTab] = useState("dashboard");
