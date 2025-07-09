@@ -187,15 +187,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                     </Badge>
                     <p className="text-sm text-gray-600 mt-2">{toy?.description || ''}</p>
                     
-                    {toy.isOwned ? (
-                      <Badge className="mt-3 w-full bg-green-100 text-green-800 border-green-300">
-                        ✓ Collected
-                      </Badge>
-                    ) : (
-                      <Badge className="mt-3 w-full bg-gray-100 text-gray-600 border-gray-300">
-                        Not Collected
-                      </Badge>
-                    )}
+
                   </div>
                 </CardContent>
               </Card>

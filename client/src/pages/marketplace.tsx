@@ -310,12 +310,13 @@ export default function Marketplace() {
                     {/* Add toy image display */}
                     <div className="mb-4">
                       <img 
-                        src={toy.imageUrl || "/api/placeholder/100/100"} 
+                        src={toy.imageUrl ? `${toy.imageUrl}?v=${Date.now()}` : "/api/placeholder/100/100"} 
                         alt={toy?.name || 'Toy'} 
                         className="w-24 h-24 mx-auto object-contain rounded-lg"
                         onError={(e) => {
                           e.currentTarget.src = "/api/placeholder/100/100";
                         }}
+                        key={`${toy.id}-${toy.imageUrl}`}
                       />
                     </div>
                     
@@ -335,8 +336,7 @@ export default function Marketplace() {
             ) : (
               <div className="col-span-full text-center py-12 text-slate-500">
                 <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No collectibles yet</p>
-                <p className="text-sm">Scan QR codes to add toys to your collection!</p>
+                <p>Your collection is empty</p>
               </div>
             )}
           </div>
