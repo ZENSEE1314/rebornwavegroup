@@ -2963,7 +2963,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
   );
 }
 
-function PurchaseVerificationSection({ language, user }: { language: string; user: any }) {
+function PurchaseVerificationSection({ language, user, userTokens }: { language: string; user: any; userTokens: number }) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit'>('cash');
@@ -2974,6 +2974,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   const { toast } = useToast();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+
+  // Get userStats for real-time balance updates
+  const { data: userStats } = useQuery({
+    queryKey: ['/api/user-stats'],
+    enabled: !!user?.id,
+    staleTime: 0, // Always get fresh data
+    refetchInterval: 3000, // Poll every 3 seconds for real-time updates
+  });
 
   // Fetch user's payment verifications with pagination
   const { data: userVerificationsResponse, isLoading: verificationsLoading } = useQuery({
@@ -3139,7 +3147,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     }
 
     if (paymentMethod === 'credit') {
-      const userCredits = parseFloat(user?.credits || '0');
+      const userCredits = parseFloat(userStats?.credits || '0');
       const purchaseAmount = parseFloat(amount);
       
       if (userCredits < purchaseAmount) {
@@ -3270,7 +3278,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                     <div className="text-center">
                       <div className="text-lg font-semibold">Credit Payment</div>
                       <div className="text-sm text-gray-600">
-                        Balance: RP {parseFloat(user?.credits || '0').toLocaleString('id-ID')}
+                        Balance: RP {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
                       </div>
                     </div>
                   </button>
@@ -3376,14 +3384,14 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-green-800">Current Balance:</span>
                     <span className="text-lg font-bold text-green-900">
-                      RP {parseFloat(user?.credits || '0').toLocaleString('id-ID')}
+                      RP {parseFloat(userStats?.credits || '0').toLocaleString('id-ID')}
                     </span>
                   </div>
                   {amount && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-green-800">After Purchase:</span>
                       <span className="text-lg font-bold text-green-900">
-                        RP {Math.max(0, parseFloat(user?.credits || '0') - parseFloat(amount || '0')).toLocaleString('id-ID')}
+                        RP {Math.max(0, parseFloat(userStats?.credits || '0') - parseFloat(amount || '0')).toLocaleString('id-ID')}
                       </span>
                     </div>
                   )}
@@ -8807,7 +8815,7 @@ export default function CompleteApp() {
 
         {/* Purchase Verification Tab */}
         {activeTab === "purchase" && (
-          <PurchaseVerificationSection language={language} user={user} />
+          <PurchaseVerificationSection language={language} user={user} userTokens={userTokens} />
         )}
 
         {/* Referrals Tab */}
