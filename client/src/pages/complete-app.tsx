@@ -8386,10 +8386,13 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <div className="mb-4">
                         <img 
-                          src={`${toyImage}?v=${Date.now()}`} 
+                          src={purchase.toy?.imageUrl ? `${purchase.toy.imageUrl}?v=${Date.now()}` : '/images/default-toy.png'} 
                           alt={purchase.toy?.name || "Toy"} 
                           className="w-24 h-24 mx-auto object-contain"
-                          key={`toy-${purchase.toy?.id}-${Date.now()}`}
+                          key={`pending-seller-toy-${purchase.toy?.id}-${Date.now()}`}
+                          onError={(e) => {
+                            e.currentTarget.src = '/images/default-toy.png';
+                          }}
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
@@ -8433,10 +8436,13 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <div className="mb-4">
                         <img 
-                          src={`${toyImage}?v=${Date.now()}`} 
+                          src={purchase.toy?.imageUrl ? `${purchase.toy.imageUrl}?v=${Date.now()}` : '/images/default-toy.png'} 
                           alt={purchase.toy?.name || "Toy"} 
                           className="w-24 h-24 mx-auto object-contain"
-                          key={`toy-${purchase.toy?.id}-${Date.now()}`}
+                          key={`pending-buyer-toy-${purchase.toy?.id}-${Date.now()}`}
+                          onError={(e) => {
+                            e.currentTarget.src = '/images/default-toy.png';
+                          }}
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
@@ -8547,9 +8553,13 @@ export default function CompleteApp() {
                         
                         <div className="mb-4">
                           <img 
-                            src={toyImage} 
+                            src={toy?.imageUrl ? `${toy.imageUrl}?v=${Date.now()}` : '/images/default-toy.png'} 
                             alt={toy?.name || 'Toy'} 
                             className="w-32 h-32 mx-auto object-contain"
+                            key={`toy-collection-${toy?.id}-${Date.now()}`}
+                            onError={(e) => {
+                              e.currentTarget.src = '/images/default-toy.png';
+                            }}
                           />
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
