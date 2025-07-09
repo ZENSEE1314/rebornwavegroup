@@ -677,7 +677,25 @@ export class DatabaseStorage implements IStorage {
 
   async getToysByOwnerId(ownerId: string): Promise<Toy[]> {
     return await db
-      .select()
+      .select({
+        id: toys.id,
+        name: toys.name,
+        species: toys.species,
+        color: toys.color,
+        rarity: toys.rarity,
+        gender: toys.gender,
+        imageUrl: toys.imageUrl,
+        qrCode: toys.qrCode,
+        ownerId: toys.ownerId,
+        purchasedBy: toys.purchasedBy,
+        isActivated: toys.isActivated,
+        createdAt: toys.createdAt,
+        updatedAt: toys.updatedAt,
+        seasonId: toys.seasonId,
+        templateId: toys.templateId,
+        isTemplate: toys.isTemplate,
+        originalPrice: toys.originalPrice
+      })
       .from(toys)
       .where(eq(toys.ownerId, ownerId))
       .orderBy(desc(toys.createdAt));

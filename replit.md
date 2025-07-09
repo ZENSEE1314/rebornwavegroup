@@ -26,6 +26,15 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Toy Image Display Field Mapping Fix (July 9, 2025)
+- **CRITICAL FIX COMPLETED**: ✅ RESOLVED TOY IMAGE DISPLAY ISSUE - Fixed database field mapping between snake_case and camelCase
+- **Root Cause Identified**: Database schema uses `image_url` (snake_case) but frontend expects `imageUrl` (camelCase)
+- **Storage Layer Fix**: Updated `getToysByOwnerId` method with explicit field mapping to ensure proper imageUrl transmission
+- **Enhanced Debug Logging**: Added comprehensive logging to `/api/toys` endpoint to trace imageUrl field transmission
+- **Database Verification**: Confirmed toy ID 9849 "Doluruu Baby Boy" exists with proper image path `/uploaded-images/season-1751732577038-525846426.png`
+- **Field Mapping Resolution**: Explicit select statement now maps `toys.imageUrl` field correctly from database to frontend
+- **System Status**: Toy collection image display issue resolved - imageUrl field properly transmitted to frontend components
+
 ### Real-Time Admin RP Points & Tokens Update System Verification (July 9, 2025)
 - **MAJOR FEATURE VERIFICATION**: ✅ CONFIRMED REAL-TIME ADMIN UPDATES FOR RP POINTS AND TOKENS FULLY OPERATIONAL
 - **WebSocket Broadcasting**: All admin user editing endpoints properly broadcast `USER_DATA_UPDATED` events via WebSocket

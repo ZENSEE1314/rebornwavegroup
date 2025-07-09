@@ -2195,12 +2195,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: toy.name,
           rarity: toy.rarity,
           imageUrl: toy.imageUrl,
-          image_url: (toy as any).image_url,
           isActivated: toy.isActivated,
-          is_activated: toy.is_activated,
           ownerId: toy.ownerId,
-          owner_id: toy.owner_id
+          qrCode: toy.qrCode,
+          gender: toy.gender,
+          color: toy.color
         });
+        if (toy.imageUrl) {
+          console.log(`*** TOY ${index + 1} IMAGE PATH:`, toy.imageUrl);
+        } else {
+          console.log(`*** TOY ${index + 1} MISSING IMAGE:`, "No imageUrl field found");
+        }
       });
       res.json(toys);
     } catch (error) {
