@@ -2248,9 +2248,9 @@ export const translations: Translations = {
     id: 'Sistem Keamanan: Setiap kode QR unik dan tidak dapat diprediksi untuk mencegah penambahan mainan yang tidak sah.'
   },
   'toyActivation.seasonCollection': {
-    en: 'Season 1 Collection - 7,000 toys available',
-    zh: '第一季收藏 - 7,000个玩具可用',
-    id: 'Koleksi Musim 1 - 7.000 mainan tersedia'
+    en: 'Collectible toys available',
+    zh: '收藏玩具可用',
+    id: 'Mainan koleksi tersedia'
   },
   'toyActivation.rarityInfo': {
     en: '1,000 secret rarity • 6,000 common rarity',
@@ -2871,9 +2871,9 @@ export const translations: Translations = {
     id: 'Rahasia'
   },
   'seasonCollection.title': {
-    en: 'Season 1 Collection - 7,000 toys available',
-    zh: '第一季收藏 - 7,000个玩具可用',
-    id: 'Koleksi Musim 1 - 7,000 mainan tersedia'
+    en: 'Collectible toys available',
+    zh: '收藏玩具可用',
+    id: 'Mainan koleksi tersedia'
   },
   'seasonCollection.rarity': {
     en: '1,000 secret rarity • 6,000 common rarity',
@@ -3854,9 +3854,9 @@ export const translations: Translations = {
     id: 'Gagal menyimpan pengaturan'
   },
   'seasonCollection.season1': {
-    en: 'Season 1 Collection - 7,000 toys available',
-    zh: '第1季收藏 - 7,000个玩具可用',
-    id: 'Koleksi Musim 1 - 7,000 mainan tersedia'
+    en: 'Collectible toys available',
+    zh: '收藏玩具可用',
+    id: 'Mainan koleksi tersedia'
   },
   'seasonCollection.rarityInfo': {
     en: '1,000 secret rarity • 6,000 common rarity',
