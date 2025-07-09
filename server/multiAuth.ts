@@ -380,30 +380,6 @@ If you didn't request this password reset, please ignore this email.
     }
   });
 
-  // Check authentication status endpoint
-  app.get('/api/auth/user', (req: Request, res: Response) => {
-
-    
-    // Give a brief moment for session to settle
-    setTimeout(() => {
-      if (!req.isAuthenticated() || !req.user) {
-
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-      
-      const user = req.user as any;
-
-      res.json({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        authProvider: user.authProvider,
-      });
-    }, 10);
-  });
-
   // Logout (POST version for API calls)
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.logout((err) => {

@@ -3615,10 +3615,6 @@ export default function CompleteApp() {
     }
   };
 
-  const buyToy = (listing: any) => {
-    buyToyMutation.mutate(listing);
-  };
-
   const cancelListing = (listingId: number) => {
     cancelListingMutation.mutate(listingId);
   };
