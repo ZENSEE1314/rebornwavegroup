@@ -306,6 +306,18 @@ export default function Marketplace() {
                         {toy.rarity}
                       </Badge>
                     </div>
+
+                    {/* Add toy image display */}
+                    <div className="mb-4">
+                      <img 
+                        src={toy.imageUrl || "/api/placeholder/100/100"} 
+                        alt={toy?.name || 'Toy'} 
+                        className="w-24 h-24 mx-auto object-contain rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.src = "/api/placeholder/100/100";
+                        }}
+                      />
+                    </div>
                     
                     <p className="text-sm text-slate-600 mb-2">Series: {toy.series}</p>
                     <p className="text-sm text-slate-500 mb-4">QR: {toy.qrCode}</p>
