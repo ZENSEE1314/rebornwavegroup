@@ -6227,6 +6227,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // If it's a token reward, add tokens to user account
+      if (reward.type === 'token') {
+        const currentTokens = user.tokens || 0;
+        const tokensToAdd = 1; // Each token reward gives 1 token
+        const newTokens = currentTokens + tokensToAdd;
+        
+        await storage.updateUserTokens(userId, newTokens);
+        
+        // Create token transaction record for reward redemption
+        await db.insert(tokenTransactions).values({
+          userId,
+          tokens: tokensToAdd,
+          type: 'reward_redeemed',
+          description: `Redeemed: ${reward.name} (Cost: ${pointsCost} points)`,
+          relatedId: rewardId
+        });
+      }
+      
       // Create points history record for redemption
       await storage.createPointsHistory({
         userId,
@@ -6979,6 +6997,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oldTokens = targetUser?.tokens || 0;
       
       await storage.updateUserTokens(targetUserId, tokens);
+
+      // Calculate token difference for transaction record
+      const tokenDifference = tokens - oldTokens;
+      
+      // Create token transaction record for admin tracking (only if there's a change)
+      if (tokenDifference !== 0) {
+        await db.insert(tokenTransactions).values({
+          userId: targetUserId,
+          tokens: tokenDifference,
+          type: tokenDifference > 0 ? 'admin_added' : 'admin_deducted',
+          description: `Admin ${currentUser.firstName || currentUser.email} ${tokenDifference > 0 ? 'added' : 'deducted'} ${Math.abs(tokenDifference)} tokens (${oldTokens} → ${tokens})`,
+          relatedId: null
+        });
+      }
 
       // Create admin log
       const adminLog = await storage.createAdminLog({
