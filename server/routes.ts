@@ -6974,7 +6974,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid token amount required" });
       }
       
+      // Get old values for logging
+      const targetUser = await storage.getUser(targetUserId);
+      const oldTokens = targetUser?.tokens || 0;
+      
       await storage.updateUserTokens(targetUserId, tokens);
+
+      // Create admin log
+      const adminLog = await storage.createAdminLog({
+        adminUserId,
+        targetUserId,
+        targetType: "user", 
+        targetId: targetUserId,
+        action: "update",
+        entityType: "tokens",
+        oldValues: { tokens: oldTokens },
+        newValues: { tokens },
+        description: `Admin ${currentUser.firstName || currentUser.email} updated user tokens from ${oldTokens} to ${tokens}`,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
+
+      // Broadcast admin log update for real-time dashboard
+      broadcastAdminLogUpdate(adminLog);
 
       // Get updated user data for broadcasting
       const updatedUser = await storage.getUser(targetUserId);

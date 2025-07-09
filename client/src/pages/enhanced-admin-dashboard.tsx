@@ -2760,7 +2760,7 @@ function EnhancedAdminDashboard() {
                                       <Label className="text-gray-300">Credits</Label>
                                       <Input
                                         type="number"
-                                        defaultValue={selectedUser.credits}
+                                        value={selectedUser.credits}
                                         onChange={(e) => setSelectedUser({...selectedUser, credits: e.target.value})}
                                         className="bg-gray-800 border-gray-600 text-white"
                                       />
@@ -2769,7 +2769,7 @@ function EnhancedAdminDashboard() {
                                       <Label className="text-gray-300">Points</Label>
                                       <Input
                                         type="number"
-                                        defaultValue={selectedUser.loyaltyPoints}
+                                        value={selectedUser.loyaltyPoints}
                                         onChange={(e) => setSelectedUser({...selectedUser, loyaltyPoints: e.target.value})}
                                         className="bg-gray-800 border-gray-600 text-white"
                                       />

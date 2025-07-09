@@ -26,6 +26,17 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Admin Credit Update System Bug Fixes (July 9, 2025)
+- **CRITICAL BUG RESOLUTION**: ✅ FIXED ADMIN CREDIT ADDITIONS AUTOMATICALLY AWARDING POINTS AND TOKENS
+- **Root Cause Identified**: Old admin credit update endpoint was updating admin's credits instead of target user's credits and creating transaction records that triggered payment processing logic
+- **Backend Fix**: Updated `/api/admin/update-credits` endpoint to update correct target user's credits and create simple credit history records instead of transaction records
+- **Frontend Enhancement**: Updated admin dashboard to use proper `/api/admin/users/:userId/credits` endpoint with clean admin logging
+- **Token Admin Logging**: ✅ ADDED MISSING ADMIN LOGGING FOR TOKEN EDITS - Token updates by admin now properly logged in admin logs with old/new values tracking
+- **Admin UI Display Fix**: ✅ RESOLVED CREDITS NOT UPDATING IN ADMIN USER MANAGEMENT - Fixed form fields to use `value` instead of `defaultValue` for real-time updates
+- **Clean Separation**: Admin credit adjustments now separate from payment processing system - no automatic rewards triggered
+- **Enhanced Admin Logs**: Both credit and token admin edits now create proper admin log entries with complete audit trail
+- **System Status**: Admin can now safely add credits without triggering unwanted point/token rewards, all admin actions properly logged
+
 ### Dual Payment System & Revenue Tracking Enhancement (July 9, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE DUAL PAYMENT SYSTEM FOR PURCHASE VERIFICATION IMPLEMENTED
 - **Payment Method Options**: Added radio button selection between Credit and Cash payments in purchase verification form
