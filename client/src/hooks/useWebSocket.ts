@@ -28,10 +28,15 @@ export function useWebSocket(enabled: boolean = true) {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/points-history'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
       
+      // Refresh user stats for real-time balance updates
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
+      
       // Force refetch queries for immediate updates
       queryClient.refetchQueries({ queryKey: ['/api/admin/payment-verifications'] });
       queryClient.refetchQueries({ queryKey: ['/api/admin/commission-stats'] });
       queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] });
+      queryClient.refetchQueries({ queryKey: ['/api/user-stats'] });
     }, 3000);
   }, []);
   
@@ -348,29 +353,25 @@ export function useWebSocket(enabled: boolean = true) {
   }, [stopPollingFallback]);
 
   useEffect(() => {
-    if (enabled && !shouldDisableWebSocket) {
-      connect();
-    } else {
-      disconnect();
-    }
-
-    return () => {
-      disconnect();
-    };
-  }, [enabled, connect, disconnect, shouldDisableWebSocket]);
-  
-  // Start polling fallback in development or when WebSocket fails
-  useEffect(() => {
     if (shouldDisableWebSocket) {
-      console.log('Development mode - using polling instead of WebSocket');
-      startPollingFallback();
+      console.log('Development mode - using polling instead of WebSocket for real-time updates');
+      startPollingFallback(); // Start polling immediately for development
+    } else {
+      console.log('WebSocket mode enabled');
+      if (enabled) {
+        connect();
+      }
     }
+    
     return () => {
       if (shouldDisableWebSocket) {
         stopPollingFallback();
+      } else {
+        disconnect();
+        stopPollingFallback();
       }
     };
-  }, [shouldDisableWebSocket, startPollingFallback, stopPollingFallback]);
+  }, [enabled, connect, disconnect, shouldDisableWebSocket, startPollingFallback, stopPollingFallback]);
 
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

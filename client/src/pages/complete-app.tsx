@@ -3020,13 +3020,22 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       
       // For credit payments, immediately refresh user stats for balance update
       if (paymentMethod === 'credit') {
+        // Multiple refresh strategies to ensure real-time update
         queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-        queryClient.refetchQueries({ queryKey: ['/api/user-stats'] });
+        
+        // Force immediate refetch with error handling
+        queryClient.refetchQueries({ queryKey: ['/api/user-stats'] }).catch(console.warn);
+        
+        // Additional delayed refetch as fallback (0.5 seconds)
+        setTimeout(() => {
+          queryClient.refetchQueries({ queryKey: ['/api/user-stats'] }).catch(console.warn);
+        }, 500);
+        
         // Show updated balance in toast
         if (result.newCredits) {
           toast({
             title: t('common.success'),
-            description: `${t('verification.creditPaymentSuccess')} New balance: RP ${parseFloat(result.newCredits).toLocaleString()}`,
+            description: `Credit payment successful! New balance: RP ${parseFloat(result.newCredits).toLocaleString()}`,
           });
         }
       }
