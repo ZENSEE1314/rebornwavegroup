@@ -2966,6 +2966,7 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
 function PurchaseVerificationSection({ language, user }: { language: string; user: any }) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit'>('cash');
   const [receiptImage, setReceiptImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2994,7 +2995,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
   });
 
   const submitMutation = useMutation({
-    mutationFn: async (data: { amount: string; description: string; receiptImageUrl: string }) => {
+    mutationFn: async (data: { amount: string; description: string; paymentMethod: string; receiptImageUrl?: string }) => {
       console.log('Submitting payment verification with data:', data);
       const response = await apiRequest('POST', '/api/payment-verifications', data);
       return await response.json();
@@ -3088,18 +3089,43 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     console.log('Form submit triggered:', {
       amount,
       description,
+      paymentMethod,
       receiptImage: !!receiptImage,
       isSubmitting
     });
     
-    if (!amount || !description || !receiptImage) {
-      console.log('Validation failed:', { amount: !!amount, description: !!description, receiptImage: !!receiptImage });
+    // Basic validation
+    if (!amount || !description) {
       toast({
         title: t('form.incompleteData'),
         description: t('form.fillAllFields'),
         variant: "destructive",
       });
       return;
+    }
+
+    // Payment method specific validation
+    if (paymentMethod === 'cash' && !receiptImage) {
+      toast({
+        title: t('form.incompleteData'),
+        description: 'Please upload a receipt image for cash payments',
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentMethod === 'credit') {
+      const userCredits = parseFloat(user?.credits || '0');
+      const purchaseAmount = parseFloat(amount);
+      
+      if (userCredits < purchaseAmount) {
+        toast({
+          title: 'Insufficient Credits',
+          description: `You need RP ${purchaseAmount.toLocaleString('id-ID')} but only have RP ${userCredits.toLocaleString('id-ID')}`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     if (isSubmitting) {
@@ -3111,27 +3137,30 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
     setIsSubmitting(true);
     
     try {
-      // Upload image first
-      let imageUrl;
-      try {
-        console.log('Attempting image upload...');
-        imageUrl = await uploadImage(receiptImage);
-        console.log('Image upload successful:', imageUrl);
-      } catch (uploadError) {
-        console.log('Image upload failed, using base64 fallback:', uploadError);
-        // Fallback to base64 data URL if upload fails
-        const reader = new FileReader();
-        imageUrl = await new Promise<string>((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(receiptImage);
-        });
-
+      let imageUrl = null;
+      
+      // Only upload image for cash payments
+      if (paymentMethod === 'cash' && receiptImage) {
+        try {
+          console.log('Attempting image upload...');
+          imageUrl = await uploadImage(receiptImage);
+          console.log('Image upload successful:', imageUrl);
+        } catch (uploadError) {
+          console.log('Image upload failed, using base64 fallback:', uploadError);
+          // Fallback to base64 data URL if upload fails
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.readAsDataURL(receiptImage);
+          });
+        }
       }
       
       const submissionData = {
         amount: parseFloat(amount).toFixed(2),
         description: description,
-        receiptImageUrl: imageUrl,
+        paymentMethod: paymentMethod,
+        ...(imageUrl && { receiptImageUrl: imageUrl }),
       };
       
       // Use the mutation directly instead of mutateAsync
@@ -3185,6 +3214,45 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Payment Method Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'cash'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-lg font-semibold">Cash Payment</div>
+                      <div className="text-sm text-gray-600">Upload receipt for verification</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('credit')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'credit'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-lg font-semibold">Credit Payment</div>
+                      <div className="text-sm text-gray-600">
+                        Balance: RP {parseFloat(user?.credits || '0').toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Amount Input */}
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -3224,64 +3292,92 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 </Select>
               </div>
 
-              {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  {t('payment.uploadReceipt')}
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  {imagePreview ? (
-                    <div className="space-y-4">
-                      <img 
-                        src={imagePreview} 
-                        alt="Receipt preview" 
-                        className="max-w-full h-32 object-contain mx-auto rounded"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setReceiptImage(null);
-                          setImagePreview(null);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        {t('common.remove')}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <p className="text-gray-600 mb-4">
-                        {t('payment.clickToUpload')}
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        id="receipt-upload"
-                      />
-                      <label
-                        htmlFor="receipt-upload"
-                        className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                      >
-                        {t('payment.chooseFile')}
-                      </label>
+              {/* Image Upload - Only for cash payments */}
+              {paymentMethod === 'cash' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {t('payment.uploadReceipt')}
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    {imagePreview ? (
+                      <div className="space-y-4">
+                        <img 
+                          src={imagePreview} 
+                          alt="Receipt preview" 
+                          className="max-w-full h-32 object-contain mx-auto rounded"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setReceiptImage(null);
+                            setImagePreview(null);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          {t('common.remove')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div>
+                        <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 mb-4">
+                          {t('payment.clickToUpload')}
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="receipt-upload"
+                        />
+                        <label
+                          htmlFor="receipt-upload"
+                          className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                          {t('payment.chooseFile')}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {t('payment.supported')}
+                  </p>
+                </div>
+              )}
+
+              {/* Credit Payment Info */}
+              {paymentMethod === 'credit' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-green-800">Current Balance:</span>
+                    <span className="text-lg font-bold text-green-900">
+                      RP {parseFloat(user?.credits || '0').toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  {amount && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-green-800">After Purchase:</span>
+                      <span className="text-lg font-bold text-green-900">
+                        RP {Math.max(0, parseFloat(user?.credits || '0') - parseFloat(amount || '0')).toLocaleString('id-ID')}
+                      </span>
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  {t('payment.supported')}
-                </p>
-              </div>
+              )}
 
               {/* Submit Button */}
               <Button
                 type="button"
                 onClick={handleSubmit}
                 className="w-full"
-                disabled={isSubmitting || !amount || !description || !receiptImage}
+                disabled={
+                  isSubmitting || 
+                  !amount || 
+                  !description || 
+                  (paymentMethod === 'cash' && !receiptImage) ||
+                  (paymentMethod === 'credit' && parseFloat(user?.credits || '0') < parseFloat(amount || '0'))
+                }
               >
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">
@@ -3291,7 +3387,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
                 ) : (
                   <>
                     <Camera className="w-4 h-4 mr-2" />
-                    {t('payment.submitVerification')}
+                    {paymentMethod === 'credit' ? 'Purchase with Credits' : t('payment.submitVerification')}
                   </>
                 )}
               </Button>

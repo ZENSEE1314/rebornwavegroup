@@ -718,17 +718,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid data", errors: validation.error.errors });
       }
 
-      const [verification] = await db
-        .insert(paymentVerifications)
-        .values({
-          ...validation.data,
-          userId,
-        })
-        .returning();
+      const { paymentMethod, amount, description, receiptImageUrl } = validation.data;
 
-      // Payment verification submitted successfully
+      // Handle credit payment
+      if (paymentMethod === 'credit') {
+        // Get user's current credits
+        const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+        if (!user[0]) {
+          return res.status(404).json({ message: "User not found" });
+        }
 
-      res.status(201).json(verification);
+        const userCredits = parseFloat(user[0].credits || '0');
+        const purchaseAmount = parseFloat(amount);
+
+        // Check if user has sufficient credits
+        if (userCredits < purchaseAmount) {
+          return res.status(400).json({ 
+            message: "Insufficient credits",
+            userCredits: userCredits,
+            requiredAmount: purchaseAmount 
+          });
+        }
+
+        // Deduct credits from user account
+        const newCredits = userCredits - purchaseAmount;
+        await db.update(users)
+          .set({ credits: newCredits.toFixed(2) })
+          .where(eq(users.id, userId));
+
+        // Create approved payment verification record
+        const [verification] = await db
+          .insert(paymentVerifications)
+          .values({
+            amount: amount,
+            description: description,
+            paymentMethod: paymentMethod,
+            receiptImageUrl: receiptImageUrl,
+            userId: userId,
+            status: 'approved', // Auto-approve credit payments
+            adminNotes: 'Auto-approved credit payment'
+          })
+          .returning();
+
+        // Award points automatically (1 point per 1000 IDR)
+        const pointsEarned = Math.floor(purchaseAmount / 1000);
+        if (pointsEarned > 0) {
+          // Update user's loyalty points
+          const newLoyaltyPoints = (parseInt(user[0].loyaltyPoints || '0') + pointsEarned).toString();
+          await db.update(users)
+            .set({ loyaltyPoints: newLoyaltyPoints })
+            .where(eq(users.id, userId));
+
+          // Create points history record
+          await db.insert(pointsHistory).values({
+            userId: userId,
+            points: pointsEarned,
+            type: 'earned',
+            description: `Credit payment - ${description} (${pointsEarned} points from ${purchaseAmount} IDR)`,
+            relatedId: verification.id
+          });
+        }
+
+        // Handle referral commission for credit payments
+        const referrals = await db.select().from(schema.referrals).where(eq(schema.referrals.referredId, userId));
+        if (referrals.length > 0) {
+          const referral = referrals[0];
+          const commissionAmount = purchaseAmount * 0.10; // 10% commission
+          
+          // Update referrer's referral earnings
+          await db.update(schema.referrals)
+            .set({ 
+              totalEarnings: sql`${schema.referrals.totalEarnings} + ${commissionAmount}`
+            })
+            .where(eq(schema.referrals.id, referral.id));
+
+          // Add commission to referrer's credits
+          await db.update(users)
+            .set({ 
+              credits: sql`${users.credits} + ${commissionAmount}`
+            })
+            .where(eq(users.id, referral.referrerId));
+        }
+
+        res.status(201).json({
+          ...verification,
+          pointsEarned: pointsEarned,
+          newCredits: newCredits
+        });
+      } else {
+        // Handle cash payment (original behavior)
+        const [verification] = await db
+          .insert(paymentVerifications)
+          .values({
+            ...validation.data,
+            userId,
+          })
+          .returning();
+
+        res.status(201).json(verification);
+      }
     } catch (error) {
       console.error("Error creating payment verification:", error);
       res.status(500).json({ message: "Failed to create payment verification" });

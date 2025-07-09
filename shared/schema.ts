@@ -355,7 +355,8 @@ export const paymentVerifications = pgTable("payment_verifications", {
   userId: varchar("user_id").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
-  receiptImageUrl: varchar("receipt_image_url").notNull(),
+  paymentMethod: varchar("payment_method").default("cash").notNull(), // 'cash' | 'credit'
+  receiptImageUrl: varchar("receipt_image_url"), // Optional for credit payments
   status: varchar("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected'
   adminId: varchar("admin_id"), // ID of admin who processed the verification
   adminNotes: text("admin_notes"), // Admin comments on approval/rejection
