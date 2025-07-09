@@ -2326,19 +2326,13 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
               <div className="text-center">
                 <div className="mb-4">
                   <img 
-                    src={toy.imageUrl || toy.image || "/api/placeholder/100/100"} 
+                    src={toy.imageUrl ? `${toy.imageUrl}?v=${Date.now()}` : "/api/placeholder/100/100"} 
                     alt={toy?.name || 'Toy'} 
                     className="w-24 h-24 mx-auto object-contain"
                     onError={(e) => {
-                      // Try the attached assets path if the original fails
-                      if (!e.currentTarget.src.includes('/attached_assets/')) {
-                        e.currentTarget.src = toy.imageUrl.startsWith('/attached_assets/') 
-                          ? toy.imageUrl 
-                          : "/api/placeholder/100/100";
-                      } else {
-                        e.currentTarget.src = "/api/placeholder/100/100";
-                      }
+                      e.currentTarget.src = "/api/placeholder/100/100";
                     }}
+                    key={`${toy.id}-${toy.imageUrl}`}
                   />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>

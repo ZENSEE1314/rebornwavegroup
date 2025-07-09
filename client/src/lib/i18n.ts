@@ -2247,16 +2247,7 @@ export const translations: Translations = {
     zh: '安全系统：每个二维码都是独特且不可预测的，以防止未经授权的玩具添加。',
     id: 'Sistem Keamanan: Setiap kode QR unik dan tidak dapat diprediksi untuk mencegah penambahan mainan yang tidak sah.'
   },
-  'toyActivation.seasonCollection': {
-    en: 'Collectible toys available',
-    zh: '收藏玩具可用',
-    id: 'Mainan koleksi tersedia'
-  },
-  'toyActivation.rarityInfo': {
-    en: '1,000 secret rarity • 6,000 common rarity',
-    zh: '1,000个秘密稀有度 • 6,000个普通稀有度',
-    id: '1.000 kelangkaan rahasia • 6.000 kelangkaan umum'
-  },
+
 
   // Referral Program
   'referral.subtitle': {
@@ -2870,16 +2861,7 @@ export const translations: Translations = {
     zh: '神秘',
     id: 'Rahasia'
   },
-  'seasonCollection.title': {
-    en: 'Collectible toys available',
-    zh: '收藏玩具可用',
-    id: 'Mainan koleksi tersedia'
-  },
-  'seasonCollection.rarity': {
-    en: '1,000 secret rarity • 6,000 common rarity',
-    zh: '1,000个神秘稀有度 • 6,000个普通稀有度',
-    id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
-  },
+
   'commission.totalReferrals': {
     en: 'Total Referrals:',
     zh: '总推荐数：',
@@ -3853,16 +3835,7 @@ export const translations: Translations = {
     zh: '保存设置失败',
     id: 'Gagal menyimpan pengaturan'
   },
-  'seasonCollection.season1': {
-    en: 'Collectible toys available',
-    zh: '收藏玩具可用',
-    id: 'Mainan koleksi tersedia'
-  },
-  'seasonCollection.rarityInfo': {
-    en: '1,000 secret rarity • 6,000 common rarity',
-    zh: '1,000个秘密稀有度 • 6,000个普通稀有度',
-    id: '1,000 kelangkaan rahasia • 6,000 kelangkaan umum'
-  },
+
   'camera.button': {
     en: 'Camera',
     zh: '相机',
