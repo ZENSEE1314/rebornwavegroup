@@ -119,6 +119,25 @@ export function useWebSocket(enabled: boolean = true) {
             }
           };
           
+          if (data.type === 'USER_BALANCE_UPDATED') {
+            // Real-time balance update for credit spending
+            safeInvalidateQueries((query) => {
+              const queryKey = query.queryKey[0] as string;
+              return queryKey?.includes('/api/user-stats') ||
+                     queryKey?.includes('/api/credit-history') ||
+                     queryKey?.includes('/api/payment-verifications');
+            }, 'balance');
+            
+            // Force immediate refetch for instant balance updates
+            try {
+              queryClient.refetchQueries({ queryKey: ['/api/user-stats'] }).catch((error) => {
+                console.warn('User stats refetch error:', error);
+              });
+            } catch (error) {
+              console.warn('Balance update refetch error:', error);
+            }
+          }
+          
           if (data.type === 'PAYMENT_VERIFICATION_UPDATE' || data.type === 'PAYMENT_VERIFICATION_UPDATED') {
 
             

@@ -800,6 +800,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(users.id, referral.referrerId));
         }
 
+        // Broadcast real-time balance update via WebSocket
+        if (wss) {
+          const message = {
+            type: 'USER_BALANCE_UPDATED',
+            userId: userId,
+            newCredits: newCredits.toFixed(2),
+            amount: purchaseAmount,
+            description: description
+          };
+
+          wss.clients.forEach((client: any) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(message));
+            }
+          });
+        }
+
         res.status(201).json({
           ...verification,
           pointsEarned: pointsEarned,
@@ -945,14 +962,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Total commissions paid
         db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(transactions).where(eq(transactions.type, 'referral_commission')),
         
-        // Total revenue from approved payment verifications AND toy purchases
+        // Total revenue from approved payment verifications
         db.select({ 
-          total: sql`COALESCE(
-            (SELECT sum(cast(amount as numeric)) FROM ${paymentVerifications} WHERE status = 'approved') + 
-            (SELECT sum(cast(amount as numeric)) FROM ${transactions} WHERE type = 'toy_purchase'), 
-            0
-          )` 
-        }),
+          total: sql`COALESCE(sum(cast(amount as numeric)), 0)` 
+        }).from(paymentVerifications).where(eq(paymentVerifications.status, 'approved')),
         
         // Active events (using seasons as events)
         db.select({ count: sql`count(*)` }).from(schema.seasons).where(eq(schema.seasons.isActive, true))
@@ -971,6 +984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeEvents: Number(activeEventsResult[0]?.count || 0),
         adminFees: 0, // This can be calculated based on commission percentage
       };
+
+
 
       console.log('*** ADMIN DASHBOARD STATS:', stats);
       res.json(stats);
