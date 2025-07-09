@@ -3000,7 +3000,7 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       const response = await apiRequest('POST', '/api/payment-verifications', data);
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast({
         title: t('common.success'),
         description: t('verification.submitted'),
@@ -3010,12 +3010,27 @@ function PurchaseVerificationSection({ language, user }: { language: string; use
       setReceiptImage(null);
       setImagePreview(null);
       setIsSubmitting(false);
+      
       // Invalidate all payment verification queries to ensure real-time updates
       queryClient.invalidateQueries({ queryKey: ['/api/payment-verifications'] });
       queryClient.invalidateQueries({ predicate: (query) => {
         const key = query.queryKey[0];
         return key ? key.toString().includes('/api/payment-verifications') : false;
       }});
+      
+      // For credit payments, immediately refresh user stats for balance update
+      if (paymentMethod === 'credit') {
+        queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+        queryClient.refetchQueries({ queryKey: ['/api/user-stats'] });
+        // Show updated balance in toast
+        if (result.newCredits) {
+          toast({
+            title: t('common.success'),
+            description: `${t('verification.creditPaymentSuccess')} New balance: RP ${parseFloat(result.newCredits).toLocaleString()}`,
+          });
+        }
+      }
+      
       // Also manually refetch to ensure immediate update
       refetchVerifications();
     },

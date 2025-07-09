@@ -801,7 +801,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Broadcast real-time balance update via WebSocket
-        if (wss) {
+        const wss = (global as any).wss;
+        if (wss && wss.clients) {
           const message = {
             type: 'USER_BALANCE_UPDATED',
             userId: userId,
@@ -810,11 +811,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: description
           };
 
+          console.log('*** BROADCASTING BALANCE UPDATE:', message);
+          
           wss.clients.forEach((client: any) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(message));
+              try {
+                client.send(JSON.stringify(message));
+              } catch (error) {
+                console.warn('WebSocket send error:', error);
+              }
             }
           });
+        } else {
+          console.log('*** NO WEBSOCKET CONNECTION AVAILABLE');
         }
 
         res.status(201).json({
