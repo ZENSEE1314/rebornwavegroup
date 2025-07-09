@@ -6365,7 +6365,7 @@ export default function CompleteApp() {
                           </div>
                           <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                         </div>
-                        <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
+                        <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                       </div>
                     </div>
 
@@ -6403,7 +6403,7 @@ export default function CompleteApp() {
                         </div>
                         <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                       </div>
-                      <span className="text-gray-900 font-bold">RP {formatRupiah(userCredits)}</span>
+                      <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                     </div>
                     <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                       <button 
@@ -6674,7 +6674,7 @@ export default function CompleteApp() {
                             </div>
                             <span className="text-gray-700">{t('dashboard.credits')}</span>
                           </div>
-                          <span className="text-2xl font-bold text-gray-900">RP {formatRupiah(userCredits)}</span>
+                          <span className="text-2xl font-bold text-gray-900">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -6720,7 +6720,7 @@ export default function CompleteApp() {
                       </div>
                       <span className="text-gray-900 font-medium text-lg">{t('dashboard.credits')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(userCredits)}</span>
+                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                   </div>
                   <div id="desktop-credits-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
