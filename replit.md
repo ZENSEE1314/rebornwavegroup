@@ -26,14 +26,17 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
-### Toy Display API Endpoint Resolution (July 9, 2025)
+### Toy Collection Image Correction & API Endpoint Resolution (July 9, 2025)
 - **CRITICAL FIX COMPLETED**: ✅ RESOLVED TOY DISPLAY 500 ERROR - Fixed `/api/toys` endpoint returning "Failed to fetch toys" message
 - **Root Cause Identified**: Drizzle ORM `orderSelectedFields` throwing "Cannot convert undefined or null to object" error due to corrupted field selection
 - **Query Method Fix**: Replaced manual `.select()` with reliable `db.query.toys.findMany()` method to avoid field mapping conflicts
-- **Database Verification**: Confirmed toy ID 9849 "Doluruu Baby Boy" exists with proper image path `/uploaded-images/season-1751732577038-525846426.png`
-- **API Endpoint Working**: `/api/toys` now returns 200 status with complete toy data including proper imageUrl field
+- **TOY IMAGE CORRECTION**: ✅ FIXED INCORRECT COLLECTION IMAGE - Updated "Doluruu Baby Boy" toy (ID 9849) from wrong egg image to correct standing character
+- **Database Image Update**: Changed imageUrl from `/uploaded-images/season-1751732577038-525846426.png` to `/attached_assets/Doluruu Boy_1749664545355.png`
+- **Image Source Distinction**: Collection now correctly displays full-body Doluruu Boy character matching pet care system
+- **Character Asset Integration**: Successfully mapped toy names to proper Doluruu character images from attached_assets folder
+- **API Endpoint Working**: `/api/toys` now returns 200 status with complete toy data and correct character images
 - **Debug Logging Success**: Console shows "TOYS QUERY SUCCESS: Found 1 toys for user" with complete toy object display
-- **System Status**: Toy collection display fully operational - users can now view their owned toys with images and metadata
+- **System Status**: Toy collection display fully operational - users can now view their owned toys with correct character images and metadata
 
 ### Real-Time Admin RP Points & Tokens Update System Verification (July 9, 2025)
 - **MAJOR FEATURE VERIFICATION**: ✅ CONFIRMED REAL-TIME ADMIN UPDATES FOR RP POINTS AND TOKENS FULLY OPERATIONAL
