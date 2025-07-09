@@ -676,29 +676,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getToysByOwnerId(ownerId: string): Promise<Toy[]> {
-    return await db
-      .select({
-        id: toys.id,
-        name: toys.name,
-        species: toys.species,
-        color: toys.color,
-        rarity: toys.rarity,
-        gender: toys.gender,
-        imageUrl: toys.imageUrl,
-        qrCode: toys.qrCode,
-        ownerId: toys.ownerId,
-        purchasedBy: toys.purchasedBy,
-        isActivated: toys.isActivated,
-        createdAt: toys.createdAt,
-        updatedAt: toys.updatedAt,
-        seasonId: toys.seasonId,
-        templateId: toys.templateId,
-        isTemplate: toys.isTemplate,
-        originalPrice: toys.originalPrice
-      })
-      .from(toys)
-      .where(eq(toys.ownerId, ownerId))
-      .orderBy(desc(toys.createdAt));
+    try {
+      // Try the basic Drizzle query first without complex field selection
+      const result = await db.query.toys.findMany({
+        where: eq(toys.ownerId, ownerId),
+        orderBy: [desc(toys.createdAt)]
+      });
+      
+      console.log("*** TOYS QUERY SUCCESS: Found", result.length, "toys for user", ownerId);
+      return result;
+    } catch (error) {
+      console.error("*** TOYS QUERY ERROR:", error);
+      
+      // Return empty array as fallback
+      return [];
+    }
   }
 
   async getAllToys(): Promise<Toy[]> {

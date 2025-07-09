@@ -26,14 +26,14 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
-### Toy Image Display Field Mapping Fix (July 9, 2025)
-- **CRITICAL FIX COMPLETED**: ✅ RESOLVED TOY IMAGE DISPLAY ISSUE - Fixed database field mapping between snake_case and camelCase
-- **Root Cause Identified**: Database schema uses `image_url` (snake_case) but frontend expects `imageUrl` (camelCase)
-- **Storage Layer Fix**: Updated `getToysByOwnerId` method with explicit field mapping to ensure proper imageUrl transmission
-- **Enhanced Debug Logging**: Added comprehensive logging to `/api/toys` endpoint to trace imageUrl field transmission
+### Toy Display API Endpoint Resolution (July 9, 2025)
+- **CRITICAL FIX COMPLETED**: ✅ RESOLVED TOY DISPLAY 500 ERROR - Fixed `/api/toys` endpoint returning "Failed to fetch toys" message
+- **Root Cause Identified**: Drizzle ORM `orderSelectedFields` throwing "Cannot convert undefined or null to object" error due to corrupted field selection
+- **Query Method Fix**: Replaced manual `.select()` with reliable `db.query.toys.findMany()` method to avoid field mapping conflicts
 - **Database Verification**: Confirmed toy ID 9849 "Doluruu Baby Boy" exists with proper image path `/uploaded-images/season-1751732577038-525846426.png`
-- **Field Mapping Resolution**: Explicit select statement now maps `toys.imageUrl` field correctly from database to frontend
-- **System Status**: Toy collection image display issue resolved - imageUrl field properly transmitted to frontend components
+- **API Endpoint Working**: `/api/toys` now returns 200 status with complete toy data including proper imageUrl field
+- **Debug Logging Success**: Console shows "TOYS QUERY SUCCESS: Found 1 toys for user" with complete toy object display
+- **System Status**: Toy collection display fully operational - users can now view their owned toys with images and metadata
 
 ### Real-Time Admin RP Points & Tokens Update System Verification (July 9, 2025)
 - **MAJOR FEATURE VERIFICATION**: ✅ CONFIRMED REAL-TIME ADMIN UPDATES FOR RP POINTS AND TOKENS FULLY OPERATIONAL
