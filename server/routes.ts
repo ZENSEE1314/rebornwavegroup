@@ -2194,6 +2194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: toy.id,
           name: toy.name,
           rarity: toy.rarity,
+          imageUrl: toy.imageUrl,
+          image_url: (toy as any).image_url,
           isActivated: toy.isActivated,
           is_activated: toy.is_activated,
           ownerId: toy.ownerId,
