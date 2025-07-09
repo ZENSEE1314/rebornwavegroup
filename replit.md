@@ -26,6 +26,19 @@ A comprehensive digital financial management and collectible toy platform that c
 
 ## Recent Changes
 
+### Dual Payment System & Revenue Tracking Enhancement (July 9, 2025)
+- **MAJOR FEATURE**: ✅ COMPLETE DUAL PAYMENT SYSTEM FOR PURCHASE VERIFICATION IMPLEMENTED
+- **Payment Method Options**: Added radio button selection between Credit and Cash payments in purchase verification form
+- **Credit Payment Processing**: Auto-approval system with immediate credit deduction, points award, and referral commission calculation
+- **Cash Payment Workflow**: Maintains original receipt upload and admin verification process
+- **Backend Enhancement**: Updated payment verification endpoint to handle both payment methods with proper validation
+- **Revenue Tracking Fix**: ✅ RESOLVED MISSING TOY PURCHASE REVENUE - Enhanced admin dashboard revenue calculation to include both payment verifications AND toy purchases
+- **Transaction Record Creation**: Added proper transaction record creation for all toy purchases (marketplace and seasonal) with type 'toy_purchase'
+- **Real-Time Balance Checking**: Prevents insufficient funds with live credit balance display and validation
+- **Unified Points System**: 1 point per 1000 IDR calculation works for both credit and cash payment methods
+- **Commission Integration**: 10% referral commission system operational for both payment types
+- **Admin Dashboard Accuracy**: Revenue now correctly reflects total income from approved payment verifications + toy purchases
+
 ### Complete UI Cleanup Phase 3 & Color Filter Removal (July 9, 2025)
 - **UI CLEANUP PHASE 3 COMPLETED**: ✅ COMPLETE REMOVAL OF ALL COLOR FILTER ELEMENTS AND TRANSLATION KEYS
 - **Color Filter Section Removed**: Successfully eliminated entire color filter display section from complete-app.tsx seasonal collections

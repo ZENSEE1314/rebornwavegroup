@@ -945,8 +945,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Total commissions paid
         db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(transactions).where(eq(transactions.type, 'referral_commission')),
         
-        // Total revenue from approved payment verifications
-        db.select({ total: sql`COALESCE(sum(cast(amount as numeric)), 0)` }).from(paymentVerifications).where(eq(paymentVerifications.status, 'approved')),
+        // Total revenue from approved payment verifications AND toy purchases
+        db.select({ 
+          total: sql`COALESCE(
+            (SELECT sum(cast(amount as numeric)) FROM ${paymentVerifications} WHERE status = 'approved') + 
+            (SELECT sum(cast(amount as numeric)) FROM ${transactions} WHERE type = 'toy_purchase'), 
+            0
+          )` 
+        }),
         
         // Active events (using seasons as events)
         db.select({ count: sql`count(*)` }).from(schema.seasons).where(eq(schema.seasons.isActive, true))
@@ -2464,7 +2470,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
+      // Get toy details first to get the price
+      const toy = await db.select().from(schema.toys).where(eq(schema.toys.id, toyId)).limit(1);
+      if (!toy.length) {
+        return res.status(404).json({ message: "Toy not found" });
+      }
+
+      const toyPrice = parseFloat(toy[0].originalPrice || toy[0].salePrice || '0');
+      
+      // Get user's current credits
+      const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
+      if (!user.length) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const userCredits = parseFloat(user[0].credits || '0');
+
+      // Check if user has sufficient credits
+      if (userCredits < toyPrice) {
+        return res.status(400).json({ 
+          message: `Insufficient credits. Required: RP ${toyPrice.toLocaleString('id-ID')}, Available: RP ${userCredits.toLocaleString('id-ID')}` 
+        });
+      }
+
+      // Deduct credits from user account
+      const newCredits = userCredits - toyPrice;
+      await db.update(schema.users)
+        .set({ 
+          credits: newCredits.toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.users.id, userId));
+
+      // Purchase the toy (transfer ownership)
       const purchaseResult = await storage.purchaseToy(toyId, userId);
+
+      // Create transaction record for revenue tracking
+      if (toyPrice > 0) {
+        await db.insert(transactions).values({
+          userId: userId,
+          amount: toyPrice.toFixed(2),
+          type: 'toy_purchase',
+          description: `Marketplace toy purchase - ${toy[0].name}`,
+          status: 'completed'
+        });
+      }
       
       // Broadcast marketplace update to all connected clients
       if ((global as any).wss) {
@@ -2485,7 +2535,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         message: 'Toy purchased successfully',
         purchasedToy: purchaseResult.purchasedToy,
-        newMarketplaceToy: purchaseResult.newMarketplaceToy
+        newMarketplaceToy: purchaseResult.newMarketplaceToy,
+        newCredits: newCredits
       });
     } catch (error) {
       console.error('Error purchasing toy:', error);
@@ -8094,6 +8145,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: new Date()
         })
         .where(eq(schema.toys.id, selectedToy.id));
+
+      // Create transaction record for revenue tracking
+      await db.insert(transactions).values({
+        userId: userId,
+        amount: seasonPrice.toFixed(2),
+        type: 'toy_purchase',
+        description: `Random toy purchase from ${seasonName} - ${selectedToy.name}`,
+        status: 'completed'
+      });
 
       // Get the updated toy with full details
       const purchasedToy = await db.select()
