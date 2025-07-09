@@ -2826,41 +2826,6 @@ export const translations: Translations = {
     zh: '更改密码',
     id: 'Ubah Kata Sandi'
   },
-  'toyColors.red': {
-    en: 'Red',
-    zh: '红色',
-    id: 'Merah'
-  },
-  'toyColors.blue': {
-    en: 'Blue',
-    zh: '蓝色',
-    id: 'Biru'
-  },
-  'toyColors.orange': {
-    en: 'Orange',
-    zh: '橙色',
-    id: 'Oranye'
-  },
-  'toyColors.green': {
-    en: 'Green',
-    zh: '绿色',
-    id: 'Hijau'
-  },
-  'toyColors.white': {
-    en: 'White',
-    zh: '白色',
-    id: 'Putih'
-  },
-  'toyColors.purple': {
-    en: 'Purple',
-    zh: '紫色',
-    id: 'Ungu'
-  },
-  'toyColors.secret': {
-    en: 'Secret',
-    zh: '神秘',
-    id: 'Rahasia'
-  },
 
   'commission.totalReferrals': {
     en: 'Total Referrals:',

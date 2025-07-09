@@ -8372,28 +8372,6 @@ export default function CompleteApp() {
                       {" " + t("activation.encryptionProtection")}
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 gap-2 mt-4">
-                    {["red", "blue", "orange", "green", "white", "purple", "secret"].map(color => (
-                      <div key={color} className="text-center">
-                        <div className={`w-8 h-8 rounded-full mx-auto mb-1 ${
-                          color === "red" ? "bg-red-500" :
-                          color === "blue" ? "bg-blue-500" :
-                          color === "orange" ? "bg-orange-500" :
-                          color === "green" ? "bg-green-500" :
-                          color === "white" ? "bg-gray-200 border border-gray-400" :
-                          color === "purple" ? "bg-purple-500" :
-                          "bg-gradient-to-r from-purple-600 to-pink-600"
-                        }`}></div>
-                        <p className="text-xs text-gray-600 capitalize">
-                          {t(`toyColors.${color}`) || color}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-center text-sm text-purple-600 mt-4">
-                    <p className="font-medium">{t('seasonCollection.season1')}</p>
-                    <p className="text-xs mt-1">{t('seasonCollection.rarityInfo')}</p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -8408,9 +8386,10 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <div className="mb-4">
                         <img 
-                          src={toyImage} 
+                          src={`${toyImage}?v=${Date.now()}`} 
                           alt={purchase.toy?.name || "Toy"} 
                           className="w-24 h-24 mx-auto object-contain"
+                          key={`toy-${purchase.toy?.id}-${Date.now()}`}
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
@@ -8454,9 +8433,10 @@ export default function CompleteApp() {
                     <div className="text-center">
                       <div className="mb-4">
                         <img 
-                          src={toyImage} 
+                          src={`${toyImage}?v=${Date.now()}`} 
                           alt={purchase.toy?.name || "Toy"} 
                           className="w-24 h-24 mx-auto object-contain"
+                          key={`toy-${purchase.toy?.id}-${Date.now()}`}
                         />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
