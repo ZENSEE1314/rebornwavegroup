@@ -7981,7 +7981,7 @@ export default function CompleteApp() {
                             <img 
                               src={listing.imageUrl || '/api/placeholder/200/200'} 
                               alt={listing?.name || 'Item'}
-                              className="w-full h-48 object-cover rounded-lg"
+                              className="w-full h-48 object-contain rounded-lg"
                             />
                             <Badge 
                               variant="secondary" 
