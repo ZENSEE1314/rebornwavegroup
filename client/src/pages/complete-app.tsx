@@ -2354,11 +2354,11 @@ function PetCareSection({ language, user, queryClient, userTokens }: { language:
                 {!toy.isActivated && (
                   <Button 
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => activateToyMutation.mutate(toy.qrCode)}
-                    disabled={activateToyMutation.isPending}
+                    onClick={() => showPetActivationDialog(toy)}
+                    disabled={activateToyAsPetMutation.isPending}
                   >
                     <Heart className="w-4 h-4 mr-2" />
-                    {activateToyMutation.isPending 
+                    {activateToyAsPetMutation.isPending 
                       ? t('pet.processing')
                       : t('pet.activateToy')
                     }
