@@ -70,21 +70,21 @@ function startSleepEnergyTimer(petId: number) {
     clearTimeout(existingTimer);
     clearInterval(existingTimer);
     sleepTimers.delete(petId);
-
+    console.log(`*** TIMER: Cleared existing timer for pet ${petId}`);
   }
   
-
-
   // Wait 5 minutes before starting energy increases
   const initialDelay = setTimeout(() => {
-
+    console.log(`*** TIMER: Starting energy increases for pet ${petId} after 5-minute delay`);
     
     // Start timer that increases energy every 5 minutes after the 5-minute delay
     const timer = setInterval(async () => {
       try {
+        console.log(`*** TIMER: Processing energy increase for pet ${petId}`);
         const pet = await storage.getPetById(petId);
         if (!pet || !pet.isSleeping) {
           // Stop timer if pet is no longer sleeping
+          console.log(`*** TIMER: Pet ${petId} is no longer sleeping, stopping timer`);
           clearInterval(timer);
           sleepTimers.delete(petId);
           return;
@@ -92,6 +92,7 @@ function startSleepEnergyTimer(petId: number) {
 
         // Check if energy is at 100% and auto-wake pet
         if (pet.energy >= 100) {
+          console.log(`*** TIMER: Pet ${petId} reached 100% energy, waking up`);
           await storage.updatePetStats(petId, { 
             isSleeping: false, 
             sleepStartTime: null 
@@ -105,12 +106,11 @@ function startSleepEnergyTimer(petId: number) {
 
         // Increase energy by 1 point every 5 minutes
         const newEnergy = Math.min(100, pet.energy + 1);
+        console.log(`*** TIMER: Increasing pet ${petId} energy from ${pet.energy}% to ${newEnergy}%`);
         await storage.updatePetStats(petId, { 
           energy: newEnergy,
           lastEnergyUpdate: new Date()
         });
-        
-
         
         // Broadcast real-time energy update via WebSocket
         if ((global as any).wss) {
@@ -136,11 +136,14 @@ function startSleepEnergyTimer(petId: number) {
       }
     }, 300000); // 5 minutes
 
+    // Store the interval timer, not the initial timeout
     sleepTimers.set(petId, timer);
+    console.log(`*** TIMER: Stored interval timer for pet ${petId}, total active timers: ${sleepTimers.size}`);
   }, 300000); // 5 minutes = 300,000 milliseconds
 
-  // Don't overwrite the timer reference - the interval timer will be stored when it starts
-
+  // Store the initial timeout temporarily
+  sleepTimers.set(petId, initialDelay);
+  console.log(`*** TIMER: Started 5-minute delay for pet ${petId}`);
 }
 
 function stopSleepEnergyTimer(petId: number) {
