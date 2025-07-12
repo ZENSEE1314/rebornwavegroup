@@ -232,7 +232,7 @@ export function setupAuthRoutes(app: Express) {
       
       const emailSent = await sendEmail({
         to: email,
-        from: 'noreply@rebornwavegroup.com',
+        from: 'admin@rebornwave.group',
         subject: 'Password Reset Request - Reborn Wave Pet Care',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
