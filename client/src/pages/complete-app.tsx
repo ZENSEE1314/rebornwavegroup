@@ -10041,6 +10041,60 @@ export default function CompleteApp() {
         </div>
       )}
 
+      {/* Pet Activation Confirmation Modal */}
+      {showPetActivationConfirm && pendingToyActivation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              Activate as Pet
+            </h3>
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-3 rounded-lg overflow-hidden">
+                  <img 
+                    src={pendingToyActivation.imageUrl || '/images/default-toy.png'} 
+                    alt={pendingToyActivation.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = '/images/default-toy.png';
+                    }}
+                  />
+                </div>
+                <h4 className="font-medium text-lg">{pendingToyActivation.name}</h4>
+                <div className="bg-green-50 rounded-lg p-3 mt-3">
+                  <p className="text-sm text-green-700">
+                    This will create an active pet from your toy. You can then care for it, play with it, and watch it grow!
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button
+                onClick={confirmPetActivation}
+                disabled={activateToyAsPetMutation.isPending}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {activateToyAsPetMutation.isPending ? 
+                  "Activating..." : 
+                  "Yes, Activate Pet"
+                }
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPetActivationConfirm(false);
+                  setPendingToyActivation(null);
+                }}
+                disabled={activateToyAsPetMutation.isPending}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Onboarding Walkthrough */}
       <OnboardingWalkthrough
         isOpen={showOnboarding}
