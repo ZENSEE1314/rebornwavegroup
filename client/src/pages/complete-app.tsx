@@ -845,7 +845,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 }
 
 // Pet Care Component
-function PetCareSection({ language, user, queryClient, userTokens }: { language: string; user: any; queryClient: any; userTokens: number }) {
+function PetCareSection({ language, user, queryClient, userTokens, activateToyAsPetMutation, showPetActivationDialog }: { language: string; user: any; queryClient: any; userTokens: number; activateToyAsPetMutation: any; showPetActivationDialog: (toy: any) => void }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   
@@ -8945,7 +8945,14 @@ export default function CompleteApp() {
 
         {/* Pet Care Tab */}
         {activeTab === "petcare" && (
-          <PetCareSection language={language} user={user} queryClient={queryClient} userTokens={userTokens} />
+          <PetCareSection 
+            language={language} 
+            user={user} 
+            queryClient={queryClient} 
+            userTokens={userTokens}
+            activateToyAsPetMutation={activateToyAsPetMutation}
+            showPetActivationDialog={showPetActivationDialog}
+          />
         )}
 
         {/* Profile Tab */}
