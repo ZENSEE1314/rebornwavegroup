@@ -256,12 +256,36 @@ function formatSleepTime(timeRemaining: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// Global audio context for mobile browsers
+let audioUnlocked = false;
+
 // Sound effect function to play text-to-speech + custom voice
 function playDoluruuSound(isMuted = false) {
   // Don't play sound if muted
   if (isMuted) return;
   
   try {
+    // Mobile audio unlock check
+    if (!audioUnlocked) {
+      // Try to unlock audio context on mobile
+      const unlockAudio = () => {
+        try {
+          const audio = new Audio();
+          audio.volume = 0;
+          audio.play().then(() => {
+            audioUnlocked = true;
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch(() => {
+            console.log('Audio unlock failed');
+          });
+        } catch (e) {
+          console.log('Audio unlock error:', e);
+        }
+      };
+      unlockAudio();
+    }
+    
     // First: Play text-to-speech "how do you call my name?"
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance('How do you call my name?');
@@ -308,6 +332,27 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
   if (isMuted) return;
   
   try {
+    // Mobile audio unlock check
+    if (!audioUnlocked) {
+      // Try to unlock audio context on mobile
+      const unlockAudio = () => {
+        try {
+          const audio = new Audio();
+          audio.volume = 0;
+          audio.play().then(() => {
+            audioUnlocked = true;
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch(() => {
+            console.log('Audio unlock failed');
+          });
+        } catch (e) {
+          console.log('Audio unlock error:', e);
+        }
+      };
+      unlockAudio();
+    }
+    
     if ('speechSynthesis' in window) {
       // Cancel any ongoing speech
       speechSynthesis.cancel();
@@ -873,6 +918,49 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSeason, setSelectedSeason] = useState<string>("season1");
   // Removed local pet stats to prevent conflicts with API data
+
+  // Mobile audio initialization on first user interaction
+  useEffect(() => {
+    const initializeMobileAudio = () => {
+      if (!audioUnlocked) {
+        // Try to initialize audio context for mobile browsers
+        const unlockAudio = () => {
+          try {
+            const audio = new Audio();
+            audio.volume = 0;
+            audio.play().then(() => {
+              audioUnlocked = true;
+              audio.pause();
+              audio.currentTime = 0;
+              console.log('Mobile audio unlocked successfully');
+            }).catch(() => {
+              console.log('Audio unlock failed, will retry on next interaction');
+            });
+          } catch (e) {
+            console.log('Audio unlock error:', e);
+          }
+        };
+        
+        // Try immediately
+        unlockAudio();
+        
+        // Also add event listeners for mobile interaction
+        const handleTouch = () => {
+          console.log('User interaction detected, attempting audio unlock...');
+          if (!audioUnlocked) {
+            unlockAudio();
+          }
+          document.removeEventListener('touchstart', handleTouch);
+          document.removeEventListener('click', handleTouch);
+        };
+        
+        document.addEventListener('touchstart', handleTouch, { once: true });
+        document.addEventListener('click', handleTouch, { once: true });
+      }
+    };
+
+    initializeMobileAudio();
+  }, []);
 
   // Play greeting when entering Pet Care tab
   useEffect(() => {
