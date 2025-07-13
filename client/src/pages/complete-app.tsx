@@ -335,8 +335,8 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
   console.log('Attempting to play audio for:', message.substring(0, 30) + '...');
   
   try {
-    // Primary approach: Use the custom voice audio file
-    const audio = new Audio('/src/assets/custom-voice.m4a');
+    // Primary approach: Use the custom voice audio file with correct Vite path
+    const audio = new Audio('/assets/custom-voice.m4a');
     audio.volume = 0.8;
     audio.preload = 'auto';
     
@@ -1060,6 +1060,51 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     queryClient.invalidateQueries({ queryKey: ['/api/pets'] });
   }, [queryClient]);
 
+  // Pet status notification system - Check for 0% stats
+  useEffect(() => {
+    if (safePets.length > 0 && safePets[currentPetIndex]) {
+      const pet = safePets[currentPetIndex];
+      const criticalStats = [];
+      
+      // Check each stat for 0% values
+      if (pet?.hunger === 0) criticalStats.push('Hunger');
+      if (pet?.happiness === 0) criticalStats.push('Happiness');
+      if (pet?.cleanliness === 0) criticalStats.push('Cleanliness');
+      if (pet?.energy === 0) criticalStats.push('Energy');
+      
+      // Show notification if any stats hit 0%
+      if (criticalStats.length > 0) {
+        const message = `⚠️ URGENT: ${pet?.name || 'Your pet'}'s ${criticalStats.join(', ')} ${criticalStats.length > 1 ? 'are' : 'is'} at 0%! Please take care of them immediately!`;
+        
+        // Show browser notification if possible
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Pet Care Alert!', {
+            body: message,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico'
+          });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification('Pet Care Alert!', {
+                body: message,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico'
+              });
+            }
+          });
+        }
+        
+        // Also play urgent audio notification if not muted
+        if (!isMuted) {
+          playFemaleCuteVoice(`Urgent! ${pet?.name || 'Your pet'} needs immediate attention! Their ${criticalStats.join(' and ')} ${criticalStats.length > 1 ? 'are' : 'is'} critically low!`, false);
+        }
+        
+        console.log('🚨 CRITICAL PET STATUS ALERT:', message);
+      }
+    }
+  }, [safePets, currentPetIndex, isMuted]);
+
   // Reduced debug logging to prevent console spam
   useEffect(() => {
     if (safePets.length > 0 && safePets[currentPetIndex]) {
@@ -1612,6 +1657,44 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
             </div>
           )}
         </div>
+
+        {/* Critical Pet Status Alert */}
+        {userPets[currentPetIndex] && (
+          (() => {
+            const pet = userPets[currentPetIndex];
+            const criticalStats = [];
+            
+            if (pet?.hunger === 0) criticalStats.push('Hunger');
+            if (pet?.happiness === 0) criticalStats.push('Happiness');
+            if (pet?.cleanliness === 0) criticalStats.push('Cleanliness');
+            if (pet?.energy === 0) criticalStats.push('Energy');
+            
+            if (criticalStats.length > 0) {
+              return (
+                <div className="mx-4 mb-6">
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 shadow-lg animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">⚠️</div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-red-800 text-lg">
+                          URGENT: Critical Pet Status!
+                        </h3>
+                        <p className="text-red-700 mt-1">
+                          <strong>{pet?.name || 'Your pet'}</strong>'s {criticalStats.join(', ')} {criticalStats.length > 1 ? 'are' : 'is'} at 0%! 
+                          Please take care of them immediately to prevent health issues.
+                        </p>
+                      </div>
+                      <div className="text-red-600 text-3xl animate-bounce">
+                        🚨
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()
+        )}
 
         {/* Coin Catching Game Modal */}
         {showCoinGame && selectedPet && (
