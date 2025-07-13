@@ -854,7 +854,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
 }
 
 // Pet Care Component
-function PetCareSection({ language, user, queryClient, userTokens, activateToyAsPetMutation, showPetActivationDialog }: { language: string; user: any; queryClient: any; userTokens: number; activateToyAsPetMutation: any; showPetActivationDialog: (toy: any) => void }) {
+function PetCareSection({ language, user, queryClient, userTokens, activateToyAsPetMutation, showPetActivationDialog, isMuted }: { language: string; user: any; queryClient: any; userTokens: number; activateToyAsPetMutation: any; showPetActivationDialog: (toy: any) => void; isMuted: boolean }) {
   const { toast } = useToast();
   const { t } = useTranslation();
   
@@ -9026,6 +9026,7 @@ export default function CompleteApp() {
             userTokens={userTokens}
             activateToyAsPetMutation={activateToyAsPetMutation}
             showPetActivationDialog={showPetActivationDialog}
+            isMuted={isMuted}
           />
         )}
 
