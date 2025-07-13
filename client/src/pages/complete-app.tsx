@@ -2512,7 +2512,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                     </div>
                     {!isDead && (
                       <div className="text-center text-xs text-gray-500">
-                        {t('pet.lifeRemaining', { days: 100 - days, years: 100 - ageInYears })}
+                        Life remaining: {100 - days} days ({100 - ageInYears} years)
                       </div>
                     )}
                   </div>
