@@ -111,6 +111,103 @@ app.use((req, res, next) => {
   startBackgroundDecay();
   console.log('Background pet decay system started - runs every 3 minutes');
 
+  // Background daily token distribution system - runs every 10 minutes
+  const startDailyTokenDistribution = () => {
+    setInterval(async () => {
+      try {
+        const { db } = await import('./db.js');
+        const { pets, users, tokenTransactions } = await import('../shared/schema.js');
+        const { eq, and, sql } = await import('drizzle-orm');
+        
+        // Find pets that qualify for daily tokens (24+ hours old, healthy stats, no recent claim)
+        const qualifyingPets = await db
+          .select({
+            id: pets.id,
+            name: pets.name,
+            userId: pets.userId,
+            happiness: pets.happiness,
+            hunger: pets.hunger,
+            cleanliness: pets.cleanliness,
+            energy: pets.energy,
+            createdAt: pets.createdAt,
+            lastTokenClaim: pets.lastTokenClaim
+          })
+          .from(pets)
+          .where(eq(pets.isActive, true));
+
+        const now = new Date();
+        let tokensAwarded = 0;
+
+        for (const pet of qualifyingPets) {
+          // Check if pet is 24+ hours old
+          const petAge = now.getTime() - new Date(pet.createdAt).getTime();
+          const hoursOld = petAge / (1000 * 60 * 60);
+          
+          if (hoursOld < 24) continue;
+
+          // Check if all stats are above 1%
+          const allStatsHealthy = (pet.happiness || 0) > 1 && 
+                                 (pet.hunger || 0) > 1 && 
+                                 (pet.cleanliness || 0) > 1 && 
+                                 (pet.energy || 0) > 1;
+          
+          if (!allStatsHealthy) continue;
+
+          // Check if 24 hours have passed since last token claim
+          const lastClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : new Date(pet.createdAt);
+          const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursSinceLastClaim < 24) continue;
+
+          // Award daily token
+          try {
+            // Increment user tokens
+            await db.update(users)
+              .set({ 
+                tokens: sql`${users.tokens} + 1`,
+                updatedAt: now 
+              })
+              .where(eq(users.id, pet.userId));
+
+            // Update pet's last token claim
+            await db.update(pets)
+              .set({ 
+                lastTokenClaim: now,
+                updatedAt: now 
+              })
+              .where(eq(pets.id, pet.id));
+
+            // Create transaction record
+            await db.insert(tokenTransactions).values({
+              userId: pet.userId,
+              tokens: 1,
+              type: 'earned',
+              description: `Daily token from pet "${pet.name}" (24h care reward)`,
+              relatedId: pet.id,
+              status: 'completed',
+              createdAt: now
+            });
+
+            tokensAwarded++;
+            console.log(`🪙 Daily token awarded: Pet "${pet.name}" (ID: ${pet.id}) -> User ${pet.userId}`);
+          } catch (error) {
+            console.error(`Failed to award token for pet ${pet.id}:`, error);
+          }
+        }
+
+        if (tokensAwarded > 0) {
+          console.log(`🎁 Daily token distribution complete: ${tokensAwarded} tokens awarded`);
+        }
+      } catch (error) {
+        console.error('Daily token distribution error:', error);
+      }
+    }, 600000); // Run every 10 minutes (600,000ms)
+  };
+
+  // Start daily token distribution system
+  startDailyTokenDistribution();
+  console.log('Background daily token distribution started - runs every 10 minutes');
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

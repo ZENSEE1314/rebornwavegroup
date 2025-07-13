@@ -2851,13 +2851,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Daily token check - award token if all stats stayed above 1% for 24 hours
-  app.post('/api/pets/:petId/check-daily-token', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/check-daily-token', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -2886,13 +2890,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allStatsAboveThreshold = Object.values(currentStats).every(stat => stat > 1);
 
       if (allStatsAboveThreshold) {
-        // TEMPORARILY DISABLED: Award token to prevent race conditions with pet name edits
-        console.log(`Daily token award disabled temporarily for Pet ${petId}, User ${adminUserId}`);
+        // Award token to user
+        const user = await storage.getUser(adminUserId);
+        const newTokenCount = (user.tokens || 0) + 1;
+        
+        await storage.updateUser(adminUserId, { tokens: newTokenCount });
+        await storage.updatePetStats(petId, { lastTokenClaim: now });
+
+        // Record token transaction
+        await db.insert(tokenTransactions).values({
+          userId: adminUserId,
+          tokens: 1,
+          type: 'earned',
+          description: `Daily token earned from pet ${pet.name}`,
+          relatedId: petId,
+          status: 'completed'
+        });
+
+        console.log(`Daily token awarded to user ${adminUserId} for pet ${petId}`);
         
         res.json({ 
           eligible: true, 
-          tokenAwarded: false, 
-          message: "Daily token system temporarily disabled to prevent conflicts",
+          tokenAwarded: true, 
+          message: "Daily token awarded successfully!",
+          newTokenCount,
           statsOk: true
         });
       } else {
@@ -3565,13 +3586,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 24-Hour Token System - Claim daily token
-  app.post('/api/pets/:petId/claim-daily-token', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pets/:petId/claim-daily-token', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user.claims.sub;
+      const adminUserId = getUserId(req);
+      if (!adminUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const petId = parseInt(req.params.petId);
       
       const pet = await storage.getPetById(petId);
-      if (!pet || pet.adminUserId !== adminUserId) {
+      if (!pet || pet.userId !== adminUserId) {
         return res.status(403).json({ message: "Pet not found or not owned by user" });
       }
 
@@ -7381,9 +7406,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Daily token reward endpoints
-  app.get('/api/daily-token-reward/status', isAuthenticated, async (req: any, res) => {
+  app.get('/api/daily-token-reward/status', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
@@ -7441,9 +7466,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/daily-token-reward/claim', isAuthenticated, async (req: any, res) => {
+  app.post('/api/daily-token-reward/claim', requireAuth, async (req: any, res) => {
     try {
-      const adminUserId = req.user?.claims?.sub;
+      const adminUserId = getUserId(req);
       if (!adminUserId) {
         return res.status(401).json({ message: 'User not authenticated' });
       }
@@ -7463,6 +7488,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error claiming daily token reward:", error);
       res.status(500).json({ message: "Failed to claim daily token reward" });
+    }
+  });
+
+  // Manual daily token distribution endpoint for testing
+  app.post('/api/admin/manual-token-distribution', async (req: any, res) => {
+    try {
+      console.log('Manual token distribution triggered');
+      
+      // Find pets that qualify for daily tokens (24+ hours old, healthy stats, no recent claim)
+      const qualifyingPets = await db
+        .select({
+          id: pets.id,
+          name: pets.name,
+          userId: pets.userId,
+          happiness: pets.happiness,
+          hunger: pets.hunger,
+          cleanliness: pets.cleanliness,
+          energy: pets.energy,
+          createdAt: pets.createdAt,
+          lastTokenClaim: pets.lastTokenClaim
+        })
+        .from(pets)
+        .where(eq(pets.isActive, true));
+
+      const now = new Date();
+      let tokensAwarded = 0;
+      const results = [];
+
+      for (const pet of qualifyingPets) {
+        // Check if pet is 24+ hours old
+        const petAge = now.getTime() - new Date(pet.createdAt).getTime();
+        const hoursOld = petAge / (1000 * 60 * 60);
+        
+        const result = {
+          petId: pet.id,
+          petName: pet.name,
+          userId: pet.userId,
+          hoursOld: hoursOld.toFixed(1),
+          qualifies: false,
+          reason: '',
+          tokenAwarded: false
+        };
+
+        if (hoursOld < 24) {
+          result.reason = `Pet only ${hoursOld.toFixed(1)} hours old (needs 24+)`;
+          results.push(result);
+          continue;
+        }
+
+        // Check if all stats are above 1%
+        const allStatsHealthy = (pet.happiness || 0) > 1 && 
+                               (pet.hunger || 0) > 1 && 
+                               (pet.cleanliness || 0) > 1 && 
+                               (pet.energy || 0) > 1;
+        
+        if (!allStatsHealthy) {
+          result.reason = `Unhealthy stats: H${pet.happiness}% Hu${pet.hunger}% C${pet.cleanliness}% E${pet.energy}%`;
+          results.push(result);
+          continue;
+        }
+
+        // Check if 24 hours have passed since last token claim
+        const lastClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : new Date(pet.createdAt);
+        const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastClaim < 24) {
+          result.reason = `Only ${hoursSinceLastClaim.toFixed(1)} hours since last claim (needs 24+)`;
+          results.push(result);
+          continue;
+        }
+
+        result.qualifies = true;
+
+        // Award daily token
+        try {
+          // Increment user tokens
+          await db.update(users)
+            .set({ 
+              tokens: sql`${users.tokens} + 1`,
+              updatedAt: now 
+            })
+            .where(eq(users.id, pet.userId));
+
+          // Update pet's last token claim
+          await db.update(pets)
+            .set({ 
+              lastTokenClaim: now,
+              updatedAt: now 
+            })
+            .where(eq(pets.id, pet.id));
+
+          // Create transaction record
+          await db.insert(tokenTransactions).values({
+            userId: pet.userId,
+            tokens: 1,
+            type: 'earned',
+            description: `Daily token from pet "${pet.name}" (24h care reward)`,
+            relatedId: pet.id,
+            status: 'completed',
+            createdAt: now
+          });
+
+          tokensAwarded++;
+          result.tokenAwarded = true;
+          result.reason = 'Token awarded successfully!';
+          console.log(`🪙 Manual token awarded: Pet "${pet.name}" (ID: ${pet.id}) -> User ${pet.userId}`);
+        } catch (error) {
+          result.reason = `Failed to award token: ${error.message}`;
+          console.error(`Failed to award token for pet ${pet.id}:`, error);
+        }
+
+        results.push(result);
+      }
+
+      res.json({
+        message: `Manual token distribution complete: ${tokensAwarded} tokens awarded`,
+        tokensAwarded,
+        totalPetsChecked: qualifyingPets.length,
+        results
+      });
+    } catch (error) {
+      console.error('Manual token distribution error:', error);
+      res.status(500).json({ message: 'Failed to run manual token distribution' });
     }
   });
 
