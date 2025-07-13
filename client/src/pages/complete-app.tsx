@@ -332,84 +332,87 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
   // Don't play sound if muted
   if (isMuted) return;
   
+  console.log('Attempting to play audio for:', message.substring(0, 30) + '...');
+  
   try {
-    // Mobile speech synthesis unlock
-    if (!speechSynthUnlocked && 'speechSynthesis' in window) {
-      // Try to initialize speech synthesis for mobile
-      try {
-        const testUtterance = new SpeechSynthesisUtterance('');
-        testUtterance.volume = 0;
-        speechSynthesis.speak(testUtterance);
-        speechSynthesis.cancel();
-        speechSynthUnlocked = true;
-        console.log('Speech synthesis unlocked for mobile');
-      } catch (e) {
-        console.log('Speech synthesis unlock failed:', e);
-      }
+    // Primary approach: Use the custom voice audio file
+    const audio = new Audio('/src/assets/custom-voice.m4a');
+    audio.volume = 0.8;
+    audio.preload = 'auto';
+    
+    // Mobile audio unlock mechanism
+    if (!audioUnlocked) {
+      console.log('Audio not unlocked, attempting mobile unlock...');
+      
+      // Create silent audio to unlock mobile browsers
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAVZIBAAUVAQAC8b8bAAAAnABwYXNhegYAAAAAAAAa');
+      silentAudio.volume = 0.1;
+      
+      silentAudio.play().then(() => {
+        audioUnlocked = true;
+        console.log('Mobile audio unlocked successfully');
+        
+        // Now play the actual audio
+        return audio.play();
+      }).then(() => {
+        console.log('Custom voice audio played successfully');
+      }).catch(error => {
+        console.log('Audio playback failed, trying fallback:', error);
+        playFallbackSpeech(message);
+      });
+    } else {
+      // Audio already unlocked, play directly
+      audio.play().then(() => {
+        console.log('Custom voice audio played successfully');
+      }).catch(error => {
+        console.log('Audio playback failed, trying fallback:', error);
+        playFallbackSpeech(message);
+      });
     }
     
+    audio.onerror = (error) => {
+      console.log('Audio loading error, trying fallback:', error);
+      playFallbackSpeech(message);
+    };
+    
+  } catch (error) {
+    console.log('Audio setup failed, trying fallback:', error);
+    playFallbackSpeech(message);
+  }
+}
+
+function playFallbackSpeech(message: string) {
+  console.log('Using fallback speech synthesis for:', message.substring(0, 30) + '...');
+  
+  try {
     if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
       speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(message);
+      utterance.pitch = 1.5;
+      utterance.rate = 0.8;
+      utterance.volume = 0.8;
       
-      // Configure for cute female voice with higher settings
-      utterance.pitch = 1.8; // High but not too extreme
-      utterance.rate = 0.7; // Slower for cute effect
-      utterance.volume = 0.9;
+      utterance.onstart = () => console.log('Fallback speech started');
+      utterance.onerror = (event) => console.log('Fallback speech error:', event.error);
+      utterance.onend = () => console.log('Fallback speech ended');
       
-      // Enhanced mobile compatibility
-      utterance.onstart = () => {
-        console.log('Speech started:', message.substring(0, 30) + '...');
-      };
+      const voices = speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice?.name?.toLowerCase().includes('zira') ||
+        voice?.name?.toLowerCase().includes('female') ||
+        voice?.name?.toLowerCase().includes('samantha')
+      );
       
-      utterance.onerror = (event) => {
-        console.log('Speech error:', event.error);
-      };
-      
-      utterance.onend = () => {
-        console.log('Speech ended');
-      };
-      
-      // Wait for voices to load, then select best female voice
-      const setVoiceAndSpeak = () => {
-        const voices = speechSynthesis.getVoices();
-        console.log('Available voices:', voices.length);
-        
-        // Priority order for female voices
-        const femaleVoice = voices.find(voice => 
-          voice?.name?.toLowerCase().includes('zira') ||
-          voice?.name?.toLowerCase().includes('hazel') ||
-          voice?.name?.toLowerCase().includes('samantha') ||
-          voice?.name?.toLowerCase().includes('karen') ||
-          voice?.name?.toLowerCase().includes('susan') ||
-          voice?.name?.toLowerCase().includes('anna') ||
-          voice?.name?.toLowerCase().includes('emma') ||
-          voice?.name?.toLowerCase().includes('female')
-        );
-        
-        if (femaleVoice) {
-          utterance.voice = femaleVoice;
-          console.log('Using voice:', femaleVoice.name);
-        } else {
-          console.log('Using default voice');
-        }
-        
-        console.log('Attempting to speak:', message.substring(0, 30) + '...');
-        speechSynthesis.speak(utterance);
-      };
-      
-      // If voices are already loaded, speak immediately
-      if (speechSynthesis.getVoices().length > 0) {
-        setVoiceAndSpeak();
-      } else {
-        // Wait for voices to load
-        speechSynthesis.onvoiceschanged = setVoiceAndSpeak;
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        console.log('Using fallback voice:', femaleVoice.name);
       }
+      
+      speechSynthesis.speak(utterance);
     }
   } catch (error) {
-    console.log('Speech synthesis not supported');
+    console.log('Fallback speech also failed:', error);
   }
 }
 
@@ -5889,18 +5892,18 @@ export default function CompleteApp() {
                 <div className="relative group">
                   <Button
                     onClick={() => {
-                      console.log('Testing mobile audio...');
-                      playFemaleCuteVoice("Audio test - can you hear this on mobile?", false);
+                      console.log('Testing mobile audio with HTML5 Audio...');
+                      playFemaleCuteVoice("Mobile audio test - checking if HTML5 audio works", false);
                     }}
                     variant="outline"
                     size="sm"
                     className="bg-blue-50/80 backdrop-blur-sm hover:bg-blue-100/90 border-blue-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
-                    title="Test Audio"
+                    title="Test HTML5 Audio"
                   >
                     🔊
                   </Button>
                   <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    Test Audio
+                    Test HTML5 Audio
                   </div>
                 </div>
               )}
