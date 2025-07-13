@@ -993,6 +993,12 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     enabled: !!currentPet?.id,
   });
 
+  // Fetch token transactions for current user
+  const { data: tokenTransactions = [] } = useQuery({
+    queryKey: ["/api/user/token-transactions"],
+    enabled: !!user?.id,
+  });
+
   // Fetch sleep progress for sleeping pets - reasonable refresh interval
   const { data: sleepProgress } = useQuery({
     queryKey: ["/api/pets", safePets[currentPetIndex]?.id, "sleep-progress"],
@@ -2267,7 +2273,17 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                       </div>
                       <div>
                         <span className="text-gray-600">{t('petInfo.tokens')}</span>
-                        <p className="font-medium">{pet.totalTokensEarned || 0}</p>
+                        <p className="font-medium">
+                          {(() => {
+                            // Count daily token rewards from this specific pet
+                            const petTokenTransactions = tokenTransactions?.filter((tx: any) => 
+                              tx.relatedId === pet.id && 
+                              tx.type === 'earned' && 
+                              tx.description?.includes('Daily token from pet')
+                            ) || [];
+                            return petTokenTransactions.length;
+                          })()}
+                        </p>
                       </div>
                     </div>
                     {!isDead && (

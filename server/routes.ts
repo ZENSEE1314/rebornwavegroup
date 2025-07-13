@@ -7330,6 +7330,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User endpoint to get current user's token transactions
+  app.get('/api/user/token-transactions', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const userTokenTransactions = await db
+        .select()
+        .from(tokenTransactions)
+        .where(eq(tokenTransactions.userId, userId))
+        .orderBy(desc(tokenTransactions.createdAt));
+
+      res.json(userTokenTransactions);
+    } catch (error) {
+      console.error("Error fetching user token transactions:", error);
+      res.status(500).json({ message: "Failed to fetch token transactions" });
+    }
+  });
+
   // Admin endpoint to get all token transactions with pagination
   app.get('/api/admin/token-transactions', requireAuth, async (req: any, res) => {
     try {
