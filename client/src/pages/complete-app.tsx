@@ -5970,27 +5970,6 @@ export default function CompleteApp() {
                 </div>
               </div>
 
-              {/* Mobile Audio Test Button - Only visible when not muted */}
-              {!isMuted && (
-                <div className="relative group">
-                  <Button
-                    onClick={() => {
-                      console.log('Testing mobile audio with HTML5 Audio...');
-                      playFemaleCuteVoice("Mobile audio test - checking if HTML5 audio works", false);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="bg-blue-50/80 backdrop-blur-sm hover:bg-blue-100/90 border-blue-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
-                    title="Test HTML5 Audio"
-                  >
-                    🔊
-                  </Button>
-                  <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    Test HTML5 Audio
-                  </div>
-                </div>
-              )}
-
               {/* Help Button - Guide Access */}
               <div className="relative group">
                 <Button
