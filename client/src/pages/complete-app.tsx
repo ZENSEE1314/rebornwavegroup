@@ -258,6 +258,7 @@ function formatSleepTime(timeRemaining: number): string {
 
 // Global audio context for mobile browsers
 let audioUnlocked = false;
+let speechSynthUnlocked = false;
 
 // Sound effect function to play text-to-speech + custom voice
 function playDoluruuSound(isMuted = false) {
@@ -332,25 +333,19 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
   if (isMuted) return;
   
   try {
-    // Mobile audio unlock check
-    if (!audioUnlocked) {
-      // Try to unlock audio context on mobile
-      const unlockAudio = () => {
-        try {
-          const audio = new Audio();
-          audio.volume = 0;
-          audio.play().then(() => {
-            audioUnlocked = true;
-            audio.pause();
-            audio.currentTime = 0;
-          }).catch(() => {
-            console.log('Audio unlock failed');
-          });
-        } catch (e) {
-          console.log('Audio unlock error:', e);
-        }
-      };
-      unlockAudio();
+    // Mobile speech synthesis unlock
+    if (!speechSynthUnlocked && 'speechSynthesis' in window) {
+      // Try to initialize speech synthesis for mobile
+      try {
+        const testUtterance = new SpeechSynthesisUtterance('');
+        testUtterance.volume = 0;
+        speechSynthesis.speak(testUtterance);
+        speechSynthesis.cancel();
+        speechSynthUnlocked = true;
+        console.log('Speech synthesis unlocked for mobile');
+      } catch (e) {
+        console.log('Speech synthesis unlock failed:', e);
+      }
     }
     
     if ('speechSynthesis' in window) {
@@ -364,9 +359,23 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
       utterance.rate = 0.7; // Slower for cute effect
       utterance.volume = 0.9;
       
+      // Enhanced mobile compatibility
+      utterance.onstart = () => {
+        console.log('Speech started:', message.substring(0, 30) + '...');
+      };
+      
+      utterance.onerror = (event) => {
+        console.log('Speech error:', event.error);
+      };
+      
+      utterance.onend = () => {
+        console.log('Speech ended');
+      };
+      
       // Wait for voices to load, then select best female voice
       const setVoiceAndSpeak = () => {
         const voices = speechSynthesis.getVoices();
+        console.log('Available voices:', voices.length);
         
         // Priority order for female voices
         const femaleVoice = voices.find(voice => 
@@ -382,8 +391,12 @@ function playFemaleCuteVoice(message: string, isMuted = false) {
         
         if (femaleVoice) {
           utterance.voice = femaleVoice;
+          console.log('Using voice:', femaleVoice.name);
+        } else {
+          console.log('Using default voice');
         }
         
+        console.log('Attempting to speak:', message.substring(0, 30) + '...');
         speechSynthesis.speak(utterance);
       };
       
@@ -950,6 +963,23 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
           if (!audioUnlocked) {
             unlockAudio();
           }
+          
+          // Also try to unlock speech synthesis specifically for mobile
+          if (!speechSynthUnlocked && 'speechSynthesis' in window) {
+            try {
+              console.log('Attempting speech synthesis unlock...');
+              const testUtterance = new SpeechSynthesisUtterance('test');
+              testUtterance.volume = 0;
+              testUtterance.rate = 10; // Very fast to make it unnoticeable
+              speechSynthesis.speak(testUtterance);
+              speechSynthesis.cancel();
+              speechSynthUnlocked = true;
+              console.log('Speech synthesis unlocked successfully');
+            } catch (e) {
+              console.log('Speech synthesis unlock failed:', e);
+            }
+          }
+          
           document.removeEventListener('touchstart', handleTouch);
           document.removeEventListener('click', handleTouch);
         };
@@ -5853,6 +5883,27 @@ export default function CompleteApp() {
                   {isMuted ? "Unmute Sound" : "Mute Sound"}
                 </div>
               </div>
+
+              {/* Mobile Audio Test Button - Only visible when not muted */}
+              {!isMuted && (
+                <div className="relative group">
+                  <Button
+                    onClick={() => {
+                      console.log('Testing mobile audio...');
+                      playFemaleCuteVoice("Audio test - can you hear this on mobile?", false);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-blue-50/80 backdrop-blur-sm hover:bg-blue-100/90 border-blue-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
+                    title="Test Audio"
+                  >
+                    🔊
+                  </Button>
+                  <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Test Audio
+                  </div>
+                </div>
+              )}
 
               {/* Help Button - Guide Access */}
               <div className="relative group">
