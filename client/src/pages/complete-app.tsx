@@ -15,7 +15,8 @@ import {
   Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
-  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp
+  Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp,
+  Volume2, VolumeX
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import logoImage from "@assets/2-removebg-preview.png";
@@ -256,7 +257,10 @@ function formatSleepTime(timeRemaining: number): string {
 }
 
 // Sound effect function to play text-to-speech + custom voice
-function playDoluruuSound() {
+function playDoluruuSound(isMuted = false) {
+  // Don't play sound if muted
+  if (isMuted) return;
+  
   try {
     // First: Play text-to-speech "how do you call my name?"
     if ('speechSynthesis' in window) {
@@ -282,11 +286,13 @@ function playDoluruuSound() {
       // After text-to-speech finishes, play custom voice recording
       utterance.onend = () => {
         setTimeout(() => {
-          const audio = new Audio('/src/assets/custom-voice.m4a');
-          audio.volume = 0.8;
-          audio.play().catch(() => {
-            console.log('Custom voice recording failed to play');
-          });
+          if (!isMuted) {
+            const audio = new Audio('/src/assets/custom-voice.m4a');
+            audio.volume = 0.8;
+            audio.play().catch(() => {
+              console.log('Custom voice recording failed to play');
+            });
+          }
         }, 100); // Faster transition between the two sounds
       };
       
@@ -297,7 +303,10 @@ function playDoluruuSound() {
   }
 }
 
-function playFemaleCuteVoice(message: string) {
+function playFemaleCuteVoice(message: string, isMuted = false) {
+  // Don't play sound if muted
+  if (isMuted) return;
+  
   try {
     if ('speechSynthesis' in window) {
       // Cancel any ongoing speech
@@ -870,7 +879,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     if (user && !hasGreeted) {
       const userName = user.firstName || user.email?.split('@')[0] || 'dear friend';
       setTimeout(() => {
-        playFemaleCuteVoice(`Hello ${userName}! Welcome to Pet Care! Let's take wonderful care of your adorable pets together!`);
+        playFemaleCuteVoice(`Hello ${userName}! Welcome to Pet Care! Let's take wonderful care of your adorable pets together!`, isMuted);
         setHasGreeted(true);
       }, 500); // Small delay to ensure component is fully loaded
     }
@@ -998,6 +1007,17 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     queryKey: ["/api/user/token-transactions"],
     enabled: !!user?.id,
   });
+
+  // Calculate tokens earned by current pet from daily care rewards
+  const currentPetTokens = useMemo(() => {
+    if (!currentPet?.id || !tokenTransactions.length) return 0;
+    
+    return tokenTransactions.filter(transaction => 
+      transaction.relatedId === currentPet.id && 
+      transaction.type === 'earned' &&
+      transaction.description?.includes('Daily token from pet')
+    ).length;
+  }, [currentPet?.id, tokenTransactions]);
 
   // Fetch sleep progress for sleeping pets - reasonable refresh interval
   const { data: sleepProgress } = useQuery({
@@ -2034,19 +2054,19 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                               description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
-                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.", isMuted);
                             return;
                           }
                           if (pet.isSleeping) {
-                            playFemaleCuteVoice("Rise and shine! Time to wake up for feeding!");
+                            playFemaleCuteVoice("Rise and shine! Time to wake up for feeding!", isMuted);
                             await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
-                              playFemaleCuteVoice("Yummy time! Feeding your pet now!");
+                              playFemaleCuteVoice("Yummy time! Feeding your pet now!", isMuted);
                               careActivityMutation.mutate({ petId: pet?.id, careType: 'fed' });
                             }, 1000);
                           } else {
-                            playFemaleCuteVoice("Yummy time! Feeding your pet now!");
+                            playFemaleCuteVoice("Yummy time! Feeding your pet now!", isMuted);
                             careActivityMutation.mutate({ petId: pet?.id, careType: 'fed' });
                           }
                         }}
@@ -2071,19 +2091,19 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                               description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
-                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.", isMuted);
                             return;
                           }
                           if (pet.isSleeping) {
-                            playFemaleCuteVoice("Rise and shine! Time to wake up for bath time!");
+                            playFemaleCuteVoice("Rise and shine! Time to wake up for bath time!", isMuted);
                             await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
-                              playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
+                              playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!", isMuted);
                               careActivityMutation.mutate({ petId: pet?.id, careType: 'bathed' });
                             }, 1000);
                           } else {
-                            playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
+                            playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!", isMuted);
                             careActivityMutation.mutate({ petId: pet?.id, careType: 'bathed' });
                           }
                         }}
@@ -2110,7 +2130,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                               description: t('energyNotEnough.description'),
                               variant: "destructive"
                             });
-                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.");
+                            playFemaleCuteVoice("I'm too tired! I need to rest or sleep first.", isMuted);
                             return;
                           }
                           if (happiness >= 100) {
@@ -2122,15 +2142,15 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                             return;
                           }
                           if (pet.isSleeping) {
-                            playFemaleCuteVoice("Rise and shine! Time to wake up for playtime!");
+                            playFemaleCuteVoice("Rise and shine! Time to wake up for playtime!", isMuted);
                             await wakeMutation.mutateAsync(pet?.id);
                             // Small delay to ensure wake up completes
                             setTimeout(() => {
-                              playFemaleCuteVoice("Playtime! Let's have some fun together!");
+                              playFemaleCuteVoice("Playtime! Let's have some fun together!", isMuted);
                               careActivityMutation.mutate({ petId: pet?.id, careType: 'play' });
                             }, 1000);
                           } else {
-                            playFemaleCuteVoice("Playtime! Let's have some fun together!");
+                            playFemaleCuteVoice("Playtime! Let's have some fun together!", isMuted);
                             careActivityMutation.mutate({ petId: pet?.id, careType: 'play' });
                           }
                         }}
@@ -2149,7 +2169,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                           variant="outline"
                           className="flex items-center gap-2 p-4 h-auto flex-col bg-blue-50 border-blue-200"
                           onClick={() => {
-                            playFemaleCuteVoice("Rise and shine! Time to wake up, sweetie!");
+                            playFemaleCuteVoice("Rise and shine! Time to wake up, sweetie!", isMuted);
                             wakeMutation.mutate(pet?.id);
                           }}
                           disabled={wakeMutation.isPending}
@@ -2165,7 +2185,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                           variant="outline"
                           className="flex items-center gap-2 p-4 h-auto flex-col"
                           onClick={() => {
-                            playFemaleCuteVoice("Sleep tight! Sweet dreams, my precious pet!");
+                            playFemaleCuteVoice("Sleep tight! Sweet dreams, my precious pet!", isMuted);
                             sleepMutation.mutate(pet?.id);
                           }}
                           disabled={sleepMutation.isPending || (pet.energy || 50) >= 100}
@@ -2792,7 +2812,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    playFemaleCuteVoice("Yummy time! Feeding your pet now!");
+                    playFemaleCuteVoice("Yummy time! Feeding your pet now!", isMuted);
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'fed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
@@ -2805,7 +2825,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!");
+                    playFemaleCuteVoice("Bath time! Let's get you all clean and sparkly!", isMuted);
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'bathed' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
@@ -2818,7 +2838,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    playFemaleCuteVoice("Playtime! Let's have some fun together!");
+                    playFemaleCuteVoice("Playtime! Let's have some fun together!", isMuted);
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'play' });
                   }}
                   disabled={careActivityMutation.isPending || (safePets[currentPetIndex]?.energy === 0)}
@@ -2831,7 +2851,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                   variant="outline"
                   className="h-20 flex-col gap-2"
                   onClick={() => {
-                    playFemaleCuteVoice("Sweet dreams! Time for a cozy nap!");
+                    playFemaleCuteVoice("Sweet dreams! Time for a cozy nap!", isMuted);
                     careActivityMutation.mutate({ petId: safePets[currentPetIndex]?.id, careType: 'slept' });
                   }}
                   disabled={careActivityMutation.isPending}
@@ -2938,7 +2958,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Pet Care Tokens:</span>
-                    <span className="font-medium">{userTokens}</span>
+                    <span className="font-medium">{currentPetTokens}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Loyalty Points:</span>
@@ -3606,6 +3626,25 @@ export default function CompleteApp() {
   const [pendingMarketplacePurchase, setPendingMarketplacePurchase] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Audio state for mute/unmute functionality
+  const [isMuted, setIsMuted] = useState(() => {
+    // Get mute state from localStorage, default to false (unmuted)
+    const savedMuteState = localStorage.getItem('petCareSoundMuted');
+    return savedMuteState === 'true';
+  });
+  
+  // Function to toggle mute/unmute
+  const toggleMute = () => {
+    const newMuteState = !isMuted;
+    setIsMuted(newMuteState);
+    localStorage.setItem('petCareSoundMuted', newMuteState.toString());
+    
+    // Stop any currently playing speech synthesis
+    if (newMuteState && 'speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+  };
 
   // Fetch marketplace listings (for user buy/sell)
   const { data: listings = [] } = useQuery({
@@ -5708,6 +5747,25 @@ export default function CompleteApp() {
                 </div>
               )}
 
+              {/* Audio Mute/Unmute Button */}
+              <div className="relative group">
+                <Button
+                  onClick={toggleMute}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
+                  title={isMuted ? "Unmute Sound" : "Mute Sound"}
+                >
+                  {isMuted ? 
+                    <VolumeX className="w-4 h-4 text-red-600" /> : 
+                    <Volume2 className="w-4 h-4 text-green-600" />
+                  }
+                </Button>
+                <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  {isMuted ? "Unmute Sound" : "Mute Sound"}
+                </div>
+              </div>
+
               {/* Help Button - Guide Access */}
               <div className="relative group">
                 <Button
@@ -5779,7 +5837,7 @@ export default function CompleteApp() {
                 data-tab={tab.id}
                 onClick={() => {
                   if (tab.id === "petcare") {
-                    playDoluruuSound();
+                    playDoluruuSound(isMuted);
                   }
                   setActiveTab(tab.id);
                 }}
@@ -5838,7 +5896,7 @@ export default function CompleteApp() {
                 key={tab.id}
                 onClick={() => {
                   if (tab.id === "petcare") {
-                    playDoluruuSound();
+                    playDoluruuSound(isMuted);
                   }
                   setActiveTab(tab.id);
                 }}

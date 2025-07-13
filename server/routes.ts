@@ -2805,6 +2805,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   */
 
   // Pet sleep management
+  // Get tokens earned by specific pet
+  app.get('/api/pets/:petId/tokens-earned', async (req: any, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      
+      if (!petId) {
+        return res.status(400).json({ message: 'Invalid pet ID' });
+      }
+
+      // Count daily token rewards from this specific pet
+      const petTokenTransactions = await db
+        .select()
+        .from(tokenTransactions)
+        .where(and(
+          eq(tokenTransactions.relatedId, petId),
+          eq(tokenTransactions.type, 'earned'),
+          like(tokenTransactions.description, '%Daily token from pet%')
+        ));
+
+      res.json({ tokensEarned: petTokenTransactions.length });
+    } catch (error) {
+      console.error("Error fetching pet tokens:", error);
+      res.status(500).json({ message: "Failed to fetch pet tokens" });
+    }
+  });
+
   app.post('/api/pets/:petId/sleep', requireAuth, async (req: any, res) => {
     try {
       const adminUserId = getUserId(req);
