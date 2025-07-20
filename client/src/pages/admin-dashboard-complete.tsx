@@ -234,7 +234,10 @@ export default function CompleteAdminDashboard() {
                         <TableHead className="text-gray-300">Email</TableHead>
                         <TableHead className="text-gray-300">Phone</TableHead>
                         <TableHead className="text-gray-300">Credits</TableHead>
+                        <TableHead className="text-gray-300">RP Points</TableHead>
                         <TableHead className="text-gray-300">Tokens</TableHead>
+                        <TableHead className="text-gray-300">Referrals</TableHead>
+                        <TableHead className="text-gray-300">Ref. Earnings</TableHead>
                         <TableHead className="text-gray-300">Joined</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -249,7 +252,16 @@ export default function CompleteAdminDashboard() {
                           <TableCell className="text-green-300 font-semibold">
                             IDR {parseFloat(user.credits || '0').toLocaleString()}
                           </TableCell>
+                          <TableCell className="text-blue-300 font-semibold">
+                            {user.loyaltyPoints || 0}
+                          </TableCell>
                           <TableCell className="text-yellow-300">{user.tokens || 0}</TableCell>
+                          <TableCell className="text-purple-300 font-semibold">
+                            {user.referralCount || 0}
+                          </TableCell>
+                          <TableCell className="text-pink-300 font-semibold">
+                            IDR {parseFloat(user.referralEarnings || '0').toLocaleString()}
+                          </TableCell>
                           <TableCell className="text-gray-300">
                             {formatDate(user.createdAt)}
                           </TableCell>

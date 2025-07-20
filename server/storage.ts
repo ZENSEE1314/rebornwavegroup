@@ -1073,10 +1073,29 @@ export class DatabaseStorage implements IStorage {
 
   // Admin operations
   async getAllUsers(): Promise<User[]> {
-    return await db
+    // First get all users with their basic data
+    const usersData = await db
       .select()
       .from(users)
       .orderBy(desc(users.createdAt));
+
+    // Then get referral counts for each user
+    const usersWithReferralData = await Promise.all(
+      usersData.map(async (user) => {
+        // Get referral count - count of users referred by this user
+        const referralCount = await db
+          .select({ count: sql`count(*)` })
+          .from(referrals)
+          .where(eq(referrals.referrerId, user.id));
+
+        return {
+          ...user,
+          referralCount: Number(referralCount[0]?.count || 0)
+        };
+      })
+    );
+
+    return usersWithReferralData;
   }
 
   async updateUserRole(userId: string, role: string): Promise<void> {
