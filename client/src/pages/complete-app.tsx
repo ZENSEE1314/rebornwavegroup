@@ -2301,6 +2301,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                         <span className="text-2xl">🍎</span>
                         <span className="text-sm">
                           {t('careButtons.feed')}
+                          {hunger >= 100 && <span className="text-xs block text-green-600">MAX</span>}
                           {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
                       </Button>
@@ -2338,6 +2339,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                         <span className="text-2xl">🛁</span>
                         <span className="text-sm">
                           {t('careButtons.bathe')}
+                          {cleanliness >= 100 && <span className="text-xs block text-green-600">MAX</span>}
                           {energy < 5 && <span className="text-xs block text-red-600">LOW ENERGY</span>}
                         </span>
                       </Button>
@@ -3045,6 +3047,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 >
                   <span className="text-2xl">🍎</span>
                   <span className="text-sm">{t('petCare.feeding')}</span>
+                  {safePets[currentPetIndex]?.hunger >= 100 && <span className="text-xs text-green-600">MAX</span>}
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
@@ -3058,6 +3061,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 >
                   <span className="text-2xl">🛁</span>
                   <span className="text-sm">{t('petCare.bathing')}</span>
+                  {safePets[currentPetIndex]?.cleanliness >= 100 && <span className="text-xs text-green-600">MAX</span>}
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
@@ -3071,6 +3075,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 >
                   <Sparkles className="w-6 h-6" />
                   <span className="text-sm">{t('petCare.playing')}</span>
+                  {safePets[currentPetIndex]?.happiness >= 100 && <span className="text-xs text-green-600">MAX</span>}
                   {safePets[currentPetIndex]?.energy === 0 && <span className="text-xs text-red-500">No Energy</span>}
                 </Button>
                 <Button
