@@ -159,7 +159,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
   // Previous winners component
   const PreviousWinners = ({ winners }: { winners: any[] }) => {
-    if (!winners || winners.length === 0) return null;
+    const validWinners = Array.isArray(winners) ? winners : [];
+    if (validWinners.length === 0) return null;
     
     return (
       <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 mb-6">
@@ -169,13 +170,13 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             Previous Tournament Winners
           </h3>
           <div className="space-y-4">
-            {winners.slice(0, 1).map((tournamentData) => (
+            {validWinners.slice(0, 1).map((tournamentData) => (
               <div key={tournamentData.tournament.id}>
                 <h4 className="font-medium text-gray-800 mb-2">
                   {tournamentData.tournament.name} - {new Date(tournamentData.tournament.endDate).toLocaleDateString()}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {tournamentData.winners.slice(0, 10).map((winner: any) => (
+                  {Array.isArray(tournamentData.winners) ? tournamentData.winners.slice(0, 10).map((winner: any) => (
                     <div key={winner.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
                         winner.position === 1 ? 'bg-yellow-500' : 
@@ -189,7 +190,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                         <div className="text-xs text-gray-600">RP {parseFloat(winner.reward || '0').toLocaleString()}</div>
                       </div>
                     </div>
-                  ))}
+                  )) : null}
                 </div>
               </div>
             ))}

@@ -3216,11 +3216,11 @@ export class DatabaseStorage implements IStorage {
   // KOS (Kings Of Singers) storage methods implementation
   // User Stars operations
   async getUserStars(userId: string): Promise<UserStars | undefined> {
-    const [userStars] = await db
+    const [userStarsData] = await db
       .select()
       .from(userStars)
       .where(eq(userStars.userId, userId));
-    return userStars;
+    return userStarsData;
   }
 
   async createUserStars(userStarsData: InsertUserStars): Promise<UserStars> {
@@ -3634,22 +3634,26 @@ export class DatabaseStorage implements IStorage {
           .insert(tournaments)
           .values({
             name: `Weekly Competition ${new Date().toISOString().slice(0, 10)}`,
-            description: 'Weekly KOS tournament with star voting',
+            type: 'weekly',
+            status: 'active',
             startDate,
             endDate,
-            status: 'active',
-            maxParticipants: 1000,
-            entryFee: 0,
-            prizePool: '100000.00',
-            tournamentType: 'weekly',
-            votingMethod: 'stars'
+            totalStarPool: 100000,
+            isDistributed: false
           })
           .returning();
 
         return {
-          ...newTournament,
+          id: newTournament.id,
+          name: newTournament.name,
+          type: newTournament.type,
+          status: newTournament.status,
+          startDate: newTournament.startDate,
+          endDate: newTournament.endDate,
+          totalStarPool: newTournament.totalStarPool,
           timeLeft: this.calculateTimeLeft(newTournament.endDate),
-          participantCount: 0
+          participantCount: 0,
+          prizePool: '100,000 Stars'
         };
       }
 
@@ -3660,9 +3664,16 @@ export class DatabaseStorage implements IStorage {
         .where(eq(tournamentParticipants.tournamentId, currentTournament.id));
 
       return {
-        ...currentTournament,
+        id: currentTournament.id,
+        name: currentTournament.name,
+        type: currentTournament.type,
+        status: currentTournament.status,
+        startDate: currentTournament.startDate,
+        endDate: currentTournament.endDate,
+        totalStarPool: currentTournament.totalStarPool,
         timeLeft: this.calculateTimeLeft(currentTournament.endDate),
-        participantCount: participantCount?.count || 0
+        participantCount: participantCount?.count || 0,
+        prizePool: `${currentTournament.totalStarPool?.toLocaleString() || '0'} Stars`
       };
     } catch (error) {
       console.error('Error fetching current tournament:', error);
@@ -3697,7 +3708,7 @@ export class DatabaseStorage implements IStorage {
 
       const winners = [];
       for (const tournament of completedTournaments) {
-        // Get top 10 winners from this tournament
+        // Get top 10 winners from this tournament based on rank
         const tournamentWinners = await db
           .select({
             userId: tournamentParticipants.userId,
@@ -3705,19 +3716,19 @@ export class DatabaseStorage implements IStorage {
             lastName: users.lastName,
             profileImageUrl: users.profileImageUrl,
             email: users.email,
-            finalScore: tournamentParticipants.finalScore,
-            reward: tournamentParticipants.reward,
-            position: tournamentParticipants.position
+            starsReceived: tournamentParticipants.starsReceived,
+            rank: tournamentParticipants.rank,
+            rewardAmount: tournamentParticipants.rewardAmount
           })
           .from(tournamentParticipants)
           .leftJoin(users, eq(tournamentParticipants.userId, users.id))
           .where(
             and(
               eq(tournamentParticipants.tournamentId, tournament.id),
-              isNotNull(tournamentParticipants.position)
+              gt(tournamentParticipants.rank, 0)
             )
           )
-          .orderBy(asc(tournamentParticipants.position))
+          .orderBy(asc(tournamentParticipants.rank))
           .limit(10);
 
         winners.push({
@@ -3725,15 +3736,15 @@ export class DatabaseStorage implements IStorage {
             id: tournament.id,
             name: tournament.name,
             endDate: tournament.endDate,
-            prizePool: tournament.prizePool
+            prizePool: `${tournament.totalStarPool?.toLocaleString() || '0'} Stars`
           },
           winners: tournamentWinners.map(winner => ({
             id: winner.userId,
             name: `${winner.firstName || ''} ${winner.lastName || ''}`.trim() || winner.email?.split('@')[0] || 'Anonymous',
             photo: winner.profileImageUrl || '/api/placeholder/50/50',
-            score: winner.finalScore || 0,
-            reward: winner.reward || '0.00',
-            position: winner.position
+            score: winner.starsReceived || 0,
+            reward: winner.rewardAmount?.toString() || '0',
+            position: winner.rank
           }))
         });
       }
