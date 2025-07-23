@@ -1,0 +1,114 @@
+add in a tab for user KOS (Kings Of Singers)
+User dashboard add in Stars
+hidden buttons
+Purchase Stars (1000 RP = 1 Star).
+Purchase Stars History
+View past orders, date/ time, total RP, and Stars earned.
+
+New tab KOS
+⭐ KOS (King Of Singers) Tab
+This tab is a voting-based competition area split into two sections: Tournament and Individual. It displays ranked lists based on stars earned from other users.
+
+🔥 Subtab 1: Tournament
+Voting System: Users vote for their favorite singers using Stars.
+
+Leader Board:
+
+Shows all users (paginated, 100 per page).
+
+Display profile picture, username, total individual stars received.
+
+Each user's card shows:
+
+Top 3 contributors (users who sent the most stars)
+
+"Send Star" button
+
+"Like User" button (free like/unlike)
+
+Timer Countdown: Weekly tournament (7-day countdown).
+
+Reward Distribution (on timer end):
+
+Top 10 users get rewarded total stars collected that week:
+
+🥇 1st Place: 50%
+
+🥈 2nd Place: 20%
+
+🥉 3rd Place: 10%
+
+🏅 4th–10th: Remaining 20% shared equally
+
+Stars cannot be claimed immediately – they are distributed only after the countdown ends.
+
+🌟 Subtab 2: Individual
+Live Voting:
+
+Users get stars in real time and can claim credits immediately.
+
+Ranking Board:
+
+Shows all users (paginated, 100 per page).
+
+Display profile picture, username, total individual stars received.
+
+Each user's card shows:
+
+Top 3 contributors (users who sent the most stars)
+
+"Send Star" button
+
+"Like User" button (free like/unlike)
+
+Monetization:
+
+Stars purchased at 1000 RP each
+
+Conversion to credits:
+
+70% to the user
+
+30% platform/admin fee
+
+🧱 Influencer Rank System (For Individual Rankings)
+Tier	Rank Name	Points	Total Rp Earned
+Tier 1	Newbie Spark	1–10	Rp 1.000 – Rp 10.000.000
+Trend Explorer	11–30	Rp 11.000.000 – Rp 30.000.000
+Vibe Starter	31–60	Rp 31.000.000 – Rp 60.000.000
+Tier 2	Content Crafter	61–100	Rp 61.000.000 – Rp 100.000.000
+Social Climber	101–160	Rp 101.000.000 – Rp 160.000.000
+Daily Hustler	161–250	Rp 161.000.000 – Rp 250.000.000
+Tier 3	Feed Favorite	251–370	Rp 251.000.000 – Rp 370.000.000
+Brand Magnet	371–520	Rp 371.000.000 – Rp 520.000.000
+Style Icon	521–700	Rp 521.000.000 – Rp 700.000.000
+Tier 4	Story King/Queen	701–850	Rp 701.000.000 – Rp 850.000.000
+Reel Rockstar	851–1,000	Rp 851.000.000 – Rp 1.000.000.000
+Hashtag Hero	1,001–1,200	Rp 1.001.000.000 – Rp 1.200.000.000
+Tier 5	Viral Virtuoso	1,201–1,500	Rp 1.201.000.000 – Rp 1.500.000.000
+Audience Ruler	1,501–2,000	Rp 1.501.000.000 – Rp 2.000.000.000
+Fame Chaser	2,001–3,000	Rp 2.001.000.000 – Rp 3.000.000.000
+Tier 6	Digital Royalty	3,001–5,000	Rp 3.001.000.000 – Rp 5.000.000.000
+Global Voice	5,001–7,500	Rp 5.001.000.000 – Rp 7.500.000.000
+Living Legend 💎	7,501–10,000	Rp 7.501.000.000 – Rp 10.000.000.000
+
+Points = Total RP earned ÷ 1,000
+
+🔧 Admin Portal Features
+User Management: view/edit users, assign stars.
+
+Tournament Control:
+
+Set weekly timer/reset
+
+Finalize payouts
+
+Analytics:
+
+Top 10/all users
+
+Star flow reports
+
+Redemption stats
+
+Revenue from star purchases

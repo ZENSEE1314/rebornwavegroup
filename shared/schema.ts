@@ -1101,3 +1101,245 @@ export const insertToyTemplateSchema = createInsertSchema(toyTemplates).omit({
   updatedAt: true,
 });
 export type InsertToyTemplate = z.infer<typeof insertToyTemplateSchema>;
+
+// KOS (Kings Of Singers) Star System Tables
+
+// User stars balance table - tracks total stars owned by each user
+export const userStars = pgTable("user_stars", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  totalStars: integer("total_stars").default(0).notNull(),
+  tournamentStars: integer("tournament_stars").default(0).notNull(), // Stars earned in tournaments (pending)
+  individualStars: integer("individual_stars").default(0).notNull(), // Stars earned in individual mode (claimable)
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00").notNull(), // Total RP earned from stars
+  influencerRank: varchar("influencer_rank").default("Newbie Spark").notNull(),
+  influencerTier: integer("influencer_tier").default(1).notNull(),
+  influencerPoints: integer("influencer_points").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Star purchases table - tracks when users buy stars
+export const starPurchases = pgTable("star_purchases", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  starsAmount: integer("stars_amount").notNull(),
+  rpCost: decimal("rp_cost", { precision: 10, scale: 2 }).notNull(), // 1000 RP per star
+  paymentMethod: varchar("payment_method").notNull(), // 'rp_balance'
+  status: varchar("status").default("completed").notNull(),
+  transactionId: varchar("transaction_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Star transactions table - tracks all star movements (send/receive)
+export const starTransactions = pgTable("star_transactions", {
+  id: serial("id").primaryKey(),
+  fromUserId: varchar("from_user_id").notNull().references(() => users.id),
+  toUserId: varchar("to_user_id").notNull().references(() => users.id),
+  starsAmount: integer("stars_amount").notNull(),
+  type: varchar("type").notNull(), // 'tournament_vote' | 'individual_vote'
+  tournamentId: integer("tournament_id"), // Reference to active tournament
+  adminFee: decimal("admin_fee", { precision: 10, scale: 2 }).default("0.00").notNull(), // 30% platform fee
+  userEarning: decimal("user_earning", { precision: 10, scale: 2 }).default("0.00").notNull(), // 70% to user
+  status: varchar("status").default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tournaments table - manages weekly tournaments
+export const tournaments = pgTable("tournaments", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  type: varchar("type").default("weekly").notNull(), // 'weekly' | 'monthly' | 'special'
+  status: varchar("status").default("active").notNull(), // 'active' | 'ended' | 'distributing'
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date").notNull(),
+  totalStarPool: integer("total_star_pool").default(0).notNull(),
+  isDistributed: boolean("is_distributed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tournament participants table - tracks user rankings in tournaments
+export const tournamentParticipants = pgTable("tournament_participants", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").notNull().references(() => tournaments.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  starsReceived: integer("stars_received").default(0).notNull(),
+  rank: integer("rank").default(0).notNull(),
+  rewardPercentage: decimal("reward_percentage", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  rewardAmount: integer("reward_amount").default(0).notNull(),
+  isRewarded: boolean("is_rewarded").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User likes table - tracks free likes between users
+export const userLikes = pgTable("user_likes", {
+  id: serial("id").primaryKey(),
+  fromUserId: varchar("from_user_id").notNull().references(() => users.id),
+  toUserId: varchar("to_user_id").notNull().references(() => users.id),
+  isLiked: boolean("is_liked").default(true).notNull(), // true = liked, false = unliked
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Star contributors table - tracks top contributors to each user
+export const starContributors = pgTable("star_contributors", {
+  id: serial("id").primaryKey(),
+  recipientUserId: varchar("recipient_user_id").notNull().references(() => users.id),
+  contributorUserId: varchar("contributor_user_id").notNull().references(() => users.id),
+  totalStarsGiven: integer("total_stars_given").default(0).notNull(),
+  lastContributionDate: timestamp("last_contribution_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Influencer ranks configuration table
+export const influencerRanks = pgTable("influencer_ranks", {
+  id: serial("id").primaryKey(),
+  rankName: varchar("rank_name").notNull(),
+  tier: integer("tier").notNull(),
+  minPoints: integer("min_points").notNull(),
+  maxPoints: integer("max_points").notNull(),
+  minEarnings: decimal("min_earnings", { precision: 12, scale: 2 }).notNull(),
+  maxEarnings: decimal("max_earnings", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// KOS Relations
+export const userStarsRelations = relations(userStars, ({ one }) => ({
+  user: one(users, {
+    fields: [userStars.userId],
+    references: [users.id],
+  }),
+}));
+
+export const starPurchasesRelations = relations(starPurchases, ({ one }) => ({
+  user: one(users, {
+    fields: [starPurchases.userId],
+    references: [users.id],
+  }),
+}));
+
+export const starTransactionsRelations = relations(starTransactions, ({ one }) => ({
+  fromUser: one(users, {
+    fields: [starTransactions.fromUserId],
+    references: [users.id],
+    relationName: "starTransactionsFromUser",
+  }),
+  toUser: one(users, {
+    fields: [starTransactions.toUserId],
+    references: [users.id],
+    relationName: "starTransactionsToUser",
+  }),
+  tournament: one(tournaments, {
+    fields: [starTransactions.tournamentId],
+    references: [tournaments.id],
+  }),
+}));
+
+export const tournamentsRelations = relations(tournaments, ({ many }) => ({
+  participants: many(tournamentParticipants),
+  starTransactions: many(starTransactions),
+}));
+
+export const tournamentParticipantsRelations = relations(tournamentParticipants, ({ one }) => ({
+  tournament: one(tournaments, {
+    fields: [tournamentParticipants.tournamentId],
+    references: [tournaments.id],
+  }),
+  user: one(users, {
+    fields: [tournamentParticipants.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userLikesRelations = relations(userLikes, ({ one }) => ({
+  fromUser: one(users, {
+    fields: [userLikes.fromUserId],
+    references: [users.id],
+    relationName: "userLikesFromUser",
+  }),
+  toUser: one(users, {
+    fields: [userLikes.toUserId],
+    references: [users.id],
+    relationName: "userLikesToUser",
+  }),
+}));
+
+export const starContributorsRelations = relations(starContributors, ({ one }) => ({
+  recipient: one(users, {
+    fields: [starContributors.recipientUserId],
+    references: [users.id],
+    relationName: "starContributorsRecipient",
+  }),
+  contributor: one(users, {
+    fields: [starContributors.contributorUserId],
+    references: [users.id],
+    relationName: "starContributorsContributor",
+  }),
+}));
+
+// KOS Types and Schemas
+export type UserStars = typeof userStars.$inferSelect;
+export type StarPurchase = typeof starPurchases.$inferSelect;
+export type StarTransaction = typeof starTransactions.$inferSelect;
+export type Tournament = typeof tournaments.$inferSelect;
+export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
+export type UserLike = typeof userLikes.$inferSelect;
+export type StarContributor = typeof starContributors.$inferSelect;
+export type InfluencerRank = typeof influencerRanks.$inferSelect;
+
+export const insertUserStarsSchema = createInsertSchema(userStars).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStarPurchaseSchema = createInsertSchema(starPurchases).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStarTransactionSchema = createInsertSchema(starTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTournamentSchema = createInsertSchema(tournaments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserLikeSchema = createInsertSchema(userLikes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStarContributorSchema = createInsertSchema(starContributors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInfluencerRankSchema = createInsertSchema(influencerRanks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserStars = z.infer<typeof insertUserStarsSchema>;
+export type InsertStarPurchase = z.infer<typeof insertStarPurchaseSchema>;
+export type InsertStarTransaction = z.infer<typeof insertStarTransactionSchema>;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
+export type InsertUserLike = z.infer<typeof insertUserLikeSchema>;
+export type InsertStarContributor = z.infer<typeof insertStarContributorSchema>;
+export type InsertInfluencerRank = z.infer<typeof insertInfluencerRankSchema>;

@@ -8651,6 +8651,391 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== KOS (Kings Of Singers) API Routes =====
+  
+  // User Stars routes
+  app.get("/api/kos/user-stars/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const userStars = await storage.getUserStars(userId);
+      res.json(userStars || null);
+    } catch (error) {
+      console.error("Error fetching user stars:", error);
+      res.status(500).json({ error: "Failed to fetch user stars" });
+    }
+  });
+
+  app.post("/api/kos/user-stars", requireAuth, async (req, res) => {
+    try {
+      const userStars = await storage.createUserStars(req.body);
+      res.status(201).json(userStars);
+    } catch (error) {
+      console.error("Error creating user stars:", error);
+      res.status(500).json({ error: "Failed to create user stars" });
+    }
+  });
+
+  app.patch("/api/kos/user-stars/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      await storage.updateUserStars(userId, req.body);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user stars:", error);
+      res.status(500).json({ error: "Failed to update user stars" });
+    }
+  });
+
+  app.get("/api/kos/top-influencers", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topInfluencers = await storage.getTopInfluencers(limit);
+      res.json(topInfluencers);
+    } catch (error) {
+      console.error("Error fetching top influencers:", error);
+      res.status(500).json({ error: "Failed to fetch top influencers" });
+    }
+  });
+
+  app.get("/api/kos/influencers/tier/:tier", async (req, res) => {
+    try {
+      const tier = parseInt(req.params.tier);
+      const users = await storage.getUsersByInfluencerTier(tier);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users by tier:", error);
+      res.status(500).json({ error: "Failed to fetch users by tier" });
+    }
+  });
+
+  // Star Purchases routes
+  app.post("/api/kos/star-purchases", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const purchase = await storage.createStarPurchase({
+        ...req.body,
+        userId,
+      });
+      res.status(201).json(purchase);
+    } catch (error) {
+      console.error("Error creating star purchase:", error);
+      res.status(500).json({ error: "Failed to create star purchase" });
+    }
+  });
+
+  app.get("/api/kos/star-purchases/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const purchases = await storage.getStarPurchasesByUserId(userId);
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching star purchases:", error);
+      res.status(500).json({ error: "Failed to fetch star purchases" });
+    }
+  });
+
+  app.get("/api/kos/admin/star-purchases", requireAuth, async (req, res) => {
+    try {
+      const purchases = await storage.getAllStarPurchases();
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching all star purchases:", error);
+      res.status(500).json({ error: "Failed to fetch star purchases" });
+    }
+  });
+
+  // Star Transactions routes
+  app.post("/api/kos/star-transactions", requireAuth, async (req, res) => {
+    try {
+      const transaction = await storage.createStarTransaction(req.body);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Error creating star transaction:", error);
+      res.status(500).json({ error: "Failed to create star transaction" });
+    }
+  });
+
+  app.get("/api/kos/star-transactions/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const transactions = await storage.getStarTransactionsByUserId(userId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching star transactions:", error);
+      res.status(500).json({ error: "Failed to fetch star transactions" });
+    }
+  });
+
+  app.get("/api/kos/star-transactions/tournament/:tournamentId", requireAuth, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.tournamentId);
+      const transactions = await storage.getStarTransactionsByTournament(tournamentId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching tournament transactions:", error);
+      res.status(500).json({ error: "Failed to fetch tournament transactions" });
+    }
+  });
+
+  app.get("/api/kos/admin/star-transactions", requireAuth, async (req, res) => {
+    try {
+      const transactions = await storage.getAllStarTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching all star transactions:", error);
+      res.status(500).json({ error: "Failed to fetch star transactions" });
+    }
+  });
+
+  // Tournament routes
+  app.post("/api/kos/tournaments", requireAuth, async (req, res) => {
+    try {
+      const tournament = await storage.createTournament(req.body);
+      res.status(201).json(tournament);
+    } catch (error) {
+      console.error("Error creating tournament:", error);
+      res.status(500).json({ error: "Failed to create tournament" });
+    }
+  });
+
+  app.get("/api/kos/tournaments", async (req, res) => {
+    try {
+      const tournaments = await storage.getAllTournaments();
+      res.json(tournaments);
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+      res.status(500).json({ error: "Failed to fetch tournaments" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/active", async (req, res) => {
+    try {
+      const tournaments = await storage.getActiveTournaments();
+      res.json(tournaments);
+    } catch (error) {
+      console.error("Error fetching active tournaments:", error);
+      res.status(500).json({ error: "Failed to fetch active tournaments" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tournament = await storage.getTournamentById(id);
+      if (!tournament) {
+        return res.status(404).json({ error: "Tournament not found" });
+      }
+      res.json(tournament);
+    } catch (error) {
+      console.error("Error fetching tournament:", error);
+      res.status(500).json({ error: "Failed to fetch tournament" });
+    }
+  });
+
+  app.patch("/api/kos/tournaments/:id/status", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      await storage.updateTournamentStatus(id, status);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating tournament status:", error);
+      res.status(500).json({ error: "Failed to update tournament status" });
+    }
+  });
+
+  app.post("/api/kos/tournaments/:id/end", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.endTournament(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error ending tournament:", error);
+      res.status(500).json({ error: "Failed to end tournament" });
+    }
+  });
+
+  // Tournament Participants routes
+  app.post("/api/kos/tournament-participants", requireAuth, async (req, res) => {
+    try {
+      const participant = await storage.createTournamentParticipant(req.body);
+      res.status(201).json(participant);
+    } catch (error) {
+      console.error("Error creating tournament participant:", error);
+      res.status(500).json({ error: "Failed to create tournament participant" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/:id/participants", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id);
+      const participants = await storage.getTournamentParticipants(tournamentId);
+      res.json(participants);
+    } catch (error) {
+      console.error("Error fetching tournament participants:", error);
+      res.status(500).json({ error: "Failed to fetch tournament participants" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/:id/ranking", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id);
+      const ranking = await storage.getParticipantRanking(tournamentId);
+      res.json(ranking);
+    } catch (error) {
+      console.error("Error fetching tournament ranking:", error);
+      res.status(500).json({ error: "Failed to fetch tournament ranking" });
+    }
+  });
+
+  app.patch("/api/kos/tournament-participants/:id/reward", requireAuth, async (req, res) => {
+    try {
+      const participantId = parseInt(req.params.id);
+      const { rewardAmount } = req.body;
+      await storage.updateParticipantReward(participantId, rewardAmount);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating participant reward:", error);
+      res.status(500).json({ error: "Failed to update participant reward" });
+    }
+  });
+
+  // User Likes routes
+  app.post("/api/kos/user-likes", requireAuth, async (req, res) => {
+    try {
+      const like = await storage.createUserLike(req.body);
+      res.status(201).json(like);
+    } catch (error) {
+      console.error("Error creating user like:", error);
+      res.status(500).json({ error: "Failed to create user like" });
+    }
+  });
+
+  app.get("/api/kos/user-likes/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const likes = await storage.getUserLikes(userId);
+      res.json(likes);
+    } catch (error) {
+      console.error("Error fetching user likes:", error);
+      res.status(500).json({ error: "Failed to fetch user likes" });
+    }
+  });
+
+  app.get("/api/kos/likes-received/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const likes = await storage.getLikesReceived(userId);
+      res.json(likes);
+    } catch (error) {
+      console.error("Error fetching likes received:", error);
+      res.status(500).json({ error: "Failed to fetch likes received" });
+    }
+  });
+
+  app.patch("/api/kos/user-likes/:fromUserId/:toUserId", requireAuth, async (req, res) => {
+    try {
+      const { fromUserId, toUserId } = req.params;
+      const { isLiked } = req.body;
+      await storage.updateUserLikeStatus(fromUserId, toUserId, isLiked);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user like status:", error);
+      res.status(500).json({ error: "Failed to update user like status" });
+    }
+  });
+
+  // Star Contributors routes
+  app.post("/api/kos/star-contributors", requireAuth, async (req, res) => {
+    try {
+      const contributor = await storage.createStarContributor(req.body);
+      res.status(201).json(contributor);
+    } catch (error) {
+      console.error("Error creating star contributor:", error);
+      res.status(500).json({ error: "Failed to create star contributor" });
+    }
+  });
+
+  app.get("/api/kos/star-contributors/:recipientUserId", requireAuth, async (req, res) => {
+    try {
+      const recipientUserId = req.params.recipientUserId;
+      const contributors = await storage.getStarContributors(recipientUserId);
+      res.json(contributors);
+    } catch (error) {
+      console.error("Error fetching star contributors:", error);
+      res.status(500).json({ error: "Failed to fetch star contributors" });
+    }
+  });
+
+  app.get("/api/kos/top-contributors/:recipientUserId", requireAuth, async (req, res) => {
+    try {
+      const recipientUserId = req.params.recipientUserId;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const contributors = await storage.getTopContributors(recipientUserId, limit);
+      res.json(contributors);
+    } catch (error) {
+      console.error("Error fetching top contributors:", error);
+      res.status(500).json({ error: "Failed to fetch top contributors" });
+    }
+  });
+
+  app.patch("/api/kos/star-contributors/:recipientUserId/:contributorUserId", requireAuth, async (req, res) => {
+    try {
+      const { recipientUserId, contributorUserId } = req.params;
+      const { starsGiven } = req.body;
+      await storage.updateStarContribution(recipientUserId, contributorUserId, starsGiven);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating star contribution:", error);
+      res.status(500).json({ error: "Failed to update star contribution" });
+    }
+  });
+
+  // Influencer Ranks routes
+  app.get("/api/kos/influencer-ranks", async (req, res) => {
+    try {
+      const ranks = await storage.getAllInfluencerRanks();
+      res.json(ranks);
+    } catch (error) {
+      console.error("Error fetching influencer ranks:", error);
+      res.status(500).json({ error: "Failed to fetch influencer ranks" });
+    }
+  });
+
+  app.get("/api/kos/influencer-ranks/tier/:tier", async (req, res) => {
+    try {
+      const tier = parseInt(req.params.tier);
+      const ranks = await storage.getInfluencerRankByTier(tier);
+      res.json(ranks);
+    } catch (error) {
+      console.error("Error fetching influencer ranks by tier:", error);
+      res.status(500).json({ error: "Failed to fetch influencer ranks by tier" });
+    }
+  });
+
+  app.get("/api/kos/user-rank/:points/:earnings", async (req, res) => {
+    try {
+      const points = parseInt(req.params.points);
+      const earnings = parseFloat(req.params.earnings);
+      const rank = await storage.getUserInfluencerRank(points, earnings);
+      res.json(rank || null);
+    } catch (error) {
+      console.error("Error fetching user influencer rank:", error);
+      res.status(500).json({ error: "Failed to fetch user influencer rank" });
+    }
+  });
+
+  app.post("/api/kos/update-user-rank/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      await storage.updateUserInfluencerRank(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user influencer rank:", error);
+      res.status(500).json({ error: "Failed to update user influencer rank" });
+    }
+  });
+
   // Webhook endpoint for Stripe events (for production use)
   app.post("/api/webhook/stripe", express.raw({type: 'application/json'}), async (req, res) => {
     const sig = req.headers['stripe-signature'];

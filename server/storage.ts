@@ -31,6 +31,15 @@ import {
   marketplaceEarnings,
   adminLogs,
   emailTemplates,
+  // KOS tables
+  userStars,
+  starPurchases,
+  starTransactions,
+  tournaments,
+  tournamentParticipants,
+  userLikes,
+  starContributors,
+  influencerRanks,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -85,6 +94,23 @@ import {
   type InsertAdminLog,
   type EmailTemplate,
   type InsertEmailTemplate,
+  // KOS types
+  type UserStars,
+  type InsertUserStars,
+  type StarPurchase,
+  type InsertStarPurchase,
+  type StarTransaction,
+  type InsertStarTransaction,
+  type Tournament,
+  type InsertTournament,
+  type TournamentParticipant,
+  type InsertTournamentParticipant,
+  type UserLike,
+  type InsertUserLike,
+  type StarContributor,
+  type InsertStarContributor,
+  type InfluencerRank,
+  type InsertInfluencerRank,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, isNull, gte } from "drizzle-orm";
@@ -277,6 +303,57 @@ export interface IStorage {
   updateEmailTemplate(id: number, template: Partial<InsertEmailTemplate>): Promise<void>;
   deleteEmailTemplate(id: number): Promise<void>;
   getActiveEmailTemplates(): Promise<EmailTemplate[]>;
+
+  // KOS (Kings Of Singers) operations
+  // User Stars operations
+  getUserStars(userId: string): Promise<UserStars | undefined>;
+  createUserStars(userStars: InsertUserStars): Promise<UserStars>;
+  updateUserStars(userId: string, updates: Partial<UserStars>): Promise<void>;
+  getTopInfluencers(limit?: number): Promise<UserStars[]>;
+  getUsersByInfluencerTier(tier: number): Promise<UserStars[]>;
+
+  // Star Purchases operations
+  createStarPurchase(purchase: InsertStarPurchase): Promise<StarPurchase>;
+  getStarPurchasesByUserId(userId: string): Promise<StarPurchase[]>;
+  getAllStarPurchases(): Promise<StarPurchase[]>;
+
+  // Star Transactions operations
+  createStarTransaction(transaction: InsertStarTransaction): Promise<StarTransaction>;
+  getStarTransactionsByUserId(userId: string): Promise<StarTransaction[]>;
+  getStarTransactionsByTournament(tournamentId: number): Promise<StarTransaction[]>;
+  getAllStarTransactions(): Promise<StarTransaction[]>;
+
+  // Tournament operations
+  createTournament(tournament: InsertTournament): Promise<Tournament>;
+  getAllTournaments(): Promise<Tournament[]>;
+  getActiveTournaments(): Promise<Tournament[]>;
+  getTournamentById(id: number): Promise<Tournament | undefined>;
+  updateTournamentStatus(id: number, status: string): Promise<void>;
+  endTournament(id: number): Promise<void>;
+
+  // Tournament Participants operations
+  createTournamentParticipant(participant: InsertTournamentParticipant): Promise<TournamentParticipant>;
+  getTournamentParticipants(tournamentId: number): Promise<TournamentParticipant[]>;
+  updateParticipantReward(participantId: number, rewardAmount: number): Promise<void>;
+  getParticipantRanking(tournamentId: number): Promise<TournamentParticipant[]>;
+
+  // User Likes operations
+  createUserLike(like: InsertUserLike): Promise<UserLike>;
+  getUserLikes(userId: string): Promise<UserLike[]>;
+  getLikesReceived(userId: string): Promise<UserLike[]>;
+  updateUserLikeStatus(fromUserId: string, toUserId: string, isLiked: boolean): Promise<void>;
+
+  // Star Contributors operations
+  createStarContributor(contributor: InsertStarContributor): Promise<StarContributor>;
+  getStarContributors(recipientUserId: string): Promise<StarContributor[]>;
+  updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void>;
+  getTopContributors(recipientUserId: string, limit?: number): Promise<StarContributor[]>;
+
+  // Influencer Ranks operations
+  getAllInfluencerRanks(): Promise<InfluencerRank[]>;
+  getInfluencerRankByTier(tier: number): Promise<InfluencerRank[]>;
+  getUserInfluencerRank(points: number, earnings: number): Promise<InfluencerRank | undefined>;
+  updateUserInfluencerRank(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3134,6 +3211,346 @@ export class DatabaseStorage implements IStorage {
       .from(emailTemplates)
       .where(eq(emailTemplates.isActive, true))
       .orderBy(desc(emailTemplates.createdAt));
+  }
+
+  // KOS (Kings Of Singers) storage methods implementation
+  // User Stars operations
+  async getUserStars(userId: string): Promise<UserStars | undefined> {
+    const [userStars] = await db
+      .select()
+      .from(userStars)
+      .where(eq(userStars.userId, userId));
+    return userStars;
+  }
+
+  async createUserStars(userStarsData: InsertUserStars): Promise<UserStars> {
+    const [newUserStars] = await db
+      .insert(userStars)
+      .values({
+        ...userStarsData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newUserStars;
+  }
+
+  async updateUserStars(userId: string, updates: Partial<UserStars>): Promise<void> {
+    await db
+      .update(userStars)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(userStars.userId, userId));
+  }
+
+  async getTopInfluencers(limit: number = 10): Promise<UserStars[]> {
+    return await db
+      .select()
+      .from(userStars)
+      .orderBy(desc(userStars.influencerPoints), desc(userStars.totalEarnings))
+      .limit(limit);
+  }
+
+  async getUsersByInfluencerTier(tier: number): Promise<UserStars[]> {
+    return await db
+      .select()
+      .from(userStars)
+      .where(eq(userStars.influencerTier, tier))
+      .orderBy(desc(userStars.influencerPoints));
+  }
+
+  // Star Purchases operations
+  async createStarPurchase(purchase: InsertStarPurchase): Promise<StarPurchase> {
+    const [newPurchase] = await db
+      .insert(starPurchases)
+      .values({
+        ...purchase,
+        createdAt: new Date(),
+      })
+      .returning();
+    return newPurchase;
+  }
+
+  async getStarPurchasesByUserId(userId: string): Promise<StarPurchase[]> {
+    return await db
+      .select()
+      .from(starPurchases)
+      .where(eq(starPurchases.userId, userId))
+      .orderBy(desc(starPurchases.createdAt));
+  }
+
+  async getAllStarPurchases(): Promise<StarPurchase[]> {
+    return await db
+      .select()
+      .from(starPurchases)
+      .orderBy(desc(starPurchases.createdAt));
+  }
+
+  // Star Transactions operations
+  async createStarTransaction(transaction: InsertStarTransaction): Promise<StarTransaction> {
+    const [newTransaction] = await db
+      .insert(starTransactions)
+      .values({
+        ...transaction,
+        createdAt: new Date(),
+      })
+      .returning();
+    return newTransaction;
+  }
+
+  async getStarTransactionsByUserId(userId: string): Promise<StarTransaction[]> {
+    return await db
+      .select()
+      .from(starTransactions)
+      .where(or(eq(starTransactions.fromUserId, userId), eq(starTransactions.toUserId, userId)))
+      .orderBy(desc(starTransactions.createdAt));
+  }
+
+  async getStarTransactionsByTournament(tournamentId: number): Promise<StarTransaction[]> {
+    return await db
+      .select()
+      .from(starTransactions)
+      .where(eq(starTransactions.tournamentId, tournamentId))
+      .orderBy(desc(starTransactions.createdAt));
+  }
+
+  async getAllStarTransactions(): Promise<StarTransaction[]> {
+    return await db
+      .select()
+      .from(starTransactions)
+      .orderBy(desc(starTransactions.createdAt));
+  }
+
+  // Tournament operations
+  async createTournament(tournament: InsertTournament): Promise<Tournament> {
+    const [newTournament] = await db
+      .insert(tournaments)
+      .values({
+        ...tournament,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newTournament;
+  }
+
+  async getAllTournaments(): Promise<Tournament[]> {
+    return await db
+      .select()
+      .from(tournaments)
+      .orderBy(desc(tournaments.createdAt));
+  }
+
+  async getActiveTournaments(): Promise<Tournament[]> {
+    return await db
+      .select()
+      .from(tournaments)
+      .where(eq(tournaments.status, 'active'))
+      .orderBy(desc(tournaments.createdAt));
+  }
+
+  async getTournamentById(id: number): Promise<Tournament | undefined> {
+    const [tournament] = await db
+      .select()
+      .from(tournaments)
+      .where(eq(tournaments.id, id));
+    return tournament;
+  }
+
+  async updateTournamentStatus(id: number, status: string): Promise<void> {
+    await db
+      .update(tournaments)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(tournaments.id, id));
+  }
+
+  async endTournament(id: number): Promise<void> {
+    await db
+      .update(tournaments)
+      .set({
+        status: 'completed',
+        isDistributed: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(tournaments.id, id));
+  }
+
+  // Tournament Participants operations
+  async createTournamentParticipant(participant: InsertTournamentParticipant): Promise<TournamentParticipant> {
+    const [newParticipant] = await db
+      .insert(tournamentParticipants)
+      .values({
+        ...participant,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newParticipant;
+  }
+
+  async getTournamentParticipants(tournamentId: number): Promise<TournamentParticipant[]> {
+    return await db
+      .select()
+      .from(tournamentParticipants)
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .orderBy(desc(tournamentParticipants.starsReceived));
+  }
+
+  async updateParticipantReward(participantId: number, rewardAmount: number): Promise<void> {
+    await db
+      .update(tournamentParticipants)
+      .set({
+        rewardAmount,
+        isRewarded: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(tournamentParticipants.id, participantId));
+  }
+
+  async getParticipantRanking(tournamentId: number): Promise<TournamentParticipant[]> {
+    return await db
+      .select()
+      .from(tournamentParticipants)
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .orderBy(desc(tournamentParticipants.starsReceived), desc(tournamentParticipants.createdAt));
+  }
+
+  // User Likes operations
+  async createUserLike(like: InsertUserLike): Promise<UserLike> {
+    const [newLike] = await db
+      .insert(userLikes)
+      .values({
+        ...like,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newLike;
+  }
+
+  async getUserLikes(userId: string): Promise<UserLike[]> {
+    return await db
+      .select()
+      .from(userLikes)
+      .where(eq(userLikes.fromUserId, userId))
+      .orderBy(desc(userLikes.createdAt));
+  }
+
+  async getLikesReceived(userId: string): Promise<UserLike[]> {
+    return await db
+      .select()
+      .from(userLikes)
+      .where(eq(userLikes.toUserId, userId))
+      .orderBy(desc(userLikes.createdAt));
+  }
+
+  async updateUserLikeStatus(fromUserId: string, toUserId: string, isLiked: boolean): Promise<void> {
+    await db
+      .update(userLikes)
+      .set({
+        isLiked,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(userLikes.fromUserId, fromUserId), eq(userLikes.toUserId, toUserId)));
+  }
+
+  // Star Contributors operations
+  async createStarContributor(contributor: InsertStarContributor): Promise<StarContributor> {
+    const [newContributor] = await db
+      .insert(starContributors)
+      .values({
+        ...contributor,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newContributor;
+  }
+
+  async getStarContributors(recipientUserId: string): Promise<StarContributor[]> {
+    return await db
+      .select()
+      .from(starContributors)
+      .where(eq(starContributors.recipientUserId, recipientUserId))
+      .orderBy(desc(starContributors.totalStarsGiven));
+  }
+
+  async updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void> {
+    await db
+      .update(starContributors)
+      .set({
+        totalStarsGiven: starsGiven,
+        lastContributionDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(starContributors.recipientUserId, recipientUserId),
+        eq(starContributors.contributorUserId, contributorUserId)
+      ));
+  }
+
+  async getTopContributors(recipientUserId: string, limit: number = 10): Promise<StarContributor[]> {
+    return await db
+      .select()
+      .from(starContributors)
+      .where(eq(starContributors.recipientUserId, recipientUserId))
+      .orderBy(desc(starContributors.totalStarsGiven))
+      .limit(limit);
+  }
+
+  // Influencer Ranks operations
+  async getAllInfluencerRanks(): Promise<InfluencerRank[]> {
+    return await db
+      .select()
+      .from(influencerRanks)
+      .orderBy(influencerRanks.tier, influencerRanks.minPoints);
+  }
+
+  async getInfluencerRankByTier(tier: number): Promise<InfluencerRank[]> {
+    return await db
+      .select()
+      .from(influencerRanks)
+      .where(eq(influencerRanks.tier, tier))
+      .orderBy(influencerRanks.minPoints);
+  }
+
+  async getUserInfluencerRank(points: number, earnings: number): Promise<InfluencerRank | undefined> {
+    const [rank] = await db
+      .select()
+      .from(influencerRanks)
+      .where(and(
+        gte(sql`${points}`, influencerRanks.minPoints),
+        gte(sql`${points}`, influencerRanks.maxPoints),
+        gte(sql`${earnings}`, influencerRanks.minEarnings),
+        gte(sql`${earnings}`, influencerRanks.maxEarnings)
+      ))
+      .orderBy(desc(influencerRanks.tier), desc(influencerRanks.minPoints))
+      .limit(1);
+    return rank;
+  }
+
+  async updateUserInfluencerRank(userId: string): Promise<void> {
+    // Get user's current stars data
+    const userStarsData = await this.getUserStars(userId);
+    if (!userStarsData) return;
+
+    // Find the appropriate rank based on points and earnings
+    const newRank = await this.getUserInfluencerRank(
+      userStarsData.influencerPoints,
+      parseFloat(userStarsData.totalEarnings)
+    );
+
+    if (newRank) {
+      await this.updateUserStars(userId, {
+        influencerRank: newRank.rankName,
+        influencerTier: newRank.tier,
+      });
+    }
   }
 }
 
