@@ -8900,6 +8900,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // KOS User Rankings and Data routes
+  app.get("/api/kos/users", async (req, res) => {
+    try {
+      const type = req.query.type as string; // 'tournament' or 'individual'
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 113; // top 3 + top 10 + 100 paginated
+      
+      // Get all users with their KOS data
+      const users = await storage.getKOSUsersWithRankings(type, page, limit);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching KOS users:", error);
+      res.status(500).json({ error: "Failed to fetch KOS users" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/current", async (req, res) => {
+    try {
+      const currentTournament = await storage.getCurrentTournament();
+      res.json(currentTournament);
+    } catch (error) {
+      console.error("Error fetching current tournament:", error);
+      res.status(500).json({ error: "Failed to fetch current tournament" });
+    }
+  });
+
+  app.get("/api/kos/tournaments/previous-winners", async (req, res) => {
+    try {
+      const previousWinners = await storage.getPreviousTournamentWinners();
+      res.json(previousWinners);
+    } catch (error) {
+      console.error("Error fetching previous winners:", error);
+      res.status(500).json({ error: "Failed to fetch previous winners" });
+    }
+  });
+
+  app.post("/api/kos/vote", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { targetUserId, tournamentId } = req.body;
+      
+      // Check if user has enough stars
+      const userStars = await storage.getUserStars(userId);
+      if (!userStars || userStars.stars < 1) {
+        return res.status(400).json({ error: "Insufficient stars to vote" });
+      }
+
+      // Deduct star and record vote
+      await storage.castVote(userId, targetUserId, tournamentId);
+      res.json({ success: true, message: "Vote cast successfully" });
+    } catch (error) {
+      console.error("Error casting vote:", error);
+      res.status(500).json({ error: "Failed to cast vote" });
+    }
+  });
+
+  app.post("/api/kos/like", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { targetUserId } = req.body;
+      
+      // Create like (free action)
+      await storage.createUserLike({
+        userId,
+        targetUserId,
+        createdAt: new Date()
+      });
+      
+      res.json({ success: true, message: "Like added successfully" });
+    } catch (error) {
+      console.error("Error adding like:", error);
+      res.status(500).json({ error: "Failed to add like" });
+    }
+  });
+
   // User Likes routes
   app.post("/api/kos/user-likes", requireAuth, async (req, res) => {
     try {

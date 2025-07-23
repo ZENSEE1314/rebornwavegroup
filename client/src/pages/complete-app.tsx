@@ -39,37 +39,37 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const { toast } = useToast();
   const [kosActiveTab, setKosActiveTab] = useState<'tournaments' | 'individual'>('tournaments');
   const [currentPage, setCurrentPage] = useState(1);
-  const [userStars, setUserStars] = useState(0);
 
-  // Fetch KOS users data
+  // Fetch real KOS users data
   const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
     queryKey: ['/api/kos/users', kosActiveTab, currentPage],
+    queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
     staleTime: 30000,
   });
 
-  // Mock data for demonstration (replace with real API data)
-  const mockUsers = [
-    { id: 1, name: 'Alice Johnson', stars: 2500, votes: 150, photo: '/api/placeholder/80/80', rank: 1 },
-    { id: 2, name: 'Bob Chen', stars: 2200, votes: 134, photo: '/api/placeholder/80/80', rank: 2 },
-    { id: 3, name: 'Carol Smith', stars: 2100, votes: 128, photo: '/api/placeholder/80/80', rank: 3 },
-    { id: 4, name: 'David Wilson', stars: 1950, votes: 115, photo: '/api/placeholder/80/80', rank: 4 },
-    { id: 5, name: 'Emma Davis', stars: 1800, votes: 102, photo: '/api/placeholder/80/80', rank: 5 },
-    { id: 6, name: 'Frank Miller', stars: 1750, votes: 98, photo: '/api/placeholder/80/80', rank: 6 },
-    { id: 7, name: 'Grace Lee', stars: 1700, votes: 95, photo: '/api/placeholder/80/80', rank: 7 },
-    { id: 8, name: 'Henry Brown', stars: 1650, votes: 89, photo: '/api/placeholder/80/80', rank: 8 },
-    { id: 9, name: 'Ivy Taylor', stars: 1600, votes: 87, photo: '/api/placeholder/80/80', rank: 9 },
-    { id: 10, name: 'Jack Anderson', stars: 1550, votes: 82, photo: '/api/placeholder/80/80', rank: 10 },
-    ...Array.from({ length: 100 }, (_, i) => ({
-      id: i + 11,
-      name: `User ${i + 11}`,
-      stars: Math.floor(Math.random() * 1500) + 100,
-      votes: Math.floor(Math.random() * 80) + 10,
-      photo: '/api/placeholder/80/80',
-      rank: i + 11
-    }))
-  ];
+  // Fetch current tournament data
+  const { data: currentTournament, isLoading: tournamentLoading } = useQuery({
+    queryKey: ['/api/kos/tournaments/current'],
+    queryFn: () => fetch('/api/kos/tournaments/current').then(res => res.json()),
+    staleTime: 30000,
+  });
 
-  const displayUsers = Array.isArray(kosUsers) && kosUsers.length > 0 ? kosUsers : mockUsers;
+  // Fetch previous tournament winners
+  const { data: previousWinners = [], isLoading: winnersLoading } = useQuery({
+    queryKey: ['/api/kos/tournaments/previous-winners'],
+    queryFn: () => fetch('/api/kos/tournaments/previous-winners').then(res => res.json()),
+    staleTime: 30000,
+  });
+
+  // Fetch user's current stars
+  const { data: userStarsData } = useQuery({
+    queryKey: ['/api/kos/user-stars', user?.id],
+    queryFn: () => fetch(`/api/kos/user-stars/${user?.id}`).then(res => res.json()),
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
+  const displayUsers = Array.isArray(kosUsers) ? kosUsers : [];
   const top3Users = displayUsers.slice(0, 3);
   const top10Users = displayUsers.slice(3, 10);
   const remainingUsers = displayUsers.slice(10);
@@ -77,40 +77,150 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const totalPages = Math.ceil(remainingUsers.length / usersPerPage);
   const paginatedUsers = remainingUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
-  const handleVote = async (userId: number, type: 'vote' | 'like') => {
-    try {
-      // Add API call here when backend is ready
+  // Vote/Like functions with real API calls
+  const voteMutation = useMutation({
+    mutationFn: ({ targetUserId, type }: { targetUserId: string; type: 'vote' | 'like' }) => {
+      if (type === 'vote') {
+        return fetch('/api/kos/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ targetUserId, tournamentId: currentTournament?.id })
+        }).then(res => {
+          if (!res.ok) throw new Error('Failed to vote');
+          return res.json();
+        });
+      } else {
+        return fetch('/api/kos/like', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ targetUserId })
+        }).then(res => {
+          if (!res.ok) throw new Error('Failed to like');
+          return res.json();
+        });
+      }
+    },
+    onSuccess: (data, variables) => {
       toast({
-        title: type === 'vote' ? "Vote Cast!" : "Like Added!",
-        description: `You ${type === 'vote' ? 'voted for' : 'liked'} this performer!`,
+        title: variables.type === 'vote' ? "Vote Cast!" : "Like Added!",
+        description: `You ${variables.type === 'vote' ? 'voted for' : 'liked'} this performer!`,
       });
-    } catch (error) {
+      // Invalidate and refetch relevant data
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+    },
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to cast vote. Please try again.",
+        description: error.message || "Failed to cast vote. Please try again.",
         variant: "destructive",
       });
     }
+  });
+
+  const handleVote = async (userId: string, type: 'vote' | 'like') => {
+    voteMutation.mutate({ targetUserId: userId, type });
   };
 
-  const UserCard = ({ user: userItem, isTop3 = false }: { user: any; isTop3?: boolean }) => (
+  // Tournament timer component
+  const TournamentTimer = ({ tournament }: { tournament: any }) => {
+    if (!tournament) return null;
+    
+    const timeLeft = tournament.timeLeft || { days: 0, hours: 0, minutes: 0 };
+    
+    return (
+      <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 mb-6">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-purple-600" />
+                {tournament.name}
+              </h3>
+              <p className="text-sm text-gray-600 mb-2">{tournament.description}</p>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-gray-600">Prize Pool: <strong>RP {parseFloat(tournament.prizePool || '0').toLocaleString()}</strong></span>
+                <span className="text-gray-600">Participants: <strong>{tournament.participantCount || 0}</strong></span>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m
+              </div>
+              <div className="text-sm text-gray-600">Time Left</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Previous winners component
+  const PreviousWinners = ({ winners }: { winners: any[] }) => {
+    if (!winners || winners.length === 0) return null;
+    
+    return (
+      <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 mb-6">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-600" />
+            Previous Tournament Winners
+          </h3>
+          <div className="space-y-4">
+            {winners.slice(0, 1).map((tournamentData) => (
+              <div key={tournamentData.tournament.id}>
+                <h4 className="font-medium text-gray-800 mb-2">
+                  {tournamentData.tournament.name} - {new Date(tournamentData.tournament.endDate).toLocaleDateString()}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {tournamentData.winners.slice(0, 10).map((winner: any) => (
+                    <div key={winner.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                        winner.position === 1 ? 'bg-yellow-500' : 
+                        winner.position === 2 ? 'bg-gray-400' : 
+                        winner.position === 3 ? 'bg-amber-600' : 'bg-blue-500'
+                      }`}>
+                        {winner.position}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{winner.name}</div>
+                        <div className="text-xs text-gray-600">RP {parseFloat(winner.reward || '0').toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => (
     <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
       <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
         <div className="flex items-center gap-4">
           {/* Rank Badge */}
           <div className={`flex-shrink-0 ${isTop3 ? 'w-12 h-12' : 'w-8 h-8'} rounded-full ${
-            userItem.rank === 1 ? 'bg-yellow-500' : 
-            userItem.rank === 2 ? 'bg-gray-400' : 
-            userItem.rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
+            rank === 1 ? 'bg-yellow-500' : 
+            rank === 2 ? 'bg-gray-400' : 
+            rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
           } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-lg' : 'text-sm'}`}>
-            {userItem.rank}
+            {rank}
           </div>
 
           {/* User Photo */}
           <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
-            <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
-              👤
-            </div>
+            {userItem.photo && userItem.photo !== '/api/placeholder/50/50' ? (
+              <img src={userItem.photo} alt={userItem.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
+                👤
+              </div>
+            )}
           </div>
 
           {/* User Info */}
@@ -126,11 +236,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <Trophy className="w-4 h-4 text-purple-500" />
+                <Heart className="w-4 h-4 text-pink-500" />
                 <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                  {userItem.votes?.toLocaleString() || 0}
+                  {kosActiveTab === 'tournament' ? userItem.votes?.toLocaleString() || 0 : userItem.likes?.toLocaleString() || 0}
                 </span>
               </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {userItem.influencerRank} - Tier {userItem.influencerTier}
             </div>
           </div>
 
@@ -140,6 +253,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               size={isTop3 ? "default" : "sm"}
               className="bg-pink-500 hover:bg-pink-600 text-white"
               onClick={() => handleVote(userItem.id, 'vote')}
+              disabled={voteMutation.isPending}
             >
               <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
               Vote
@@ -149,6 +263,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               variant="outline"
               className="border-pink-300 text-pink-600 hover:bg-pink-50"
               onClick={() => handleVote(userItem.id, 'like')}
+              disabled={voteMutation.isPending}
             >
               <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
               Like
@@ -177,28 +292,28 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStars}</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.stars || 0}</div>
             <div className="text-xs text-gray-600">My Stars</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
           <CardContent className="p-4 text-center">
             <Trophy className="w-6 h-6 text-purple-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">0</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.tournamentWins || 0}</div>
             <div className="text-xs text-gray-600">Wins</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
           <CardContent className="p-4 text-center">
             <Heart className="w-6 h-6 text-pink-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">0</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.votesCast || 0}</div>
             <div className="text-xs text-gray-600">Votes Cast</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
           <CardContent className="p-4 text-center">
             <TrendingUp className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">Rookie</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.influencerRank || 'Bronze I'}</div>
             <div className="text-xs text-gray-600">Tier</div>
           </CardContent>
         </Card>
@@ -236,6 +351,12 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <TabsContent value="tournaments" className="space-y-6">
           <h3 className="text-xl font-semibold text-gray-900">Tournament Rankings</h3>
           
+          {/* Tournament Timer */}
+          <TournamentTimer tournament={currentTournament} />
+          
+          {/* Previous Winners */}
+          <PreviousWinners winners={previousWinners} />
+          
           {/* Top 3 Users */}
           <div className="space-y-4">
             <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
@@ -243,8 +364,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               Top 3 Performers
             </h4>
             <div className="space-y-3">
-              {top3Users.map((user) => (
-                <UserCard key={user.id} user={user} isTop3={true} />
+              {top3Users.map((user, index) => (
+                <UserCard key={user.id} user={user} isTop3={true} rank={index + 1} />
               ))}
             </div>
           </div>
@@ -256,8 +377,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               Top 10 Rankings
             </h4>
             <div className="space-y-2">
-              {top10Users.map((user) => (
-                <UserCard key={user.id} user={user} />
+              {top10Users.map((user, index) => (
+                <UserCard key={user.id} user={user} rank={index + 4} />
               ))}
             </div>
           </div>
@@ -269,8 +390,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               All Participants (Page {currentPage} of {totalPages})
             </h4>
             <div className="space-y-2">
-              {paginatedUsers.map((user) => (
-                <UserCard key={user.id} user={user} />
+              {paginatedUsers.map((user, index) => (
+                <UserCard key={user.id} user={user} rank={11 + (currentPage - 1) * usersPerPage + index} />
               ))}
             </div>
             
@@ -311,8 +432,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               Top 3 Individual Performers
             </h4>
             <div className="space-y-3">
-              {top3Users.map((user) => (
-                <UserCard key={user.id} user={user} isTop3={true} />
+              {top3Users.map((user, index) => (
+                <UserCard key={user.id} user={user} isTop3={true} rank={index + 1} />
               ))}
             </div>
           </div>
@@ -324,8 +445,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               Top 10 Individual Rankings
             </h4>
             <div className="space-y-2">
-              {top10Users.map((user) => (
-                <UserCard key={user.id} user={user} />
+              {top10Users.map((user, index) => (
+                <UserCard key={user.id} user={user} rank={index + 4} />
               ))}
             </div>
           </div>
@@ -337,8 +458,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               All Individual Performers (Page {currentPage} of {totalPages})
             </h4>
             <div className="space-y-2">
-              {paginatedUsers.map((user) => (
-                <UserCard key={user.id} user={user} />
+              {paginatedUsers.map((user, index) => (
+                <UserCard key={user.id} user={user} rank={11 + (currentPage - 1) * usersPerPage + index} />
               ))}
             </div>
             

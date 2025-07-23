@@ -3552,6 +3552,250 @@ export class DatabaseStorage implements IStorage {
       });
     }
   }
+
+  // KOS User Rankings and Real Data Methods
+  async getKOSUsersWithRankings(type: string, page: number, limit: number): Promise<any[]> {
+    try {
+      const offset = (page - 1) * limit;
+      
+      // Get users with their KOS data (stars, likes, influencer info)
+      const usersWithKOS = await db
+        .select({
+          userId: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          email: users.email,
+          // KOS data
+          stars: userStars.stars,
+          totalStars: userStars.totalStars,
+          influencerPoints: userStars.influencerPoints,
+          influencerRank: userStars.influencerRank,
+          influencerTier: userStars.influencerTier,
+          totalEarnings: userStars.totalEarnings,
+          // Count likes received for this user
+          likesReceived: sql<number>`(
+            SELECT COUNT(*) FROM ${userLikes} 
+            WHERE ${userLikes.targetUserId} = ${users.id}
+          )`,
+          // Count votes received for this user in tournaments
+          votesReceived: sql<number>`(
+            SELECT COALESCE(SUM(CAST(${starTransactions.amount} AS INTEGER)), 0) 
+            FROM ${starTransactions} 
+            WHERE ${starTransactions.targetUserId} = ${users.id} 
+            AND ${starTransactions.type} = 'vote'
+          )`
+        })
+        .from(users)
+        .leftJoin(userStars, eq(users.id, userStars.userId))
+        .orderBy(
+          type === 'tournament' 
+            ? desc(sql`(SELECT COALESCE(SUM(CAST(${starTransactions.amount} AS INTEGER)), 0) FROM ${starTransactions} WHERE ${starTransactions.targetUserId} = ${users.id} AND ${starTransactions.type} = 'vote')`)
+            : desc(sql`(SELECT COUNT(*) FROM ${userLikes} WHERE ${userLikes.targetUserId} = ${users.id})`)
+        )
+        .limit(limit)
+        .offset(offset);
+
+      return usersWithKOS.map(user => ({
+        id: user.userId,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
+        photo: user.profileImageUrl || '/api/placeholder/50/50',
+        stars: user.stars || 0,
+        totalStars: user.totalStars || 0,
+        likes: user.likesReceived || 0,
+        votes: user.votesReceived || 0,
+        influencerRank: user.influencerRank || 'Bronze I',
+        influencerTier: user.influencerTier || 1,
+        earnings: parseFloat(user.totalEarnings || '0'),
+        email: user.email
+      }));
+    } catch (error) {
+      console.error('Error fetching KOS users with rankings:', error);
+      return [];
+    }
+  }
+
+  async getCurrentTournament(): Promise<any | null> {
+    try {
+      const [currentTournament] = await db
+        .select()
+        .from(tournaments)
+        .where(eq(tournaments.status, 'active'))
+        .orderBy(desc(tournaments.createdAt))
+        .limit(1);
+
+      if (!currentTournament) {
+        // Create a default weekly tournament if none exists
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 7); // 7 days from now
+
+        const [newTournament] = await db
+          .insert(tournaments)
+          .values({
+            name: `Weekly Competition ${new Date().toISOString().slice(0, 10)}`,
+            description: 'Weekly KOS tournament with star voting',
+            startDate,
+            endDate,
+            status: 'active',
+            maxParticipants: 1000,
+            entryFee: 0,
+            prizePool: '100000.00',
+            tournamentType: 'weekly',
+            votingMethod: 'stars'
+          })
+          .returning();
+
+        return {
+          ...newTournament,
+          timeLeft: this.calculateTimeLeft(newTournament.endDate),
+          participantCount: 0
+        };
+      }
+
+      // Get participant count
+      const [participantCount] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(tournamentParticipants)
+        .where(eq(tournamentParticipants.tournamentId, currentTournament.id));
+
+      return {
+        ...currentTournament,
+        timeLeft: this.calculateTimeLeft(currentTournament.endDate),
+        participantCount: participantCount?.count || 0
+      };
+    } catch (error) {
+      console.error('Error fetching current tournament:', error);
+      return null;
+    }
+  }
+
+  private calculateTimeLeft(endDate: Date): { days: number; hours: number; minutes: number } {
+    const now = new Date();
+    const timeDiff = endDate.getTime() - now.getTime();
+    
+    if (timeDiff <= 0) {
+      return { days: 0, hours: 0, minutes: 0 };
+    }
+
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+    return { days, hours, minutes };
+  }
+
+  async getPreviousTournamentWinners(): Promise<any[]> {
+    try {
+      // Get the last 3 completed tournaments with their winners
+      const completedTournaments = await db
+        .select()
+        .from(tournaments)
+        .where(eq(tournaments.status, 'completed'))
+        .orderBy(desc(tournaments.endDate))
+        .limit(3);
+
+      const winners = [];
+      for (const tournament of completedTournaments) {
+        // Get top 10 winners from this tournament
+        const tournamentWinners = await db
+          .select({
+            userId: tournamentParticipants.userId,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            profileImageUrl: users.profileImageUrl,
+            email: users.email,
+            finalScore: tournamentParticipants.finalScore,
+            reward: tournamentParticipants.reward,
+            position: tournamentParticipants.position
+          })
+          .from(tournamentParticipants)
+          .leftJoin(users, eq(tournamentParticipants.userId, users.id))
+          .where(
+            and(
+              eq(tournamentParticipants.tournamentId, tournament.id),
+              isNotNull(tournamentParticipants.position)
+            )
+          )
+          .orderBy(asc(tournamentParticipants.position))
+          .limit(10);
+
+        winners.push({
+          tournament: {
+            id: tournament.id,
+            name: tournament.name,
+            endDate: tournament.endDate,
+            prizePool: tournament.prizePool
+          },
+          winners: tournamentWinners.map(winner => ({
+            id: winner.userId,
+            name: `${winner.firstName || ''} ${winner.lastName || ''}`.trim() || winner.email?.split('@')[0] || 'Anonymous',
+            photo: winner.profileImageUrl || '/api/placeholder/50/50',
+            score: winner.finalScore || 0,
+            reward: winner.reward || '0.00',
+            position: winner.position
+          }))
+        });
+      }
+
+      return winners;
+    } catch (error) {
+      console.error('Error fetching previous tournament winners:', error);
+      return [];
+    }
+  }
+
+  async castVote(voterUserId: string, targetUserId: string, tournamentId?: number): Promise<void> {
+    try {
+      // Check if user has enough stars
+      const userStarsData = await this.getUserStars(voterUserId);
+      if (!userStarsData || userStarsData.stars < 1) {
+        throw new Error('Insufficient stars to vote');
+      }
+
+      // Deduct 1 star from voter
+      await this.updateUserStars(voterUserId, {
+        stars: userStarsData.stars - 1
+      });
+
+      // Create star transaction for the vote
+      await this.createStarTransaction({
+        userId: voterUserId,
+        targetUserId,
+        tournamentId,
+        amount: 1,
+        type: 'vote',
+        description: `Vote cast for user ${targetUserId}`,
+        status: 'completed'
+      });
+
+      // Add to target user's vote count and influence points
+      const targetStarsData = await this.getUserStars(targetUserId);
+      if (targetStarsData) {
+        await this.updateUserStars(targetUserId, {
+          influencerPoints: targetStarsData.influencerPoints + 1
+        });
+      } else {
+        // Create user stars record if doesn't exist
+        await this.createUserStars({
+          userId: targetUserId,
+          stars: 0,
+          totalStars: 0,
+          influencerPoints: 1,
+          influencerRank: 'Bronze I',
+          influencerTier: 1,
+          totalEarnings: '0.00'
+        });
+      }
+
+      // Update influencer rank if needed
+      await this.updateUserInfluencerRank(targetUserId);
+
+    } catch (error) {
+      console.error('Error casting vote:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
