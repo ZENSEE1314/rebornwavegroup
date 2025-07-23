@@ -3558,57 +3558,71 @@ export class DatabaseStorage implements IStorage {
     try {
       const offset = (page - 1) * limit;
       
-      // Get users with their KOS data (stars, likes, influencer info)
-      const usersWithKOS = await db
+      // First get all users (simplified approach to avoid Drizzle issues)
+      const allUsers = await db
         .select({
           userId: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
           profileImageUrl: users.profileImageUrl,
           email: users.email,
-          // KOS data
-          stars: userStars.stars,
-          totalStars: userStars.totalStars,
-          influencerPoints: userStars.influencerPoints,
-          influencerRank: userStars.influencerRank,
-          influencerTier: userStars.influencerTier,
-          totalEarnings: userStars.totalEarnings,
-          // Count likes received for this user
-          likesReceived: sql<number>`(
-            SELECT COUNT(*) FROM ${userLikes} 
-            WHERE ${userLikes.targetUserId} = ${users.id}
-          )`,
-          // Count votes received for this user in tournaments
-          votesReceived: sql<number>`(
-            SELECT COALESCE(SUM(CAST(${starTransactions.amount} AS INTEGER)), 0) 
-            FROM ${starTransactions} 
-            WHERE ${starTransactions.targetUserId} = ${users.id} 
-            AND ${starTransactions.type} = 'vote'
-          )`
         })
         .from(users)
-        .leftJoin(userStars, eq(users.id, userStars.userId))
-        .orderBy(
-          type === 'tournament' 
-            ? desc(sql`(SELECT COALESCE(SUM(CAST(${starTransactions.amount} AS INTEGER)), 0) FROM ${starTransactions} WHERE ${starTransactions.targetUserId} = ${users.id} AND ${starTransactions.type} = 'vote')`)
-            : desc(sql`(SELECT COUNT(*) FROM ${userLikes} WHERE ${userLikes.targetUserId} = ${users.id})`)
-        )
         .limit(limit)
         .offset(offset);
 
-      return usersWithKOS.map(user => ({
-        id: user.userId,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
-        photo: user.profileImageUrl || '/api/placeholder/50/50',
-        stars: user.stars || 0,
-        totalStars: user.totalStars || 0,
-        likes: user.likesReceived || 0,
-        votes: user.votesReceived || 0,
-        influencerRank: user.influencerRank || 'Bronze I',
-        influencerTier: user.influencerTier || 1,
-        earnings: parseFloat(user.totalEarnings || '0'),
-        email: user.email
+      console.log('Found users:', allUsers);
+
+      // Process each user and add KOS data manually
+      const usersWithKOS = await Promise.all(allUsers.map(async (user) => {
+        // Get user's KOS data if exists
+        const [userStarsData] = await db
+          .select()
+          .from(userStars)
+          .where(eq(userStars.userId, user.userId))
+          .limit(1);
+
+        // Count likes received for this user
+        const [likesCount] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(userLikes)
+          .where(eq(userLikes.toUserId, user.userId));
+
+        // Count votes received for this user in tournaments
+        const [votesCount] = await db
+          .select({ total: sql<number>`COALESCE(SUM(${starTransactions.starsAmount}), 0)` })
+          .from(starTransactions)
+          .where(and(
+            eq(starTransactions.toUserId, user.userId),
+            eq(starTransactions.type, 'tournament_vote')
+          ));
+
+        return {
+          id: user.userId,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
+          photo: user.profileImageUrl || '/api/placeholder/50/50',
+          stars: userStarsData?.totalStars || 0,
+          totalStars: userStarsData?.totalStars || 0,
+          likes: likesCount?.count || 0,
+          votes: votesCount?.total || 0,
+          influencerRank: userStarsData?.influencerRank || 'Bronze I',
+          influencerTier: userStarsData?.influencerTier || 1,
+          earnings: parseFloat(userStarsData?.totalEarnings || '0'),
+          email: user.email
+        };
       }));
+
+      // Sort based on type
+      const sortedUsers = usersWithKOS.sort((a, b) => {
+        if (type === 'tournament') {
+          return b.votes - a.votes;
+        } else {
+          return b.likes - a.likes;
+        }
+      });
+
+      console.log('KOS Users Result:', sortedUsers);
+      return sortedUsers;
     } catch (error) {
       console.error('Error fetching KOS users with rankings:', error);
       return [];
