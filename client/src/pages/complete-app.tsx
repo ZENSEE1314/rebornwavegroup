@@ -16,7 +16,7 @@ import {
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
   Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp,
-  Volume2, VolumeX
+  Volume2, VolumeX, Search, BarChart3
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import logoImage from "@assets/2-removebg-preview.png";
@@ -6056,6 +6056,7 @@ export default function CompleteApp() {
               { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600" },
               { id: "purchase", label: t('purchase.verification'), icon: Camera, color: "from-indigo-500 to-indigo-600" },
               { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600" },
+              { id: "kos", label: "KOS", icon: Crown, color: "from-pink-600 to-fuchsia-600" },
               { id: "bookings", label: t('bookings.title'), icon: Calendar, color: "from-green-500 to-emerald-600" },
               { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag, color: "from-purple-500 to-purple-600" },
               { id: "inventory", label: t('inventory.title'), icon: Package, color: "from-orange-500 to-orange-600" },
@@ -6119,7 +6120,7 @@ export default function CompleteApp() {
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600", bg: "bg-blue-500" },
               { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600", bg: "bg-pink-500" },
-              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag, color: "from-purple-500 to-purple-600", bg: "bg-purple-500" },
+              { id: "kos", label: "KOS", icon: Crown, color: "from-pink-600 to-fuchsia-600", bg: "bg-pink-600" },
               { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600", bg: "bg-yellow-500" },
               { id: "profile", label: t('tabs.profile'), icon: User, color: "from-emerald-500 to-green-600", bg: "bg-emerald-500" }
             ].map((tab) => (
@@ -9259,6 +9260,251 @@ export default function CompleteApp() {
             showPetActivationDialog={showPetActivationDialog}
             isMuted={isMuted}
           />
+        )}
+
+        {/* KOS (Kings Of Singers) Tab */}
+        {activeTab === "kos" && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
+                <Crown className="w-8 h-8 text-pink-600" />
+                KOS - Kings Of Singers
+              </h2>
+              <p className="text-slate-600">
+                Compete, Vote, and Earn Stars in the Ultimate Singing Competition
+              </p>
+            </div>
+
+            {/* User Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-gradient-to-br from-pink-50 to-fuchsia-50 border-pink-200">
+                <CardContent className="p-6 text-center">
+                  <Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-gray-900">0</div>
+                  <div className="text-sm text-gray-600">Stars</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+                <CardContent className="p-6 text-center">
+                  <Trophy className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-gray-900">0</div>
+                  <div className="text-sm text-gray-600">Tournament Wins</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
+                <CardContent className="p-6 text-center">
+                  <TrendingUp className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-gray-900">Rookie</div>
+                  <div className="text-sm text-gray-600">Influencer Tier</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
+                <CardContent className="p-6 text-center">
+                  <Users className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-gray-900">0</div>
+                  <div className="text-sm text-gray-600">Votes Cast</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main KOS Features */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Stars Management */}
+              <Card className="border-2 border-pink-200 hover:border-pink-300 transition-colors">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="w-6 h-6 text-yellow-500" />
+                    Stars Management
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Purchase Stars to vote in competitions and tournaments
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Current Balance:</span>
+                      <span className="text-xl font-bold text-yellow-600">0 ⭐</span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Use Stars to vote for your favorite performers
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Buy Stars
+                    </Button>
+                    <Button variant="outline">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Star History
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tournament System */}
+              <Card className="border-2 border-purple-200 hover:border-purple-300 transition-colors">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-purple-500" />
+                    Tournaments
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Join singing competitions and win amazing prizes
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <Calendar className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                      <p className="font-medium">No Active Tournaments</p>
+                      <p className="text-xs text-gray-600">Check back soon for new competitions</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button className="bg-purple-500 hover:bg-purple-600 text-white">
+                      <Search className="w-4 h-4 mr-2" />
+                      Browse
+                    </Button>
+                    <Button variant="outline">
+                      <Clock className="w-4 h-4 mr-2" />
+                      My History
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Individual Rankings */}
+              <Card className="border-2 border-emerald-200 hover:border-emerald-300 transition-colors">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-6 h-6 text-emerald-500" />
+                    Individual Rankings
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Vote for individual performers and track rankings
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <Users className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                      <p className="font-medium">Top Performers</p>
+                      <p className="text-xs text-gray-600">See who's leading the charts</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Rankings
+                    </Button>
+                    <Button variant="outline">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Vote Now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Influencer System */}
+              <Card className="border-2 border-orange-200 hover:border-orange-300 transition-colors">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="w-6 h-6 text-orange-500" />
+                    Influencer System
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Climb through 18 tiers and unlock exclusive benefits
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Current Tier:</span>
+                      <span className="text-lg font-bold text-orange-600">Rookie (1/18)</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-orange-500 h-2 rounded-full" style={{ width: '5%' }}></div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      Earn points through voting and tournament participation
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                      <Target className="w-4 h-4 mr-2" />
+                      View Tiers
+                    </Button>
+                    <Button variant="outline">
+                      <Gift className="w-4 h-4 mr-2" />
+                      Rewards
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Hidden Buttons Section */}
+            <Card className="border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-6 h-6 text-gray-500" />
+                  Hidden Features
+                  <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Unlock special features as you progress in the KOS system
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
+                  <Button variant="ghost" disabled className="opacity-50">
+                    <Star className="w-4 h-4 mr-2" />
+                    Secret 1
+                  </Button>
+                  <Button variant="ghost" disabled className="opacity-50">
+                    <Crown className="w-4 h-4 mr-2" />
+                    Secret 2
+                  </Button>
+                  <Button variant="ghost" disabled className="opacity-50">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Secret 3
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <div className="bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl p-6 text-white">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-sm opacity-90">Total Votes</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-sm opacity-90">Stars Spent</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-sm opacity-90">Tournaments Joined</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-sm opacity-90">Influencer Points</div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Profile Tab */}
