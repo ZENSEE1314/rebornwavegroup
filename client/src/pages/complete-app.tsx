@@ -34,6 +34,345 @@ import MobileBackButton from "@/components/mobile-back-button";
 import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 
+// KOS (Kings Of Singers) Component
+function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
+  const { toast } = useToast();
+  const [kosActiveTab, setKosActiveTab] = useState<'tournaments' | 'individual'>('tournaments');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [userStars, setUserStars] = useState(0);
+
+  // Fetch KOS users data
+  const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
+    queryKey: ['/api/kos/users', kosActiveTab, currentPage],
+    staleTime: 30000,
+  });
+
+  // Mock data for demonstration (replace with real API data)
+  const mockUsers = [
+    { id: 1, name: 'Alice Johnson', stars: 2500, votes: 150, photo: '/api/placeholder/80/80', rank: 1 },
+    { id: 2, name: 'Bob Chen', stars: 2200, votes: 134, photo: '/api/placeholder/80/80', rank: 2 },
+    { id: 3, name: 'Carol Smith', stars: 2100, votes: 128, photo: '/api/placeholder/80/80', rank: 3 },
+    { id: 4, name: 'David Wilson', stars: 1950, votes: 115, photo: '/api/placeholder/80/80', rank: 4 },
+    { id: 5, name: 'Emma Davis', stars: 1800, votes: 102, photo: '/api/placeholder/80/80', rank: 5 },
+    { id: 6, name: 'Frank Miller', stars: 1750, votes: 98, photo: '/api/placeholder/80/80', rank: 6 },
+    { id: 7, name: 'Grace Lee', stars: 1700, votes: 95, photo: '/api/placeholder/80/80', rank: 7 },
+    { id: 8, name: 'Henry Brown', stars: 1650, votes: 89, photo: '/api/placeholder/80/80', rank: 8 },
+    { id: 9, name: 'Ivy Taylor', stars: 1600, votes: 87, photo: '/api/placeholder/80/80', rank: 9 },
+    { id: 10, name: 'Jack Anderson', stars: 1550, votes: 82, photo: '/api/placeholder/80/80', rank: 10 },
+    ...Array.from({ length: 100 }, (_, i) => ({
+      id: i + 11,
+      name: `User ${i + 11}`,
+      stars: Math.floor(Math.random() * 1500) + 100,
+      votes: Math.floor(Math.random() * 80) + 10,
+      photo: '/api/placeholder/80/80',
+      rank: i + 11
+    }))
+  ];
+
+  const displayUsers = Array.isArray(kosUsers) && kosUsers.length > 0 ? kosUsers : mockUsers;
+  const top3Users = displayUsers.slice(0, 3);
+  const top10Users = displayUsers.slice(3, 10);
+  const remainingUsers = displayUsers.slice(10);
+  const usersPerPage = 100;
+  const totalPages = Math.ceil(remainingUsers.length / usersPerPage);
+  const paginatedUsers = remainingUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
+
+  const handleVote = async (userId: number, type: 'vote' | 'like') => {
+    try {
+      // Add API call here when backend is ready
+      toast({
+        title: type === 'vote' ? "Vote Cast!" : "Like Added!",
+        description: `You ${type === 'vote' ? 'voted for' : 'liked'} this performer!`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cast vote. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const UserCard = ({ user: userItem, isTop3 = false }: { user: any; isTop3?: boolean }) => (
+    <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
+      <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
+        <div className="flex items-center gap-4">
+          {/* Rank Badge */}
+          <div className={`flex-shrink-0 ${isTop3 ? 'w-12 h-12' : 'w-8 h-8'} rounded-full ${
+            userItem.rank === 1 ? 'bg-yellow-500' : 
+            userItem.rank === 2 ? 'bg-gray-400' : 
+            userItem.rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
+          } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-lg' : 'text-sm'}`}>
+            {userItem.rank}
+          </div>
+
+          {/* User Photo */}
+          <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
+            <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
+              👤
+            </div>
+          </div>
+
+          {/* User Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
+              {userItem.name}
+            </h3>
+            <div className="flex items-center gap-4 mt-1">
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-500" />
+                <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                  {userItem.stars?.toLocaleString() || 0}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Trophy className="w-4 h-4 text-purple-500" />
+                <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                  {userItem.votes?.toLocaleString() || 0}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button
+              size={isTop3 ? "default" : "sm"}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
+              onClick={() => handleVote(userItem.id, 'vote')}
+            >
+              <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
+              Vote
+            </Button>
+            <Button
+              size={isTop3 ? "default" : "sm"}
+              variant="outline"
+              className="border-pink-300 text-pink-600 hover:bg-pink-50"
+              onClick={() => handleVote(userItem.id, 'like')}
+            >
+              <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
+              Like
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
+          <Crown className="w-8 h-8 text-pink-600" />
+          KOS - Kings Of Singers
+        </h2>
+        <p className="text-slate-600">
+          Compete, Vote, and Earn Stars in the Ultimate Singing Competition
+        </p>
+      </div>
+
+      {/* User Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
+          <CardContent className="p-4 text-center">
+            <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">{userStars}</div>
+            <div className="text-xs text-gray-600">My Stars</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+          <CardContent className="p-4 text-center">
+            <Trophy className="w-6 h-6 text-purple-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">0</div>
+            <div className="text-xs text-gray-600">Wins</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
+          <CardContent className="p-4 text-center">
+            <Heart className="w-6 h-6 text-pink-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">0</div>
+            <div className="text-xs text-gray-600">Votes Cast</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">Rookie</div>
+            <div className="text-xs text-gray-600">Tier</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stars Purchase Section */}
+      <Card className="border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Stars</h3>
+              <p className="text-sm text-gray-600">Buy Stars to vote for your favorite performers</p>
+            </div>
+            <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Buy Stars
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs */}
+      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournaments' | 'individual')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="tournaments" className="flex items-center gap-2">
+            <Trophy className="w-4 h-4" />
+            Tournaments
+          </TabsTrigger>
+          <TabsTrigger value="individual" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Individual
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tournaments" className="space-y-6">
+          <h3 className="text-xl font-semibold text-gray-900">Tournament Rankings</h3>
+          
+          {/* Top 3 Users */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-500" />
+              Top 3 Performers
+            </h4>
+            <div className="space-y-3">
+              {top3Users.map((user) => (
+                <UserCard key={user.id} user={user} isTop3={true} />
+              ))}
+            </div>
+          </div>
+
+          {/* Top 10 Users */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Medal className="w-5 h-5 text-purple-500" />
+              Top 10 Rankings
+            </h4>
+            <div className="space-y-2">
+              {top10Users.map((user) => (
+                <UserCard key={user.id} user={user} />
+              ))}
+            </div>
+          </div>
+
+          {/* Remaining Users with Pagination */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Users className="w-5 h-5 text-gray-500" />
+              All Participants (Page {currentPage} of {totalPages})
+            </h4>
+            <div className="space-y-2">
+              {paginatedUsers.map((user) => (
+                <UserCard key={user.id} user={user} />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </Button>
+              <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
+                <span className="text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="individual" className="space-y-6">
+          <h3 className="text-xl font-semibold text-gray-900">Individual Rankings</h3>
+          
+          {/* Top 3 Users */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-yellow-500" />
+              Top 3 Individual Performers
+            </h4>
+            <div className="space-y-3">
+              {top3Users.map((user) => (
+                <UserCard key={user.id} user={user} isTop3={true} />
+              ))}
+            </div>
+          </div>
+
+          {/* Top 10 Users */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Medal className="w-5 h-5 text-purple-500" />
+              Top 10 Individual Rankings
+            </h4>
+            <div className="space-y-2">
+              {top10Users.map((user) => (
+                <UserCard key={user.id} user={user} />
+              ))}
+            </div>
+          </div>
+
+          {/* Remaining Users with Pagination */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+              <Users className="w-5 h-5 text-gray-500" />
+              All Individual Performers (Page {currentPage} of {totalPages})
+            </h4>
+            <div className="space-y-2">
+              {paginatedUsers.map((user) => (
+                <UserCard key={user.id} user={user} />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            <div className="flex justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </Button>
+              <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
+                <span className="text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 // Seasonal Collections Component
 function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: any) => void }) {
   const { t } = useTranslation();
@@ -9264,247 +9603,7 @@ export default function CompleteApp() {
 
         {/* KOS (Kings Of Singers) Tab */}
         {activeTab === "kos" && (
-          <div className="space-y-8">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
-                <Crown className="w-8 h-8 text-pink-600" />
-                KOS - Kings Of Singers
-              </h2>
-              <p className="text-slate-600">
-                Compete, Vote, and Earn Stars in the Ultimate Singing Competition
-              </p>
-            </div>
-
-            {/* User Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-gradient-to-br from-pink-50 to-fuchsia-50 border-pink-200">
-                <CardContent className="p-6 text-center">
-                  <Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900">0</div>
-                  <div className="text-sm text-gray-600">Stars</div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-                <CardContent className="p-6 text-center">
-                  <Trophy className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900">0</div>
-                  <div className="text-sm text-gray-600">Tournament Wins</div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
-                <CardContent className="p-6 text-center">
-                  <TrendingUp className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900">Rookie</div>
-                  <div className="text-sm text-gray-600">Influencer Tier</div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
-                <CardContent className="p-6 text-center">
-                  <Users className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900">0</div>
-                  <div className="text-sm text-gray-600">Votes Cast</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main KOS Features */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Stars Management */}
-              <Card className="border-2 border-pink-200 hover:border-pink-300 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="w-6 h-6 text-yellow-500" />
-                    Stars Management
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Purchase Stars to vote in competitions and tournaments
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Current Balance:</span>
-                      <span className="text-xl font-bold text-yellow-600">0 ⭐</span>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      Use Stars to vote for your favorite performers
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Buy Stars
-                    </Button>
-                    <Button variant="outline">
-                      <Eye className="w-4 h-4 mr-2" />
-                      Star History
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Tournament System */}
-              <Card className="border-2 border-purple-200 hover:border-purple-300 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="w-6 h-6 text-purple-500" />
-                    Tournaments
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Join singing competitions and win amazing prizes
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <Calendar className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                      <p className="font-medium">No Active Tournaments</p>
-                      <p className="text-xs text-gray-600">Check back soon for new competitions</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button className="bg-purple-500 hover:bg-purple-600 text-white">
-                      <Search className="w-4 h-4 mr-2" />
-                      Browse
-                    </Button>
-                    <Button variant="outline">
-                      <Clock className="w-4 h-4 mr-2" />
-                      My History
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Individual Rankings */}
-              <Card className="border-2 border-emerald-200 hover:border-emerald-300 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-6 h-6 text-emerald-500" />
-                    Individual Rankings
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Vote for individual performers and track rankings
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <Users className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                      <p className="font-medium">Top Performers</p>
-                      <p className="text-xs text-gray-600">See who's leading the charts</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                      <BarChart3 className="w-4 h-4 mr-2" />
-                      Rankings
-                    </Button>
-                    <Button variant="outline">
-                      <Heart className="w-4 h-4 mr-2" />
-                      Vote Now
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Influencer System */}
-              <Card className="border-2 border-orange-200 hover:border-orange-300 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Crown className="w-6 h-6 text-orange-500" />
-                    Influencer System
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Climb through 18 tiers and unlock exclusive benefits
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Current Tier:</span>
-                      <span className="text-lg font-bold text-orange-600">Rookie (1/18)</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-orange-500 h-2 rounded-full" style={{ width: '5%' }}></div>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-2">
-                      Earn points through voting and tournament participation
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-                      <Target className="w-4 h-4 mr-2" />
-                      View Tiers
-                    </Button>
-                    <Button variant="outline">
-                      <Gift className="w-4 h-4 mr-2" />
-                      Rewards
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Hidden Buttons Section */}
-            <Card className="border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-6 h-6 text-gray-500" />
-                  Hidden Features
-                  <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
-                </CardTitle>
-                <p className="text-sm text-gray-600">
-                  Unlock special features as you progress in the KOS system
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                  <Button variant="ghost" disabled className="opacity-50">
-                    <Star className="w-4 h-4 mr-2" />
-                    Secret 1
-                  </Button>
-                  <Button variant="ghost" disabled className="opacity-50">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Secret 2
-                  </Button>
-                  <Button variant="ghost" disabled className="opacity-50">
-                    <Trophy className="w-4 h-4 mr-2" />
-                    Secret 3
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <div className="bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl p-6 text-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-bold">0</div>
-                  <div className="text-sm opacity-90">Total Votes</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">0</div>
-                  <div className="text-sm opacity-90">Stars Spent</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">0</div>
-                  <div className="text-sm opacity-90">Tournaments Joined</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">0</div>
-                  <div className="text-sm opacity-90">Influencer Points</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <KOSSection user={user} queryClient={queryClient} />
         )}
 
         {/* Profile Tab */}
