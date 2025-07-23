@@ -8938,17 +8938,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/kos/vote", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.id;
-      const { targetUserId, tournamentId } = req.body;
-      
-      // Check if user has enough stars
-      const userStars = await storage.getUserStars(userId);
-      if (!userStars || userStars.stars < 1) {
-        return res.status(400).json({ error: "Insufficient stars to vote" });
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
       }
 
-      // Deduct star and record vote
-      await storage.castVote(userId, targetUserId, tournamentId);
+      const { targetUserId, starsAmount = 1, tournamentId } = req.body;
+      
+      // Prevent self-voting
+      if (userId === targetUserId) {
+        return res.status(400).json({ error: "You cannot vote for yourself" });
+      }
+
+      // Check if user has enough stars
+      const userStars = await storage.getUserStars(userId);
+      if (!userStars || userStars.stars < starsAmount) {
+        return res.status(400).json({ error: `Insufficient stars to vote. You need at least ${starsAmount} stars.` });
+      }
+
+      // Deduct stars and record vote
+      await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
       res.json({ success: true, message: "Vote cast successfully" });
     } catch (error) {
       console.error("Error casting vote:", error);
@@ -8958,20 +8967,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/kos/like", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
       const { targetUserId } = req.body;
       
-      // Create like (free action)
-      await storage.createUserLike({
-        userId,
-        targetUserId,
-        createdAt: new Date()
-      });
+      // Toggle like (like/unlike)
+      const result = await storage.toggleUserLike(userId, targetUserId);
       
-      res.json({ success: true, message: "Like added successfully" });
+      res.json({ 
+        success: true, 
+        message: result.liked ? "Like added successfully" : "Like removed successfully",
+        liked: result.liked
+      });
     } catch (error) {
-      console.error("Error adding like:", error);
-      res.status(500).json({ error: "Failed to add like" });
+      console.error("Error toggling like:", error);
+      res.status(500).json({ error: "Failed to toggle like" });
     }
   });
 

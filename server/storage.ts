@@ -342,6 +342,8 @@ export interface IStorage {
   getUserLikes(userId: string): Promise<UserLike[]>;
   getLikesReceived(userId: string): Promise<UserLike[]>;
   updateUserLikeStatus(fromUserId: string, toUserId: string, isLiked: boolean): Promise<void>;
+  toggleUserLike(fromUserId: string, toUserId: string): Promise<{ liked: boolean }>;
+  castVote(fromUserId: string, toUserId: string, starsAmount: number, tournamentId?: number): Promise<void>;
 
   // Star Contributors operations
   createStarContributor(contributor: InsertStarContributor): Promise<StarContributor>;
@@ -3459,6 +3461,35 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userLikes.fromUserId, fromUserId), eq(userLikes.toUserId, toUserId)));
   }
 
+  async toggleUserLike(fromUserId: string, toUserId: string): Promise<{ liked: boolean }> {
+    try {
+      // Check if a like relationship already exists
+      const [existingLike] = await db
+        .select()
+        .from(userLikes)
+        .where(and(eq(userLikes.fromUserId, fromUserId), eq(userLikes.toUserId, toUserId)))
+        .limit(1);
+
+      if (existingLike) {
+        // Toggle the existing like status
+        const newLikedStatus = !existingLike.isLiked;
+        await this.updateUserLikeStatus(fromUserId, toUserId, newLikedStatus);
+        return { liked: newLikedStatus };
+      } else {
+        // Create new like relationship
+        await this.createUserLike({
+          fromUserId,
+          toUserId,
+          isLiked: true
+        });
+        return { liked: true };
+      }
+    } catch (error) {
+      console.error('Error toggling user like:', error);
+      throw error;
+    }
+  }
+
   // Star Contributors operations
   async createStarContributor(contributor: InsertStarContributor): Promise<StarContributor> {
     const [newContributor] = await db
@@ -3770,43 +3801,43 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async castVote(voterUserId: string, targetUserId: string, tournamentId?: number): Promise<void> {
+  async castVote(fromUserId: string, toUserId: string, starsAmount: number, tournamentId?: number): Promise<void> {
     try {
       // Check if user has enough stars
-      const userStarsData = await this.getUserStars(voterUserId);
-      if (!userStarsData || userStarsData.stars < 1) {
+      const userStarsData = await this.getUserStars(fromUserId);
+      if (!userStarsData || userStarsData.stars < starsAmount) {
         throw new Error('Insufficient stars to vote');
       }
 
-      // Deduct 1 star from voter
-      await this.updateUserStars(voterUserId, {
-        stars: userStarsData.stars - 1
+      // Deduct stars from voter
+      await this.updateUserStars(fromUserId, {
+        stars: userStarsData.stars - starsAmount
       });
 
       // Create star transaction for the vote
       await this.createStarTransaction({
-        userId: voterUserId,
-        targetUserId,
+        userId: fromUserId,
+        targetUserId: toUserId,
         tournamentId,
-        amount: 1,
+        amount: starsAmount,
         type: 'vote',
-        description: `Vote cast for user ${targetUserId}`,
+        description: `Vote cast for user ${toUserId}`,
         status: 'completed'
       });
 
       // Add to target user's vote count and influence points
-      const targetStarsData = await this.getUserStars(targetUserId);
+      const targetStarsData = await this.getUserStars(toUserId);
       if (targetStarsData) {
-        await this.updateUserStars(targetUserId, {
-          influencerPoints: targetStarsData.influencerPoints + 1
+        await this.updateUserStars(toUserId, {
+          influencerPoints: targetStarsData.influencerPoints + starsAmount
         });
       } else {
         // Create user stars record if doesn't exist
         await this.createUserStars({
-          userId: targetUserId,
+          userId: toUserId,
           stars: 0,
           totalStars: 0,
-          influencerPoints: 1,
+          influencerPoints: starsAmount,
           influencerRank: 'Bronze I',
           influencerTier: 1,
           totalEarnings: '0.00'
@@ -3814,7 +3845,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Update influencer rank if needed
-      await this.updateUserInfluencerRank(targetUserId);
+      await this.updateUserInfluencerRank(toUserId);
 
     } catch (error) {
       console.error('Error casting vote:', error);
