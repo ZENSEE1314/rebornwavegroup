@@ -69,6 +69,88 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     staleTime: 30000,
   });
 
+  // Star trading state
+  const [showStarDialog, setShowStarDialog] = useState(false);
+  const [starDialogType, setStarDialogType] = useState<'buy' | 'sell'>('buy');
+  const [starsAmount, setStarsAmount] = useState(1);
+  const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
+
+  // Star price constants (1 star = 1000 RP)
+  const STAR_PRICE = 1000;
+  const SELL_RETURN_RATE = 0.7; // 70% return rate
+
+  // Calculate RP cost for buying stars
+  const buyStarsCost = (customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount) * STAR_PRICE;
+  
+  // Calculate RP return for selling stars
+  const sellStarsReturn = Math.floor((customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount) * STAR_PRICE * SELL_RETURN_RATE);
+
+  // Star trading mutations
+  const starTradingMutation = useMutation({
+    mutationFn: ({ type, amount, rpCost }: { type: 'buy' | 'sell'; amount: number; rpCost?: number }) => {
+      if (type === 'buy') {
+        return fetch('/api/kos/purchase-stars', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ starsAmount: amount, rpCost })
+        }).then(res => {
+          if (!res.ok) throw new Error('Failed to purchase stars');
+          return res.json();
+        });
+      } else {
+        return fetch('/api/kos/sell-stars', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ starsAmount: amount })
+        }).then(res => {
+          if (!res.ok) throw new Error('Failed to sell stars');
+          return res.json();
+        });
+      }
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: variables.type === 'buy' ? "Stars Purchased!" : "Stars Sold!",
+        description: data.message,
+      });
+      // Refresh user data and close dialog
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      setShowStarDialog(false);
+      setStarsAmount(1);
+      setCustomStarsAmount('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete transaction. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleStarTrading = (type: 'buy' | 'sell') => {
+    const amount = customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount;
+    if (amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid number of stars.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (type === 'buy') {
+      const rpCost = amount * STAR_PRICE;
+      starTradingMutation.mutate({ type, amount, rpCost });
+    } else {
+      starTradingMutation.mutate({ type, amount });
+    }
+  };
+
   const displayUsers = Array.isArray(kosUsers) ? kosUsers : [];
   const top3Users = displayUsers.slice(0, 3);
   const top10Users = displayUsers.slice(3, 10);
@@ -77,15 +159,24 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const totalPages = Math.ceil(remainingUsers.length / usersPerPage);
   const paginatedUsers = remainingUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
-  // Vote/Like functions with real API calls
+  // Vote/Like functions with star spending support
+  const [showVoteDialog, setShowVoteDialog] = useState(false);
+  const [voteTargetUser, setVoteTargetUser] = useState<any>(null);
+  const [voteStarsAmount, setVoteStarsAmount] = useState(1);
+
   const voteMutation = useMutation({
-    mutationFn: ({ targetUserId, type }: { targetUserId: string; type: 'vote' | 'like' }) => {
+    mutationFn: ({ targetUserId, type, starsAmount }: { targetUserId: string; type: 'vote' | 'like'; starsAmount?: number }) => {
       if (type === 'vote') {
         return fetch('/api/kos/vote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ targetUserId, tournamentId: currentTournament?.id })
+          body: JSON.stringify({ 
+            fromUserId: user?.id,
+            toUserId: targetUserId, 
+            starsAmount: starsAmount || 1,
+            tournamentId: currentTournament?.id 
+          })
         }).then(res => {
           if (!res.ok) throw new Error('Failed to vote');
           return res.json();
@@ -105,13 +196,19 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     onSuccess: (data, variables) => {
       toast({
         title: variables.type === 'vote' ? "Vote Cast!" : "Like Added!",
-        description: `You ${variables.type === 'vote' ? 'voted for' : 'liked'} this performer!`,
+        description: variables.type === 'vote' 
+          ? `You voted for ${voteTargetUser?.name} with ${variables.starsAmount} stars!`
+          : `You liked this performer!`,
       });
       // Invalidate and refetch relevant data
       queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      setShowVoteDialog(false);
+      setVoteTargetUser(null);
+      setVoteStarsAmount(1);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to cast vote. Please try again.",
@@ -120,8 +217,33 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     }
   });
 
-  const handleVote = async (userId: string, type: 'vote' | 'like') => {
-    voteMutation.mutate({ targetUserId: userId, type });
+  const handleVote = async (targetUser: any, type: 'vote' | 'like') => {
+    // Prevent self-voting
+    if (targetUser.id === user?.id) {
+      toast({
+        title: "Cannot Vote for Yourself",
+        description: "You cannot vote for your own profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (type === 'vote') {
+      setVoteTargetUser(targetUser);
+      setShowVoteDialog(true);
+    } else {
+      voteMutation.mutate({ targetUserId: targetUser.id, type });
+    }
+  };
+
+  const handleConfirmVote = () => {
+    if (voteTargetUser) {
+      voteMutation.mutate({ 
+        targetUserId: voteTargetUser.id, 
+        type: 'vote',
+        starsAmount: voteStarsAmount
+      });
+    }
   };
 
   // Tournament timer component
@@ -248,28 +370,39 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              size={isTop3 ? "default" : "sm"}
-              className="bg-pink-500 hover:bg-pink-600 text-white"
-              onClick={() => handleVote(userItem.id, 'vote')}
-              disabled={voteMutation.isPending}
-            >
-              <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
-              Vote
-            </Button>
-            <Button
-              size={isTop3 ? "default" : "sm"}
-              variant="outline"
-              className="border-pink-300 text-pink-600 hover:bg-pink-50"
-              onClick={() => handleVote(userItem.id, 'like')}
-              disabled={voteMutation.isPending}
-            >
-              <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
-              Like
-            </Button>
-          </div>
+          {/* Action Buttons - Hide for own profile */}
+          {userItem.id !== user?.id && (
+            <div className="flex gap-2">
+              <Button
+                size={isTop3 ? "default" : "sm"}
+                className="bg-pink-500 hover:bg-pink-600 text-white"
+                onClick={() => handleVote(userItem, 'vote')}
+                disabled={voteMutation.isPending}
+              >
+                <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
+                Vote
+              </Button>
+              <Button
+                size={isTop3 ? "default" : "sm"}
+                variant="outline"
+                className="border-pink-300 text-pink-600 hover:bg-pink-50"
+                onClick={() => handleVote(userItem, 'like')}
+                disabled={voteMutation.isPending}
+              >
+                <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
+                Like
+              </Button>
+            </div>
+          )}
+          {/* Show "You" badge for own profile */}
+          {userItem.id === user?.id && (
+            <div className="flex items-center">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                <User className="w-3 h-3 mr-1" />
+                You
+              </Badge>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -325,13 +458,38 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Stars</h3>
-              <p className="text-sm text-gray-600">Buy Stars to vote for your favorite performers</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Star Trading</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                Buy Stars (1 Star = RP 1,000) • Sell Stars (70% return rate)
+              </p>
+              <p className="text-xs text-gray-500">
+                Current Stars: {userStarsData?.stars || 0} • Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}
+              </p>
             </div>
-            <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Buy Stars
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                className="bg-green-500 hover:bg-green-600 text-white"
+                onClick={() => {
+                  setStarDialogType('buy');
+                  setShowStarDialog(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Buy Stars
+              </Button>
+              <Button 
+                variant="outline"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                onClick={() => {
+                  setStarDialogType('sell');
+                  setShowStarDialog(true);
+                }}
+                disabled={!userStarsData?.stars || userStarsData.stars <= 0}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Sell Stars
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -491,6 +649,189 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Star Trading Dialog */}
+      <Dialog open={showStarDialog} onOpenChange={setShowStarDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {starDialogType === 'buy' ? (
+                <>
+                  <Plus className="w-5 h-5 text-green-500" />
+                  Purchase Stars
+                </>
+              ) : (
+                <>
+                  <DollarSign className="w-5 h-5 text-orange-500" />
+                  Sell Stars
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {starDialogType === 'buy' 
+                ? 'Buy stars using your RP balance to vote for performers'
+                : 'Sell your stars for RP (70% return rate, 30% admin fee)'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Quick amount buttons */}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 5, 10, 25].map((amount) => (
+                <Button
+                  key={amount}
+                  variant={starsAmount === amount && !customStarsAmount ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setStarsAmount(amount);
+                    setCustomStarsAmount('');
+                  }}
+                >
+                  {amount}
+                </Button>
+              ))}
+            </div>
+
+            {/* Custom amount input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Custom Amount</label>
+              <Input
+                type="number"
+                placeholder="Enter stars amount"
+                value={customStarsAmount}
+                onChange={(e) => setCustomStarsAmount(e.target.value)}
+                min="1"
+              />
+            </div>
+
+            {/* Summary */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Stars:</span>
+                <span className="font-medium">{customStarsAmount || starsAmount}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">
+                  {starDialogType === 'buy' ? 'RP Cost:' : 'RP Return:'}
+                </span>
+                <span className="font-medium text-green-600">
+                  RP {starDialogType === 'buy' ? buyStarsCost.toLocaleString() : sellStarsReturn.toLocaleString()}
+                </span>
+              </div>
+              {starDialogType === 'sell' && (
+                <div className="text-xs text-gray-500 mt-2">
+                  Admin Fee (30%): RP {Math.floor((customStarsAmount ? parseInt(customStarsAmount) || 0 : starsAmount) * STAR_PRICE * 0.3).toLocaleString()}
+                </div>
+              )}
+            </div>
+
+            {/* Current balances */}
+            <div className="text-xs text-gray-500 space-y-1">
+              <div>Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}</div>
+              <div>Current Stars: {userStarsData?.stars || 0}</div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStarDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => handleStarTrading(starDialogType)}
+              disabled={starTradingMutation.isPending}
+              className={starDialogType === 'buy' ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600'}
+            >
+              {starTradingMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                starDialogType === 'buy' ? (
+                  <Plus className="w-4 h-4 mr-2" />
+                ) : (
+                  <DollarSign className="w-4 h-4 mr-2" />
+                )
+              )}
+              {starDialogType === 'buy' ? 'Purchase' : 'Sell'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vote Confirmation Dialog */}
+      <Dialog open={showVoteDialog} onOpenChange={setShowVoteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-pink-500" />
+              Vote for {voteTargetUser?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Spend stars to vote for this performer in the tournament
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Star amount selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Stars to spend</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 5, 10, 25].map((amount) => (
+                  <Button
+                    key={amount}
+                    variant={voteStarsAmount === amount ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setVoteStarsAmount(amount)}
+                    disabled={amount > (userStarsData?.stars || 0)}
+                  >
+                    {amount}
+                  </Button>
+                ))}
+              </div>
+              <Input
+                type="number"
+                placeholder="Custom amount"
+                value={voteStarsAmount}
+                onChange={(e) => setVoteStarsAmount(parseInt(e.target.value) || 1)}
+                min="1"
+                max={userStarsData?.stars || 0}
+              />
+            </div>
+
+            {/* Vote summary */}
+            <div className="p-4 bg-pink-50 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Voting for:</span>
+                <span className="font-medium">{voteTargetUser?.name}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Stars to spend:</span>
+                <span className="font-medium text-pink-600">{voteStarsAmount}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Your remaining stars: {(userStarsData?.stars || 0) - voteStarsAmount}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVoteDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmVote}
+              disabled={voteMutation.isPending || voteStarsAmount > (userStarsData?.stars || 0)}
+              className="bg-pink-500 hover:bg-pink-600"
+            >
+              {voteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Star className="w-4 h-4 mr-2" />
+              )}
+              Cast Vote
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -9124,6 +9124,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Star Trading endpoints
+  app.post("/api/kos/purchase-stars", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const { starsAmount, rpCost } = req.body;
+      
+      if (!starsAmount || starsAmount <= 0) {
+        return res.status(400).json({ error: "Invalid stars amount" });
+      }
+      
+      if (!rpCost || rpCost <= 0) {
+        return res.status(400).json({ error: "Invalid RP cost" });
+      }
+
+      // Check user's credit balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const userCredits = parseFloat(user.credits || "0");
+      if (userCredits < rpCost) {
+        return res.status(400).json({ error: "Insufficient RP balance" });
+      }
+
+      // Deduct RP and add stars
+      const newCredits = userCredits - rpCost;
+      await storage.updateUserCredits(userId, newCredits.toString());
+      
+      // Get current stars and add new ones
+      const currentStars = await storage.getUserStars(userId);
+      const newStarsTotal = (currentStars?.stars || 0) + starsAmount;
+      await storage.updateUserStars(userId, newStarsTotal);
+
+      // Create transaction record for tracking
+      await storage.createTransaction({
+        userId,
+        amount: rpCost.toString(),
+        type: "star_purchase",
+        status: "completed",
+        description: `Purchased ${starsAmount} stars for RP ${rpCost.toLocaleString()}`
+      });
+
+      res.json({ 
+        success: true, 
+        message: `Successfully purchased ${starsAmount} stars for RP ${rpCost.toLocaleString()}`,
+        newCredits: newCredits.toString(),
+        newStars: newStarsTotal
+      });
+    } catch (error) {
+      console.error("Error purchasing stars:", error);
+      res.status(500).json({ error: "Failed to purchase stars" });
+    }
+  });
+
+  app.post("/api/kos/sell-stars", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const { starsAmount } = req.body;
+      
+      if (!starsAmount || starsAmount <= 0) {
+        return res.status(400).json({ error: "Invalid stars amount" });
+      }
+
+      // Check user's stars balance
+      const userStars = await storage.getUserStars(userId);
+      if (!userStars || userStars.stars < starsAmount) {
+        return res.status(400).json({ error: "Insufficient stars balance" });
+      }
+
+      // Calculate RP return (70% of original cost, assuming 1 star = 1000 RP)
+      const originalValue = starsAmount * 1000; // 1 star = 1000 RP
+      const returnAmount = Math.floor(originalValue * 0.7); // 70% return
+      const adminFee = originalValue - returnAmount; // 30% admin fee
+
+      // Get current credits and add return amount
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const currentCredits = parseFloat(user.credits || "0");
+      const newCredits = currentCredits + returnAmount;
+      await storage.updateUserCredits(userId, newCredits.toString());
+      
+      // Deduct stars
+      const newStarsTotal = userStars.stars - starsAmount;
+      await storage.updateUserStars(userId, newStarsTotal);
+
+      // Create transaction record for tracking
+      await storage.createTransaction({
+        userId,
+        amount: returnAmount.toString(),
+        type: "star_sale",
+        status: "completed",
+        description: `Sold ${starsAmount} stars for RP ${returnAmount.toLocaleString()} (70% return)`
+      });
+
+      // Track admin fees for dashboard
+      // We'll add this to a separate tracking mechanism
+      res.json({ 
+        success: true, 
+        message: `Successfully sold ${starsAmount} stars for RP ${returnAmount.toLocaleString()}`,
+        newCredits: newCredits.toString(),
+        newStars: newStarsTotal,
+        returnAmount,
+        adminFee
+      });
+    } catch (error) {
+      console.error("Error selling stars:", error);
+      res.status(500).json({ error: "Failed to sell stars" });
+    }
+  });
+
   // Webhook endpoint for Stripe events (for production use)
   app.post("/api/webhook/stripe", express.raw({type: 'application/json'}), async (req, res) => {
     const sig = req.headers['stripe-signature'];
