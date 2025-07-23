@@ -415,6 +415,18 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async searchUsersByUsername(searchTerm: string): Promise<User[]> {
+    const results = await db.select().from(users).where(
+      sql`${users.username} ILIKE ${`%${searchTerm}%`}`
+    );
+    return results;
+  }
+
   async createUser(userData: any): Promise<User> {
     const hashedPassword = userData.password ? await bcrypt.hash(userData.password, 10) : null;
     
@@ -426,6 +438,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         id: userId,
         email: userData.email,
+        username: userData.username,
         firstName: userData.firstName,
         lastName: userData.lastName,
         phoneNumber: userData.phoneNumber,

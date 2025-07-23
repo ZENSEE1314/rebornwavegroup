@@ -24,6 +24,7 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -79,6 +80,7 @@ export default function Login() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
+      username: "",
       password: "",
       firstName: "",
       lastName: "",
@@ -477,6 +479,24 @@ export default function Login() {
                   {registerForm.formState.errors.email && (
                     <p className="text-sm text-red-500">
                       {registerForm.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username (for KOS system)</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="username"
+                      placeholder="Enter your display username"
+                      className="pl-10"
+                      {...registerForm.register("username")}
+                    />
+                  </div>
+                  {registerForm.formState.errors.username && (
+                    <p className="text-sm text-red-500">
+                      {registerForm.formState.errors.username.message}
                     </p>
                   )}
                 </div>

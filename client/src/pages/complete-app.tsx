@@ -246,11 +246,41 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     }
   };
 
-  // Tournament timer component
+  // Tournament timer component with real-time updates
   const TournamentTimer = ({ tournament }: { tournament: any }) => {
-    if (!tournament) return null;
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
     
-    const timeLeft = tournament.timeLeft || { days: 0, hours: 0, minutes: 0 };
+    useEffect(() => {
+      if (!tournament?.endDate) return;
+      
+      const calculateTimeLeft = () => {
+        const now = new Date();
+        const endDate = new Date(tournament.endDate);
+        const timeDiff = endDate.getTime() - now.getTime();
+        
+        if (timeDiff <= 0) {
+          return { days: 0, hours: 0, minutes: 0 };
+        }
+
+        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+        return { days, hours, minutes };
+      };
+      
+      // Update immediately
+      setTimeLeft(calculateTimeLeft());
+      
+      // Update every minute
+      const interval = setInterval(() => {
+        setTimeLeft(calculateTimeLeft());
+      }, 60000);
+      
+      return () => clearInterval(interval);
+    }, [tournament?.endDate]);
+    
+    if (!tournament) return null;
     
     return (
       <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 mb-6">
@@ -263,7 +293,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               </h3>
               <p className="text-sm text-gray-600 mb-2">{tournament.description}</p>
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-gray-600">Prize Pool: <strong>RP {parseFloat(tournament.prizePool || '0').toLocaleString()}</strong></span>
+                <span className="text-gray-600">Prize Pool: <strong>{tournament.totalStarPool?.toLocaleString() || '0'} Stars</strong></span>
                 <span className="text-gray-600">Participants: <strong>{tournament.participantCount || 0}</strong></span>
               </div>
             </div>

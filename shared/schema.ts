@@ -30,6 +30,7 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: varchar("email").unique(),
+  username: varchar("username").unique(), // Username for display in KOS system
   password: varchar("password"), // For email/password authentication
   authProvider: varchar("auth_provider").default("replit").notNull(), // 'replit' | 'email' | 'google' | 'apple'
   googleId: varchar("google_id").unique(),

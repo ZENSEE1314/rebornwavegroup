@@ -8665,6 +8665,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's stars
+  app.get("/api/kos/user-stars", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      
+      let userStars = await storage.getUserStars(userId);
+      
+      // Create initial stars record if it doesn't exist
+      if (!userStars) {
+        userStars = await storage.createUserStars({
+          userId,
+          stars: 0,
+          influencerPoints: 0,
+          influencerTier: 1,
+          totalEarnings: "0.00"
+        });
+      }
+      
+      res.json(userStars);
+    } catch (error) {
+      console.error("Error fetching current user stars:", error);
+      res.status(500).json({ error: "Failed to fetch user stars" });
+    }
+  });
+
   app.post("/api/kos/user-stars", requireAuth, async (req, res) => {
     try {
       const userStars = await storage.createUserStars(req.body);
@@ -8916,6 +8944,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search users by username
+  app.get("/api/kos/users/search", async (req, res) => {
+    try {
+      const searchTerm = req.query.q as string;
+      if (!searchTerm || searchTerm.trim().length < 2) {
+        return res.json([]);
+      }
+      
+      const users = await storage.searchUsersByUsername(searchTerm.trim());
+      
+      // Return users with basic info needed for search results
+      const userResults = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl
+      }));
+      
+      res.json(userResults);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ error: "Failed to search users" });
+    }
+  });
+
   app.get("/api/kos/tournaments/current", async (req, res) => {
     try {
       const currentTournament = await storage.getCurrentTournament();
@@ -9160,7 +9214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get current stars and add new ones
       const currentStars = await storage.getUserStars(userId);
       const newStarsTotal = (currentStars?.stars || 0) + starsAmount;
-      await storage.updateUserStars(userId, newStarsTotal);
+      await storage.updateUserStars(userId, { stars: newStarsTotal });
 
       // Create transaction record for tracking
       await storage.createTransaction({
@@ -9219,7 +9273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Deduct stars
       const newStarsTotal = userStars.stars - starsAmount;
-      await storage.updateUserStars(userId, newStarsTotal);
+      await storage.updateUserStars(userId, { stars: newStarsTotal });
 
       // Create transaction record for tracking
       await storage.createTransaction({

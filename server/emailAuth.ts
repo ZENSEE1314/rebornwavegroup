@@ -5,16 +5,26 @@ import type { Request, Response } from "express";
 
 export async function registerUser(req: Request, res: Response) {
   try {
-    const { email, password, firstName, lastName, referralCode } = req.body;
+    const { email, password, firstName, lastName, username, referralCode } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    if (!username) {
+      return res.status(400).json({ message: "Username is required" });
     }
 
     // Check if user already exists
     const existingUser = await storage.getUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: "User already exists with this email" });
+    }
+
+    // Check if username already exists
+    const existingUsername = await storage.getUserByUsername(username);
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
     }
 
     // Hash password
@@ -27,6 +37,7 @@ export async function registerUser(req: Request, res: Response) {
     const newUser = await storage.createEmailUser({
       id: userId,
       email,
+      username,
       password: hashedPassword,
       authProvider: "email",
       firstName: firstName || "",
@@ -40,12 +51,13 @@ export async function registerUser(req: Request, res: Response) {
     }
 
     // Set session
-    req.session.userId = userId;
-    req.session.authProvider = "email";
+    (req.session as any).userId = userId;
+    (req.session as any).authProvider = "email";
 
     res.json({
       id: newUser.id,
       email: newUser.email,
+      username: newUser.username,
       firstName: newUser.firstName,
       lastName: newUser.lastName,
       authProvider: newUser.authProvider,
@@ -77,8 +89,8 @@ export async function loginUser(req: Request, res: Response) {
     }
 
     // Set session
-    req.session.userId = user.id;
-    req.session.authProvider = "email";
+    (req.session as any).userId = user.id;
+    (req.session as any).authProvider = "email";
 
     res.json({
       id: user.id,
@@ -104,7 +116,7 @@ export async function logoutUser(req: Request, res: Response) {
 
 // Middleware to check if user is authenticated (works for both auth types)
 export function isAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.session.userId) {
+  if ((req.session as any).userId) {
     return next();
   }
   
