@@ -383,14 +383,14 @@ export const translations: Translations = {
   
   // Landing Page
   'landing.title': {
-    en: 'Reborn Wave Group',
-    zh: '重生波浪集团',
-    id: 'Reborn Wave Group'
+    en: 'Kings Of Singers (KOS)',
+    zh: '歌王',
+    id: 'Kings Of Singers (KOS)'
   },
   'landing.description': {
-    en: 'Care for virtual dragons, earn tokens, and build your collection in this immersive pet care experience.',
-    zh: '照顾虚拟龙，赚取代币，在这个身临其境的宠物护理体验中建立您的收藏。',
-    id: 'Rawat naga virtual, dapatkan token, dan bangun koleksi Anda dalam pengalaman perawatan hewan yang imersif ini.'
+    en: 'Join the ultimate singing competition platform. Vote for performers, purchase stars, compete in tournaments, and rise through the influencer ranks.',
+    zh: '加入终极歌唱比赛平台。为表演者投票，购买星级，参加锦标赛，并在影响者排行中崛起。',
+    id: 'Bergabunglah dengan platform kompetisi menyanyi terbaik. Vote untuk penampil, beli bintang, ikuti turnamen, dan naik di peringkat influencer.'
   },
   'landing.getStarted': {
     en: 'Get Started',
@@ -408,34 +408,34 @@ export const translations: Translations = {
     id: 'Fitur Menakjubkan'
   },
   'landing.features.petCare': {
-    en: 'Pet Care System',
-    zh: '宠物护理系统',
-    id: 'Sistem Perawatan Hewan'
+    en: 'Star Trading System',
+    zh: '星级交易系统',
+    id: 'Sistem Perdagangan Bintang'
   },
   'landing.features.petCareDesc': {
-    en: 'Feed, bathe, play, and train your virtual dragons',
-    zh: '喂养、洗澡、玩耍和训练您的虚拟龙',
-    id: 'Beri makan, mandikan, bermain, dan latih naga virtual Anda'
+    en: 'Purchase stars with RP, vote for performers, and earn from star sales',
+    zh: '用RP购买星级，为表演者投票，并从星级销售中获利',
+    id: 'Beli bintang dengan RP, vote untuk penampil, dan dapatkan keuntungan dari penjualan bintang'
   },
   'landing.features.evolution': {
-    en: 'Evolution System',
-    zh: '进化系统',
-    id: 'Sistem Evolusi'
+    en: 'Tournament System',
+    zh: '锦标赛系统',
+    id: 'Sistem Turnamen'
   },
   'landing.features.evolutionDesc': {
-    en: 'Watch your pets grow through 6 unique life stages',
-    zh: '观看您的宠物通过6个独特的生命阶段成长',
-    id: 'Saksikan hewan peliharaan Anda tumbuh melalui 6 tahap kehidupan yang unik'
+    en: 'Compete in tournaments, climb rankings, and win exclusive prizes',
+    zh: '参加锦标赛，攀登排行榜，赢得专属奖品',
+    id: 'Ikuti turnamen, naik peringkat, dan menangkan hadiah eksklusif'
   },
   'landing.features.rewards': {
-    en: 'Token Rewards',
-    zh: '代币奖励',
-    id: 'Hadiah Token'
+    en: 'Influencer System',
+    zh: '影响者系统',
+    id: 'Sistem Influencer'
   },
   'landing.features.rewardsDesc': {
-    en: 'Earn daily tokens and redeem for exclusive rewards',
-    zh: '赚取每日代币并兑换独家奖励',
-    id: 'Dapatkan token harian dan tukarkan dengan hadiah eksklusif'
+    en: 'Rise through 18 influencer tiers and unlock special privileges',
+    zh: '通过18个影响者等级晋升，解锁特殊特权',
+    id: 'Naik melalui 18 tingkat influencer dan buka hak istimewa khusus'
   },
 
   // Landing Page
@@ -445,19 +445,19 @@ export const translations: Translations = {
     id: 'Platform Digital Premium'
   },
   'landing.subtitle': {
-    en: 'The Future of Beauty, Food & Beverage & Entertainment',
-    zh: '美容、餐饮和娱乐的未来',
-    id: 'Masa Depan Kecantikan, Makanan & Minuman & Hiburan'
+    en: 'Interactive Singing Competition Platform',
+    zh: '互动歌唱比赛平台',
+    id: 'Platform Kompetisi Menyanyi Interaktif'
   },
   'landing.aboutCompany': {
-    en: 'About Reborn Wave Group',
-    zh: '关于重生浪潮集团',
-    id: 'Tentang Reborn Wave Group'
+    en: 'About Kings Of Singers',
+    zh: '关于歌王',
+    id: 'Tentang Kings Of Singers'
   },
   'landing.aboutDescription': {
-    en: "The world's first 5-in-1 business concept revolutionizing lifestyle experiences",
-    zh: '世界首个5合1商业概念，革新生活方式体验',
-    id: 'Konsep bisnis 5-in-1 pertama di dunia yang merevolusi pengalaman gaya hidup'
+    en: "Interactive singing competition platform with star trading, tournaments, and 18-tier influencer system",
+    zh: '互动歌唱比赛平台，拥有星级交易、锦标赛和18级影响者系统',
+    id: 'Platform kompetisi menyanyi interaktif dengan perdagangan bintang, turnamen, dan sistem influencer 18 tingkat'
   },
   'landing.ourVision': {
     en: 'Our Vision',
@@ -784,14 +784,14 @@ export const translations: Translations = {
     id: 'Atau lanjutkan dengan'
   },
   'auth.title': {
-    en: 'Reborn Wave Pet Care',
-    zh: '重生波浪宠物护理',
-    id: 'Perawatan Hewan Reborn Wave'
+    en: 'Kings Of Singers (KOS)',
+    zh: '歌王',
+    id: 'Kings Of Singers (KOS)'
   },
   'auth.subtitle': {
-    en: 'Your digital pet adventure awaits',
-    zh: '您的数字宠物冒险等待着您',
-    id: 'Petualangan hewan digital Anda menanti'
+    en: 'Your singing competition journey begins here',
+    zh: '您的歌唱比赛之旅从这里开始',
+    id: 'Perjalanan kompetisi menyanyi Anda dimulai di sini'
   },
   'auth.reset': {
     en: 'Reset',
@@ -879,14 +879,14 @@ export const translations: Translations = {
     id: 'Masukkan di formulir di bawah sebelum memilih metode pendaftaran'
   },
   'auth.welcomeTitle': {
-    en: 'Reborn Wave Pet Care',
-    zh: '重生浪潮宠物护理',
-    id: 'Perawatan Hewan Peliharaan Reborn Wave'
+    en: 'Kings Of Singers (KOS)',
+    zh: '歌王',
+    id: 'Kings Of Singers (KOS)'
   },
   'auth.welcomeDescription': {
-    en: 'Your digital pet adventure awaits',
-    zh: '您的数字宠物冒险在等待',
-    id: 'Petualangan hewan peliharaan digital Anda menanti'
+    en: 'Your singing competition journey begins here',
+    zh: '您的歌唱比赛之旅从这里开始',
+    id: 'Perjalanan kompetisi menyanyi Anda dimulai di sini'
   },
   'auth.referralCodeInfo': {
     en: 'Have a referral code? Enter it in the form below before choosing your sign-up method',
