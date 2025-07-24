@@ -64,17 +64,37 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   // Fetch user's current stars
   const { data: userStarsData } = useQuery({
     queryKey: ['/api/kos/user-stars', user?.id],
-    queryFn: () => fetch(`/api/kos/user-stars/${user?.id}`).then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/kos/user-stars/${user?.id}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        console.warn('Failed to fetch user stars:', res.status);
+        return { stars: 0, influencerPoints: 0, influencerTier: 1 };
+      }
+      return res.json();
+    },
     enabled: !!user?.id,
     staleTime: 30000,
+    retry: false,
   });
 
   // Fetch user's star purchase history
   const { data: starPurchaseHistory = [] } = useQuery({
     queryKey: ['/api/kos/star-purchase-history', user?.id],
-    queryFn: () => fetch(`/api/kos/star-purchase-history/${user?.id}`).then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/kos/star-purchase-history/${user?.id}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        console.warn('Failed to fetch star purchase history:', res.status);
+        return [];
+      }
+      return res.json();
+    },
     enabled: !!user?.id,
     staleTime: 30000,
+    retry: false,
   });
 
   // Star trading state
@@ -103,8 +123,11 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ starsAmount: amount, rpCost })
-        }).then(res => {
-          if (!res.ok) throw new Error('Failed to purchase stars');
+        }).then(async res => {
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to purchase stars');
+          }
           return res.json();
         });
       } else {
@@ -113,8 +136,11 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ starsAmount: amount })
-        }).then(res => {
-          if (!res.ok) throw new Error('Failed to sell stars');
+        }).then(async res => {
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Failed to sell stars');
+          }
           return res.json();
         });
       }
