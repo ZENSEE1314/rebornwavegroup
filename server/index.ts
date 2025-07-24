@@ -57,10 +57,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
-  
-  // Register working star routes (bypass compilation issues)
+  // Register working star routes FIRST (bypass compilation issues)
   registerStarRoutes(app);
+  
+  const server = await registerRoutes(app);
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {
