@@ -8773,6 +8773,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/kos/star-purchase-history/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const purchases = await storage.getStarPurchasesByUserId(userId);
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching star purchase history:", error);
+      res.status(500).json({ error: "Failed to fetch star purchase history" });
+    }
+  });
+
   // Star Transactions routes
   app.post("/api/kos/star-transactions", requireAuth, async (req, res) => {
     try {
@@ -9182,7 +9193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Star Trading endpoints
   app.post("/api/kos/purchase-stars", requireAuth, async (req, res) => {
     try {
-      const userId = getUserId(req);
+      const userId = req.user.id;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -9249,7 +9260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/kos/sell-stars", requireAuth, async (req, res) => {
     try {
-      const userId = getUserId(req);
+      const userId = req.user.id;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
