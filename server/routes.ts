@@ -9226,6 +9226,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Purchased ${starsAmount} stars for RP ${rpCost.toLocaleString()}`
       });
 
+      // Create star purchase record for history
+      await storage.createStarPurchase({
+        userId,
+        starsAmount,
+        rpCost: rpCost.toString(),
+        purchaseType: "buy",
+        status: "completed"
+      });
+
       res.json({ 
         success: true, 
         message: `Successfully purchased ${starsAmount} stars for RP ${rpCost.toLocaleString()}`,
@@ -9283,6 +9292,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "star_sale",
         status: "completed",
         description: `Sold ${starsAmount} stars for RP ${returnAmount.toLocaleString()} (70% return)`
+      });
+
+      // Create star purchase record for history
+      await storage.createStarPurchase({
+        userId,
+        starsAmount,
+        rpCost: returnAmount.toString(),
+        purchaseType: "sell",
+        status: "completed"
       });
 
       // Track admin fees for dashboard
