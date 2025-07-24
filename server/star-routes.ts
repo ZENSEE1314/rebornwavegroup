@@ -3,8 +3,25 @@ import type { Express } from "express";
 import { storage } from "./storage";
 
 function getUserId(req: any): string | null {
-  if (req.user?.id) return req.user.id;
-  if (req.session?.user?.id) return req.session.user.id;
+  // Try multiple authentication patterns
+  if (req.user?.id) {
+    console.log("*** Auth via req.user.id:", req.user.id);
+    return req.user.id;
+  }
+  if (req.session?.user?.id) {
+    console.log("*** Auth via req.session.user.id:", req.session.user.id);
+    return req.session.user.id;
+  }
+  if (req.session?.passport?.user?.id) {
+    console.log("*** Auth via req.session.passport.user.id:", req.session.passport.user.id);
+    return req.session.passport.user.id;
+  }
+  if (req.session?.passport?.user) {
+    console.log("*** Auth via req.session.passport.user:", req.session.passport.user);
+    return req.session.passport.user;
+  }
+  console.log("*** NO AUTH FOUND - req.user:", req.user);
+  console.log("*** NO AUTH FOUND - req.session:", req.session);
   return null;
 }
 

@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Register working star routes FIRST (bypass compilation issues)
+  // Register working star routes FIRST (bypass route conflicts)
   registerStarRoutes(app);
   
   const server = await registerRoutes(app);
