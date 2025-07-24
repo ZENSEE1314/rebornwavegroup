@@ -9182,8 +9182,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Star Trading endpoints
   app.post("/api/kos/purchase-stars", requireAuth, async (req, res) => {
     try {
+      console.log("=== STAR PURCHASE DEBUG START ===");
+      console.log("Request body:", req.body);
+      console.log("Request user:", req.user);
+      console.log("Request session:", req.session);
+      console.log("Request isAuthenticated():", req.isAuthenticated());
+      console.log("Request headers:", req.headers);
+      console.log("Request cookies:", req.cookies);
+      
       const userId = getUserId(req);
+      console.log("getUserId result:", userId);
+      
       if (!userId) {
+        console.log("ERROR: User not authenticated");
         return res.status(401).json({ error: "User not authenticated" });
       }
 
