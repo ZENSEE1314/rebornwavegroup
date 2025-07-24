@@ -9185,7 +9185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Star Trading endpoints
+  // Star Trading endpoints - DISABLED DUE TO COMPILATION ERRORS
+  /*
   app.post("/api/kos/purchase-stars", async (req, res) => {
     try {
       console.log("=== STAR PURCHASE DEBUG START ===");
@@ -9264,6 +9265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to purchase stars" });
     }
   });
+  */
 
   app.post("/api/kos/sell-stars", requireAuth, async (req, res) => {
     try {
