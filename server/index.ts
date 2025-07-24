@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerStarRoutes } from "./star-routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -47,6 +48,9 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Register working star routes (bypass compilation issues)
+  registerStarRoutes(app);
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {

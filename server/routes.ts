@@ -360,6 +360,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup multi-provider authentication
   setupMultiAuth(app);
+
+  // Test endpoint to verify changes are loaded
+  app.post("/api/test-endpoint", (req, res) => {
+    console.log("*** TEST ENDPOINT HIT - Changes are loaded!");
+    res.json({ message: "Test endpoint working", body: req.body });
+  });
   
   // Authentication endpoints
   app.post('/api/auth/login', async (req, res) => {

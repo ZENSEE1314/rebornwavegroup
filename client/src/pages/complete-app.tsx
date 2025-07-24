@@ -118,7 +118,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const starTradingMutation = useMutation({
     mutationFn: ({ type, amount, rpCost }: { type: 'buy' | 'sell'; amount: number; rpCost?: number }) => {
       if (type === 'buy') {
-        return fetch('/api/kos/purchase-stars', {
+        return fetch('/api/kos/purchase-stars-working', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
