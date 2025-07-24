@@ -10,7 +10,7 @@ import { db } from "./db";
 import { eq, and, desc, asc, sql, count, isNull, isNotNull } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { setupMultiAuth, requireAuth } from "./multiAuth";
+import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
 
 // Initialize Stripe
@@ -157,18 +157,7 @@ function stopSleepEnergyTimer(petId: number) {
   }
 }
 
-// Helper function to extract user ID from different auth formats
-function getUserId(req: any): string | null {
-  // For session-based authentication (passport)
-  if (req.user?.id) {
-    return req.user.id;
-  }
-  // Handle legacy Firebase authentication pattern (for backward compatibility)
-  if (req.user?.claims?.sub) {
-    return req.user.claims.sub;
-  }
-  return null;
-}
+
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail, sendAppointmentRescheduleEmail } from "./emailService";
 
 import { promises as fs } from "fs";

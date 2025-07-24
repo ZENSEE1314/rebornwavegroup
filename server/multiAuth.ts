@@ -6,7 +6,7 @@ import { storage } from './storage';
 import type { Express, Request, Response } from 'express';
 
 // Helper function to extract user ID from different auth formats
-function getUserId(req: any): string | null {
+export function getUserId(req: any): string | null {
   return req.user?.claims?.sub || req.user?.id || null;
 }
 import session from 'express-session';
