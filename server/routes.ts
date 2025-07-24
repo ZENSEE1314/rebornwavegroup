@@ -8116,7 +8116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/email-templates', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       const templateData = {
         ...req.body,
         createdBy: userId,
@@ -8585,7 +8585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: Math.round(amount), // Amount in Rupiah (IDR is smallest unit)
         currency: "idr",
         metadata: {
-          userId: req.user.id,
+          userId: getUserId(req),
           description: description || "Pet Care Credits"
         },
         automatic_payment_methods: {
@@ -8617,7 +8617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (paymentIntent.status === 'succeeded') {
         // Add credits to user account
         const creditAmount = (paymentIntent.amount / 100); // Convert cents to dollars
-        const userId = req.user.id;
+        const userId = getUserId(req);
         
         // Update user credits
         await storage.addCreditsToUser(userId, creditAmount.toString());
@@ -8729,7 +8729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Star Purchases routes
   app.post("/api/kos/star-purchases", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       const purchase = await storage.createStarPurchase({
         ...req.body,
         userId,
@@ -9182,7 +9182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Star Trading endpoints
   app.post("/api/kos/purchase-stars", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -9249,7 +9249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/kos/sell-stars", requireAuth, async (req, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
