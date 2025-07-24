@@ -61,7 +61,7 @@ export function registerStarRoutes(app: Express) {
       let currentStars = 0;
       try {
         const userStars = await storage.getUserStars(userId);
-        currentStars = userStars?.stars || 0;
+        currentStars = userStars?.totalStars || 0;
       } catch (error) {
         console.log("Warning: Could not get current stars, starting from 0");
         currentStars = 0;
@@ -87,7 +87,7 @@ export function registerStarRoutes(app: Express) {
           fromUserId: userId,
           toUserId: userId,
           starsAmount: starsAmount,
-          transactionType: 'purchase',
+          type: 'purchase',
           rpCost: rpCost,
           description: `Purchased ${starsAmount} stars for ${rpCost} RP`
         });
