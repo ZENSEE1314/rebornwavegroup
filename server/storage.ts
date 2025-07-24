@@ -124,7 +124,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, updates: { loyaltyPoints?: number; authProvider?: string; googleId?: string; appleId?: string; profileImageUrl?: string }): Promise<User>;
-  updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
+  updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; username?: string; phoneNumber?: string; gender?: string; dateOfBirth?: Date }): Promise<void>;
   
   // Email authentication operations
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -399,7 +399,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; phoneNumber?: string; email?: string; role?: string; gender?: string; dateOfBirth?: Date }): Promise<void> {
+  async updateUserProfile(id: string, profile: { firstName?: string; lastName?: string; username?: string; phoneNumber?: string; email?: string; role?: string; gender?: string; dateOfBirth?: Date }): Promise<void> {
     await db
       .update(users)
       .set({

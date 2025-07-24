@@ -164,6 +164,49 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const [voteTargetUser, setVoteTargetUser] = useState<any>(null);
   const [voteStarsAmount, setVoteStarsAmount] = useState(1);
 
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Search users
+  const searchUsers = async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/kos/users/search?q=${encodeURIComponent(query.trim())}`);
+      if (response.ok) {
+        const results = await response.json();
+        setSearchResults(results);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    }
+    setIsSearching(false);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery) {
+        searchUsers(searchQuery);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
   const voteMutation = useMutation({
     mutationFn: ({ targetUserId, type, starsAmount }: { targetUserId: string; type: 'vote' | 'like'; starsAmount?: number }) => {
       if (type === 'vote') {
@@ -482,6 +525,65 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Search Bar */}
+      <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50 mb-6">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <div className="relative">
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder="Search users by username..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+                {isSearching && (
+                  <Loader2 className="w-4 h-4 text-blue-500 absolute right-3 top-1/2 transform -translate-y-1/2 animate-spin" />
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((result) => (
+                      <div
+                        key={result.id}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setShowSearchResults(false);
+                          // You could scroll to user or highlight them here
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm">
+                          👤
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{result.username}</div>
+                          <div className="text-xs text-gray-600">
+                            {result.firstName} {result.lastName}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-gray-500 text-sm">
+                      No users found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="text-sm text-gray-600">
+              Search by username to find performers
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stars Purchase Section */}
       <Card className="border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50">
@@ -5041,6 +5143,7 @@ export default function CompleteApp() {
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
+  const [username, setUsername] = useState(user?.username || "");
   const [gender, setGender] = useState(user?.gender || "");
   const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
 
@@ -5050,6 +5153,7 @@ export default function CompleteApp() {
       setPhoneNumber(user.phoneNumber || "");
       setFirstName(user.firstName || "");
       setLastName(user.lastName || "");
+      setUsername(user.username || "");
       setGender(user.gender || "");
       setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
     }
@@ -6672,6 +6776,7 @@ export default function CompleteApp() {
         body: JSON.stringify({
           firstName,
           lastName,
+          username,
           phoneNumber,
           gender,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null
@@ -10204,6 +10309,16 @@ export default function CompleteApp() {
                           onChange={(e) => setLastName(e.target.value)}
                           readOnly={!editingProfile}
                           className={editingProfile ? "" : "bg-gray-50"}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+                        <Input 
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          readOnly={!editingProfile}
+                          className={editingProfile ? "" : "bg-gray-50"}
+                          placeholder="Enter your username"
                         />
                       </div>
                       <div className="md:col-span-2">

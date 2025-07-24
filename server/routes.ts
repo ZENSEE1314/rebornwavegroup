@@ -1914,11 +1914,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/user/profile', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const { firstName, lastName, phoneNumber, gender, dateOfBirth } = req.body;
+      const { firstName, lastName, username, phoneNumber, gender, dateOfBirth } = req.body;
       
       await storage.updateUserProfile(userId, {
         firstName,
         lastName,
+        username,
         phoneNumber,
         gender,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined
