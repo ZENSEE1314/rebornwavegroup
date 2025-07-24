@@ -16,6 +16,16 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Global request logging for debugging star purchase issue
+app.use((req, res, next) => {
+  if (req.url.includes('purchase-stars') || req.url.includes('/api/kos')) {
+    console.log(`*** GLOBAL REQUEST: ${req.method} ${req.url}`);
+    console.log('*** REQUEST BODY:', req.body);
+    console.log('*** REQUEST HEADERS:', req.headers);
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
