@@ -21,7 +21,8 @@ app.use((req, res, next) => {
   if (req.url.includes('purchase-stars') || req.url.includes('/api/kos')) {
     console.log(`*** GLOBAL REQUEST: ${req.method} ${req.url}`);
     console.log('*** REQUEST BODY:', req.body);
-    console.log('*** REQUEST HEADERS:', req.headers);
+    console.log('*** USER SESSION:', req.user);
+    console.log('*** SESSION:', req.session);
   }
   next();
 });
