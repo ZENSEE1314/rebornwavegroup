@@ -1,35 +1,13 @@
 // Temporary working star purchase routes
 import type { Express } from "express";
 import { storage } from "./storage";
-
-function getUserId(req: any): string | null {
-  // Try multiple authentication patterns
-  if (req.user?.id) {
-    console.log("*** Auth via req.user.id:", req.user.id);
-    return req.user.id;
-  }
-  if (req.session?.user?.id) {
-    console.log("*** Auth via req.session.user.id:", req.session.user.id);
-    return req.session.user.id;
-  }
-  if (req.session?.passport?.user?.id) {
-    console.log("*** Auth via req.session.passport.user.id:", req.session.passport.user.id);
-    return req.session.passport.user.id;
-  }
-  if (req.session?.passport?.user) {
-    console.log("*** Auth via req.session.passport.user:", req.session.passport.user);
-    return req.session.passport.user;
-  }
-  console.log("*** NO AUTH FOUND - req.user:", req.user);
-  console.log("*** NO AUTH FOUND - req.session:", req.session);
-  return null;
-}
+import { requireAuth, getUserId } from "./multiAuth";
 
 export function registerStarRoutes(app: Express) {
   console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
   
   // Working star purchase endpoint
-  app.post('/api/kos/purchase-stars-working', async (req, res) => {
+  app.post('/api/kos/purchase-stars-working', requireAuth, async (req, res) => {
     console.log("*** ========================================");
     console.log("*** WORKING STAR PURCHASE ENDPOINT HIT!");
     console.log("*** ========================================");
