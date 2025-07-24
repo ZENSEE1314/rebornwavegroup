@@ -118,12 +118,16 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const starTradingMutation = useMutation({
     mutationFn: ({ type, amount, rpCost }: { type: 'buy' | 'sell'; amount: number; rpCost?: number }) => {
       if (type === 'buy') {
+        console.log('*** FRONTEND: Calling purchase-stars-working endpoint');
+        console.log('*** FRONTEND: Payload:', { starsAmount: amount, rpCost });
         return fetch('/api/kos/purchase-stars-working', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ starsAmount: amount, rpCost })
         }).then(async res => {
+          console.log('*** FRONTEND: Response status:', res.status);
+          console.log('*** FRONTEND: Response headers:', res.headers);
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
             throw new Error(errorData.error || 'Failed to purchase stars');
