@@ -9140,6 +9140,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/kos/current-tournament", async (req, res) => {
+    try {
+      const currentTournament = await storage.getCurrentTournament();
+      res.json(currentTournament);
+    } catch (error) {
+      console.error("Error fetching current tournament:", error);
+      res.status(500).json({ error: "Failed to fetch current tournament" });
+    }
+  });
+
   app.get("/api/kos/tournaments/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
