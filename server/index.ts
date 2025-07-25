@@ -24,6 +24,17 @@ app.use((req, res, next) => {
     console.log('*** USER SESSION:', req.user);
     console.log('*** SESSION:', req.session);
   }
+  
+  // SPECIFIC LIKE ENDPOINT DEBUGGING
+  if (req.url === '/api/kos/like' && req.method === 'POST') {
+    console.log('*** ===============================');
+    console.log('*** LIKE ENDPOINT HIT IN GLOBAL MIDDLEWARE');
+    console.log('*** URL:', req.url);
+    console.log('*** METHOD:', req.method);
+    console.log('*** BODY:', req.body);
+    console.log('*** ===============================');
+  }
+  
   next();
 });
 
