@@ -9325,34 +9325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // NOTE: /api/kos/vote endpoint moved to star-routes.ts to avoid duplicate endpoints
 
-  app.post("/api/kos/like", requireAuth, async (req, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
-      }
-
-      const { targetUserId, mode } = req.body;
-      
-      console.log('*** LIKE ENDPOINT - Mode:', mode, 'From:', userId, 'To:', targetUserId);
-      
-      // Toggle like (like/unlike) - mode-specific behavior
-      // Likes award stars based on mode (individual vs tournament)
-      const result = await storage.toggleUserLike(userId, targetUserId, mode);
-      
-      console.log('*** LIKE RESULT:', result);
-      
-      res.json({ 
-        success: true, 
-        message: result.liked ? "Like added successfully" : "Like removed successfully",
-        liked: result.liked,
-        mode: mode // Include mode in response for debugging
-      });
-    } catch (error) {
-      console.error("Error toggling like:", error);
-      res.status(500).json({ error: "Failed to toggle like" });
-    }
-  });
+  // NOTE: /api/kos/like endpoint moved to star-routes.ts to avoid duplicate endpoints and provide proper mode-specific functionality
 
   // User Likes routes
   app.post("/api/kos/user-likes", requireAuth, async (req, res) => {

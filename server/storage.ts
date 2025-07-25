@@ -3500,10 +3500,10 @@ export class DatabaseStorage implements IStorage {
         if (newLikedStatus) {
           if (mode === 'tournament') {
             console.log('*** AWARDING 1 TOURNAMENT STAR FOR LIKE');
-            await this.awardTournamentStar(toUserId, 1);
+            await this.awardTournamentStar(toUserId, 1, false); // false = no transaction logging for likes
           } else {
             console.log('*** AWARDING 1 INDIVIDUAL STAR FOR LIKE');
-            await this.awardIndividualStar(toUserId, 1);
+            await this.awardIndividualStar(toUserId, 1, false); // false = no transaction logging for likes
           }
         }
         
@@ -3519,10 +3519,10 @@ export class DatabaseStorage implements IStorage {
         // Award stars based on mode for new like (no star deduction for likes)
         if (mode === 'tournament') {
           console.log('*** AWARDING 1 TOURNAMENT STAR FOR NEW LIKE');
-          await this.awardTournamentStar(toUserId, 1);
+          await this.awardTournamentStar(toUserId, 1, false); // false = no transaction logging for likes
         } else {
           console.log('*** AWARDING 1 INDIVIDUAL STAR FOR NEW LIKE');
-          await this.awardIndividualStar(toUserId, 1);
+          await this.awardIndividualStar(toUserId, 1, false); // false = no transaction logging for likes
         }
         
         return { liked: true };
@@ -3534,7 +3534,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Helper method to award individual stars (for likes) without deducting from voter
-  async awardIndividualStar(userId: string, amount: number): Promise<void> {
+  async awardIndividualStar(userId: string, amount: number, createTransaction: boolean = true): Promise<void> {
     try {
       // Get or create user stars data
       let userStarsData = await this.getUserStars(userId);
@@ -3562,20 +3562,22 @@ export class DatabaseStorage implements IStorage {
         totalStars: newTotalStars
       });
 
-      // Create individual star transaction record for proper tracking
-      await this.createStarTransaction({
-        fromUserId: 'SYSTEM_INDIVIDUAL_LIKE', // System-generated individual like award
-        toUserId: userId,
-        starsAmount: amount,
-        type: 'individual_like',
-        tournamentId: null, // Individual likes don't belong to tournament
-        adminFee: "0.00",
-        userEarning: amount.toString(),
-        status: 'completed'
-      });
+      // Only create transaction record for actual votes (not likes) to avoid foreign key issues
+      if (createTransaction) {
+        await this.createStarTransaction({
+          fromUserId: 'SYSTEM_INDIVIDUAL_LIKE', // System-generated individual like award
+          toUserId: userId,
+          starsAmount: amount,
+          type: 'individual_like',
+          tournamentId: null, // Individual likes don't belong to tournament
+          adminFee: "0.00",
+          userEarning: amount.toString(),
+          status: 'completed'
+        });
+        console.log(`*** INDIVIDUAL STAR TRANSACTION CREATED - Type: individual_like`);
+      }
 
       console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);
-      console.log(`*** INDIVIDUAL STAR TRANSACTION CREATED - Type: individual_like`);
     } catch (error) {
       console.error('Error awarding individual star:', error);
       throw error;
@@ -3583,7 +3585,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Helper method to award tournament stars (for tournament likes) without deducting from voter
-  async awardTournamentStar(userId: string, amount: number): Promise<void> {
+  async awardTournamentStar(userId: string, amount: number, createTransaction: boolean = true): Promise<void> {
     try {
       // Get or create user stars data
       let userStarsData = await this.getUserStars(userId);
@@ -3611,20 +3613,22 @@ export class DatabaseStorage implements IStorage {
         totalStars: newTotalStars
       });
 
-      // Create tournament star transaction record for proper tracking
-      await this.createStarTransaction({
-        fromUserId: 'SYSTEM_TOURNAMENT_LIKE', // System-generated tournament like award
-        toUserId: userId,
-        starsAmount: amount,
-        type: 'tournament_like',
-        tournamentId: null, // Like stars don't belong to specific tournament
-        adminFee: "0.00",
-        userEarning: amount.toString(),
-        status: 'completed'
-      });
+      // Only create transaction record for actual votes (not likes) to avoid foreign key issues
+      if (createTransaction) {
+        await this.createStarTransaction({
+          fromUserId: 'SYSTEM_TOURNAMENT_LIKE', // System-generated tournament like award
+          toUserId: userId,
+          starsAmount: amount,
+          type: 'tournament_like',
+          tournamentId: null, // Like stars don't belong to specific tournament
+          adminFee: "0.00",
+          userEarning: amount.toString(),
+          status: 'completed'
+        });
+        console.log(`*** TOURNAMENT STAR TRANSACTION CREATED - Type: tournament_like`);
+      }
 
       console.log(`*** TOURNAMENT STAR AWARDED - User: ${userId}, Amount: ${amount}, New Tournament Stars: ${newTournamentStars}, New Total Stars: ${newTotalStars}`);
-      console.log(`*** TOURNAMENT STAR TRANSACTION CREATED - Type: tournament_like`);
     } catch (error) {
       console.error('Error awarding tournament star:', error);
       throw error;
