@@ -284,7 +284,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           body: JSON.stringify({ 
             targetUserId, 
             starsAmount: starsAmount || 1,
-            tournamentId: currentTournament?.id 
+            mode: kosActiveTab // Pass the current mode (individual or tournament)
           })
         }).then(res => {
           if (!res.ok) throw new Error('Failed to vote');
@@ -295,7 +295,10 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ targetUserId })
+          body: JSON.stringify({ 
+            targetUserId,
+            mode: kosActiveTab // Pass the current mode (individual or tournament)
+          })
         }).then(res => {
           if (!res.ok) throw new Error('Failed to like');
           return res.json();
@@ -338,12 +341,17 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     }
 
     // Different behavior based on tab and type
-    if (kosActiveTab === 'tournament' && type === 'vote') {
-      // Tournament mode - show vote dialog with star selection
-      setVoteTargetUser(targetUser);
-      setShowVoteDialog(true);
-    } else if (kosActiveTab === 'individual' && type === 'like') {
-      // Individual mode - direct like without dialog (no stars required)
+    if (type === 'vote') {
+      if (kosActiveTab === 'tournament') {
+        // Tournament mode - show vote dialog with star selection
+        setVoteTargetUser(targetUser);
+        setShowVoteDialog(true);
+      } else if (kosActiveTab === 'individual') {
+        // Individual mode - vote immediately with 1 star (no dialog needed)
+        voteMutation.mutate({ targetUserId: targetUser.id, type: 'vote', starsAmount: 1 });
+      }
+    } else if (type === 'like') {
+      // Like button - same behavior for both modes (awards likes only)
       voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
     }
   };
