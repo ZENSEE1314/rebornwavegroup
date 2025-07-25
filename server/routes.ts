@@ -407,16 +407,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create transaction record for history
       try {
-        const purchaseRecord = await storage.createStarPurchase({
+        const purchaseData = {
           userId: userId,
           starsAmount: starsAmount,
           rpCost: rpCost.toString(),
           paymentMethod: 'rp_balance',
           status: 'completed'
-        });
-        console.log("✓ Transaction record created:", purchaseRecord.id);
+        };
+        console.log("*** Creating purchase record with data:", purchaseData);
+        
+        const purchaseRecord = await storage.createStarPurchase(purchaseData);
+        console.log("✓ Transaction record created successfully:", purchaseRecord.id);
       } catch (error) {
-        console.log("⚠️ Failed to create transaction record:", error.message || error);
+        console.log("⚠️ CRITICAL: Failed to create transaction record");
+        console.log("⚠️ Error message:", error.message);
+        console.log("⚠️ Full error:", error);
+        console.log("⚠️ Error stack:", error.stack);
+        // Continue anyway - don't let transaction history failure block the purchase
       }
 
       console.log("*** FINAL STAR PURCHASE COMPLETED SUCCESSFULLY");

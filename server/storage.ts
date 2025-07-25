@@ -3278,14 +3278,20 @@ export class DatabaseStorage implements IStorage {
 
   // Star Purchases operations
   async createStarPurchase(purchase: InsertStarPurchase): Promise<StarPurchase> {
-    const [newPurchase] = await db
-      .insert(starPurchases)
-      .values({
-        ...purchase,
-        createdAt: new Date(),
-      })
-      .returning();
-    return newPurchase;
+    console.log("*** STORAGE: Creating star purchase with data:", purchase);
+    try {
+      const [newPurchase] = await db
+        .insert(starPurchases)
+        .values(purchase)
+        .returning();
+      console.log("*** STORAGE: Star purchase created successfully:", newPurchase);
+      return newPurchase;
+    } catch (error) {
+      console.log("*** STORAGE ERROR: Failed to create star purchase");
+      console.log("*** STORAGE ERROR Message:", error.message);
+      console.log("*** STORAGE ERROR Full:", error);
+      throw error;
+    }
   }
 
   async getStarPurchasesByUserId(userId: string): Promise<StarPurchase[]> {
