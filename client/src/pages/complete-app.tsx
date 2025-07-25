@@ -297,8 +297,13 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         
         return fetch('/api/kos/like', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
           credentials: 'include',
+          cache: 'no-store',
           body: JSON.stringify({ 
             targetUserId,
             mode: 'individual' // Like button ALWAYS awards individual stars, regardless of current tab
@@ -326,10 +331,13 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           ? `You voted for ${voteTargetUser?.name} with ${variables.starsAmount} stars!`
           : `You liked this performer!`,
       });
-      // Invalidate and refetch relevant data
+      // Invalidate and refetch relevant data with aggressive cache busting
       queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      // Force immediate refetch
+      queryClient.refetchQueries({ queryKey: ['/api/kos/users'] });
+      queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars'] });
       setShowVoteDialog(false);
       setVoteTargetUser(null);
       setVoteStarsAmount(1);

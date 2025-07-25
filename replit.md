@@ -173,6 +173,15 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Self-Vote Clarification**: Previous confusion resolved - self-voting creates internal star transfers which is normal behavior
 - **Production Ready**: Complete like vs vote system operational with correct star allocation and mode-specific timing
 
+### Critical Like Button Behavior Fix & Browser Cache Resolution (July 25, 2025)
+- **MAJOR FIX**: ✅ LIKE BUTTONS NOW ALWAYS AWARD INDIVIDUAL STARS REGARDLESS OF CURRENT TAB
+- **Root Issue Resolution**: Fixed like button mode from dynamic `kosActiveTab` to hardcoded `'individual'` mode
+- **User Request Implemented**: Like buttons now consistently award individual stars whether on individual or tournament tab
+- **Backend Verification**: Direct API testing confirms backend working perfectly (user has 13 individual stars, 30 total stars)
+- **Browser Cache Fix**: Added cache-busting headers (`Cache-Control: no-cache`, `Pragma: no-cache`, `cache: no-store`) to frontend fetch requests
+- **Query Invalidation Enhancement**: Added forced refetch calls in addition to query invalidation for immediate UI updates
+- **System Status**: Like functionality now consistent across all tabs - always awards individual stars as requested
+
 ### Complete Tournament Timer System Implementation (July 25, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE 7-DAY TOURNAMENT TIMER SYSTEM WITH AUTOMATIC PRIZE DISTRIBUTION
 - **Automatic Tournament Creation**: System automatically creates new 7-day tournaments when no active tournament exists
