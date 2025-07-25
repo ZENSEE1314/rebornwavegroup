@@ -62,20 +62,25 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   });
 
   // Fetch user's current stars
-  const { data: userStarsData } = useQuery({
+  const { data: userStarsData, isLoading: userStarsLoading, error: userStarsError } = useQuery({
     queryKey: ['/api/kos/user-stars', user?.id],
     queryFn: async () => {
+      console.log('*** FETCHING USER STARS for user:', user?.id);
       const res = await fetch(`/api/kos/user-stars/${user?.id}`, {
         credentials: 'include'
       });
+      console.log('*** USER STARS API RESPONSE:', res.status, res.ok);
       if (!res.ok) {
         console.warn('Failed to fetch user stars:', res.status);
-        return { stars: 0, influencerPoints: 0, influencerTier: 1 };
+        return { stars: 0, totalStars: 0, influencerPoints: 0, influencerTier: 1 };
       }
-      return res.json();
+      const data = await res.json();
+      console.log('*** USER STARS DATA RECEIVED:', data);
+      return data;
     },
     enabled: !!user?.id,
-    staleTime: 30000,
+    staleTime: 0, // Disable caching for now to force fresh data
+    cacheTime: 0, // Disable cache storage
     retry: false,
   });
 
@@ -149,19 +154,37 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         });
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
+      console.log('*** STAR PURCHASE SUCCESS - Starting cache refresh');
+      console.log('*** Response data:', data);
+      
       toast({
         title: variables.type === 'buy' ? "Stars Purchased!" : "Stars Sold!",
         description: data.message,
       });
-      // Refresh user data and close dialog with comprehensive cache invalidation
-      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/kos/star-purchase-history', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
-      // Force refetch user stars data immediately
-      queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
+      
+      // Comprehensive cache invalidation and forced refetch
+      console.log('*** Invalidating user stars cache for user:', user?.id);
+      await queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/kos/star-purchase-history'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+      
+      // Force immediate refetch with fresh data
+      console.log('*** Force refetching user stars data');
+      await queryClient.refetchQueries({ 
+        queryKey: ['/api/kos/user-stars', user?.id],
+        exact: true 
+      });
+      
+      // Additional targeted cache removal and refetch
+      queryClient.removeQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
+      setTimeout(async () => {
+        console.log('*** Secondary refetch after cache removal');
+        await queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
+      }, 100);
+      
       setShowStarDialog(false);
       setStarsAmount(1);
       setCustomStarsAmount('');
@@ -542,7 +565,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.stars || 0}</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || userStarsData?.stars || 0}</div>
             <div className="text-xs text-gray-600">My Stars</div>
           </CardContent>
         </Card>
@@ -581,7 +604,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                 Buy Stars (1 Star = RP 1,000) • Sell Stars (70% return rate)
               </p>
               <p className="text-xs text-gray-500">
-                Current Stars: {userStarsData?.stars || 0} • Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}
+                Current Stars: {userStarsData?.totalStars || userStarsData?.stars || 0} • Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -602,7 +625,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                   setStarDialogType('sell');
                   setShowStarDialog(true);
                 }}
-                disabled={!userStarsData?.stars || userStarsData.stars <= 0}
+                disabled={!(userStarsData?.totalStars || userStarsData?.stars) || (userStarsData?.totalStars || userStarsData?.stars || 0) <= 0}
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Sell Stars
@@ -1025,7 +1048,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             {/* Current balances */}
             <div className="text-xs text-gray-500 space-y-1">
               <div>Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}</div>
-              <div>Current Stars: {userStarsData?.stars || 0}</div>
+              <div>Current Stars: {userStarsData?.totalStars || userStarsData?.stars || 0}</div>
             </div>
           </div>
 
@@ -1077,7 +1100,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                     variant={voteStarsAmount === amount ? "default" : "outline"}
                     size="sm"
                     onClick={() => setVoteStarsAmount(amount)}
-                    disabled={amount > (userStarsData?.stars || 0)}
+                    disabled={amount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
                   >
                     {amount}
                   </Button>
@@ -1104,7 +1127,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                 <span className="font-medium text-pink-600">{voteStarsAmount}</span>
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                Your remaining stars: {(userStarsData?.stars || 0) - voteStarsAmount}
+                Your remaining stars: {(userStarsData?.totalStars || userStarsData?.stars || 0) - voteStarsAmount}
               </div>
             </div>
           </div>
@@ -1115,7 +1138,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             </Button>
             <Button 
               onClick={handleConfirmVote}
-              disabled={voteMutation.isPending || voteStarsAmount > (userStarsData?.stars || 0)}
+              disabled={voteMutation.isPending || voteStarsAmount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
               className="bg-pink-500 hover:bg-pink-600"
             >
               {voteMutation.isPending ? (
