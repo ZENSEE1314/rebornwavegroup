@@ -9326,18 +9326,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("*** INDIVIDUAL VOTE CAST SUCCESSFULLY - STARS AWARDED IMMEDIATELY");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars awarded to performer.` });
       } else if (mode === 'tournament') {
-        // Tournament mode: Deduct from tournament stars and add to prize pool
-        console.log("*** TOURNAMENT MODE - DEDUCTING FROM TOURNAMENT STARS");
-        const newTournamentStars = userStars.tournamentStars - starsAmount;
-        const newTotalStars = userStars.totalStars - starsAmount;
+        // Tournament mode: Deduct from voter's total stars, ADD to TARGET USER's tournament stars
+        console.log("*** TOURNAMENT MODE (ROUTES.TS) - DEDUCTING FROM VOTER'S TOTAL STARS, ADDING TO TARGET USER'S TOURNAMENT STARS");
+        const newTotalStars = userStars.totalStars - starsAmount;  // Deduct from voter's total
         await storage.updateUserStars(userId, { 
-          tournamentStars: newTournamentStars,
           totalStars: newTotalStars 
         });
-        console.log("*** TOURNAMENT STARS DEDUCTED - Old:", userStars.tournamentStars, "New:", newTournamentStars);
+        console.log("*** VOTER'S TOTAL STARS DEDUCTED (ROUTES.TS) - Old:", userStars.totalStars, "New:", newTotalStars);
+        
+        // Add to target user's tournament stars (prize pool)
+        let targetUserStars;
+        try {
+          targetUserStars = await storage.getUserStars(targetUserId);
+          console.log("*** TARGET USER CURRENT STARS (ROUTES.TS):", targetUserStars);
+        } catch (error) {
+          console.log("*** Target user stars not found, creating default (ROUTES.TS)");
+          targetUserStars = { totalStars: 0, tournamentStars: 0, individualStars: 0 };
+        }
+        
+        const newTargetTournamentStars = (targetUserStars.tournamentStars || 0) + starsAmount;
+        const newTargetTotalStars = (targetUserStars.totalStars || 0) + starsAmount;
+        await storage.updateUserStars(targetUserId, { 
+          tournamentStars: newTargetTournamentStars,
+          totalStars: newTargetTotalStars 
+        });
+        console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED (ROUTES.TS) - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
         
         await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
-        console.log("*** TOURNAMENT VOTE CAST SUCCESSFULLY - ADDED TO PRIZE POOL");
+        console.log("*** TOURNAMENT VOTE CAST SUCCESSFULLY - ADDED TO TARGET USER'S PRIZE POOL (ROUTES.TS)");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars added to tournament prize pool.` });
       } else {
         console.log("*** VOTE ERROR: Invalid mode", mode);
