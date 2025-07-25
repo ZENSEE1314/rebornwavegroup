@@ -9311,20 +9311,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Cast vote with mode parameter
       console.log("*** ATTEMPTING TO CAST VOTE WITH MODE:", mode);
       
-      // First deduct stars from voting user (same for both modes)
-      const newStarsCount = userStars.totalStars - starsAmount;
-      await storage.updateUserStars(userId, { totalStars: newStarsCount });
-      console.log("*** STARS DEDUCTED FROM VOTER - Old:", userStars.totalStars, "New:", newStarsCount);
-      
       if (mode === 'individual') {
-        // Individual mode: Award stars immediately to target user
-        console.log("*** INDIVIDUAL MODE - AWARDING STARS IMMEDIATELY TO TARGET USER");
+        // Individual mode: Deduct from individual stars and award immediately to target user
+        console.log("*** INDIVIDUAL MODE - DEDUCTING FROM INDIVIDUAL STARS");
+        const newIndividualStars = userStars.individualStars - starsAmount;
+        const newTotalStars = userStars.totalStars - starsAmount;
+        await storage.updateUserStars(userId, { 
+          individualStars: newIndividualStars,
+          totalStars: newTotalStars 
+        });
+        console.log("*** INDIVIDUAL STARS DEDUCTED - Old:", userStars.individualStars, "New:", newIndividualStars);
+        
         await storage.awardIndividualStar(targetUserId, starsAmount);
         console.log("*** INDIVIDUAL VOTE CAST SUCCESSFULLY - STARS AWARDED IMMEDIATELY");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars awarded to performer.` });
       } else if (mode === 'tournament') {
-        // Tournament mode: Add stars to prize pool for 7-day distribution
-        console.log("*** TOURNAMENT MODE - ADDING TO PRIZE POOL (NOT IMMEDIATE AWARD)");
+        // Tournament mode: Deduct from tournament stars and add to prize pool
+        console.log("*** TOURNAMENT MODE - DEDUCTING FROM TOURNAMENT STARS");
+        const newTournamentStars = userStars.tournamentStars - starsAmount;
+        const newTotalStars = userStars.totalStars - starsAmount;
+        await storage.updateUserStars(userId, { 
+          tournamentStars: newTournamentStars,
+          totalStars: newTotalStars 
+        });
+        console.log("*** TOURNAMENT STARS DEDUCTED - Old:", userStars.tournamentStars, "New:", newTournamentStars);
+        
         await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
         console.log("*** TOURNAMENT VOTE CAST SUCCESSFULLY - ADDED TO PRIZE POOL");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars added to tournament prize pool.` });

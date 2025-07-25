@@ -111,6 +111,11 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Parameter Fix**: Corrected awardIndividualStar(targetUserId, starsAmount) instead of wrong (userId, targetUserId, starsAmount)
 - **Mode-Specific Logic**: Individual mode awards stars immediately, tournament mode adds to prize pool
 - **Complete System**: Tournament vote mode should now properly add to prize pool instead of awarding stars immediately
+- **FINAL CRITICAL MODE-SPECIFIC STAR DEDUCTION FIX**: ✅ IMPLEMENTED CORRECT STAR TYPE DEDUCTION LOGIC
+- **Individual Mode Logic**: Deducts from individualStars and awards immediately to target user
+- **Tournament Mode Logic**: Deducts from tournamentStars and adds to prize pool for 7-day distribution
+- **Star Type Separation**: Each mode now correctly deducts from its respective star pool (individual vs tournament)
+- **Database Consistency**: Both individualStars/tournamentStars and totalStars updated correctly for proper tracking
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED
