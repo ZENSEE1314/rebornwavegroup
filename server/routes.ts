@@ -9336,9 +9336,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('*** LIKE ENDPOINT - Mode:', mode, 'From:', userId, 'To:', targetUserId);
       
-      // Toggle like (like/unlike) - same behavior for both individual and tournament modes
-      // Likes award likes only (not stars) regardless of mode
-      const result = await storage.toggleUserLike(userId, targetUserId);
+      // Toggle like (like/unlike) - mode-specific behavior
+      // Likes award stars based on mode (individual vs tournament)
+      const result = await storage.toggleUserLike(userId, targetUserId, mode);
       
       console.log('*** LIKE RESULT:', result);
       

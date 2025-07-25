@@ -342,7 +342,7 @@ export interface IStorage {
   getUserLikes(userId: string): Promise<UserLike[]>;
   getLikesReceived(userId: string): Promise<UserLike[]>;
   updateUserLikeStatus(fromUserId: string, toUserId: string, isLiked: boolean): Promise<void>;
-  toggleUserLike(fromUserId: string, toUserId: string): Promise<{ liked: boolean }>;
+  toggleUserLike(fromUserId: string, toUserId: string, mode?: string): Promise<{ liked: boolean }>;
   castVote(fromUserId: string, toUserId: string, starsAmount: number, tournamentId?: number): Promise<void>;
 
   // Star Contributors operations
@@ -3480,8 +3480,10 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userLikes.fromUserId, fromUserId), eq(userLikes.toUserId, toUserId)));
   }
 
-  async toggleUserLike(fromUserId: string, toUserId: string): Promise<{ liked: boolean }> {
+  async toggleUserLike(fromUserId: string, toUserId: string, mode: string = 'individual'): Promise<{ liked: boolean }> {
     try {
+      console.log('*** TOGGLE USER LIKE - Mode:', mode, 'From:', fromUserId, 'To:', toUserId);
+      
       // Check if a like relationship already exists
       const [existingLike] = await db
         .select()
@@ -3494,22 +3496,34 @@ export class DatabaseStorage implements IStorage {
         const newLikedStatus = !existingLike.isLiked;
         await this.updateUserLikeStatus(fromUserId, toUserId, newLikedStatus);
         
-        // If liking (not unliking), award 1 individual star directly (no star deduction for likes)
+        // If liking (not unliking), award stars based on mode (no star deduction for likes)
         if (newLikedStatus) {
-          await this.awardIndividualStar(toUserId, 1);
+          if (mode === 'tournament') {
+            console.log('*** AWARDING 1 TOURNAMENT STAR FOR LIKE');
+            await this.awardTournamentStar(toUserId, 1);
+          } else {
+            console.log('*** AWARDING 1 INDIVIDUAL STAR FOR LIKE');
+            await this.awardIndividualStar(toUserId, 1);
+          }
         }
         
         return { liked: newLikedStatus };
       } else {
-        // Create new like relationship and award star
+        // Create new like relationship and award star based on mode
         await this.createUserLike({
           fromUserId,
           toUserId,
           isLiked: true
         });
         
-        // Award 1 individual star for new like (no star deduction for likes)
-        await this.awardIndividualStar(toUserId, 1);
+        // Award stars based on mode for new like (no star deduction for likes)
+        if (mode === 'tournament') {
+          console.log('*** AWARDING 1 TOURNAMENT STAR FOR NEW LIKE');
+          await this.awardTournamentStar(toUserId, 1);
+        } else {
+          console.log('*** AWARDING 1 INDIVIDUAL STAR FOR NEW LIKE');
+          await this.awardIndividualStar(toUserId, 1);
+        }
         
         return { liked: true };
       }
@@ -3551,6 +3565,42 @@ export class DatabaseStorage implements IStorage {
       console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);
     } catch (error) {
       console.error('Error awarding individual star:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to award tournament stars (for tournament likes) without deducting from voter
+  async awardTournamentStar(userId: string, amount: number): Promise<void> {
+    try {
+      // Get or create user stars data
+      let userStarsData = await this.getUserStars(userId);
+      
+      if (!userStarsData) {
+        // Create user stars if they don't exist
+        userStarsData = await this.createUserStars({
+          userId,
+          totalStars: 0,
+          tournamentStars: 0,
+          individualStars: 0,
+          totalEarnings: "0.00",
+          influencerRank: "Newbie Spark",
+          influencerTier: 1,
+          influencerPoints: 0
+        });
+      }
+
+      // Add to tournament stars AND total stars (tournament stars contribute to total balance)
+      const newTournamentStars = userStarsData.tournamentStars + amount;
+      const newTotalStars = userStarsData.totalStars + amount;
+      
+      await this.updateUserStars(userId, {
+        tournamentStars: newTournamentStars,
+        totalStars: newTotalStars
+      });
+
+      console.log(`*** TOURNAMENT STAR AWARDED - User: ${userId}, Amount: ${amount}, New Tournament Stars: ${newTournamentStars}, New Total Stars: ${newTotalStars}`);
+    } catch (error) {
+      console.error('Error awarding tournament star:', error);
       throw error;
     }
   }
