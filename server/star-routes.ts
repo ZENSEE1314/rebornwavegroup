@@ -365,8 +365,8 @@ export function registerStarRoutes(app: Express) {
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** VOTE USER ID (hardcoded for testing):", userId);
 
-      const { targetUserId, starsAmount = 1, tournamentId } = req.body;
-      console.log("*** VOTE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount, "tournamentId:", tournamentId);
+      const { targetUserId, starsAmount = 1, mode } = req.body;
+      console.log("*** VOTE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount, "mode:", mode);
 
       // Validate required parameters
       if (!targetUserId) {
@@ -395,17 +395,34 @@ export function registerStarRoutes(app: Express) {
       await storage.updateUserStars(userId, { totalStars: newStarsCount });
       console.log("*** STARS DEDUCTED - Old:", currentStars, "New:", newStarsCount);
 
-      // Cast the vote (handles influencer points and transaction creation)
-      await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
-      console.log("*** VOTE CAST SUCCESSFULLY");
+      if (mode === 'individual') {
+        // Individual mode: Give stars immediately to target user
+        await storage.awardIndividualStar(targetUserId, starsAmount);
+        console.log("*** INDIVIDUAL STARS AWARDED IMMEDIATELY:", starsAmount);
 
-      const remainingStars = newStarsCount;
+        res.json({ 
+          success: true, 
+          message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (individual - awarded immediately)`,
+          remainingStars: newStarsCount
+        });
 
-      res.json({ 
-        success: true, 
-        message: `Successfully voted ${starsAmount} stars for user ${targetUserId}`,
-        remainingStars: remainingStars
-      });
+      } else if (mode === 'tournament') {
+        // Tournament mode: Add to prize pool (will distribute after 7 days to top 10)
+        console.log("*** TOURNAMENT VOTE - ADDED TO PRIZE POOL:", starsAmount);
+        
+        // For now, we'll just track this in tournament system
+        // The 7-day distribution logic will be implemented later
+        await storage.castVote(userId, targetUserId, starsAmount, null);
+        
+        res.json({ 
+          success: true, 
+          message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (tournament - added to prize pool)`,
+          remainingStars: newStarsCount
+        });
+
+      } else {
+        return res.status(400).json({ error: "Mode must be 'individual' or 'tournament'" });
+      }
 
     } catch (error) {
       console.error("*** VOTE ERROR (STAR-ROUTES):", error);
@@ -429,33 +446,15 @@ export function registerStarRoutes(app: Express) {
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
-      if (mode === 'individual') {
-        // Individual mode: Give 1 star immediately to target user
-        await storage.awardIndividualStar(targetUserId, 1);
-        console.log("*** INDIVIDUAL STAR AWARDED IMMEDIATELY:", 1);
+      // Like button only gives likes (not stars) - same for both modes
+      const result = await storage.toggleUserLike(userId, targetUserId);
+      console.log("*** LIKE TOGGLE RESULT (GIVES LIKES ONLY):", result);
 
-        res.json({ 
-          success: true, 
-          message: `Successfully gave 1 star to user ${targetUserId} (individual)`
-        });
-
-      } else if (mode === 'tournament') {
-        // Tournament mode: Add to prize pool (will distribute after 7 days to top 10)
-        // For now, we'll track this in tournament stars but not award immediately
-        console.log("*** TOURNAMENT LIKE - ADDED TO PRIZE POOL for user:", targetUserId);
-        
-        // Toggle like for tracking purposes
-        const result = await storage.toggleUserLike(userId, targetUserId);
-        
-        res.json({ 
-          success: true, 
-          message: `Successfully added to prize pool for user ${targetUserId} (tournament)`,
-          liked: result.liked
-        });
-
-      } else {
-        return res.status(400).json({ error: "Mode must be 'individual' or 'tournament'" });
-      }
+      res.json({ 
+        success: true, 
+        message: result.liked ? `Successfully liked user ${targetUserId}` : `Successfully unliked user ${targetUserId}`,
+        liked: result.liked
+      });
 
     } catch (error) {
       console.error("*** LIKE ERROR (STAR-ROUTES):", error);
