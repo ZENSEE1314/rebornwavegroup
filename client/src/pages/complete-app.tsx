@@ -522,8 +522,9 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
   const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
     // Find how many stars this user has given to others
-    const userContribution = userContributions.find((c: any) => c.userId === userItem.id);
-    const totalStarsSupported = userContribution?.totalStarsGiven || 0;
+    const totalStarsSupported = userContributions
+      .filter((c: any) => c.contributorUserId === userItem.id)
+      .reduce((sum: number, c: any) => sum + (c.totalStarsGiven || 0), 0);
     
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
@@ -610,38 +611,42 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                     }
                     
                     return (
-                      <div className="flex items-center gap-1">
-                        {userSupporters.map((supporter: any, index: number) => {
-                          const supporterUser = kosUsers.find((u: any) => u.id === supporter.contributorUserId);
-                          const borderColor = index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-400' : 'border-amber-400';
-                          
-                          return (
-                            <div key={supporter.contributorUserId} className={`w-6 h-6 rounded-full ${borderColor} border-2 overflow-hidden bg-gray-200`}>
-                              {supporterUser?.profileImageUrl ? (
-                                <img 
-                                  src={supporterUser.profileImageUrl} 
-                                  alt={supporterUser.username || 'Supporter'} 
-                                  className="w-full h-full object-cover" 
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-xs">
-                                  👤
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          {userSupporters.map((supporter: any, index: number) => {
+                            const supporterUser = kosUsers.find((u: any) => u.id === supporter.contributorUserId);
+                            const borderColor = index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-400' : 'border-amber-400';
+                            
+                            return (
+                              <div key={supporter.contributorUserId} className="flex flex-col items-center gap-0.5">
+                                <div className={`w-6 h-6 rounded-full ${borderColor} border-2 overflow-hidden bg-gray-200`}>
+                                  {supporterUser?.profileImageUrl ? (
+                                    <img 
+                                      src={supporterUser.profileImageUrl} 
+                                      alt={supporterUser.username || 'Supporter'} 
+                                      className="w-full h-full object-cover" 
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-xs">
+                                      👤
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                                <span className="text-xs text-gray-500">{supporter.totalStarsGiven}</span>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Fill remaining slots with placeholder */}
+                          {Array.from({ length: 3 - userSupporters.length }).map((_, index) => (
+                            <div key={`placeholder-${index}`} className="flex flex-col items-center gap-0.5">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center">
+                                <User className="w-3 h-3 text-gray-400" />
+                              </div>
+                              <span className="text-xs text-gray-400">-</span>
                             </div>
-                          );
-                        })}
-                        
-                        {/* Fill remaining slots with placeholder */}
-                        {Array.from({ length: 3 - userSupporters.length }).map((_, index) => (
-                          <div key={`placeholder-${index}`} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center">
-                            <User className="w-3 h-3 text-gray-400" />
-                          </div>
-                        ))}
-                        
-                        <span className="text-xs text-gray-500 ml-1">
-                          {userSupporters.reduce((sum: number, s: any) => sum + (s.totalStarsGiven || 0), 0)} stars received
-                        </span>
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
