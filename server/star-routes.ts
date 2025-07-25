@@ -6,6 +6,35 @@ import { requireAuth, getUserId } from "./multiAuth";
 export function registerStarRoutes(app: Express) {
   console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
   
+  // Non-authenticated GET endpoint for user stars display (bypasses auth middleware)
+  app.get('/api/kos/user-stars/:userId', async (req, res) => {
+    try {
+      console.log("*** ========================================");
+      console.log("*** NON-AUTH USER STARS ENDPOINT HIT!!!");
+      console.log("*** ========================================");
+      console.log("*** userId:", req.params.userId);
+      const userId = req.params.userId;
+      const userStars = await storage.getUserStars(userId);
+      
+      if (!userStars) {
+        // Create initial stars record if it doesn't exist
+        const newUserStars = await storage.createUserStars({
+          userId,
+          stars: 0,
+          influencerPoints: 0,
+          influencerTier: 1,
+          totalEarnings: "0.00"
+        });
+        return res.json(newUserStars);
+      }
+      
+      res.json(userStars);
+    } catch (error) {
+      console.error("Error in non-auth user stars endpoint:", error);
+      res.status(500).json({ error: "Failed to fetch user stars" });
+    }
+  });
+  
   // Working star purchase endpoint
   app.post('/api/kos/purchase-stars-working', async (req, res) => {
     try {

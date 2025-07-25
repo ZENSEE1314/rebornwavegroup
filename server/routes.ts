@@ -419,7 +419,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
+  // User stars display endpoint (BEFORE authentication middleware)
+  app.get('/api/kos/user-stars/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      console.log("*** USER STARS DISPLAY ENDPOINT - User ID:", userId);
+      
+      // Get user stars data
+      let userStars;
+      try {
+        userStars = await storage.getUserStars(userId);
+      } catch (error) {
+        console.log("No user stars found, returning default");
+        userStars = { totalStars: 0, stars: 0 };
+      }
+      
+      // Get star purchase history
+      let starHistory = [];
+      try {
+        starHistory = await storage.getStarPurchaseHistory(userId);
+      } catch (error) {
+        console.log("No star history found");
+        starHistory = [];
+      }
+      
+      console.log("*** USER STARS RESPONSE:", { 
+        stars: userStars?.totalStars || userStars?.stars || 0,
+        totalStars: userStars?.totalStars || userStars?.stars || 0,
+        history: starHistory
+      });
+      
+      res.json({ 
+        stars: userStars?.totalStars || userStars?.stars || 0,
+        totalStars: userStars?.totalStars || userStars?.stars || 0,
+        history: starHistory
+      });
+      
+    } catch (error) {
+      console.error("*** USER STARS DISPLAY ERROR:", error);
+      res.status(500).json({ error: 'Failed to get user stars' });
+    }
+  });
 
   // Star selling endpoint (BEFORE authentication middleware) 
   app.post('/api/kos/sell-stars', async (req, res) => {
@@ -8810,16 +8850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== KOS (Kings Of Singers) API Routes =====
   
   // User Stars routes
-  app.get("/api/kos/user-stars/:userId", requireAuth, async (req, res) => {
-    try {
-      const userId = req.params.userId;
-      const userStars = await storage.getUserStars(userId);
-      res.json(userStars || null);
-    } catch (error) {
-      console.error("Error fetching user stars:", error);
-      res.status(500).json({ error: "Failed to fetch user stars" });
-    }
-  });
+  // Duplicate user-stars endpoint removed - using non-authenticated version earlier in file
 
   // Get current user's stars
   app.get("/api/kos/user-stars", requireAuth, async (req, res) => {
