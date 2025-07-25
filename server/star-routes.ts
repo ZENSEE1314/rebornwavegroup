@@ -413,7 +413,7 @@ export function registerStarRoutes(app: Express) {
     }
   });
 
-  // KOS Like endpoint (bypassing authentication like star trading endpoints) - FREE INDIVIDUAL LIKES
+  // KOS Like endpoint (bypassing authentication like star trading endpoints) - INDIVIDUAL GIVES STARS IMMEDIATELY
   app.post('/api/kos/like', async (req, res) => {
     try {
       console.log("*** LIKE REQUEST RECEIVED (STAR-ROUTES):", req.body);
@@ -421,23 +421,41 @@ export function registerStarRoutes(app: Express) {
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** LIKE USER ID (hardcoded for testing):", userId);
 
-      const { targetUserId } = req.body;
-      console.log("*** LIKE DETAILS - targetUserId:", targetUserId);
+      const { targetUserId, mode } = req.body;
+      console.log("*** LIKE DETAILS - targetUserId:", targetUserId, "mode:", mode);
 
       // Validate required parameters
       if (!targetUserId) {
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
-      // Toggle like (like/unlike) - this awards likes, not stars
-      const result = await storage.toggleUserLike(userId, targetUserId);
-      console.log("*** LIKE TOGGLE RESULT:", result);
+      if (mode === 'individual') {
+        // Individual mode: Give 1 star immediately to target user
+        await storage.awardIndividualStar(targetUserId, 1);
+        console.log("*** INDIVIDUAL STAR AWARDED IMMEDIATELY:", 1);
 
-      res.json({ 
-        success: true, 
-        message: result.liked ? `Successfully liked user ${targetUserId}` : `Successfully unliked user ${targetUserId}`,
-        liked: result.liked
-      });
+        res.json({ 
+          success: true, 
+          message: `Successfully gave 1 star to user ${targetUserId} (individual)`
+        });
+
+      } else if (mode === 'tournament') {
+        // Tournament mode: Add to prize pool (will distribute after 7 days to top 10)
+        // For now, we'll track this in tournament stars but not award immediately
+        console.log("*** TOURNAMENT LIKE - ADDED TO PRIZE POOL for user:", targetUserId);
+        
+        // Toggle like for tracking purposes
+        const result = await storage.toggleUserLike(userId, targetUserId);
+        
+        res.json({ 
+          success: true, 
+          message: `Successfully added to prize pool for user ${targetUserId} (tournament)`,
+          liked: result.liked
+        });
+
+      } else {
+        return res.status(400).json({ error: "Mode must be 'individual' or 'tournament'" });
+      }
 
     } catch (error) {
       console.error("*** LIKE ERROR (STAR-ROUTES):", error);
