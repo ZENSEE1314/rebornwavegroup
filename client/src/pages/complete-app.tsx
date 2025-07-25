@@ -50,8 +50,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
   // Fetch current tournament data
   const { data: currentTournament, isLoading: tournamentLoading } = useQuery({
-    queryKey: ['/api/kos/tournaments/current'],
-    queryFn: () => fetch('/api/kos/tournaments/current').then(res => res.json()),
+    queryKey: ['/api/kos/current-tournament'],
+    queryFn: () => fetch('/api/kos/current-tournament').then(res => res.json()),
     staleTime: 5000, // Reduced cache time for tournament data
   });
 
