@@ -423,14 +423,11 @@ If you didn't request this password reset, please ignore this email.
 
 // Authentication middleware
 export function requireAuth(req: Request, res: Response, next: Function) {
-
-  
-  if (!req.isAuthenticated() || !req.user) {
-
+  // Check if user is authenticated via session
+  if (!req.user || !req.user.id) {
     return res.status(401).json({ message: 'Unauthorized', redirect: '/login' });
   }
   
-
   next();
 }
 
