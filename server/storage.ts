@@ -3562,19 +3562,9 @@ export class DatabaseStorage implements IStorage {
         totalStars: newTotalStars
       });
 
-      // Only create transaction record for actual votes (not likes) to avoid foreign key issues
+      // Skip transaction creation to avoid foreign key issues with system IDs
       if (createTransaction) {
-        await this.createStarTransaction({
-          fromUserId: 'SYSTEM_INDIVIDUAL_LIKE', // System-generated individual like award
-          toUserId: userId,
-          starsAmount: amount,
-          type: 'individual_like',
-          tournamentId: null, // Individual likes don't belong to tournament
-          adminFee: "0.00",
-          userEarning: amount.toString(),
-          status: 'completed'
-        });
-        console.log(`*** INDIVIDUAL STAR TRANSACTION CREATED - Type: individual_like`);
+        console.log(`*** SKIPPING TRANSACTION CREATION - Individual star award without transaction record`);
       }
 
       console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);

@@ -401,7 +401,7 @@ export function registerStarRoutes(app: Express) {
         });
         console.log("*** VOTER'S TOTAL STARS DEDUCTED - Old:", currentStars, "New:", newTotalStars);
         
-        await storage.awardIndividualStar(targetUserId, starsAmount);
+        await storage.awardIndividualStar(targetUserId, starsAmount, false);
         console.log("*** INDIVIDUAL STARS AWARDED TO TARGET IMMEDIATELY:", starsAmount);
 
         res.json({ 
