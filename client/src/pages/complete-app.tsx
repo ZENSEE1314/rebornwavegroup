@@ -118,9 +118,9 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const starTradingMutation = useMutation({
     mutationFn: ({ type, amount, rpCost }: { type: 'buy' | 'sell'; amount: number; rpCost?: number }) => {
       if (type === 'buy') {
-        console.log('*** FRONTEND: Calling purchase-stars-working endpoint');
+        console.log('*** FRONTEND: Calling purchase-stars endpoint');
         console.log('*** FRONTEND: Payload:', { starsAmount: amount, rpCost });
-        return fetch('/api/kos/purchase-stars-working', {
+        return fetch('/api/kos/purchase-stars', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -154,10 +154,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         title: variables.type === 'buy' ? "Stars Purchased!" : "Stars Sold!",
         description: data.message,
       });
-      // Refresh user data and close dialog
-      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+      // Refresh user data and close dialog with comprehensive cache invalidation
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/star-purchase-history', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+      // Force refetch user stars data immediately
+      queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars', user?.id] });
       setShowStarDialog(false);
       setStarsAmount(1);
       setCustomStarsAmount('');
