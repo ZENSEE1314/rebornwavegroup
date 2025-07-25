@@ -37,7 +37,7 @@ import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 // KOS (Kings Of Singers) Component
 function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const { toast } = useToast();
-  const [kosActiveTab, setKosActiveTab] = useState<'tournaments' | 'individual'>('tournaments');
+  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch real KOS users data
@@ -702,9 +702,9 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       </Card>
 
       {/* Tabs */}
-      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournaments' | 'individual')} className="w-full">
+      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual')} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="tournaments" className="flex items-center gap-2">
+          <TabsTrigger value="tournament" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
             Tournaments
           </TabsTrigger>
@@ -714,7 +714,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tournaments" className="space-y-6">
+        <TabsContent value="tournament" className="space-y-6">
           <h3 className="text-xl font-semibold text-gray-900">Tournament Rankings</h3>
           
           {/* Tournament Timer */}
