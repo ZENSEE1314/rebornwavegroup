@@ -495,7 +495,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           {/* User Photo */}
           <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
             {userItem.profileImageUrl ? (
-              <img src={userItem.profileImageUrl} alt={userItem.name} className="w-full h-full object-cover" />
+              <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
                 👤
@@ -506,13 +506,13 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           {/* User Info */}
           <div className="flex-1 min-w-0">
             <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
-              {userItem.name}
+              {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
             </h3>
             <div className="flex items-center gap-4 mt-1">
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-yellow-500" />
                 <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                  {userItem.stars?.toLocaleString() || 0}
+                  {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -1175,7 +1175,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Star className="w-5 h-5 text-pink-500" />
-              Vote for {voteTargetUser?.name}
+              Vote for {voteTargetUser?.username || `${voteTargetUser?.firstName || ''} ${voteTargetUser?.lastName || ''}`.trim() || 'User'}
             </DialogTitle>
             <DialogDescription>
               Spend stars to vote for this performer in the tournament
@@ -1213,7 +1213,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             <div className="p-4 bg-pink-50 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Voting for:</span>
-                <span className="font-medium">{voteTargetUser?.name}</span>
+                <span className="font-medium">{voteTargetUser?.username || `${voteTargetUser?.firstName || ''} ${voteTargetUser?.lastName || ''}`.trim() || 'User'}</span>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Stars to spend:</span>
