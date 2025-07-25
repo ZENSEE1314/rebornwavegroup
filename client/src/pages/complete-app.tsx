@@ -35,7 +35,15 @@ import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 
 // KOS (Kings Of Singers) Component
-function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
+function KOSSection({ 
+  user, 
+  queryClient, 
+  onUserSelect 
+}: { 
+  user: any; 
+  queryClient: any; 
+  onUserSelect: (user: any) => void;
+}) {
   const { toast } = useToast();
   const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,23 +135,17 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
   const [showStarHistory, setShowStarHistory] = useState(false);
 
-  // User dialog state
-  const [userProfileDialogOpen, setUserProfileDialogOpen] = useState<boolean>(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-
   // Helper functions for search click handlers
   const handleIndividualSearchClick = (result: any) => {
     setSearchQuery('');
     setShowSearchResults(false);
-    setSelectedUser(result);
-    setUserProfileDialogOpen(true);
+    onUserSelect(result);
   };
 
   const handleTournamentSearchClick = (result: any) => {
     setSearchQuery('');
     setShowSearchResults(false);
-    setSelectedUser(result);
-    setUserProfileDialogOpen(true);
+    onUserSelect(result);
   };
 
   // Star price constants (1 star = 1000 RP)
@@ -5305,6 +5307,16 @@ export default function CompleteApp() {
     const savedMuteState = localStorage.getItem('petCareSoundMuted');
     return savedMuteState === 'true';
   });
+
+  // User profile dialog state (for search functionality)
+  const [userProfileDialogOpen, setUserProfileDialogOpen] = useState<boolean>(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  // Handler for user selection from search
+  const handleUserSelect = (user: any) => {
+    setSelectedUser(user);
+    setUserProfileDialogOpen(true);
+  };
   
   // Function to toggle mute/unmute
   const toggleMute = () => {
@@ -10709,7 +10721,7 @@ export default function CompleteApp() {
 
         {/* KOS (Kings Of Singers) Tab */}
         {activeTab === "kos" && (
-          <KOSSection user={user} queryClient={queryClient} />
+          <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} />
         )}
 
         {/* Profile Tab */}
