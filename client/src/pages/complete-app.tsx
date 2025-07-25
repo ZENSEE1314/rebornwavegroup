@@ -38,11 +38,13 @@ import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 function KOSSection({ 
   user, 
   queryClient, 
-  onUserSelect 
+  onUserSelect,
+  handleVote 
 }: { 
   user: any; 
   queryClient: any; 
   onUserSelect: (user: any) => void;
+  handleVote: (targetUserId: string, type: 'vote' | 'like', mode?: string) => void;
 }) {
   const { toast } = useToast();
   const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
@@ -270,9 +272,7 @@ function KOSSection({
   const totalPages = Math.ceil(remainingUsers.length / usersPerPage);
   const paginatedUsers = remainingUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
-  // Vote/Like functions with star spending support
-  const [showVoteDialog, setShowVoteDialog] = useState(false);
-  const [voteTargetUser, setVoteTargetUser] = useState<any>(null);
+  // Vote/Like support (now handled by parent component)
   const [voteStarsAmount, setVoteStarsAmount] = useState(1);
 
   // Search functionality
@@ -397,49 +397,9 @@ function KOSSection({
     }
   });
 
-  const handleVote = async (targetUser: any, type: 'vote' | 'like') => {
-    console.log('*** HANDLE VOTE CALLED ***');
-    console.log('Target User:', targetUser);
-    console.log('Type:', type);
-    console.log('Current User:', user?.id);
-    console.log('Current Mode:', kosActiveTab);
-    
-    // Prevent self-voting
-    if (targetUser.id === user?.id) {
-      console.log('*** PREVENTING SELF-VOTE ***');
-      toast({
-        title: "Cannot Vote for Yourself",
-        description: "You cannot vote for your own profile.",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Vote handling is now passed from parent component
 
-    // Different behavior based on tab and type
-    if (type === 'vote') {
-      console.log('*** VOTE BUTTON CLICKED - SHOWING DIALOG ***');
-      // Both individual and tournament modes show vote dialog with star selection
-      setVoteTargetUser(targetUser);
-      setShowVoteDialog(true);
-    } else if (type === 'like') {
-      console.log('*** LIKE BUTTON CLICKED - CALLING MUTATION ***');
-      console.log('Making like request to:', '/api/kos/like');
-      console.log('Request body will include:', { targetUserId: targetUser.id, mode: kosActiveTab });
-      // Like button - same behavior for both modes (awards likes only)
-      voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
-    }
-  };
-
-  const handleConfirmVote = () => {
-    if (voteTargetUser) {
-      // Tournament mode only - vote with stars using vote endpoint
-      voteMutation.mutate({ 
-        targetUserId: voteTargetUser.id, 
-        type: 'vote',
-        starsAmount: voteStarsAmount
-      });
-    }
-  };
+  // Vote confirmation is now handled by parent component
 
   // Tournament timer component with real-time updates
   const TournamentTimer = ({ tournament }: { tournament: any }) => {
@@ -770,9 +730,9 @@ function KOSSection({
         </Card>
         <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
           <CardContent className="p-4 text-center">
-            <Heart className="w-6 h-6 text-pink-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.votesCast || 0}</div>
-            <div className="text-xs text-gray-600">Votes Cast</div>
+            <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || 0}</div>
+            <div className="text-xs text-gray-600">Total Stars</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
@@ -1431,8 +1391,8 @@ function KOSSection({
               <Input
                 type="number"
                 placeholder="Custom amount"
-                value={voteStarsAmount}
-                onChange={(e) => setVoteStarsAmount(parseInt(e.target.value) || 1)}
+                value={starsAmount}
+                onChange={(e) => setStarsAmount(parseInt(e.target.value) || 1)}
                 min="1"
                 max={userStarsData?.stars || 0}
               />
@@ -1446,10 +1406,10 @@ function KOSSection({
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Stars to spend:</span>
-                <span className="font-medium text-pink-600">{voteStarsAmount}</span>
+                <span className="font-medium text-pink-600">{starsAmount}</span>
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                Your remaining stars: {(userStarsData?.totalStars || userStarsData?.stars || 0) - voteStarsAmount}
+                Your remaining stars: {(userStarsData?.totalStars || userStarsData?.stars || 0) - starsAmount}
               </div>
             </div>
           </div>
@@ -1460,14 +1420,10 @@ function KOSSection({
             </Button>
             <Button 
               onClick={handleConfirmVote}
-              disabled={voteMutation.isPending || voteStarsAmount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
+              disabled={starsAmount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
               className="bg-pink-500 hover:bg-pink-600"
             >
-              {voteMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Star className="w-4 h-4 mr-2" />
-              )}
+              <Star className="w-4 h-4 mr-2" />
               Cast Vote
             </Button>
           </DialogFooter>
@@ -2198,6 +2154,41 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           variant: "destructive"
         });
       }
+    }
+  };
+
+  // Vote confirmation handler
+  const handleConfirmVote = async () => {
+    if (!voteTargetUser) return;
+
+    try {
+      const response = await fetch('/api/kos/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          targetUserId: voteTargetUser.id,
+          starsAmount: starsAmount,
+          mode: 'individual' // Always individual for now
+        })
+      });
+
+      if (response.ok) {
+        queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+        setShowVoteDialog(false);
+        setVoteTargetUser(null);
+        setStarsAmount(1);
+        toast({ title: "Success", description: "Vote cast successfully!" });
+      } else {
+        throw new Error('Failed to cast vote');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cast vote. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -5312,10 +5303,49 @@ export default function CompleteApp() {
   const [userProfileDialogOpen, setUserProfileDialogOpen] = useState<boolean>(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
+  // Vote dialog state (moved from KOSSection)
+  const [showVoteDialog, setShowVoteDialog] = useState(false);
+  const [voteTargetUser, setVoteTargetUser] = useState<any>(null);
+  const [starsAmount, setStarsAmount] = useState(1);
+  const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
+
   // Handler for user selection from search
   const handleUserSelect = (user: any) => {
     setSelectedUser(user);
     setUserProfileDialogOpen(true);
+  };
+
+  // Vote handler (moved from KOSSection)
+  const handleVote = async (targetUserId: string, type: 'vote' | 'like', mode?: string) => {
+    try {
+      if (type === 'like') {
+        const response = await fetch('/api/kos/like', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, 
+          credentials: 'include',
+          body: JSON.stringify({ 
+            targetUserId: targetUserId,
+            mode: 'individual' // Always award individual stars for likes
+          })
+        });
+
+        if (response.ok) {
+          queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+          toast({ title: "Success", description: "Like sent!" });
+        }
+      } else if (type === 'vote') {
+        // This will be handled by the vote dialog
+        setVoteTargetUser({ id: targetUserId });
+        setShowVoteDialog(true);
+      }
+    } catch (error) {
+      toast({ 
+        title: "Error",
+        description: "Failed to process action",
+        variant: "destructive"
+      });
+    }
   };
   
   // Function to toggle mute/unmute
@@ -10721,7 +10751,7 @@ export default function CompleteApp() {
 
         {/* KOS (Kings Of Singers) Tab */}
         {activeTab === "kos" && (
-          <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} />
+          <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} handleVote={handleVote} />
         )}
 
         {/* Profile Tab */}
