@@ -429,13 +429,14 @@ export function registerStarRoutes(app: Express) {
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
-      // Award individual stars to recipient (1 star for free like)
-      await storage.awardIndividualStar(targetUserId, 1);
-      console.log("*** INDIVIDUAL STAR AWARDED (FREE LIKE):", 1);
+      // Toggle like (like/unlike) - this awards likes, not stars
+      const result = await storage.toggleUserLike(userId, targetUserId);
+      console.log("*** LIKE TOGGLE RESULT:", result);
 
       res.json({ 
         success: true, 
-        message: `Successfully liked user ${targetUserId} (individual)`
+        message: result.liked ? `Successfully liked user ${targetUserId}` : `Successfully unliked user ${targetUserId}`,
+        liked: result.liked
       });
 
     } catch (error) {

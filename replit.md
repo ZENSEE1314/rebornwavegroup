@@ -81,7 +81,7 @@ A comprehensive digital financial management and collectible toy platform that c
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE DIFFERENTIATED VOTING INTERFACE WITH CORRECT MODE-SPECIFIC BEHAVIORS FULLY OPERATIONAL
 - **Individual Tab Interface**: Direct "like" button provides free likes with no dialog or star cost requirement as requested
 - **Tournament Tab Interface**: Vote button with star amount selection dialog (1, 5, 10, 25, custom) that costs stars from voter's balance
-- **Free Individual Likes**: `/api/kos/like` endpoint awards 1 free individual star to recipient without any cost to voter
+- **Free Individual Likes**: `/api/kos/like` endpoint awards likes (not stars) to recipient without any cost to voter
 - **Tournament Voting System**: `/api/kos/vote` endpoint deducts stars from voter and awards tournament stars to recipient for tournament leaderboard
 - **CRITICAL BUG FIX**: Resolved tournament votes incorrectly awarding individual stars - now properly awards tournament stars for tournament leaderboard
 - **Mode-Specific Star Tracking**: Tournament stars and individual stars correctly tracked separately with different leaderboard effects
