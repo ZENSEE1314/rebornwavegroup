@@ -651,37 +651,43 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               <div className="max-h-60 overflow-y-auto">
                 {starPurchaseHistory.length > 0 ? (
                   <div className="space-y-2">
-                    {starPurchaseHistory.map((transaction: any) => (
-                      <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                            transaction.type === 'purchase' ? 'bg-green-500' : 'bg-orange-500'
-                          }`}>
-                            {transaction.type === 'purchase' ? '+' : '-'}
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">
-                              {transaction.type === 'purchase' ? 'Purchased' : 'Sold'} {transaction.starsAmount} Stars
+                    {starPurchaseHistory.map((transaction: any) => {
+                      // Determine transaction type based on starsAmount (positive = purchase, negative = sale)
+                      const isPurchase = transaction.starsAmount > 0;
+                      const starsCount = Math.abs(transaction.starsAmount);
+                      
+                      return (
+                        <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                              isPurchase ? 'bg-green-500' : 'bg-orange-500'
+                            }`}>
+                              {isPurchase ? '+' : '-'}
                             </div>
-                            <div className="text-xs text-gray-600">
-                              {new Date(transaction.createdAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                            <div>
+                              <div className="font-medium text-sm">
+                                {isPurchase ? 'Purchased' : 'Sold'} {starsCount} Stars
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                {new Date(transaction.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-semibold ${
+                              isPurchase ? 'text-red-600' : 'text-green-600'
+                            }`}>
+                              {isPurchase ? '-' : '+'}RP {parseInt(transaction.rpCost || 0).toLocaleString()}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-sm font-semibold ${
-                            transaction.type === 'purchase' ? 'text-red-600' : 'text-green-600'
-                          }`}>
-                            {transaction.type === 'purchase' ? '-' : '+'}RP {parseInt(transaction.rpAmount || 0).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-6 text-gray-500">

@@ -358,7 +358,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   });
   
-  // Star purchase endpoint (BEFORE authentication middleware)
+  // DISABLED: Star purchase endpoint - using the one in star-routes.ts instead
+  /*
   app.post('/api/kos/purchase-stars', async (req, res) => {
     try {
       console.log("*** ========================================");
@@ -368,9 +369,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Hardcode user ID for testing (bypass authentication)
       const userId = 'bspsDLxUJTQqbox6vGjH5';
-      const { starsAmount, rpCost } = req.body;
+      const { starsAmount } = req.body;
+      
+      // Fixed star price: 1000 RP per star
+      const STAR_PRICE = 1000;
+      const rpCost = starsAmount * STAR_PRICE;
       
       console.log("Final purchasing:", starsAmount, "stars for", rpCost, "RP");
+
+      if (!starsAmount || starsAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid stars amount' });
+      }
 
       // Check if user exists and has sufficient credits
       const user = await storage.getUser(userId);
@@ -378,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const currentCredits = parseInt(user.credits || '0');
+      const currentCredits = parseFloat(user.credits || '0');
       console.log("Current credits:", currentCredits, "Required:", rpCost);
 
       if (currentCredits < rpCost) {
@@ -409,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const purchaseData = {
           userId: userId,
-          starsAmount: starsAmount,
+          starsAmount: starsAmount, // Positive for purchases
           rpCost: rpCost.toString(),
           paymentMethod: 'rp_balance',
           status: 'completed'
@@ -430,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         message: `Successfully purchased ${starsAmount} stars for ${rpCost} RP`,
-        newCredits: newCredits,
+        newCredits: newCredits.toString(),
         newStarsCount: newStarsCount
       });
 
@@ -439,6 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Internal server error during star purchase' });
     }
   });
+  */
 
   // User stars display endpoint (BEFORE authentication middleware)
   app.get('/api/kos/user-stars/:userId', async (req, res) => {

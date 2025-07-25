@@ -148,9 +148,17 @@ export function registerStarRoutes(app: Express) {
       
       // Hardcode user ID for testing (bypass authentication)
       const userId = 'bspsDLxUJTQqbox6vGjH5';
-      const { starsAmount, rpCost } = req.body;
+      const { starsAmount } = req.body;
+      
+      // Fixed star price: 1000 RP per star
+      const STAR_PRICE = 1000;
+      const rpCost = starsAmount * STAR_PRICE;
       
       console.log("Main purchasing:", starsAmount, "stars for", rpCost, "RP");
+
+      if (!starsAmount || starsAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid stars amount' });
+      }
 
       // Check if user exists and has sufficient credits
       const user = await storage.getUser(userId);
@@ -158,7 +166,7 @@ export function registerStarRoutes(app: Express) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const currentCredits = parseInt(user.credits || '0');
+      const currentCredits = parseFloat(user.credits || '0');
       console.log("Current credits:", currentCredits, "Required:", rpCost);
 
       if (currentCredits < rpCost) {
@@ -185,11 +193,30 @@ export function registerStarRoutes(app: Express) {
       await storage.updateUserStars(userId, { totalStars: newStarsCount });
       console.log("✓ Stars updated:", currentStars, "→", newStarsCount);
 
+      // Create transaction record for history tracking
+      try {
+        const purchaseData = {
+          userId: userId,
+          starsAmount: starsAmount, // Positive for purchases
+          rpCost: rpCost.toString(),
+          paymentMethod: 'rp_balance',
+          status: 'completed'
+        };
+        console.log("*** Creating purchase record with data:", purchaseData);
+        
+        const purchaseRecord = await storage.createStarPurchase(purchaseData);
+        console.log("✓ Transaction record created successfully:", purchaseRecord.id);
+      } catch (error) {
+        console.log("⚠️ CRITICAL: Failed to create transaction record");
+        console.log("⚠️ Error:", error);
+        // Continue anyway - don't let transaction history failure block the purchase
+      }
+
       console.log("*** MAIN STAR PURCHASE COMPLETED SUCCESSFULLY");
       res.json({ 
         success: true, 
         message: `Successfully purchased ${starsAmount} stars for ${rpCost} RP`,
-        newCredits: newCredits,
+        newCredits: newCredits.toString(),
         newStarsCount: newStarsCount
       });
 
