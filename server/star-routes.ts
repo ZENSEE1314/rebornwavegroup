@@ -72,7 +72,7 @@ export function registerStarRoutes(app: Express) {
 
       // Update stars (with error handling)
       try {
-        await storage.updateUserStars(userId, newStarsCount);
+        await storage.updateUserStars(userId, { totalStars: newStarsCount });
         console.log("✓ Stars updated successfully");
       } catch (error) {
         console.log("Error updating stars:", error);
