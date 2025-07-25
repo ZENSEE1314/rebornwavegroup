@@ -178,6 +178,7 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Root Issue Resolution**: Fixed like button mode from dynamic `kosActiveTab` to hardcoded `'individual'` mode
 - **User Request Implemented**: Like buttons now consistently award individual stars whether on individual or tournament tab
 - **Backend Verification**: Direct API testing confirms backend working perfectly (user has 13 individual stars, 30 total stars)
+- **UI Display Bug Fixed**: ✅ FIXED TOURNAMENT TAB SHOWING VOTES COUNT INSTEAD OF LIKES COUNT - Tournament tab now correctly shows likes count instead of votes count, resolving the "0 likes" display issue
 - **Browser Cache Fix**: Added cache-busting headers (`Cache-Control: no-cache`, `Pragma: no-cache`, `cache: no-store`) to frontend fetch requests
 - **Query Invalidation Enhancement**: Added forced refetch calls in addition to query invalidation for immediate UI updates
 - **System Status**: Like functionality now consistent across all tabs - always awards individual stars as requested

@@ -540,7 +540,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               <div className="flex items-center gap-1">
                 <Heart className="w-4 h-4 text-pink-500" />
                 <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                  {kosActiveTab === 'tournament' ? userItem.votes?.toLocaleString() || 0 : userItem.likes?.toLocaleString() || 0}
+                  {userItem.likes?.toLocaleString() || 0}
                 </span>
               </div>
             </div>
