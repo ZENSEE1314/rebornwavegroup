@@ -121,6 +121,10 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Mode-Specific Star Logic**: Tournament mode now deducts from tournamentStars, individual mode from individualStars
 - **Complete System Fix**: Tournament votes should now properly deduct from tournament star pool instead of affecting individual stars
 - **Enhanced Backend Logging**: Added comprehensive mode-specific logging to track star deduction from correct pools
+- **TOURNAMENT VOTE LOGIC CORRECTION**: ✅ FIXED TOURNAMENT VOTES TO ADD STARS TO PRIZE POOL
+- **Correct Tournament Behavior**: Tournament votes now ADD to tournamentStars (prize pool) instead of deducting
+- **Vote Payment Logic**: Voters pay with their totalStars, but tournament votes increase the prize pool
+- **Prize Pool Growth**: Tournament stars now properly accumulate from all tournament votes for 7-day distribution
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED

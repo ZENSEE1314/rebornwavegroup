@@ -412,15 +412,15 @@ export function registerStarRoutes(app: Express) {
         });
 
       } else if (mode === 'tournament') {
-        // Tournament mode: Deduct from tournament stars and add to prize pool
-        console.log("*** TOURNAMENT MODE - DEDUCTING FROM TOURNAMENT STARS");
-        const newTournamentStars = userStars.tournamentStars - starsAmount;
-        const newTotalStars = currentStars - starsAmount;
+        // Tournament mode: Deduct from voter's total stars, ADD to tournament prize pool
+        console.log("*** TOURNAMENT MODE - DEDUCTING FROM TOTAL STARS, ADDING TO TOURNAMENT PRIZE POOL");
+        const newTournamentStars = userStars.tournamentStars + starsAmount;  // ADD to prize pool
+        const newTotalStars = currentStars - starsAmount;  // Deduct from voter's total
         await storage.updateUserStars(userId, { 
           tournamentStars: newTournamentStars,
           totalStars: newTotalStars 
         });
-        console.log("*** TOURNAMENT STARS DEDUCTED - Old:", userStars.tournamentStars, "New:", newTournamentStars);
+        console.log("*** TOURNAMENT STARS ADDED TO PRIZE POOL - Old:", userStars.tournamentStars, "New:", newTournamentStars);
         
         // Use castVote for tournament mode (adds to prize pool)
         await storage.castVote(userId, targetUserId, starsAmount, null);
