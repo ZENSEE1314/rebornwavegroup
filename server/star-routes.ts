@@ -446,7 +446,7 @@ export function registerStarRoutes(app: Express) {
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
-      // Like button only gives likes (not stars) - same for both modes
+      // Like button gives likes (not stars) in both modes
       const result = await storage.toggleUserLike(userId, targetUserId);
       console.log("*** LIKE TOGGLE RESULT (GIVES LIKES ONLY):", result);
 
