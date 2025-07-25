@@ -342,14 +342,9 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
     // Different behavior based on tab and type
     if (type === 'vote') {
-      if (kosActiveTab === 'tournament') {
-        // Tournament mode - show vote dialog with star selection
-        setVoteTargetUser(targetUser);
-        setShowVoteDialog(true);
-      } else if (kosActiveTab === 'individual') {
-        // Individual mode - vote immediately with 1 star (no dialog needed)
-        voteMutation.mutate({ targetUserId: targetUser.id, type: 'vote', starsAmount: 1 });
-      }
+      // Both individual and tournament modes show vote dialog with star selection
+      setVoteTargetUser(targetUser);
+      setShowVoteDialog(true);
     } else if (type === 'like') {
       // Like button - same behavior for both modes (awards likes only)
       voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });

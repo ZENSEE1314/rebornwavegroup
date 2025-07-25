@@ -80,8 +80,8 @@ A comprehensive digital financial management and collectible toy platform that c
 ### Complete KOS Like vs Vote System Implementation (July 25, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE LIKE VS VOTE SYSTEM WITH CORRECT BEHAVIORS FULLY OPERATIONAL
 - **Like Button System**: Awards likes (not stars) to target user in both individual and tournament modes (free, no cost to voter)
-- **Individual Vote Button**: Costs stars from voter, awards stars immediately to target user
-- **Tournament Vote Button**: Costs stars from voter, adds to prize pool for 7-day distribution to top 10 users
+- **Individual Vote Button**: Shows star amount dialog, costs stars from voter, awards stars immediately to target user
+- **Tournament Vote Button**: Shows star amount dialog, costs stars from voter, adds to prize pool for 7-day distribution to top 10 users
 - **Universal Like System**: `/api/kos/like` endpoint awards likes only (not stars) to recipient in both modes
 - **Individual Vote System**: `/api/kos/vote` endpoint with mode='individual' deducts stars from voter and awards stars immediately to recipient
 - **Tournament Vote System**: `/api/kos/vote` endpoint with mode='tournament' deducts stars from voter and adds to prize pool (7-day distribution)
@@ -89,9 +89,10 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Timing Logic**: Individual votes give stars immediately, Tournament votes accumulate in prize pool for timer distribution
 - **Authentication Bypass**: Both endpoints use hardcoded user ID for testing consistency across star trading and voting systems
 - **Backend Mode Support**: Vote endpoint accepts `mode` parameter to handle individual vs tournament timing differences
-- **User Experience**: Like button is consistent (always gives likes), Vote button behavior changes based on mode timing
+- **User Experience**: Like button is consistent (always gives likes), Vote button shows amount dialog in both modes with different timing
+- **Star Amount Selection**: Both individual and tournament vote buttons show dialog for users to choose star amount
 - **Star Trading Integration**: Complete star trading system remains fully operational with both buying and selling functionality
-- **Production Status**: Complete like vs vote system operational with correct like/star separation and individual/tournament timing
+- **Production Status**: Complete like vs vote system operational with correct like/star separation, star amount selection, and individual/tournament timing
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED
