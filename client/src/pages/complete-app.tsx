@@ -236,9 +236,15 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   };
 
   const displayUsers = Array.isArray(kosUsers) ? kosUsers : [];
-  const top3Users = displayUsers.slice(0, 3);
-  const top10Users = displayUsers.slice(3, 10);
-  const remainingUsers = displayUsers.slice(10);
+  
+  // Filter users based on current tab - tournament mode only shows participants with tournament stars > 0
+  const filteredUsers = kosActiveTab === 'tournament' 
+    ? displayUsers.filter(user => (user.tournamentStars || 0) > 0)
+    : displayUsers;
+  
+  const top3Users = filteredUsers.slice(0, 3);
+  const top10Users = filteredUsers.slice(3, 10);
+  const remainingUsers = filteredUsers.slice(10);
   const usersPerPage = 100;
   const totalPages = Math.ceil(remainingUsers.length / usersPerPage);
   const paginatedUsers = remainingUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);

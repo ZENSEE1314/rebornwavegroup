@@ -3830,6 +3830,13 @@ export class DatabaseStorage implements IStorage {
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 7); // 7 days from now
 
+        // Calculate actual prize pool from sum of all tournament stars
+        const [prizePoolResult] = await db
+          .select({ total: sql<number>`COALESCE(SUM(tournament_stars), 0)` })
+          .from(userStars);
+        
+        const actualPrizePool = prizePoolResult?.total || 0;
+
         const [newTournament] = await db
           .insert(tournaments)
           .values({
@@ -3838,10 +3845,16 @@ export class DatabaseStorage implements IStorage {
             status: 'active',
             startDate,
             endDate,
-            totalStarPool: 100000,
+            totalStarPool: actualPrizePool,
             isDistributed: false
           })
           .returning();
+
+        // Get participant count (users with tournament stars > 0)
+        const [participantCount] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(userStars)
+          .where(sql`tournament_stars > 0`);
 
         return {
           id: newTournament.id,
@@ -3850,18 +3863,31 @@ export class DatabaseStorage implements IStorage {
           status: newTournament.status,
           startDate: newTournament.startDate,
           endDate: newTournament.endDate,
-          totalStarPool: newTournament.totalStarPool,
+          totalStarPool: actualPrizePool,
           timeLeft: this.calculateTimeLeft(newTournament.endDate),
-          participantCount: 0,
-          prizePool: '100,000 Stars'
+          participantCount: participantCount?.count || 0,
+          prizePool: `${actualPrizePool?.toLocaleString() || '0'} Stars`
         };
       }
 
-      // Get participant count
+      // Calculate actual prize pool from sum of all tournament stars
+      const [prizePoolResult] = await db
+        .select({ total: sql<number>`COALESCE(SUM(tournament_stars), 0)` })
+        .from(userStars);
+      
+      const actualPrizePool = prizePoolResult?.total || 0;
+
+      // Update tournament with actual prize pool
+      await db
+        .update(tournaments)
+        .set({ totalStarPool: actualPrizePool })
+        .where(eq(tournaments.id, currentTournament.id));
+
+      // Get participant count (users with tournament stars > 0)
       const [participantCount] = await db
         .select({ count: sql<number>`COUNT(*)` })
-        .from(tournamentParticipants)
-        .where(eq(tournamentParticipants.tournamentId, currentTournament.id));
+        .from(userStars)
+        .where(sql`tournament_stars > 0`);
 
       return {
         id: currentTournament.id,
@@ -3870,10 +3896,10 @@ export class DatabaseStorage implements IStorage {
         status: currentTournament.status,
         startDate: currentTournament.startDate,
         endDate: currentTournament.endDate,
-        totalStarPool: currentTournament.totalStarPool,
+        totalStarPool: actualPrizePool,
         timeLeft: this.calculateTimeLeft(currentTournament.endDate),
         participantCount: participantCount?.count || 0,
-        prizePool: `${currentTournament.totalStarPool?.toLocaleString() || '0'} Stars`
+        prizePool: `${actualPrizePool?.toLocaleString() || '0'} Stars`
       };
     } catch (error) {
       console.error('Error fetching current tournament:', error);
