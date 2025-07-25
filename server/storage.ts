@@ -3562,7 +3562,20 @@ export class DatabaseStorage implements IStorage {
         totalStars: newTotalStars
       });
 
+      // Create individual star transaction record for proper tracking
+      await this.createStarTransaction({
+        fromUserId: 'SYSTEM_INDIVIDUAL_LIKE', // System-generated individual like award
+        toUserId: userId,
+        starsAmount: amount,
+        type: 'individual_like',
+        tournamentId: null, // Individual likes don't belong to tournament
+        adminFee: "0.00",
+        userEarning: amount.toString(),
+        status: 'completed'
+      });
+
       console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);
+      console.log(`*** INDIVIDUAL STAR TRANSACTION CREATED - Type: individual_like`);
     } catch (error) {
       console.error('Error awarding individual star:', error);
       throw error;
@@ -3598,7 +3611,20 @@ export class DatabaseStorage implements IStorage {
         totalStars: newTotalStars
       });
 
+      // Create tournament star transaction record for proper tracking
+      await this.createStarTransaction({
+        fromUserId: 'SYSTEM_TOURNAMENT_LIKE', // System-generated tournament like award
+        toUserId: userId,
+        starsAmount: amount,
+        type: 'tournament_like',
+        tournamentId: null, // Like stars don't belong to specific tournament
+        adminFee: "0.00",
+        userEarning: amount.toString(),
+        status: 'completed'
+      });
+
       console.log(`*** TOURNAMENT STAR AWARDED - User: ${userId}, Amount: ${amount}, New Tournament Stars: ${newTournamentStars}, New Total Stars: ${newTotalStars}`);
+      console.log(`*** TOURNAMENT STAR TRANSACTION CREATED - Type: tournament_like`);
     } catch (error) {
       console.error('Error awarding tournament star:', error);
       throw error;
