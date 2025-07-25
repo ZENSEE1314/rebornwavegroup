@@ -293,7 +293,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       } else {
         console.log('*** FRONTEND LIKE MUTATION - Starting fetch request');
         console.log('*** Request URL:', '/api/kos/like');
-        console.log('*** Request body:', { targetUserId, mode: kosActiveTab });
+        console.log('*** Request body:', { targetUserId, mode: 'individual' });
         
         return fetch('/api/kos/like', {
           method: 'POST',
@@ -301,7 +301,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           credentials: 'include',
           body: JSON.stringify({ 
             targetUserId,
-            mode: kosActiveTab // Pass the current mode (individual or tournament)
+            mode: 'individual' // Like button ALWAYS awards individual stars, regardless of current tab
           })
         }).then(res => {
           console.log('*** FRONTEND LIKE RESPONSE - Status:', res.status, 'OK:', res.ok);
