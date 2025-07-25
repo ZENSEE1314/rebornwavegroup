@@ -440,12 +440,13 @@ export function registerStarRoutes(app: Express) {
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
         console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars.individualStars);
         
-        // Note: Tournament stars already allocated above, no need for castVote call
-        console.log("*** TOURNAMENT VOTE COMPLETE - STARS ADDED TO PRIZE POOL:", starsAmount);
+        // TOURNAMENT TIMER SYSTEM: Check/Create active tournament and set 7-day timer
+        await ensureActiveTournament();
+        console.log("*** TOURNAMENT TIMER ACTIVATED - 7-day countdown started for prize pool distribution");
         
         res.json({ 
           success: true, 
-          message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (tournament - added to prize pool)`,
+          message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (tournament - added to prize pool, 7-day timer activated)`,
           remainingStars: newTotalStars
         });
 
@@ -490,4 +491,135 @@ export function registerStarRoutes(app: Express) {
       res.status(500).json({ error: 'Internal server error during like operation' });
     }
   });
+
+  console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
 }
+
+// Tournament Timer System Functions
+let activeTournamentTimer: NodeJS.Timeout | null = null;
+
+// Ensure there's an active tournament, create one if needed
+async function ensureActiveTournament() {
+  try {
+    // Check for existing active tournament
+    const activeTournaments = await storage.getActiveTournaments();
+    console.log("*** CHECKING ACTIVE TOURNAMENTS:", activeTournaments.length);
+    
+    if (activeTournaments.length === 0) {
+      // Create new 7-day tournament
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
+      
+      const newTournament = await storage.createTournament({
+        name: `Weekly Tournament ${startDate.toLocaleDateString()}`,
+        type: 'weekly',
+        status: 'active',
+        startDate,
+        endDate,
+        totalStarPool: 0,
+        isDistributed: false
+      });
+      
+      console.log("*** NEW TOURNAMENT CREATED:", newTournament.id, "End Date:", endDate);
+      
+      // Set timer for tournament end (7 days)
+      const timeUntilEnd = endDate.getTime() - Date.now();
+      if (activeTournamentTimer) {
+        clearTimeout(activeTournamentTimer);
+      }
+      
+      activeTournamentTimer = setTimeout(async () => {
+        await distributeTournamentPrizes(newTournament.id);
+      }, timeUntilEnd);
+      
+      console.log("*** TOURNAMENT TIMER SET - Will distribute prizes in", Math.round(timeUntilEnd / (1000 * 60 * 60 * 24)), "days");
+      
+    } else {
+      const tournament = activeTournaments[0];
+      console.log("*** ACTIVE TOURNAMENT EXISTS:", tournament.id, "End Date:", tournament.endDate);
+      
+      // Check if timer needs to be set (in case of server restart)
+      const timeUntilEnd = new Date(tournament.endDate).getTime() - Date.now();
+      if (timeUntilEnd > 0 && !activeTournamentTimer) {
+        activeTournamentTimer = setTimeout(async () => {
+          await distributeTournamentPrizes(tournament.id);
+        }, timeUntilEnd);
+        
+        console.log("*** TOURNAMENT TIMER RESTORED - Will distribute prizes in", Math.round(timeUntilEnd / (1000 * 60 * 60 * 24)), "days");
+      }
+    }
+  } catch (error) {
+    console.error("*** ERROR ENSURING ACTIVE TOURNAMENT:", error);
+  }
+}
+
+// Distribute tournament prizes to top 10 users
+async function distributeTournamentPrizes(tournamentId: number) {
+  try {
+    console.log("*** DISTRIBUTING TOURNAMENT PRIZES FOR TOURNAMENT:", tournamentId);
+    
+    // Get all KOS users with their tournament stars (sorted by tournament stars desc)
+    const users = await storage.getKOSUsersWithRankings('tournament');
+    console.log("*** TOURNAMENT PARTICIPANTS:", users.length);
+    
+    // Get top 10 users based on tournament stars
+    const topUsers = users.slice(0, 10);
+    console.log("*** TOP 10 USERS FOR PRIZE DISTRIBUTION:", topUsers.map(u => ({ name: u.name, tournamentStars: u.tournamentStars })));
+    
+    // Calculate total prize pool from all tournament stars
+    const totalPrizePool = users.reduce((sum, user) => sum + (user.tournamentStars || 0), 0);
+    console.log("*** TOTAL PRIZE POOL:", totalPrizePool, "stars");
+    
+    if (totalPrizePool > 0 && topUsers.length > 0) {
+      // Prize distribution percentages for top 10
+      const prizePercentages = [30, 20, 15, 10, 8, 6, 4, 3, 2, 2]; // Total: 100%
+      
+      for (let i = 0; i < topUsers.length; i++) {
+        const user = topUsers[i];
+        const percentage = prizePercentages[i] || 0;
+        const prizeAmount = Math.floor((totalPrizePool * percentage) / 100);
+        
+        if (prizeAmount > 0) {
+          // Award prize as individual stars (immediately usable)
+          const currentStars = await storage.getUserStars(user.id);
+          const newIndividualStars = (currentStars?.individualStars || 0) + prizeAmount;
+          const newTotalStars = (currentStars?.totalStars || 0) + prizeAmount;
+          
+          await storage.updateUserStars(user.id, {
+            individualStars: newIndividualStars,
+            totalStars: newTotalStars,
+            tournamentStars: 0 // Reset tournament stars for next competition
+          });
+          
+          console.log(`*** PRIZE AWARDED - ${user.name}: ${prizeAmount} stars (${percentage}% of ${totalPrizePool})`);
+        }
+      }
+      
+      // Reset all users' tournament stars to 0 for next competition
+      for (const user of users) {
+        if (user.tournamentStars > 0) {
+          const currentStars = await storage.getUserStars(user.id);
+          await storage.updateUserStars(user.id, {
+            tournamentStars: 0
+          });
+        }
+      }
+    }
+    
+    // Mark tournament as completed
+    await storage.updateTournamentStatus(tournamentId, 'completed');
+    console.log("*** TOURNAMENT", tournamentId, "COMPLETED AND PRIZES DISTRIBUTED");
+    
+    // Clear the timer
+    if (activeTournamentTimer) {
+      clearTimeout(activeTournamentTimer);
+      activeTournamentTimer = null;
+    }
+    
+  } catch (error) {
+    console.error("*** ERROR DISTRIBUTING TOURNAMENT PRIZES:", error);
+  }
+}
+
+// Initialize tournament system on server start
+ensureActiveTournament();
