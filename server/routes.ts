@@ -9433,6 +9433,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/kos/top-contributors-with-details/:recipientUserId", requireAuth, async (req, res) => {
+    try {
+      const recipientUserId = req.params.recipientUserId;
+      const limit = parseInt(req.query.limit as string) || 3;
+      const contributors = await storage.getTopContributorsWithUserDetails(recipientUserId, limit);
+      res.json(contributors);
+    } catch (error) {
+      console.error("Error fetching top contributors with details:", error);
+      res.status(500).json({ error: "Failed to fetch top contributors with details" });
+    }
+  });
+
   app.patch("/api/kos/star-contributors/:recipientUserId/:contributorUserId", requireAuth, async (req, res) => {
     try {
       const { recipientUserId, contributorUserId } = req.params;

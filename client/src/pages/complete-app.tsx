@@ -479,7 +479,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     );
   };
 
-  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => (
+  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
+  // Fetch top contributors for this user
+  const { data: topContributors = [] } = useQuery({
+    queryKey: [`/api/kos/top-contributors-with-details/${userItem.id}`],
+    enabled: !!userItem.id,
+  });
+
+  return (
     <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
       <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
         <div className="flex items-center gap-4">
@@ -551,6 +558,34 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             <div className="text-xs text-gray-500 mt-1">
               {userItem.influencerRank} - Tier {userItem.influencerTier}
             </div>
+            
+            {/* Top Contributors Section */}
+            {topContributors?.length > 0 && (
+              <div className="mt-3 bg-gray-50 rounded-lg p-2">
+                <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  Top Supporters
+                </div>
+                <div className="space-y-1">
+                  {topContributors.slice(0, 3).map((contributor: any, index: number) => (
+                    <div key={contributor.id} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                          {(contributor.contributor.username || contributor.contributor.firstName || 'U')[0].toUpperCase()}
+                        </div>
+                        <span className="text-gray-700 truncate font-medium">
+                          {contributor.contributor.username || `${contributor.contributor.firstName || ''} ${contributor.contributor.lastName || ''}`.trim() || 'User'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-yellow-600">
+                        <Star className="w-3 h-3" />
+                        <span className="font-semibold">{contributor.totalStarsGiven}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons - Hide for own profile */}
@@ -590,7 +625,11 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       </CardContent>
     </Card>
   );
+};
 
+const KOSComponent = () => {
+  const { user } = useAuth();
+  
   return (
     <div className="space-y-8">
       {/* Header */}
