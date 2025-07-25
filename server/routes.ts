@@ -9332,15 +9332,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User not authenticated" });
       }
 
-      const { targetUserId } = req.body;
+      const { targetUserId, mode } = req.body;
       
-      // Toggle like (like/unlike)
+      console.log('*** LIKE ENDPOINT - Mode:', mode, 'From:', userId, 'To:', targetUserId);
+      
+      // Toggle like (like/unlike) - same behavior for both individual and tournament modes
+      // Likes award likes only (not stars) regardless of mode
       const result = await storage.toggleUserLike(userId, targetUserId);
+      
+      console.log('*** LIKE RESULT:', result);
       
       res.json({ 
         success: true, 
         message: result.liked ? "Like added successfully" : "Like removed successfully",
-        liked: result.liked
+        liked: result.liked,
+        mode: mode // Include mode in response for debugging
       });
     } catch (error) {
       console.error("Error toggling like:", error);
