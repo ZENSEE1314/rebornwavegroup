@@ -3539,14 +3539,16 @@ export class DatabaseStorage implements IStorage {
         });
       }
 
-      // Add to individual stars only (for individual leaderboard)
+      // Add to individual stars AND total stars (individual stars contribute to total balance)
       const newIndividualStars = userStarsData.individualStars + amount;
+      const newTotalStars = userStarsData.totalStars + amount;
       
       await this.updateUserStars(userId, {
-        individualStars: newIndividualStars
+        individualStars: newIndividualStars,
+        totalStars: newTotalStars
       });
 
-      console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}`);
+      console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);
     } catch (error) {
       console.error('Error awarding individual star:', error);
       throw error;
