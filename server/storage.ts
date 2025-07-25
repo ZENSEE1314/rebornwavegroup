@@ -3662,11 +3662,13 @@ export class DatabaseStorage implements IStorage {
         };
       }));
 
-      // Sort based on type
+      // Sort based on type - FIXED: Sort by actual star balances, not votes received
       const sortedUsers = usersWithKOS.sort((a, b) => {
         if (type === 'tournament') {
-          return b.votes - a.votes;
+          // Sort by actual star balance (totalStars) instead of votes received
+          return b.totalStars - a.totalStars;
         } else {
+          // Individual rankings sort by likes received
           return b.likes - a.likes;
         }
       });
@@ -3834,17 +3836,18 @@ export class DatabaseStorage implements IStorage {
         status: 'completed'
       });
 
-      // Add to target user's vote count and influence points
+      // Add stars and influence points to target user
       const targetStarsData = await this.getUserStars(toUserId);
       if (targetStarsData) {
         await this.updateUserStars(toUserId, {
+          totalStars: targetStarsData.totalStars + starsAmount,
           influencerPoints: targetStarsData.influencerPoints + starsAmount
         });
       } else {
         // Create user stars record if doesn't exist
         await this.createUserStars({
           userId: toUserId,
-          totalStars: 0,
+          totalStars: starsAmount,
           influencerPoints: starsAmount,
           influencerRank: 'Bronze I',
           influencerTier: 1,
