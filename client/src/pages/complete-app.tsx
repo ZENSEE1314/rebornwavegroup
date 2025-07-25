@@ -67,7 +67,6 @@ function KOSSection({
     queryKey: ['/api/kos/users', kosActiveTab, currentPage],
     queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
     staleTime: 0, // Force fresh data on tab switches
-    cacheTime: 0, // Don't cache between tab switches
   });
 
   // Fetch current tournament data
@@ -103,7 +102,6 @@ function KOSSection({
     },
     enabled: !!user?.id,
     staleTime: 0, // Disable caching for now to force fresh data
-    cacheTime: 0, // Disable cache storage
     retry: false,
   });
 
@@ -701,7 +699,7 @@ function KOSSection({
               <Button
                 size={isTop3 ? "default" : "sm"}
                 className="bg-pink-500 hover:bg-pink-600 text-white"
-                onClick={() => handleVote(userItem, 'vote')}
+                onClick={() => handleVote(userItem.id, 'vote')}
                 disabled={voteMutation.isPending}
               >
                 <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
@@ -711,7 +709,7 @@ function KOSSection({
                 size={isTop3 ? "default" : "sm"}
                 variant="outline"
                 className="border-pink-300 text-pink-600 hover:bg-pink-50"
-                onClick={() => handleVote(userItem, 'like')}
+                onClick={() => handleVote(userItem.id, 'like')}
                 disabled={voteMutation.isPending}
               >
                 <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
