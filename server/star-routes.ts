@@ -390,36 +390,46 @@ export function registerStarRoutes(app: Express) {
         return res.status(400).json({ error: "Insufficient stars for voting" });
       }
 
-      // Deduct stars from voting user (always costs stars to vote)
-      const newStarsCount = currentStars - starsAmount;
-      await storage.updateUserStars(userId, { totalStars: newStarsCount });
-      console.log("*** STARS DEDUCTED - Old:", currentStars, "New:", newStarsCount);
-
-      // Handle different modes
+      // Mode-specific star deduction and voting logic
       if (mode === 'individual') {
-        // Individual mode: Give stars immediately to target user
-        console.log("*** INDIVIDUAL MODE - AWARDING STARS IMMEDIATELY TO TARGET USER");
+        // Individual mode: Deduct from individual stars and award immediately
+        console.log("*** INDIVIDUAL MODE - DEDUCTING FROM INDIVIDUAL STARS");
+        const newIndividualStars = userStars.individualStars - starsAmount;
+        const newTotalStars = currentStars - starsAmount;
+        await storage.updateUserStars(userId, { 
+          individualStars: newIndividualStars,
+          totalStars: newTotalStars 
+        });
+        console.log("*** INDIVIDUAL STARS DEDUCTED - Old:", userStars.individualStars, "New:", newIndividualStars);
+        
         await storage.awardIndividualStar(targetUserId, starsAmount);
         console.log("*** INDIVIDUAL STARS AWARDED IMMEDIATELY:", starsAmount);
 
         res.json({ 
           success: true, 
           message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (individual - awarded immediately)`,
-          remainingStars: newStarsCount
+          remainingStars: newTotalStars
         });
 
       } else if (mode === 'tournament') {
-        // Tournament mode: Add to prize pool (will distribute after 7 days to top 10)
-        console.log("*** TOURNAMENT MODE - ADDING TO PRIZE POOL (NOT IMMEDIATE AWARD)");
-        console.log("*** TOURNAMENT VOTE - ADDED TO PRIZE POOL:", starsAmount);
+        // Tournament mode: Deduct from tournament stars and add to prize pool
+        console.log("*** TOURNAMENT MODE - DEDUCTING FROM TOURNAMENT STARS");
+        const newTournamentStars = userStars.tournamentStars - starsAmount;
+        const newTotalStars = currentStars - starsAmount;
+        await storage.updateUserStars(userId, { 
+          tournamentStars: newTournamentStars,
+          totalStars: newTotalStars 
+        });
+        console.log("*** TOURNAMENT STARS DEDUCTED - Old:", userStars.tournamentStars, "New:", newTournamentStars);
         
         // Use castVote for tournament mode (adds to prize pool)
         await storage.castVote(userId, targetUserId, starsAmount, null);
+        console.log("*** TOURNAMENT VOTE - ADDED TO PRIZE POOL:", starsAmount);
         
         res.json({ 
           success: true, 
           message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (tournament - added to prize pool)`,
-          remainingStars: newStarsCount
+          remainingStars: newTotalStars
         });
 
       } else {

@@ -116,6 +116,11 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Tournament Mode Logic**: Deducts from tournamentStars and adds to prize pool for 7-day distribution
 - **Star Type Separation**: Each mode now correctly deducts from its respective star pool (individual vs tournament)
 - **Database Consistency**: Both individualStars/tournamentStars and totalStars updated correctly for proper tracking
+- **FINAL ENDPOINT FIX**: ✅ FIXED THE ACTUAL VOTE ENDPOINT IN STAR-ROUTES.TS THAT FRONTEND CALLS
+- **Root Cause Resolution**: Frontend was calling `/api/kos/vote` in star-routes.ts, not routes.ts
+- **Mode-Specific Star Logic**: Tournament mode now deducts from tournamentStars, individual mode from individualStars
+- **Complete System Fix**: Tournament votes should now properly deduct from tournament star pool instead of affecting individual stars
+- **Enhanced Backend Logging**: Added comprehensive mode-specific logging to track star deduction from correct pools
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED
