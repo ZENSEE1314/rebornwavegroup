@@ -438,9 +438,8 @@ export function registerStarRoutes(app: Express) {
         });
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
         
-        // Use castVote for tournament mode (adds to prize pool)
-        await storage.castVote(userId, targetUserId, starsAmount, null);
-        console.log("*** TOURNAMENT VOTE - ADDED TO TARGET USER'S PRIZE POOL:", starsAmount);
+        // Note: Tournament stars already allocated above, no need for castVote call
+        console.log("*** TOURNAMENT VOTE COMPLETE - STARS ADDED TO PRIZE POOL:", starsAmount);
         
         res.json({ 
           success: true, 

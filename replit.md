@@ -135,6 +135,10 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Tournament Star Allocation**: Fixed castVote to properly add to target user's tournamentStars and totalStars
 - **Enhanced Debug Logging**: Added comprehensive logging in castVote method to track tournament star allocation
 - **Complete Tournament System**: Tournament votes now correctly deduct from voter's total stars and add to target user's tournament stars
+- **DUPLICATE ENDPOINT ELIMINATION**: ✅ REMOVED DUPLICATE /api/kos/vote ENDPOINT FROM ROUTES.TS
+- **Single Endpoint Solution**: Only star-routes.ts now handles voting to eliminate double star allocation
+- **Double Allocation Fix**: Removed redundant castVote call from star-routes.ts tournament logic
+- **Complete Tournament Fix**: Tournament votes now correctly add stars only to tournament stars (not both individual and tournament)
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED
