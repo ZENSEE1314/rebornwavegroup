@@ -9037,6 +9037,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user star contributions (how many stars each user has given to others)
+  app.get("/api/kos/user-contributions", async (req, res) => {
+    try {
+      const contributions = await storage.getUserStarContributions();
+      res.json(contributions);
+    } catch (error) {
+      console.error("Error fetching user star contributions:", error);
+      res.status(500).json({ error: "Failed to fetch user star contributions" });
+    }
+  });
+
+  // Get specific user's star contribution
+  app.get("/api/kos/user-contributions/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const contribution = await storage.getUserStarContribution(userId);
+      res.json({ userId, totalStarsGiven: contribution });
+    } catch (error) {
+      console.error("Error fetching user star contribution:", error);
+      res.status(500).json({ error: "Failed to fetch user star contribution" });
+    }
+  });
+
   app.get("/api/kos/influencers/tier/:tier", async (req, res) => {
     try {
       const tier = parseInt(req.params.tier);

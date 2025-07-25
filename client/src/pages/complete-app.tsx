@@ -103,6 +103,23 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     retry: false,
   });
 
+  // Fetch user star contributions (how many stars each user has given to others)
+  const { data: userContributions = [] } = useQuery({
+    queryKey: ['/api/kos/user-contributions'],
+    queryFn: async () => {
+      const res = await fetch('/api/kos/user-contributions', {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        console.warn('Failed to fetch user star contributions:', res.status);
+        return [];
+      }
+      return res.json();
+    },
+    staleTime: 30000,
+    retry: false,
+  });
+
   // Star trading state
   const [showStarDialog, setShowStarDialog] = useState(false);
   const [starDialogType, setStarDialogType] = useState<'buy' | 'sell'>('buy');
@@ -334,10 +351,12 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       // Invalidate and refetch relevant data with aggressive cache busting
       queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/user-contributions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
       // Force immediate refetch
       queryClient.refetchQueries({ queryKey: ['/api/kos/users'] });
       queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars'] });
+      queryClient.refetchQueries({ queryKey: ['/api/kos/user-contributions'] });
       setShowVoteDialog(false);
       setVoteTargetUser(null);
       setVoteStarsAmount(1);
@@ -501,53 +520,64 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     );
   };
 
-  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => (
-    <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
-      <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
-        <div className="flex items-center gap-4">
-          {/* Rank Badge */}
-          <div className={`flex-shrink-0 ${isTop3 ? 'w-12 h-12' : 'w-8 h-8'} rounded-full ${
-            rank === 1 ? 'bg-yellow-500' : 
-            rank === 2 ? 'bg-gray-400' : 
-            rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
-          } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-lg' : 'text-sm'}`}>
-            {rank}
-          </div>
+  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
+    // Find how many stars this user has given to others
+    const userContribution = userContributions.find((c: any) => c.userId === userItem.id);
+    const totalStarsSupported = userContribution?.totalStarsGiven || 0;
+    
+    return (
+      <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
+        <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
+          <div className="flex items-center gap-4">
+            {/* Rank Badge */}
+            <div className={`flex-shrink-0 ${isTop3 ? 'w-12 h-12' : 'w-8 h-8'} rounded-full ${
+              rank === 1 ? 'bg-yellow-500' : 
+              rank === 2 ? 'bg-gray-400' : 
+              rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
+            } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-lg' : 'text-sm'}`}>
+              {rank}
+            </div>
 
-          {/* User Photo */}
-          <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
-            {userItem.profileImageUrl ? (
-              <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
-                👤
-              </div>
-            )}
-          </div>
+            {/* User Photo */}
+            <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
+              {userItem.profileImageUrl ? (
+                <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
+                  👤
+                </div>
+              )}
+            </div>
 
-          {/* User Info */}
-          <div className="flex-1 min-w-0">
-            <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
-              {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
-            </h3>
-            <div className="flex items-center gap-4 mt-1">
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 text-yellow-500" />
-                <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                  {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
-                </span>
+            {/* User Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
+                {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
+              </h3>
+              <div className="flex items-center gap-4 mt-1">
+                <div className="flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {userItem.likes?.toLocaleString() || 0}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4 text-purple-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {totalStarsSupported.toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Heart className="w-4 h-4 text-pink-500" />
-                <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                  {userItem.likes?.toLocaleString() || 0}
-                </span>
+              <div className="text-xs text-gray-500 mt-1">
+                {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} Stars Supported
               </div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {userItem.influencerRank} - Tier {userItem.influencerTier}
-            </div>
-          </div>
 
           {/* Action Buttons - Hide for own profile */}
           {userItem.id !== user?.id && (
@@ -586,6 +616,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <div className="space-y-8">

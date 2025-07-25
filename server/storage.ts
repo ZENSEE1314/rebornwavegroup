@@ -4012,6 +4012,45 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Get total stars contributed by each user (how many stars they have given to others)
+  async getUserStarContributions(): Promise<Array<{ userId: string; totalStarsGiven: number }>> {
+    try {
+      const contributions = await db
+        .select({
+          userId: starContributors.contributorUserId,
+          totalStarsGiven: sql<number>`COALESCE(SUM(${starContributors.totalStarsGiven}), 0)`
+        })
+        .from(starContributors)
+        .groupBy(starContributors.contributorUserId)
+        .orderBy(desc(sql`COALESCE(SUM(${starContributors.totalStarsGiven}), 0)`));
+
+      return contributions.map(c => ({
+        userId: c.userId,
+        totalStarsGiven: c.totalStarsGiven || 0
+      }));
+    } catch (error) {
+      console.error('Error getting user star contributions:', error);
+      return [];
+    }
+  }
+
+  // Get star contribution data for a specific user
+  async getUserStarContribution(userId: string): Promise<number> {
+    try {
+      const [result] = await db
+        .select({
+          totalStarsGiven: sql<number>`COALESCE(SUM(${starContributors.totalStarsGiven}), 0)`
+        })
+        .from(starContributors)
+        .where(eq(starContributors.contributorUserId, userId));
+
+      return result?.totalStarsGiven || 0;
+    } catch (error) {
+      console.error('Error getting user star contribution:', error);
+      return 0;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
