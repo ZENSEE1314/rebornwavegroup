@@ -44,21 +44,22 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
     queryKey: ['/api/kos/users', kosActiveTab, currentPage],
     queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
-    staleTime: 30000,
+    staleTime: 0, // Force fresh data on tab switches
+    cacheTime: 0, // Don't cache between tab switches
   });
 
   // Fetch current tournament data
   const { data: currentTournament, isLoading: tournamentLoading } = useQuery({
     queryKey: ['/api/kos/tournaments/current'],
     queryFn: () => fetch('/api/kos/tournaments/current').then(res => res.json()),
-    staleTime: 30000,
+    staleTime: 5000, // Reduced cache time for tournament data
   });
 
   // Fetch previous tournament winners
   const { data: previousWinners = [], isLoading: winnersLoading } = useQuery({
     queryKey: ['/api/kos/tournaments/previous-winners'],
     queryFn: () => fetch('/api/kos/tournaments/previous-winners').then(res => res.json()),
-    staleTime: 30000,
+    staleTime: 10000, // Reduced cache time for winners data
   });
 
   // Fetch user's current stars
