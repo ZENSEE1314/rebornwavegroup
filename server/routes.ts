@@ -9310,13 +9310,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Cast vote with mode parameter
       console.log("*** ATTEMPTING TO CAST VOTE WITH MODE:", mode);
+      
+      // First deduct stars from voting user (same for both modes)
+      const newStarsCount = userStars.totalStars - starsAmount;
+      await storage.updateUserStars(userId, { totalStars: newStarsCount });
+      console.log("*** STARS DEDUCTED FROM VOTER - Old:", userStars.totalStars, "New:", newStarsCount);
+      
       if (mode === 'individual') {
         // Individual mode: Award stars immediately to target user
-        await storage.awardIndividualStar(userId, targetUserId, starsAmount);
+        console.log("*** INDIVIDUAL MODE - AWARDING STARS IMMEDIATELY TO TARGET USER");
+        await storage.awardIndividualStar(targetUserId, starsAmount);
         console.log("*** INDIVIDUAL VOTE CAST SUCCESSFULLY - STARS AWARDED IMMEDIATELY");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars awarded to performer.` });
       } else if (mode === 'tournament') {
         // Tournament mode: Add stars to prize pool for 7-day distribution
+        console.log("*** TOURNAMENT MODE - ADDING TO PRIZE POOL (NOT IMMEDIATE AWARD)");
         await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
         console.log("*** TOURNAMENT VOTE CAST SUCCESSFULLY - ADDED TO PRIZE POOL");
         res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars added to tournament prize pool.` });

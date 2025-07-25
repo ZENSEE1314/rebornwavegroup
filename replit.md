@@ -105,6 +105,12 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Individual Mode Logic**: Uses awardIndividualStar() to give stars immediately when mode='individual'
 - **Tournament Mode Logic**: Uses castVote() to add to prize pool when mode='tournament'
 - **Enhanced Debug Logging**: Added comprehensive mode-specific logging to track execution paths and confirm correct behavior
+- **ULTIMATE FIX**: ✅ FIXED ACTUAL VOTE ENDPOINT IN ROUTES.TS LINE 9315 - Found and fixed the real endpoint the frontend calls
+- **Critical Bug Resolution**: Fixed incorrect parameter order in awardIndividualStar() method call and missing star deduction logic
+- **Star Deduction Logic**: Added explicit star deduction from voter for both individual and tournament modes
+- **Parameter Fix**: Corrected awardIndividualStar(targetUserId, starsAmount) instead of wrong (userId, targetUserId, starsAmount)
+- **Mode-Specific Logic**: Individual mode awards stars immediately, tournament mode adds to prize pool
+- **Complete System**: Tournament vote mode should now properly add to prize pool instead of awarding stars immediately
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED
