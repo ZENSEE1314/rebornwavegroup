@@ -410,13 +410,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const purchaseRecord = await storage.createStarPurchase({
           userId: userId,
           starsAmount: starsAmount,
-          rpCost: rpCost,
-          transactionType: 'purchase',
+          rpCost: rpCost.toString(),
+          paymentMethod: 'rp_balance',
           status: 'completed'
         });
         console.log("✓ Transaction record created:", purchaseRecord.id);
       } catch (error) {
-        console.log("⚠️ Failed to create transaction record:", error);
+        console.log("⚠️ Failed to create transaction record:", error.message || error);
       }
 
       console.log("*** FINAL STAR PURCHASE COMPLETED SUCCESSFULLY");
@@ -528,14 +528,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const sellRecord = await storage.createStarPurchase({
           userId: userId,
-          starsAmount: starsAmount,
-          rpCost: rpReturn,
-          transactionType: 'sale',
+          starsAmount: -starsAmount, // Negative for selling
+          rpCost: rpReturn.toString(),
+          paymentMethod: 'star_sale',
           status: 'completed'
         });
         console.log("✓ Sell transaction record created:", sellRecord.id);
       } catch (error) {
-        console.log("⚠️ Failed to create sell transaction record:", error);
+        console.log("⚠️ Failed to create sell transaction record:", error.message || error);
       }
 
       console.log("*** STAR SELLING COMPLETED SUCCESSFULLY");
@@ -550,6 +550,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("*** STAR SELLING ERROR:", error);
       res.status(500).json({ error: 'Internal server error during star sale' });
+    }
+  });
+
+  // Star purchase history endpoint (BEFORE authentication middleware)
+  app.get('/api/kos/star-purchases-history/:userId', async (req, res) => {
+    try {
+      console.log("*** ========================================");
+      console.log("*** STAR PURCHASES HISTORY ENDPOINT HIT!");
+      console.log("*** ========================================");
+      
+      const { userId } = req.params;
+      console.log("Getting star purchases history for userId:", userId);
+      
+      // Get star purchase history from database
+      let starHistory = [];
+      try {
+        starHistory = await storage.getStarPurchasesByUserId(userId);
+        console.log("*** STAR PURCHASES HISTORY FOUND:", starHistory.length, "records");
+        console.log("*** HISTORY DATA:", starHistory);
+      } catch (error) {
+        console.log("*** No star purchases history found:", error.message || error);
+        starHistory = [];
+      }
+      
+      res.json({ 
+        success: true,
+        history: starHistory,
+        totalRecords: starHistory.length
+      });
+      
+    } catch (error) {
+      console.error("*** STAR PURCHASES HISTORY ERROR:", error);
+      res.status(500).json({ error: 'Failed to get star purchases history' });
     }
   });
 
