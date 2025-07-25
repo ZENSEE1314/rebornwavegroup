@@ -390,13 +390,15 @@ export function registerStarRoutes(app: Express) {
         return res.status(400).json({ error: "Insufficient stars for voting" });
       }
 
-      // Deduct stars from voting user
+      // Deduct stars from voting user (always costs stars to vote)
       const newStarsCount = currentStars - starsAmount;
       await storage.updateUserStars(userId, { totalStars: newStarsCount });
       console.log("*** STARS DEDUCTED - Old:", currentStars, "New:", newStarsCount);
 
+      // Handle different modes
       if (mode === 'individual') {
         // Individual mode: Give stars immediately to target user
+        console.log("*** INDIVIDUAL MODE - AWARDING STARS IMMEDIATELY TO TARGET USER");
         await storage.awardIndividualStar(targetUserId, starsAmount);
         console.log("*** INDIVIDUAL STARS AWARDED IMMEDIATELY:", starsAmount);
 
@@ -408,10 +410,10 @@ export function registerStarRoutes(app: Express) {
 
       } else if (mode === 'tournament') {
         // Tournament mode: Add to prize pool (will distribute after 7 days to top 10)
+        console.log("*** TOURNAMENT MODE - ADDING TO PRIZE POOL (NOT IMMEDIATE AWARD)");
         console.log("*** TOURNAMENT VOTE - ADDED TO PRIZE POOL:", starsAmount);
         
-        // For now, we'll just track this in tournament system
-        // The 7-day distribution logic will be implemented later
+        // Use castVote for tournament mode (adds to prize pool)
         await storage.castVote(userId, targetUserId, starsAmount, null);
         
         res.json({ 
