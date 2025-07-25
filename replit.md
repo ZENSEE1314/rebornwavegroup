@@ -100,7 +100,8 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Enhanced UserCard**: Top 3 supporter photos integrated directly inside each user card as requested
 - **Placeholder Display**: Empty supporter slots show "-" with proper placeholder styling
 - **Real-time Data**: Uses actual contribution data from database with proper filtering and sorting
-- **Production Ready**: Complete supporter photo system operational with individual star amounts and correct "Stars Supported" totals
+- **Hover Username Tooltips**: Added hover effects showing supporter usernames with visual feedback and smooth animations
+- **Production Ready**: Complete supporter photo system operational with individual star amounts, correct "Stars Supported" totals, and interactive hover tooltips
 
 ### Complete Tournament Timer & Voting System Final Bug Fixes (July 25, 2025)
 - **CRITICAL API PATH FIX**: ✅ FIXED TOURNAMENT TIMER API ENDPOINT MISMATCH - Corrected frontend from `/api/kos/tournaments/current` to `/api/kos/current-tournament`

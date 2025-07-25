@@ -619,7 +619,10 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                             
                             return (
                               <div key={supporter.contributorUserId} className="flex flex-col items-center gap-0.5">
-                                <div className={`w-6 h-6 rounded-full ${borderColor} border-2 overflow-hidden bg-gray-200`}>
+                                <div 
+                                  className={`w-6 h-6 rounded-full ${borderColor} border-2 overflow-hidden bg-gray-200 cursor-pointer hover:scale-110 transition-transform`}
+                                  title={supporterUser?.username || supporterUser?.firstName || 'Supporter'}
+                                >
                                   {supporterUser?.profileImageUrl ? (
                                     <img 
                                       src={supporterUser.profileImageUrl} 
