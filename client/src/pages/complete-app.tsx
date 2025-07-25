@@ -483,8 +483,8 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
           {/* User Photo */}
           <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
-            {userItem.photo && userItem.photo !== '/api/placeholder/50/50' ? (
-              <img src={userItem.photo} alt={userItem.name} className="w-full h-full object-cover" />
+            {userItem.profileImageUrl ? (
+              <img src={userItem.profileImageUrl} alt={userItem.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
                 👤
@@ -5356,9 +5356,10 @@ export default function CompleteApp() {
       setUsername(user.username || "");
       setGender(user.gender || "");
       setDateOfBirth(user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "");
+      setProfileImage(user.profileImageUrl || null);
     }
   }, [user]);
-  const [profileImage, setProfileImage] = useState(null);
+  const [profileImage, setProfileImage] = useState(user?.profileImageUrl || null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -10442,12 +10443,58 @@ export default function CompleteApp() {
                       type="file" 
                       accept="image/*" 
                       className="hidden"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (e) => setProfileImage(e.target?.result);
-                          reader.readAsDataURL(file);
+                          try {
+                            // Validate file size (5MB max)
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast({
+                                title: "File too large",
+                                description: "Please select an image smaller than 5MB",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+
+                            // Show preview immediately
+                            const reader = new FileReader();
+                            reader.onload = (e) => setProfileImage(e.target?.result);
+                            reader.readAsDataURL(file);
+
+                            // Upload to server
+                            const formData = new FormData();
+                            formData.append('profilePhoto', file);
+
+                            const response = await fetch('/api/auth/user/profile-photo', {
+                              method: 'POST',
+                              body: formData,
+                            });
+
+                            if (response.ok) {
+                              const data = await response.json();
+                              // Update user data with new profile image URL
+                              queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+                              toast({
+                                title: "Profile photo updated",
+                                description: "Your profile photo has been uploaded successfully",
+                              });
+                            } else {
+                              const error = await response.json();
+                              toast({
+                                title: "Upload failed",
+                                description: error.message || "Failed to upload profile photo",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Profile photo upload error:', error);
+                            toast({
+                              title: "Upload failed",
+                              description: "An error occurred while uploading the photo",
+                              variant: "destructive",
+                            });
+                          }
                         }
                       }}
                     />

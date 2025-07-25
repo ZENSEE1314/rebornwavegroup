@@ -2223,6 +2223,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile photo upload endpoint
+  app.post('/api/auth/user/profile-photo', requireAuth, upload.single('profilePhoto'), async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file provided" });
+      }
+
+      // Generate the image URL path
+      const imageUrl = `/uploaded-images/${req.file.filename}`;
+      
+      // Update user's profile image URL in database
+      await storage.updateUserProfile(userId, {
+        profileImageUrl: imageUrl
+      });
+      
+      console.log(`Profile photo uploaded for user ${userId}: ${imageUrl}`);
+      
+      res.json({ 
+        message: "Profile photo updated successfully",
+        imageUrl: imageUrl
+      });
+    } catch (error) {
+      console.error("Error uploading profile photo:", error);
+      res.status(500).json({ message: "Failed to upload profile photo" });
+    }
+  });
+
   // User routes
   app.get('/api/users/referrals', requireAuth, async (req: any, res) => {
     try {
