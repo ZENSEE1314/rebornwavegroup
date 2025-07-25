@@ -493,12 +493,38 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           </div>
 
           {/* User Photo */}
-          <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
+          <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full overflow-hidden border-2 ${
+            userItem.profileImageUrl ? 'border-gray-300' : 'border-transparent'
+          }`}>
             {userItem.profileImageUrl ? (
-              <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
+              <img 
+                src={userItem.profileImageUrl} 
+                alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} 
+                className="w-full h-full object-cover" 
+                onError={(e) => {
+                  // Fallback to avatar if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `
+                      <div class="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold ${isTop3 ? 'text-xl' : 'text-sm'}">
+                        ${(userItem.username || userItem.firstName || 'U')[0].toUpperCase()}
+                      </div>
+                    `;
+                  }
+                }}
+              />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl">
-                👤
+              <div className={`w-full h-full bg-gradient-to-br ${
+                userItem.username ? 
+                  // Generate consistent colors based on username
+                  ['from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-pink-400 to-pink-600', 'from-yellow-400 to-yellow-600', 'from-red-400 to-red-600'][
+                    userItem.username.charCodeAt(0) % 6
+                  ] :
+                  'from-gray-400 to-gray-600'
+              } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-xl' : 'text-sm'}`}>
+                {(userItem.username || userItem.firstName || 'U')[0].toUpperCase()}
               </div>
             )}
           </div>
