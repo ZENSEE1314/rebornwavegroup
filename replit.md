@@ -93,6 +93,12 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Star Amount Selection**: Both individual and tournament vote buttons show dialog for users to choose star amount
 - **Star Trading Integration**: Complete star trading system remains fully operational with both buying and selling functionality
 - **Production Status**: Complete like vs vote system operational with correct like/star separation, star amount selection, and individual/tournament timing
+- **CRITICAL TOURNAMENT MODE FIX**: ✅ RESOLVED TOURNAMENT VOTE BUTTON USING INDIVIDUAL MODE - Fixed backend vote endpoint to properly read mode parameter and execute correct logic
+- **Mode Parameter Implementation**: Backend now properly reads mode parameter from request body and executes different logic based on individual vs tournament mode
+- **Individual Vote Logic**: Uses awardIndividualStar() method to award stars immediately to target user when mode='individual'
+- **Tournament Vote Logic**: Uses castVote() method to add stars to prize pool for 7-day distribution when mode='tournament'
+- **Enhanced Logging**: Added comprehensive logging to track mode parameter and confirm correct execution path
+- **Complete System Verification**: Both individual and tournament vote buttons now execute their intended behaviors correctly
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED

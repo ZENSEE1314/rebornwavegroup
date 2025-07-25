@@ -9291,8 +9291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** VOTE USER ID (hardcoded for testing):", userId);
 
-      const { targetUserId, starsAmount = 1, tournamentId } = req.body;
-      console.log("*** VOTE PARAMS:", { targetUserId, starsAmount, tournamentId });
+      const { targetUserId, starsAmount = 1, mode = 'individual', tournamentId } = req.body;
+      console.log("*** VOTE PARAMS:", { targetUserId, starsAmount, mode, tournamentId });
       
       // Prevent self-voting
       if (userId === targetUserId) {
@@ -9308,11 +9308,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Insufficient stars to vote. You need at least ${starsAmount} stars.` });
       }
 
-      // Deduct stars and record vote
-      console.log("*** ATTEMPTING TO CAST VOTE");
-      await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
-      console.log("*** VOTE CAST SUCCESSFULLY");
-      res.json({ success: true, message: "Vote cast successfully" });
+      // Cast vote with mode parameter
+      console.log("*** ATTEMPTING TO CAST VOTE WITH MODE:", mode);
+      if (mode === 'individual') {
+        // Individual mode: Award stars immediately to target user
+        await storage.awardIndividualStar(userId, targetUserId, starsAmount);
+        console.log("*** INDIVIDUAL VOTE CAST SUCCESSFULLY - STARS AWARDED IMMEDIATELY");
+        res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars awarded to performer.` });
+      } else if (mode === 'tournament') {
+        // Tournament mode: Add stars to prize pool for 7-day distribution
+        await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
+        console.log("*** TOURNAMENT VOTE CAST SUCCESSFULLY - ADDED TO PRIZE POOL");
+        res.json({ success: true, message: `Vote cast successfully! ${starsAmount} stars added to tournament prize pool.` });
+      } else {
+        console.log("*** VOTE ERROR: Invalid mode", mode);
+        return res.status(400).json({ error: "Invalid vote mode. Must be 'individual' or 'tournament'." });
+      }
     } catch (error) {
       console.error("Error casting vote:", error);
       res.status(500).json({ error: "Failed to cast vote" });
