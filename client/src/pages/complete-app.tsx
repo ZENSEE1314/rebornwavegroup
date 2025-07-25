@@ -39,12 +39,24 @@ function KOSSection({
   user, 
   queryClient, 
   onUserSelect,
-  handleVote 
+  handleVote,
+  showVoteDialog,
+  setShowVoteDialog,
+  voteTargetUser,
+  setVoteTargetUser,
+  starsAmount,
+  setStarsAmount
 }: { 
   user: any; 
   queryClient: any; 
   onUserSelect: (user: any) => void;
   handleVote: (targetUserId: string, type: 'vote' | 'like', mode?: string) => void;
+  showVoteDialog: boolean;
+  setShowVoteDialog: (show: boolean) => void;
+  voteTargetUser: any;
+  setVoteTargetUser: (user: any) => void;
+  starsAmount: number;
+  setStarsAmount: (amount: number) => void;
 }) {
   const { toast } = useToast();
   const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
@@ -133,7 +145,6 @@ function KOSSection({
   // Star trading state
   const [showStarDialog, setShowStarDialog] = useState(false);
   const [starDialogType, setStarDialogType] = useState<'buy' | 'sell'>('buy');
-  const [starsAmount, setStarsAmount] = useState(1);
   const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
   const [showStarHistory, setShowStarHistory] = useState(false);
 
@@ -372,7 +383,7 @@ function KOSSection({
       toast({
         title: variables.type === 'vote' ? "Vote Cast!" : "Like Added!",
         description: variables.type === 'vote' 
-          ? `You voted for ${voteTargetUser?.name} with ${variables.starsAmount} stars!`
+          ? `You voted for ${voteTargetUser?.username || voteTargetUser?.name} with ${variables.starsAmount} stars!`
           : `You liked this performer!`,
       });
       // Invalidate and refetch relevant data with aggressive cache busting
@@ -386,7 +397,7 @@ function KOSSection({
       queryClient.refetchQueries({ queryKey: ['/api/kos/user-contributions'] });
       setShowVoteDialog(false);
       setVoteTargetUser(null);
-      setVoteStarsAmount(1);
+      setStarsAmount(1);
     },
     onError: (error: any) => {
       toast({
@@ -397,9 +408,40 @@ function KOSSection({
     }
   });
 
-  // Vote handling is now passed from parent component
+  // Vote confirmation handler
+  const handleConfirmVote = async () => {
+    if (!voteTargetUser) return;
 
-  // Vote confirmation is now handled by parent component
+    try {
+      const response = await fetch('/api/kos/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          targetUserId: voteTargetUser.id,
+          starsAmount: starsAmount,
+          mode: 'individual' // Always individual for now
+        })
+      });
+
+      if (response.ok) {
+        queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
+        setShowVoteDialog(false);
+        setVoteTargetUser(null);
+        setStarsAmount(1);
+        toast({ title: "Success", description: "Vote cast successfully!" });
+      } else {
+        throw new Error('Failed to cast vote');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cast vote. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Tournament timer component with real-time updates
   const TournamentTimer = ({ tournament }: { tournament: any }) => {
@@ -10751,7 +10793,18 @@ export default function CompleteApp() {
 
         {/* KOS (Kings Of Singers) Tab */}
         {activeTab === "kos" && (
-          <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} handleVote={handleVote} />
+          <KOSSection 
+            user={user} 
+            queryClient={queryClient} 
+            onUserSelect={handleUserSelect} 
+            handleVote={handleVote}
+            showVoteDialog={showVoteDialog}
+            setShowVoteDialog={setShowVoteDialog}
+            voteTargetUser={voteTargetUser}
+            setVoteTargetUser={setVoteTargetUser}
+            starsAmount={starsAmount}
+            setStarsAmount={setStarsAmount}
+          />
         )}
 
         {/* Profile Tab */}
