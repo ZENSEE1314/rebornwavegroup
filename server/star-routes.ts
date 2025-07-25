@@ -461,7 +461,10 @@ export function registerStarRoutes(app: Express) {
   // KOS Like endpoint (bypassing authentication like star trading endpoints) - INDIVIDUAL GIVES STARS IMMEDIATELY
   app.post('/api/kos/like', async (req, res) => {
     try {
+      console.log("*** ========== LIKE REQUEST START ==========");
       console.log("*** LIKE REQUEST RECEIVED (STAR-ROUTES):", req.body);
+      console.log("*** REQUEST HEADERS:", req.headers);
+      
       // Use hardcoded user ID for testing (same as star trading endpoints)
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** LIKE USER ID (hardcoded for testing):", userId);
@@ -471,21 +474,27 @@ export function registerStarRoutes(app: Express) {
 
       // Validate required parameters
       if (!targetUserId) {
+        console.log("*** LIKE ERROR: Missing targetUserId");
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
+      console.log("*** CALLING STORAGE.TOGGLEUSERLIKE");
       // Like button gives likes AND awards stars based on mode
       const result = await storage.toggleUserLike(userId, targetUserId, mode);
       console.log("*** LIKE TOGGLE RESULT (MODE-SPECIFIC STARS):", result);
 
+      console.log("*** LIKE SUCCESS - SENDING RESPONSE");
       res.json({ 
         success: true, 
         message: result.liked ? `Successfully liked user ${targetUserId}` : `Successfully unliked user ${targetUserId}`,
         liked: result.liked
       });
+      
+      console.log("*** ========== LIKE REQUEST END ==========");
 
     } catch (error) {
       console.error("*** LIKE ERROR (STAR-ROUTES):", error);
+      console.error("*** LIKE ERROR STACK:", error.stack);
       res.status(500).json({ error: 'Internal server error during like operation' });
     }
   });

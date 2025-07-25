@@ -291,6 +291,10 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           return res.json();
         });
       } else {
+        console.log('*** FRONTEND LIKE MUTATION - Starting fetch request');
+        console.log('*** Request URL:', '/api/kos/like');
+        console.log('*** Request body:', { targetUserId, mode: kosActiveTab });
+        
         return fetch('/api/kos/like', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -300,8 +304,18 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
             mode: kosActiveTab // Pass the current mode (individual or tournament)
           })
         }).then(res => {
-          if (!res.ok) throw new Error('Failed to like');
+          console.log('*** FRONTEND LIKE RESPONSE - Status:', res.status, 'OK:', res.ok);
+          if (!res.ok) {
+            console.log('*** FRONTEND LIKE ERROR - Response not OK');
+            throw new Error(`Failed to like - Status: ${res.status}`);
+          }
           return res.json();
+        }).then(data => {
+          console.log('*** FRONTEND LIKE SUCCESS - Response data:', data);
+          return data;
+        }).catch(error => {
+          console.error('*** FRONTEND LIKE FETCH ERROR:', error);
+          throw error;
         });
       }
     },
