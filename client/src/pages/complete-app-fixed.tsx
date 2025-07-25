@@ -150,69 +150,34 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
               </span>
             </div>
 
-            {/* Top Supporters Box - 3 Circular Photos */}
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <div className="text-xs font-medium text-gray-700 mb-2">Top Supporters</div>
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
-                <div className="flex justify-center space-x-4">
-                  {/* Show top contributors if available */}
-                  {topContributors && topContributors.length > 0 ? (
-                    <>
-                      {topContributors.slice(0, 3).map((contributor: any, idx: number) => (
-                        <div key={contributor.contributorUserId} className="flex flex-col items-center">
-                          {/* Circular Photo */}
-                          <div className="relative">
-                            {contributor.profileImageUrl ? (
-                              <img
-                                src={contributor.profileImageUrl}
-                                alt={contributor.username || contributor.firstName || "Supporter"}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md"
-                              />
-                            ) : (
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white border-2 border-white shadow-md ${
-                                idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
-                                idx === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' :
-                                'bg-gradient-to-br from-purple-400 to-purple-600'
-                              }`}>
-                                {(contributor.username || contributor.firstName || "S").charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            {/* Star count badge */}
-                            <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-5 flex items-center justify-center font-bold shadow-md">
-                              {contributor.totalStars}
-                            </div>
-                          </div>
-                          {/* Name below photo */}
-                          <div className="text-xs text-gray-700 font-medium mt-2 text-center max-w-[70px] truncate">
-                            {contributor.username || contributor.firstName || 'Anonymous'}
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Fill empty slots with placeholder circles if less than 3 supporters */}
-                      {Array.from({ length: Math.max(0, 3 - topContributors.length) }).map((_, idx) => (
-                        <div key={`empty-${idx}`} className="flex flex-col items-center">
-                          <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white flex items-center justify-center shadow-md">
-                            <User className="w-5 h-5 text-gray-400" />
-                          </div>
-                          <div className="text-xs text-gray-400 mt-2 font-medium">No supporter</div>
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    /* Show 3 empty slots when no contributors */
-                    Array.from({ length: 3 }).map((_, idx) => (
-                      <div key={`empty-${idx}`} className="flex flex-col items-center">
-                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white flex items-center justify-center shadow-md">
-                          <User className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <div className="text-xs text-gray-400 mt-2 font-medium">No supporter</div>
+            {/* Top Supporters - 3 Circular Photos aligned with username */}
+            {topContributors && topContributors.length > 0 && (
+              <div className="flex items-center space-x-1 mt-1">
+                {topContributors.slice(0, 3).map((contributor: any, idx: number) => (
+                  <div key={contributor.contributorUserId} className="relative">
+                    {contributor.profileImageUrl ? (
+                      <img
+                        src={contributor.profileImageUrl}
+                        alt={contributor.username || contributor.firstName || "Supporter"}
+                        className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white border border-gray-200 ${
+                        idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
+                        idx === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                        'bg-gradient-to-br from-purple-400 to-purple-600'
+                      }`}>
+                        {(contributor.username || contributor.firstName || "S").charAt(0).toUpperCase()}
                       </div>
-                    ))
-                  )}
-                </div>
+                    )}
+                    {/* Small star count */}
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-yellow-400 text-white text-xs rounded-full w-3 h-3 flex items-center justify-center font-bold text-[8px]">
+                      {contributor.totalStars}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
           
           {/* Action buttons */}
@@ -254,21 +219,148 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
   );
 };
 
-// Simple test export default function
+// KOS (Kings Of Singers) Section Component
+function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
+  const { toast } = useToast();
+  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Fetch real KOS users data
+  const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
+    queryKey: ['/api/kos/users', kosActiveTab, currentPage],
+    queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
+    staleTime: 0,
+    cacheTime: 0,
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Tournament/Individual Tabs */}
+      <div className="flex justify-center">
+        <div className="bg-white rounded-lg p-1 shadow-sm border">
+          <button
+            onClick={() => setKosActiveTab('tournament')}
+            className={`px-6 py-2 rounded-md font-medium transition-all ${
+              kosActiveTab === 'tournament'
+                ? 'bg-purple-500 text-white shadow-sm'
+                : 'text-gray-600 hover:text-purple-600'
+            }`}
+          >
+            Tournament Mode
+          </button>
+          <button
+            onClick={() => setKosActiveTab('individual')}
+            className={`px-6 py-2 rounded-md font-medium transition-all ${
+              kosActiveTab === 'individual'
+                ? 'bg-purple-500 text-white shadow-sm'
+                : 'text-gray-600 hover:text-purple-600'
+            }`}
+          >
+            Individual Mode
+          </button>
+        </div>
+      </div>
+
+      {/* Users List */}
+      <div className="space-y-4">
+        {kosUsersLoading ? (
+          <div className="text-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-500" />
+            <p className="text-gray-600 mt-2">Loading users...</p>
+          </div>
+        ) : kosUsers.length > 0 ? (
+          <>
+            {/* Top 3 Users */}
+            {kosUsers.slice(0, 3).map((userItem: any, index: number) => (
+              <UserCard key={userItem.id} userItem={userItem} isTop3={true} index={index} />
+            ))}
+            
+            {/* Remaining Users */}
+            {kosUsers.slice(3).map((userItem: any, index: number) => (
+              <UserCard key={userItem.id} userItem={userItem} isTop3={false} index={index + 3} />
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No users found</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main Complete App Component
 export default function CompleteApp() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("kos");
   
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8">KOS - Kings Of Singers</h1>
-        <p className="text-center text-gray-600 mb-8">Top Contributors System Test</p>
-        
-        <div className="space-y-4">
-          <UserCard userItem={{ id: 1, username: "test_user", totalStars: 100, votes: 50 }} isTop3={true} index={0} />
-          <UserCard userItem={{ id: 2, username: "another_user", totalStars: 80, votes: 30 }} isTop3={false} index={1} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <img src={logoImage} alt="KOS Logo" className="w-10 h-10" />
+              <h1 className="text-2xl font-bold text-purple-600">Kings Of Singers</h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                Welcome, {user?.username || user?.firstName || 'User'}!
+              </span>
+              <Button variant="outline" size="sm">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab("kos")}
+              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                activeTab === "kos"
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              KOS Competition
+            </button>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                activeTab === "profile"
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Profile
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {activeTab === "kos" && (
+          <KOSSection user={user} queryClient={queryClient} />
+        )}
+        
+        {activeTab === "profile" && (
+          <div className="bg-white rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">User Profile</h2>
+            <p className="text-gray-600">Profile management coming soon...</p>
+          </div>
+        )}
       </div>
     </div>
   );
