@@ -3494,9 +3494,9 @@ export class DatabaseStorage implements IStorage {
         const newLikedStatus = !existingLike.isLiked;
         await this.updateUserLikeStatus(fromUserId, toUserId, newLikedStatus);
         
-        // If liking (not unliking), award 1 individual star
+        // If liking (not unliking), award 1 individual star directly (no star deduction for likes)
         if (newLikedStatus) {
-          await this.castVote(fromUserId, toUserId, 1); // No tournamentId = individual like
+          await this.awardIndividualStar(toUserId, 1);
         }
         
         return { liked: newLikedStatus };
@@ -3508,13 +3508,47 @@ export class DatabaseStorage implements IStorage {
           isLiked: true
         });
         
-        // Award 1 individual star for new like
-        await this.castVote(fromUserId, toUserId, 1); // No tournamentId = individual like
+        // Award 1 individual star for new like (no star deduction for likes)
+        await this.awardIndividualStar(toUserId, 1);
         
         return { liked: true };
       }
     } catch (error) {
       console.error('Error toggling user like:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to award individual stars (for likes) without deducting from voter
+  async awardIndividualStar(userId: string, amount: number): Promise<void> {
+    try {
+      // Get or create user stars data
+      let userStarsData = await this.getUserStars(userId);
+      
+      if (!userStarsData) {
+        // Create user stars if they don't exist
+        userStarsData = await this.createUserStars({
+          userId,
+          totalStars: 0,
+          tournamentStars: 0,
+          individualStars: 0,
+          totalEarnings: "0.00",
+          influencerRank: "Newbie Spark",
+          influencerTier: 1,
+          influencerPoints: 0
+        });
+      }
+
+      // Add to individual stars only (for individual leaderboard)
+      const newIndividualStars = userStarsData.individualStars + amount;
+      
+      await this.updateUserStars(userId, {
+        individualStars: newIndividualStars
+      });
+
+      console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}`);
+    } catch (error) {
+      console.error('Error awarding individual star:', error);
       throw error;
     }
   }

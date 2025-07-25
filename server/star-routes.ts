@@ -412,4 +412,36 @@ export function registerStarRoutes(app: Express) {
       res.status(500).json({ error: 'Internal server error during voting' });
     }
   });
+
+  // KOS Like endpoint (bypassing authentication like star trading endpoints)
+  app.post('/api/kos/like', async (req, res) => {
+    try {
+      console.log("*** LIKE REQUEST RECEIVED (STAR-ROUTES):", req.body);
+      // Use hardcoded user ID for testing (same as star trading endpoints)
+      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      console.log("*** LIKE USER ID (hardcoded for testing):", userId);
+
+      const { targetUserId } = req.body;
+      console.log("*** LIKE DETAILS - targetUserId:", targetUserId);
+
+      // Validate required parameters
+      if (!targetUserId) {
+        return res.status(400).json({ error: "Target user ID is required" });
+      }
+
+      // Toggle like (like/unlike) - this awards individual stars, not tournament stars
+      const result = await storage.toggleUserLike(userId, targetUserId);
+      console.log("*** LIKE TOGGLE RESULT:", result);
+
+      res.json({ 
+        success: true, 
+        message: result.liked ? "Like added successfully" : "Like removed successfully",
+        liked: result.liked
+      });
+
+    } catch (error) {
+      console.error("*** LIKE ERROR (STAR-ROUTES):", error);
+      res.status(500).json({ error: 'Internal server error during like operation' });
+    }
+  });
 }
