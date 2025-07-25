@@ -130,6 +130,11 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Target Receives**: Tournament votes add to target user's tournament stars (prize pool accumulation)
 - **Individual vs Tournament**: Individual mode affects individualStars, tournament mode affects tournamentStars
 - **Complete Separation**: Each mode now correctly manages its respective star pools with proper target user allocation
+- **STORAGE LAYER FIX**: ✅ FIXED CASTVOTE METHOD TO ADD TO TOURNAMENT STARS INSTEAD OF INDIVIDUAL STARS
+- **Root Cause Resolution**: castVote method was incorrectly adding tournament votes to individual stars
+- **Tournament Star Allocation**: Fixed castVote to properly add to target user's tournamentStars and totalStars
+- **Enhanced Debug Logging**: Added comprehensive logging in castVote method to track tournament star allocation
+- **Complete Tournament System**: Tournament votes now correctly deduct from voter's total stars and add to target user's tournament stars
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE KOS (KINGS OF SINGERS) BACKEND IMPLEMENTATION FINISHED

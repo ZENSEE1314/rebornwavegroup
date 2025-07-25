@@ -3871,10 +3871,11 @@ export class DatabaseStorage implements IStorage {
 
   async castVote(fromUserId: string, toUserId: string, starsAmount: number, tournamentId?: number): Promise<void> {
     try {
-      // Note: Star validation and deduction handled in calling endpoint
-
-      // Determine vote type based on tournament ID
-      const voteType = tournamentId ? 'tournament_vote' : 'individual_like';
+      console.log("*** CASTVOTE METHOD CALLED - tournamentId:", tournamentId);
+      
+      // Note: This method is only called for tournament votes now
+      // Individual votes are handled directly via awardIndividualStar
+      const voteType = 'tournament_vote';
 
       // Create star transaction for the vote
       await this.createStarTransaction({
@@ -3886,22 +3887,17 @@ export class DatabaseStorage implements IStorage {
         status: 'completed'
       });
 
-      // Add stars to appropriate category for target user
+      // Add stars to target user's tournament stars (prize pool)
       const targetStarsData = await this.getUserStars(toUserId);
       if (targetStarsData) {
         const updateData: any = {
-          influencerPoints: targetStarsData.influencerPoints + starsAmount
+          influencerPoints: targetStarsData.influencerPoints + starsAmount,
+          // Tournament vote - add to tournament stars AND total stars
+          tournamentStars: targetStarsData.tournamentStars + starsAmount,
+          totalStars: targetStarsData.totalStars + starsAmount
         };
-
-        if (tournamentId) {
-          // Tournament vote - add to tournament stars only (not immediately tradeable)
-          updateData.tournamentStars = targetStarsData.tournamentStars + starsAmount;
-        } else {
-          // Individual like - add to individual stars AND total stars (immediately tradeable)
-          updateData.individualStars = targetStarsData.individualStars + starsAmount;
-          updateData.totalStars = targetStarsData.totalStars + starsAmount;
-        }
-
+        
+        console.log("*** CASTVOTE - UPDATING TARGET USER TOURNAMENT STARS:", updateData);
         await this.updateUserStars(toUserId, updateData);
       } else {
         // Create user stars record if doesn't exist
@@ -3910,19 +3906,14 @@ export class DatabaseStorage implements IStorage {
           influencerPoints: starsAmount,
           influencerRank: 'Bronze I',
           influencerTier: 1,
-          totalEarnings: '0.00'
+          totalEarnings: '0.00',
+          // Tournament vote - tournament stars AND total stars
+          tournamentStars: starsAmount,
+          totalStars: starsAmount,
+          individualStars: 0
         };
 
-        if (tournamentId) {
-          // Tournament vote - only tournament stars
-          createData.tournamentStars = starsAmount;
-          createData.totalStars = 0; // Tournament stars not tradeable yet
-        } else {
-          // Individual like - both individual and total stars
-          createData.individualStars = starsAmount;
-          createData.totalStars = starsAmount; // Individual stars immediately tradeable
-        }
-
+        console.log("*** CASTVOTE - CREATING NEW TARGET USER WITH TOURNAMENT STARS:", createData);
         await this.createUserStars(createData);
       }
 
