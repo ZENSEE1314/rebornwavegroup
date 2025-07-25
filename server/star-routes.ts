@@ -421,22 +421,46 @@ export function registerStarRoutes(app: Express) {
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** LIKE USER ID (hardcoded for testing):", userId);
 
-      const { targetUserId } = req.body;
-      console.log("*** LIKE DETAILS - targetUserId:", targetUserId);
+      const { targetUserId, starsAmount = 1 } = req.body;
+      console.log("*** LIKE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount);
 
       // Validate required parameters
       if (!targetUserId) {
         return res.status(400).json({ error: "Target user ID is required" });
       }
 
-      // Toggle like (like/unlike) - this awards individual stars, not tournament stars
-      const result = await storage.toggleUserLike(userId, targetUserId);
-      console.log("*** LIKE TOGGLE RESULT:", result);
+      // Check if voting user has enough stars
+      let userStars;
+      try {
+        userStars = await storage.getUserStars(userId);
+        console.log("*** CURRENT USER STARS:", userStars);
+      } catch (error) {
+        console.log("*** User stars not found, creating default");
+        userStars = { totalStars: 0 };
+      }
+
+      const currentStars = userStars?.totalStars || 0;
+      console.log("*** CHECKING STARS FOR INDIVIDUAL VOTE - Current:", currentStars, "Required:", starsAmount);
+
+      if (currentStars < starsAmount) {
+        return res.status(400).json({ error: "Insufficient stars for individual voting" });
+      }
+
+      // Deduct stars from voting user (same as tournament voting)
+      const newStarsCount = currentStars - starsAmount;
+      await storage.updateUserStars(userId, { totalStars: newStarsCount });
+      console.log("*** STARS DEDUCTED FOR INDIVIDUAL VOTE - Old:", currentStars, "New:", newStarsCount);
+
+      // Award individual stars to recipient (amount based on starsAmount)
+      await storage.awardIndividualStar(targetUserId, starsAmount);
+      console.log("*** INDIVIDUAL STARS AWARDED:", starsAmount);
+
+      const remainingStars = newStarsCount;
 
       res.json({ 
         success: true, 
-        message: result.liked ? "Like added successfully" : "Like removed successfully",
-        liked: result.liked
+        message: `Successfully voted ${starsAmount} stars for user ${targetUserId} (individual)`,
+        remainingStars: remainingStars
       });
 
     } catch (error) {

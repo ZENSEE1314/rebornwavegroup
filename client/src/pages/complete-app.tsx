@@ -337,24 +337,29 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       return;
     }
 
-    // Determine action based on current tab
-    if (kosActiveTab === 'tournament') {
-      // Tournament mode - always use vote with stars
-      setVoteTargetUser(targetUser);
-      setShowVoteDialog(true);
-    } else {
-      // Individual mode - use like (no stars required)
-      voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
-    }
+    // Always show vote dialog for both tournament and individual modes
+    setVoteTargetUser(targetUser);
+    setShowVoteDialog(true);
   };
 
   const handleConfirmVote = () => {
     if (voteTargetUser) {
-      voteMutation.mutate({ 
-        targetUserId: voteTargetUser.id, 
-        type: 'vote',
-        starsAmount: voteStarsAmount
-      });
+      // Route to different endpoints based on active tab
+      if (kosActiveTab === 'tournament') {
+        // Tournament mode - use vote endpoint with stars
+        voteMutation.mutate({ 
+          targetUserId: voteTargetUser.id, 
+          type: 'vote',
+          starsAmount: voteStarsAmount
+        });
+      } else {
+        // Individual mode - use like endpoint with stars
+        voteMutation.mutate({ 
+          targetUserId: voteTargetUser.id, 
+          type: 'like',
+          starsAmount: voteStarsAmount
+        });
+      }
     }
   };
 
