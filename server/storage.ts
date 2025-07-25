@@ -3696,7 +3696,8 @@ export class DatabaseStorage implements IStorage {
         return {
           id: user.userId,
           name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
-          photo: user.profileImageUrl || '/api/placeholder/50/50',
+          photo: user.profileImageUrl || '/api/placeholder/50/50', // Legacy field
+          profileImageUrl: user.profileImageUrl, // New field for frontend consistency
           // Use mode-specific stars for display
           stars: type === 'tournament' ? (userStarsData?.tournamentStars || 0) : (userStarsData?.individualStars || 0),
           totalStars: userStarsData?.totalStars || 0, // Keep for trading balance
