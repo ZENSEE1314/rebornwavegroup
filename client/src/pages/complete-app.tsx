@@ -127,6 +127,25 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
   const [showStarHistory, setShowStarHistory] = useState(false);
 
+  // User dialog state
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  // Helper functions for search click handlers
+  const handleIndividualSearchClick = (result: any) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    setSelectedUser(result);
+    setShowUserDialog(true);
+  };
+
+  const handleTournamentSearchClick = (result: any) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    setSelectedUser(result);
+    setShowUserDialog(true);
+  };
+
   // Star price constants (1 star = 1000 RP)
   const STAR_PRICE = 1000;
   const SELL_RETURN_RATE = 0.7; // 70% return rate
@@ -990,11 +1009,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                           <div
                             key={result.id}
                             className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              setSearchQuery('');
-                              setShowSearchResults(false);
-                              // You could scroll to user or highlight them here
-                            }}
+                            onClick={() => handleTournamentSearchClick(result)}
                           >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm">
                               👤
@@ -1090,6 +1105,69 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <TabsContent value="individual" className="space-y-6">
           <h3 className="text-xl font-semibold text-gray-900">Individual Rankings</h3>
           
+          {/* Ranking System Information */}
+          <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <CardContent className="p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Award className="w-5 h-5 text-indigo-600" />
+                Individual Ranking System
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
+                  { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
+                  { tier: 3, name: "Bright Talent", minStars: 500, maxStars: 999, color: "bg-blue-500" },
+                  { tier: 4, name: "Shining Voice", minStars: 1000, maxStars: 2499, color: "bg-purple-500" },
+                  { tier: 5, name: "Golden Singer", minStars: 2500, maxStars: 4999, color: "bg-yellow-500" },
+                  { tier: 6, name: "Platinum Voice", minStars: 5000, maxStars: 9999, color: "bg-gray-400" },
+                  { tier: 7, name: "Diamond Star", minStars: 10000, maxStars: 19999, color: "bg-cyan-500" },
+                  { tier: 8, name: "Royal Performer", minStars: 20000, maxStars: 39999, color: "bg-pink-500" },
+                  { tier: 9, name: "Legendary Voice", minStars: 40000, maxStars: 74999, color: "bg-red-500" },
+                  { tier: 10, name: "Supreme Artist", minStars: 75000, maxStars: 149999, color: "bg-orange-500" },
+                  { tier: 11, name: "Celestial Singer", minStars: 150000, maxStars: 299999, color: "bg-violet-500" },
+                  { tier: 12, name: "Mythical Legend", minStars: 300000, maxStars: 599999, color: "bg-rose-500" },
+                  { tier: 13, name: "Cosmic Voice", minStars: 600000, maxStars: 999999, color: "bg-emerald-500" },
+                  { tier: 14, name: "Universal Star", minStars: 1000000, maxStars: 1999999, color: "bg-amber-500" },
+                  { tier: 15, name: "Infinite Harmony", minStars: 2000000, maxStars: 4999999, color: "bg-teal-500" },
+                  { tier: 16, name: "Eternal Melody", minStars: 5000000, maxStars: 9999999, color: "bg-indigo-500" },
+                  { tier: 17, name: "Divine Virtuoso", minStars: 10000000, maxStars: 24999999, color: "bg-lime-500" },
+                  { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
+                ].map((rank) => (
+                  <div key={rank.tier} className="bg-white p-4 rounded-lg border hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-8 h-8 rounded-full ${rank.color} flex items-center justify-center text-white font-bold text-sm`}>
+                        {rank.tier}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900 text-sm">{rank.name}</div>
+                        <div className="text-xs text-gray-600">
+                          Tier {rank.tier}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-700">
+                      <div className="font-medium">Stars Required:</div>
+                      <div>
+                        {rank.minStars.toLocaleString()} - {rank.maxStars ? rank.maxStars.toLocaleString() : '∞'} stars
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm text-blue-800">
+                  <div className="font-semibold mb-2">📊 Ranking System Rules:</div>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Rankings are based on <strong>total received stars</strong> (not purchased stars)</li>
+                    <li>• Stars received from individual votes and likes count toward your rank</li>
+                    <li>• Tournament stars are separate and don't affect individual rankings</li>
+                    <li>• Your tier automatically updates when you reach the required star count</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
           {/* Search Bar */}
           <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
             <CardContent className="p-6">
@@ -1117,11 +1195,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                           <div
                             key={result.id}
                             className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              setSearchQuery('');
-                              setShowSearchResults(false);
-                              // You could scroll to user or highlight them here
-                            }}
+                            onClick={() => handleIndividualSearchClick(result)}
                           >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm">
                               👤
@@ -11856,6 +11930,163 @@ export default function CompleteApp() {
         onSkip={skipGuide}
         characterImage={doluruuGrandpaImage}
       />
+
+      {/* User Profile Dialog */}
+      {showUserDialog && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">User Profile</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowUserDialog(false);
+                    setSelectedUser(null);
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+
+              {/* Profile Photo and Basic Info */}
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
+                  {selectedUser.profileImageUrl ? (
+                    <img
+                      src={selectedUser.profileImageUrl}
+                      alt={selectedUser.username}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <span className="text-2xl">👤</span>
+                  )}
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900">@{selectedUser.username}</h4>
+                <p className="text-sm text-gray-600">{selectedUser.firstName} {selectedUser.lastName}</p>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-blue-600">
+                    {selectedUser.individualStars || 0}
+                  </div>
+                  <div className="text-xs text-blue-700">Individual Stars</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-purple-600">
+                    {selectedUser.tournamentStars || 0}
+                  </div>
+                  <div className="text-xs text-purple-700">Tournament Stars</div>
+                </div>
+                <div className="bg-pink-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-pink-600">
+                    {selectedUser.likes || 0}
+                  </div>
+                  <div className="text-xs text-pink-700">Likes Received</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-green-600">
+                    {selectedUser.totalStars || 0}
+                  </div>
+                  <div className="text-xs text-green-700">Total Stars</div>
+                </div>
+              </div>
+
+              {/* Ranking Information */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h5 className="font-semibold text-gray-900 mb-2">Individual Ranking</h5>
+                <div className="text-sm text-gray-700">
+                  {(() => {
+                    const totalReceivedStars = selectedUser.individualStars || 0;
+                    const ranks = [
+                      { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
+                      { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
+                      { tier: 3, name: "Bright Talent", minStars: 500, maxStars: 999, color: "bg-blue-500" },
+                      { tier: 4, name: "Shining Voice", minStars: 1000, maxStars: 2499, color: "bg-purple-500" },
+                      { tier: 5, name: "Golden Singer", minStars: 2500, maxStars: 4999, color: "bg-yellow-500" },
+                      { tier: 6, name: "Platinum Voice", minStars: 5000, maxStars: 9999, color: "bg-gray-400" },
+                      { tier: 7, name: "Diamond Star", minStars: 10000, maxStars: 19999, color: "bg-cyan-500" },
+                      { tier: 8, name: "Royal Performer", minStars: 20000, maxStars: 39999, color: "bg-pink-500" },
+                      { tier: 9, name: "Legendary Voice", minStars: 40000, maxStars: 74999, color: "bg-red-500" },
+                      { tier: 10, name: "Supreme Artist", minStars: 75000, maxStars: 149999, color: "bg-orange-500" },
+                      { tier: 11, name: "Celestial Singer", minStars: 150000, maxStars: 299999, color: "bg-violet-500" },
+                      { tier: 12, name: "Mythical Legend", minStars: 300000, maxStars: 599999, color: "bg-rose-500" },
+                      { tier: 13, name: "Cosmic Voice", minStars: 600000, maxStars: 999999, color: "bg-emerald-500" },
+                      { tier: 14, name: "Universal Star", minStars: 1000000, maxStars: 1999999, color: "bg-amber-500" },
+                      { tier: 15, name: "Infinite Harmony", minStars: 2000000, maxStars: 4999999, color: "bg-teal-500" },
+                      { tier: 16, name: "Eternal Melody", minStars: 5000000, maxStars: 9999999, color: "bg-indigo-500" },
+                      { tier: 17, name: "Divine Virtuoso", minStars: 10000000, maxStars: 24999999, color: "bg-lime-500" },
+                      { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
+                    ];
+                    
+                    const currentRank = ranks.find(rank => 
+                      totalReceivedStars >= rank.minStars && 
+                      (rank.maxStars === null || totalReceivedStars <= rank.maxStars)
+                    ) || ranks[0];
+                    
+                    const nextRank = ranks.find(rank => rank.tier === currentRank.tier + 1);
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-6 h-6 rounded-full ${currentRank.color} flex items-center justify-center text-white font-bold text-xs`}>
+                            {currentRank.tier}
+                          </div>
+                          <span className="font-semibold">{currentRank.name}</span>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Current: {totalReceivedStars.toLocaleString()} stars
+                        </div>
+                        {nextRank && (
+                          <div className="text-xs text-gray-600">
+                            Next tier: {(nextRank.minStars - totalReceivedStars).toLocaleString()} stars needed
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    // Handle like action
+                    handleVote(selectedUser.id, 'like', kosActiveTab);
+                    setShowUserDialog(false);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 bg-pink-500 hover:bg-pink-600 text-white"
+                  size="sm"
+                >
+                  <Heart className="w-4 h-4 mr-1" />
+                  Like
+                </Button>
+                <Button
+                  onClick={() => {
+                    // Handle vote action
+                    setVoteTargetUser(selectedUser);
+                    setShowVoteDialog(true);
+                    setShowUserDialog(false);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white"
+                  size="sm"
+                >
+                  <Star className="w-4 h-4 mr-1" />
+                  Vote
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
