@@ -128,7 +128,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const [showStarHistory, setShowStarHistory] = useState(false);
 
   // User dialog state
-  const [showUserDialog, setShowUserDialog] = useState<boolean>(false);
+  const [userProfileDialogOpen, setUserProfileDialogOpen] = useState<boolean>(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
   // Helper functions for search click handlers
@@ -136,14 +136,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
     setSearchQuery('');
     setShowSearchResults(false);
     setSelectedUser(result);
-    setShowUserDialog(true);
+    setUserProfileDialogOpen(true);
   };
 
   const handleTournamentSearchClick = (result: any) => {
     setSearchQuery('');
     setShowSearchResults(false);
     setSelectedUser(result);
-    setShowUserDialog(true);
+    setUserProfileDialogOpen(true);
   };
 
   // Star price constants (1 star = 1000 RP)
@@ -11932,7 +11932,7 @@ export default function CompleteApp() {
       />
 
       {/* User Profile Dialog */}
-      {showUserDialog && selectedUser && (
+      {userProfileDialogOpen && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
@@ -11943,7 +11943,7 @@ export default function CompleteApp() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setShowUserDialog(false);
+                    setUserProfileDialogOpen(false);
                     setSelectedUser(null);
                   }}
                   className="h-8 w-8 p-0"
@@ -12059,7 +12059,7 @@ export default function CompleteApp() {
                   onClick={() => {
                     // Handle like action
                     handleVote(selectedUser.id, 'like', kosActiveTab);
-                    setShowUserDialog(false);
+                    setUserProfileDialogOpen(false);
                     setSelectedUser(null);
                   }}
                   className="flex-1 bg-pink-500 hover:bg-pink-600 text-white"
@@ -12073,7 +12073,7 @@ export default function CompleteApp() {
                     // Handle vote action
                     setVoteTargetUser(selectedUser);
                     setShowVoteDialog(true);
-                    setShowUserDialog(false);
+                    setUserProfileDialogOpen(false);
                     setSelectedUser(null);
                   }}
                   className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white"
