@@ -3658,6 +3658,7 @@ export class DatabaseStorage implements IStorage {
       const allUsers = await db
         .select({
           userId: users.id,
+          username: users.username,
           firstName: users.firstName,
           lastName: users.lastName,
           profileImageUrl: users.profileImageUrl,
@@ -3695,6 +3696,9 @@ export class DatabaseStorage implements IStorage {
 
         return {
           id: user.userId,
+          username: user.username, // Add username field for frontend
+          firstName: user.firstName, // Add firstName field
+          lastName: user.lastName, // Add lastName field
           name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
           photo: user.profileImageUrl || '/api/placeholder/50/50', // Legacy field
           profileImageUrl: user.profileImageUrl, // New field for frontend consistency
