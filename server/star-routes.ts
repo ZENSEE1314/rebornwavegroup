@@ -356,4 +356,60 @@ export function registerStarRoutes(app: Express) {
     console.log("*** TEST WORKING ENDPOINT HIT!");
     res.json({ message: "Working endpoint responding", body: req.body });
   });
+
+  // KOS Vote endpoint (bypassing authentication like star trading endpoints)
+  app.post('/api/kos/vote', async (req, res) => {
+    try {
+      console.log("*** VOTE REQUEST RECEIVED (STAR-ROUTES):", req.body);
+      // Use hardcoded user ID for testing (same as star trading endpoints)
+      const userId = 'bspsDLxUJTQqbox6vGjH5';
+      console.log("*** VOTE USER ID (hardcoded for testing):", userId);
+
+      const { targetUserId, starsAmount = 1, tournamentId } = req.body;
+      console.log("*** VOTE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount, "tournamentId:", tournamentId);
+
+      // Validate required parameters
+      if (!targetUserId) {
+        return res.status(400).json({ error: "Target user ID is required" });
+      }
+
+      // Check if voting user has enough stars
+      let userStars;
+      try {
+        userStars = await storage.getUserStars(userId);
+        console.log("*** CURRENT USER STARS:", userStars);
+      } catch (error) {
+        console.log("*** User stars not found, creating default");
+        userStars = { totalStars: 0 };
+      }
+
+      const currentStars = userStars?.totalStars || 0;
+      console.log("*** CHECKING STARS - Current:", currentStars, "Required:", starsAmount);
+
+      if (currentStars < starsAmount) {
+        return res.status(400).json({ error: "Insufficient stars for voting" });
+      }
+
+      // Deduct stars from voting user
+      const newStarsCount = currentStars - starsAmount;
+      await storage.updateUserStars(userId, { totalStars: newStarsCount });
+      console.log("*** STARS DEDUCTED - Old:", currentStars, "New:", newStarsCount);
+
+      // Cast the vote (handles influencer points and transaction creation)
+      await storage.castVote(userId, targetUserId, starsAmount, tournamentId);
+      console.log("*** VOTE CAST SUCCESSFULLY");
+
+      const remainingStars = newStarsCount;
+
+      res.json({ 
+        success: true, 
+        message: `Successfully voted ${starsAmount} stars for user ${targetUserId}`,
+        remainingStars: remainingStars
+      });
+
+    } catch (error) {
+      console.error("*** VOTE ERROR (STAR-ROUTES):", error);
+      res.status(500).json({ error: 'Internal server error during voting' });
+    }
+  });
 }

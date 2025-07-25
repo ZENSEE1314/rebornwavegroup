@@ -3822,25 +3822,15 @@ export class DatabaseStorage implements IStorage {
 
   async castVote(fromUserId: string, toUserId: string, starsAmount: number, tournamentId?: number): Promise<void> {
     try {
-      // Check if user has enough stars
-      const userStarsData = await this.getUserStars(fromUserId);
-      if (!userStarsData || userStarsData.totalStars < starsAmount) {
-        throw new Error('Insufficient stars to vote');
-      }
-
-      // Deduct stars from voter
-      await this.updateUserStars(fromUserId, {
-        totalStars: userStarsData.totalStars - starsAmount
-      });
+      // Note: Star validation and deduction handled in calling endpoint
 
       // Create star transaction for the vote
       await this.createStarTransaction({
-        userId: fromUserId,
-        targetUserId: toUserId,
-        tournamentId,
-        amount: starsAmount,
+        fromUserId: fromUserId,
+        toUserId: toUserId,
+        starsAmount: starsAmount,
         type: 'vote',
-        description: `Vote cast for user ${toUserId}`,
+        tournamentId,
         status: 'completed'
       });
 
