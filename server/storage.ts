@@ -4013,6 +4013,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Get all star contributions data (both givers and receivers)
+  async getAllStarContributions(): Promise<Array<{ recipientUserId: string; contributorUserId: string; totalStarsGiven: number }>> {
+    try {
+      const contributions = await db
+        .select({
+          recipientUserId: starContributors.recipientUserId,
+          contributorUserId: starContributors.contributorUserId,
+          totalStarsGiven: starContributors.totalStarsGiven
+        })
+        .from(starContributors)
+        .orderBy(desc(starContributors.totalStarsGiven));
+
+      return contributions;
+    } catch (error) {
+      console.error('Error getting all star contributions:', error);
+      return [];
+    }
+  }
+
   // Get total stars contributed by each user (how many stars they have given to others)
   async getUserStarContributions(): Promise<Array<{ userId: string; totalStarsGiven: number }>> {
     try {

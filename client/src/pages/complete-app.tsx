@@ -577,6 +577,76 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
               <div className="text-xs text-gray-500 mt-1">
                 {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} Stars Supported
               </div>
+              
+              {/* Top 3 Supporters Photos */}
+              <div className="mt-2">
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  <Award className="w-3 h-3" />
+                  Top 3 Supporters:
+                </div>
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    // Find top 3 users who gave stars to this user
+                    const userSupporters = userContributions
+                      .filter((c: any) => c.recipientUserId === userItem.id)
+                      .sort((a: any, b: any) => (b.totalStarsGiven || 0) - (a.totalStarsGiven || 0))
+                      .slice(0, 3);
+                    
+                    if (userSupporters.length === 0) {
+                      return (
+                        <div className="flex items-center gap-1">
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <User className="w-3 h-3 text-gray-400" />
+                          </div>
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <User className="w-3 h-3 text-gray-400" />
+                          </div>
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                            <User className="w-3 h-3 text-gray-400" />
+                          </div>
+                          <span className="text-xs text-gray-400 ml-1">No supporters yet</span>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="flex items-center gap-1">
+                        {userSupporters.map((supporter: any, index: number) => {
+                          const supporterUser = kosUsers.find((u: any) => u.id === supporter.contributorUserId);
+                          const borderColor = index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-400' : 'border-amber-400';
+                          
+                          return (
+                            <div key={supporter.contributorUserId} className={`w-6 h-6 rounded-full ${borderColor} border-2 overflow-hidden bg-gray-200`}>
+                              {supporterUser?.profileImageUrl ? (
+                                <img 
+                                  src={supporterUser.profileImageUrl} 
+                                  alt={supporterUser.username || 'Supporter'} 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-xs">
+                                  👤
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        
+                        {/* Fill remaining slots with placeholder */}
+                        {Array.from({ length: 3 - userSupporters.length }).map((_, index) => (
+                          <div key={`placeholder-${index}`} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center">
+                            <User className="w-3 h-3 text-gray-400" />
+                          </div>
+                        ))}
+                        
+                        <span className="text-xs text-gray-500 ml-1">
+                          {userSupporters.reduce((sum: number, s: any) => sum + (s.totalStarsGiven || 0), 0)} stars received
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
 
           {/* Action Buttons - Hide for own profile */}

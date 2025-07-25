@@ -9040,7 +9040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user star contributions (how many stars each user has given to others)
   app.get("/api/kos/user-contributions", async (req, res) => {
     try {
-      const contributions = await storage.getUserStarContributions();
+      const contributions = await storage.getAllStarContributions();
       res.json(contributions);
     } catch (error) {
       console.error("Error fetching user star contributions:", error);
