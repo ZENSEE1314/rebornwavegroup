@@ -3824,13 +3824,13 @@ export class DatabaseStorage implements IStorage {
     try {
       // Check if user has enough stars
       const userStarsData = await this.getUserStars(fromUserId);
-      if (!userStarsData || userStarsData.stars < starsAmount) {
+      if (!userStarsData || userStarsData.totalStars < starsAmount) {
         throw new Error('Insufficient stars to vote');
       }
 
       // Deduct stars from voter
       await this.updateUserStars(fromUserId, {
-        stars: userStarsData.stars - starsAmount
+        totalStars: userStarsData.totalStars - starsAmount
       });
 
       // Create star transaction for the vote
@@ -3854,7 +3854,6 @@ export class DatabaseStorage implements IStorage {
         // Create user stars record if doesn't exist
         await this.createUserStars({
           userId: toUserId,
-          stars: 0,
           totalStars: 0,
           influencerPoints: starsAmount,
           influencerRank: 'Bronze I',

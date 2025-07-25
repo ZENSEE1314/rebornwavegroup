@@ -281,8 +281,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ 
-            fromUserId: user?.id,
-            toUserId: targetUserId, 
+            targetUserId, 
             starsAmount: starsAmount || 1,
             tournamentId: currentTournament?.id 
           })
