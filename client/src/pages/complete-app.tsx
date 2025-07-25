@@ -128,7 +128,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   const [showStarHistory, setShowStarHistory] = useState(false);
 
   // User dialog state
-  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [showUserDialog, setShowUserDialog] = useState<boolean>(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
   // Helper functions for search click handlers
