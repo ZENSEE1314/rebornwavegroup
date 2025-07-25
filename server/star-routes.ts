@@ -8,14 +8,14 @@ export function registerStarRoutes(app: Express) {
   
   // Working star purchase endpoint
   app.post('/api/kos/purchase-stars-working', requireAuth, async (req, res) => {
-    console.log("*** ========================================");
-    console.log("*** WORKING STAR PURCHASE ENDPOINT HIT!");
-    console.log("*** ========================================");
-    console.log("Request body:", req.body);
-    console.log("Session:", req.session);
-    console.log("User:", req.user);
-    
     try {
+      console.log("*** ========================================");
+      console.log("*** WORKING STAR PURCHASE ENDPOINT HIT!");
+      console.log("*** ========================================");
+      console.log("Request body:", req.body);
+      console.log("Session:", req.session);
+      console.log("User:", req.user);
+      
       const userId = getUserId(req);
       console.log("Extracted User ID:", userId);
       
