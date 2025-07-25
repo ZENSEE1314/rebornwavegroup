@@ -393,18 +393,16 @@ export function registerStarRoutes(app: Express) {
 
       // Mode-specific star deduction and voting logic
       if (mode === 'individual') {
-        // Individual mode: Deduct from individual stars and award immediately
-        console.log("*** INDIVIDUAL MODE - DEDUCTING FROM INDIVIDUAL STARS");
-        const newIndividualStars = userStars.individualStars - starsAmount;
+        // Individual mode: Deduct from voter's TOTAL stars (payment), award individual stars to target
+        console.log("*** INDIVIDUAL MODE - DEDUCTING FROM VOTER'S TOTAL STARS");
         const newTotalStars = currentStars - starsAmount;
         await storage.updateUserStars(userId, { 
-          individualStars: newIndividualStars,
           totalStars: newTotalStars 
         });
-        console.log("*** INDIVIDUAL STARS DEDUCTED - Old:", userStars.individualStars, "New:", newIndividualStars);
+        console.log("*** VOTER'S TOTAL STARS DEDUCTED - Old:", currentStars, "New:", newTotalStars);
         
         await storage.awardIndividualStar(targetUserId, starsAmount);
-        console.log("*** INDIVIDUAL STARS AWARDED IMMEDIATELY:", starsAmount);
+        console.log("*** INDIVIDUAL STARS AWARDED TO TARGET IMMEDIATELY:", starsAmount);
 
         res.json({ 
           success: true, 

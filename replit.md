@@ -85,6 +85,10 @@ A comprehensive digital financial management and collectible toy platform that c
 - **Mode Parameter Verification**: Confirmed voting system already correctly passes `kosActiveTab` mode parameter (individual/tournament) to backend endpoints
 - **Tournament System Status**: Complete tournament timer system now fully operational with proper API communication
 - **Voting Logic Verified**: Tournament voting system confirmed passing correct mode parameters for proper prize pool vs immediate star allocation
+- **CRITICAL INDIVIDUAL VOTING FIX**: ✅ FIXED NEGATIVE INDIVIDUAL STARS BUG - Corrected individual voting to deduct from voter's total stars instead of individual stars
+- **Individual Star Logic Correction**: Individual mode now properly deducts payment from voter's total star balance and awards individual stars to target user
+- **Voting Payment System**: Both individual and tournament modes now correctly deduct stars from voter's total balance as payment method
+- **Negative Balance Resolution**: Fixed issue where individual voting was causing negative individual star balances (-3 individualStars) due to incorrect deduction logic
 
 ### Complete KOS Like vs Vote System Implementation (July 25, 2025)
 - **MAJOR ACHIEVEMENT**: ✅ COMPLETE LIKE VS VOTE SYSTEM WITH CORRECT BEHAVIORS FULLY OPERATIONAL
