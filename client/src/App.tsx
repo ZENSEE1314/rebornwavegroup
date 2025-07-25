@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useEffect } from "react";
 import Landing from "@/pages/landing";
 import Login from "@/pages/Login";
-import CompleteApp from "@/pages/complete-app-fixed";
+import CompleteApp from "@/pages/complete-app";
 import Bookings from "@/pages/bookings-working";
 import Marketplace from "@/pages/marketplace-working";
 import Referrals from "@/pages/referrals";

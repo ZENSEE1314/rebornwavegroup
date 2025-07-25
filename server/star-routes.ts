@@ -403,10 +403,6 @@ export function registerStarRoutes(app: Express) {
         
         await storage.awardIndividualStar(targetUserId, starsAmount);
         console.log("*** INDIVIDUAL STARS AWARDED TO TARGET IMMEDIATELY:", starsAmount);
-        
-        // Track star contribution for top contributors display
-        await storage.updateStarContribution(targetUserId, userId, starsAmount);
-        console.log("*** STAR CONTRIBUTION TRACKED FOR:", userId, "->", targetUserId, "amount:", starsAmount);
 
         res.json({ 
           success: true, 
@@ -441,10 +437,6 @@ export function registerStarRoutes(app: Express) {
         });
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
         console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars.individualStars);
-        
-        // Track star contribution for top contributors display
-        await storage.updateStarContribution(targetUserId, userId, starsAmount);
-        console.log("*** STAR CONTRIBUTION TRACKED FOR TOURNAMENT VOTE:", userId, "->", targetUserId, "amount:", starsAmount);
         
         // TOURNAMENT TIMER SYSTEM: Check/Create active tournament and set 7-day timer
         await ensureActiveTournament();

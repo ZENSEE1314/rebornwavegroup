@@ -350,7 +350,6 @@ export interface IStorage {
   getStarContributors(recipientUserId: string): Promise<StarContributor[]>;
   updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void>;
   getTopContributors(recipientUserId: string, limit?: number): Promise<StarContributor[]>;
-  getTopContributorsWithUserDetails(recipientUserId: string, limit?: number): Promise<Array<StarContributor & { contributor: User }>>;
 
   // Influencer Ranks operations
   getAllInfluencerRanks(): Promise<InfluencerRank[]>;
@@ -3595,32 +3594,6 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(starContributors)
-      .where(eq(starContributors.recipientUserId, recipientUserId))
-      .orderBy(desc(starContributors.totalStarsGiven))
-      .limit(limit);
-  }
-
-  async getTopContributorsWithUserDetails(recipientUserId: string, limit: number = 3): Promise<Array<StarContributor & { contributor: User }>> {
-    return await db
-      .select({
-        id: starContributors.id,
-        recipientUserId: starContributors.recipientUserId,
-        contributorUserId: starContributors.contributorUserId,
-        totalStarsGiven: starContributors.totalStarsGiven,
-        lastContributionDate: starContributors.lastContributionDate,
-        createdAt: starContributors.createdAt,
-        updatedAt: starContributors.updatedAt,
-        contributor: {
-          id: users.id,
-          username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          profileImageUrl: users.profileImageUrl,
-          email: users.email,
-        }
-      })
-      .from(starContributors)
-      .innerJoin(users, eq(starContributors.contributorUserId, users.id))
       .where(eq(starContributors.recipientUserId, recipientUserId))
       .orderBy(desc(starContributors.totalStarsGiven))
       .limit(limit);
