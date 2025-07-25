@@ -7,7 +7,7 @@ export function registerStarRoutes(app: Express) {
   console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
   
   // Working star purchase endpoint
-  app.post('/api/kos/purchase-stars-working', requireAuth, async (req, res) => {
+  app.post('/api/kos/purchase-stars-working', async (req, res) => {
     try {
       console.log("*** ========================================");
       console.log("*** WORKING STAR PURCHASE ENDPOINT HIT!");
