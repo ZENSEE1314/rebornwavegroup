@@ -3493,14 +3493,24 @@ export class DatabaseStorage implements IStorage {
         // Toggle the existing like status
         const newLikedStatus = !existingLike.isLiked;
         await this.updateUserLikeStatus(fromUserId, toUserId, newLikedStatus);
+        
+        // If liking (not unliking), award 1 individual star
+        if (newLikedStatus) {
+          await this.castVote(fromUserId, toUserId, 1); // No tournamentId = individual like
+        }
+        
         return { liked: newLikedStatus };
       } else {
-        // Create new like relationship
+        // Create new like relationship and award star
         await this.createUserLike({
           fromUserId,
           toUserId,
           isLiked: true
         });
+        
+        // Award 1 individual star for new like
+        await this.castVote(fromUserId, toUserId, 1); // No tournamentId = individual like
+        
         return { liked: true };
       }
     } catch (error) {
@@ -3651,8 +3661,11 @@ export class DatabaseStorage implements IStorage {
           id: user.userId,
           name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
           photo: user.profileImageUrl || '/api/placeholder/50/50',
-          stars: userStarsData?.totalStars || 0,
-          totalStars: userStarsData?.totalStars || 0,
+          // Use mode-specific stars for display
+          stars: type === 'tournament' ? (userStarsData?.tournamentStars || 0) : (userStarsData?.individualStars || 0),
+          totalStars: userStarsData?.totalStars || 0, // Keep for trading balance
+          tournamentStars: userStarsData?.tournamentStars || 0,
+          individualStars: userStarsData?.individualStars || 0,
           likes: likesCount?.count || 0,
           votes: votesCount?.total || 0,
           influencerRank: userStarsData?.influencerRank || 'Bronze I',
@@ -3662,14 +3675,14 @@ export class DatabaseStorage implements IStorage {
         };
       }));
 
-      // Sort based on type - FIXED: Sort by actual star balances, not votes received
+      // Sort based on type - Use mode-specific stars for leaderboard ranking
       const sortedUsers = usersWithKOS.sort((a, b) => {
         if (type === 'tournament') {
-          // Sort by actual star balance (totalStars) instead of votes received
-          return b.totalStars - a.totalStars;
+          // Sort by tournament stars received (not total tradeable stars)
+          return b.tournamentStars - a.tournamentStars;
         } else {
-          // Individual rankings sort by likes received
-          return b.likes - a.likes;
+          // Individual rankings sort by individual stars received  
+          return b.individualStars - a.individualStars;
         }
       });
 
@@ -3826,33 +3839,57 @@ export class DatabaseStorage implements IStorage {
     try {
       // Note: Star validation and deduction handled in calling endpoint
 
+      // Determine vote type based on tournament ID
+      const voteType = tournamentId ? 'tournament_vote' : 'individual_like';
+
       // Create star transaction for the vote
       await this.createStarTransaction({
         fromUserId: fromUserId,
         toUserId: toUserId,
         starsAmount: starsAmount,
-        type: 'vote',
+        type: voteType,
         tournamentId,
         status: 'completed'
       });
 
-      // Add stars and influence points to target user
+      // Add stars to appropriate category for target user
       const targetStarsData = await this.getUserStars(toUserId);
       if (targetStarsData) {
-        await this.updateUserStars(toUserId, {
-          totalStars: targetStarsData.totalStars + starsAmount,
+        const updateData: any = {
           influencerPoints: targetStarsData.influencerPoints + starsAmount
-        });
+        };
+
+        if (tournamentId) {
+          // Tournament vote - add to tournament stars only (not immediately tradeable)
+          updateData.tournamentStars = targetStarsData.tournamentStars + starsAmount;
+        } else {
+          // Individual like - add to individual stars AND total stars (immediately tradeable)
+          updateData.individualStars = targetStarsData.individualStars + starsAmount;
+          updateData.totalStars = targetStarsData.totalStars + starsAmount;
+        }
+
+        await this.updateUserStars(toUserId, updateData);
       } else {
         // Create user stars record if doesn't exist
-        await this.createUserStars({
+        const createData: any = {
           userId: toUserId,
-          totalStars: starsAmount,
           influencerPoints: starsAmount,
           influencerRank: 'Bronze I',
           influencerTier: 1,
           totalEarnings: '0.00'
-        });
+        };
+
+        if (tournamentId) {
+          // Tournament vote - only tournament stars
+          createData.tournamentStars = starsAmount;
+          createData.totalStars = 0; // Tournament stars not tradeable yet
+        } else {
+          // Individual like - both individual and total stars
+          createData.individualStars = starsAmount;
+          createData.totalStars = starsAmount; // Individual stars immediately tradeable
+        }
+
+        await this.createUserStars(createData);
       }
 
       // Update influencer rank if needed
