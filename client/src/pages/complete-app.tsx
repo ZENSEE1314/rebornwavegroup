@@ -527,10 +527,19 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   };
 
   const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
-    // Find how many stars this user has given to others
+    // Find how many stars this user has given to others (context-aware)
     const totalStarsSupported = userContributions
       .filter((c: any) => c.contributorUserId === userItem.id)
-      .reduce((sum: number, c: any) => sum + (c.totalStarsGiven || 0), 0);
+      .reduce((sum: number, c: any) => {
+        // For now, we'll use total stars given since we need to update the backend to track individual vs tournament stars
+        // TODO: Implement context-aware star contribution tracking in backend
+        const starsGiven = kosActiveTab === 'tournament' 
+          ? (c.tournamentStarsGiven || 0)  // Use tournament-specific stars when available
+          : (c.individualStarsGiven || 0); // Use individual-specific stars when available
+        
+        // Fallback to total stars for now until backend is updated
+        return sum + (starsGiven || c.totalStarsGiven || 0);
+      }, 0);
     
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
@@ -582,7 +591,7 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
                 </div>
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} Stars Supported
+                {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} {kosActiveTab === 'tournament' ? 'Tournament' : 'Individual'} Stars Supported
               </div>
               
               {/* Top 3 Supporters Photos */}
@@ -720,8 +729,15 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
         <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || userStarsData?.stars || 0}</div>
-            <div className="text-xs text-gray-600">My Stars</div>
+            <div className="text-xl font-bold text-gray-900">
+              {kosActiveTab === 'tournament' 
+                ? (userStarsData?.tournamentStars || 0)
+                : (userStarsData?.individualStars || 0)
+              }
+            </div>
+            <div className="text-xs text-gray-600">
+              {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
+            </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
