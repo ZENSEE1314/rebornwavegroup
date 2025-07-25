@@ -16,7 +16,7 @@ import {
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
   Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp,
-  Volume2, VolumeX, Search, BarChart3
+  Volume2, VolumeX, Search, BarChart3, Info
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import logoImage from "@assets/2-removebg-preview.png";
@@ -330,8 +330,15 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
   });
 
   const handleVote = async (targetUser: any, type: 'vote' | 'like') => {
+    console.log('*** HANDLE VOTE CALLED ***');
+    console.log('Target User:', targetUser);
+    console.log('Type:', type);
+    console.log('Current User:', user?.id);
+    console.log('Current Mode:', kosActiveTab);
+    
     // Prevent self-voting
     if (targetUser.id === user?.id) {
+      console.log('*** PREVENTING SELF-VOTE ***');
       toast({
         title: "Cannot Vote for Yourself",
         description: "You cannot vote for your own profile.",
@@ -342,10 +349,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
 
     // Different behavior based on tab and type
     if (type === 'vote') {
+      console.log('*** VOTE BUTTON CLICKED - SHOWING DIALOG ***');
       // Both individual and tournament modes show vote dialog with star selection
       setVoteTargetUser(targetUser);
       setShowVoteDialog(true);
     } else if (type === 'like') {
+      console.log('*** LIKE BUTTON CLICKED - CALLING MUTATION ***');
+      console.log('Making like request to:', '/api/kos/like');
+      console.log('Request body will include:', { targetUserId: targetUser.id, mode: kosActiveTab });
       // Like button - same behavior for both modes (awards likes only)
       voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
     }
@@ -726,6 +737,75 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
           
           {/* Tournament Timer */}
           <TournamentTimer tournament={currentTournament} />
+          
+          {/* Tournament Rules */}
+          <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50">
+            <CardContent className="p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Info className="w-5 h-5 text-purple-600" />
+                7-Day Tournament Rules
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">1</div>
+                    <div>
+                      <div className="font-medium text-gray-900">7-Day Competition</div>
+                      <div className="text-sm text-gray-600">Each tournament runs for exactly 7 days</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">2</div>
+                    <div>
+                      <div className="font-medium text-gray-900">Prize Pool System</div>
+                      <div className="text-sm text-gray-600">All tournament votes go to prize pool</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">3</div>
+                    <div>
+                      <div className="font-medium text-gray-900">Top 10 Winners</div>
+                      <div className="text-sm text-gray-600">Only top 10 performers win prizes</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">4</div>
+                    <div>
+                      <div className="font-medium text-gray-900">Automatic Distribution</div>
+                      <div className="text-sm text-gray-600">Prizes awarded automatically after 7 days</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h5 className="font-semibold text-gray-900 mb-2">Prize Distribution</h5>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-yellow-600 font-medium">🥇 1st Place:</span>
+                        <span className="font-bold">30%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 font-medium">🥈 2nd Place:</span>
+                        <span className="font-bold">20%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-amber-600 font-medium">🥉 3rd Place:</span>
+                        <span className="font-bold">15%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">4th-5th Place:</span>
+                        <span>10% & 8%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">6th-10th Place:</span>
+                        <span>6%, 4%, 3%, 2%, 2%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
           {/* Previous Winners */}
           <PreviousWinners winners={previousWinners} />
