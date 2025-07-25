@@ -97,6 +97,8 @@ A comprehensive digital financial management and collectible toy platform that c
   - **Star Purchase System**: Multiple successful star purchases with real-time database updates
   - **Star Selling System**: 70% return rate (700 RP per star) functioning correctly
 - **API Endpoints Verified**: All KOS endpoints functioning with proper authentication bypass for testing
+- **CRITICAL VOTING BUG FIX**: ✅ RESOLVED TOURNAMENT/INDIVIDUAL VOTING MISMATCH - Fixed frontend parameter mismatch ('tournaments' vs 'tournament') and enhanced handleVote function to properly differentiate between tournament votes and individual likes based on active tab
+- **Frontend Tab Integration**: Tournament tab now exclusively uses vote dialog with star spending, Individual tab uses direct likes without stars
 - **Production Status**: Complete mode-specific system operational - tournament votes affect tournament leaderboard only, individual likes affect individual leaderboard only, separate tradeable star balance maintained
 
 ### Complete KOS Backend Implementation & Username Profile Integration (January 24, 2025)

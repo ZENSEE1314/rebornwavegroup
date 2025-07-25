@@ -337,11 +337,14 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       return;
     }
 
-    if (type === 'vote') {
+    // Determine action based on current tab
+    if (kosActiveTab === 'tournament') {
+      // Tournament mode - always use vote with stars
       setVoteTargetUser(targetUser);
       setShowVoteDialog(true);
     } else {
-      voteMutation.mutate({ targetUserId: targetUser.id, type });
+      // Individual mode - use like (no stars required)
+      voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
     }
   };
 
