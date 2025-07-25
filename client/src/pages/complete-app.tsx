@@ -337,29 +337,25 @@ function KOSSection({ user, queryClient }: { user: any; queryClient: any }) {
       return;
     }
 
-    // Always show vote dialog for both tournament and individual modes
-    setVoteTargetUser(targetUser);
-    setShowVoteDialog(true);
+    // Different behavior based on tab and type
+    if (kosActiveTab === 'tournament' && type === 'vote') {
+      // Tournament mode - show vote dialog with star selection
+      setVoteTargetUser(targetUser);
+      setShowVoteDialog(true);
+    } else if (kosActiveTab === 'individual' && type === 'like') {
+      // Individual mode - direct like without dialog (no stars required)
+      voteMutation.mutate({ targetUserId: targetUser.id, type: 'like' });
+    }
   };
 
   const handleConfirmVote = () => {
     if (voteTargetUser) {
-      // Route to different endpoints based on active tab
-      if (kosActiveTab === 'tournament') {
-        // Tournament mode - use vote endpoint with stars
-        voteMutation.mutate({ 
-          targetUserId: voteTargetUser.id, 
-          type: 'vote',
-          starsAmount: voteStarsAmount
-        });
-      } else {
-        // Individual mode - use like endpoint with stars
-        voteMutation.mutate({ 
-          targetUserId: voteTargetUser.id, 
-          type: 'like',
-          starsAmount: voteStarsAmount
-        });
-      }
+      // Tournament mode only - vote with stars using vote endpoint
+      voteMutation.mutate({ 
+        targetUserId: voteTargetUser.id, 
+        type: 'vote',
+        starsAmount: voteStarsAmount
+      });
     }
   };
 
