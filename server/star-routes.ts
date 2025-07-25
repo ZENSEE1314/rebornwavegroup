@@ -367,6 +367,7 @@ export function registerStarRoutes(app: Express) {
 
       const { targetUserId, starsAmount = 1, mode } = req.body;
       console.log("*** VOTE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount, "mode:", mode);
+      console.log("*** VOTER ID vs TARGET ID - Voter:", userId, "Target:", targetUserId, "Same User?", userId === targetUserId);
 
       // Validate required parameters
       if (!targetUserId) {
@@ -437,6 +438,7 @@ export function registerStarRoutes(app: Express) {
           totalStars: newTargetTotalStars 
         });
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
+        console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars.individualStars);
         
         // Note: Tournament stars already allocated above, no need for castVote call
         console.log("*** TOURNAMENT VOTE COMPLETE - STARS ADDED TO PRIZE POOL:", starsAmount);
