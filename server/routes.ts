@@ -495,6 +495,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       const { starsAmount } = req.body;
       
+      if (!starsAmount || starsAmount <= 0) {
+        console.log("❌ Invalid stars amount:", starsAmount);
+        return res.status(400).json({ error: 'Invalid star amount' });
+      }
+      
       // Calculate RP return (70% of purchase price: 1000 RP per star * 0.7 = 700 RP per star)
       const rpReturn = starsAmount * 700;
       console.log("Selling:", starsAmount, "stars for", rpReturn, "RP (70% return rate)");
@@ -502,14 +507,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user exists
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log("❌ User not found:", userId);
         return res.status(404).json({ error: 'User not found' });
       }
+      console.log("✓ User found:", user.email);
 
       // Get current stars
       let userStars;
       try {
         userStars = await storage.getUserStars(userId);
+        console.log("✓ User stars retrieved:", userStars);
       } catch (error) {
+        console.log("❌ No stars found for user:", error);
         return res.status(400).json({ error: 'No stars found for this user' });
       }
 
@@ -517,7 +526,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Current stars:", currentStars, "Selling:", starsAmount);
 
       if (currentStars < starsAmount) {
-        return res.status(400).json({ error: 'Insufficient stars' });
+        console.log("❌ Insufficient stars - Current:", currentStars, "Required:", starsAmount);
+        return res.status(400).json({ error: `Insufficient stars. You have ${currentStars} stars but trying to sell ${starsAmount}` });
       }
 
       // Update stars
@@ -531,18 +541,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserCredits(userId, newCredits.toString());
       console.log("✓ Credits updated:", currentCredits, "→", newCredits);
 
-      // Create transaction record for history
+      // Create transaction record for history (with enhanced error logging)
       try {
-        const sellRecord = await storage.createStarPurchase({
+        const sellData = {
           userId: userId,
           starsAmount: -starsAmount, // Negative for selling
           rpCost: rpReturn.toString(),
           paymentMethod: 'star_sale',
           status: 'completed'
-        });
-        console.log("✓ Sell transaction record created:", sellRecord.id);
+        };
+        console.log("*** Creating sell record with data:", sellData);
+        
+        const sellRecord = await storage.createStarPurchase(sellData);
+        console.log("✓ Sell transaction record created successfully:", sellRecord.id);
       } catch (error) {
-        console.log("⚠️ Failed to create sell transaction record:", error.message || error);
+        console.log("⚠️ CRITICAL: Failed to create sell transaction record");
+        console.log("⚠️ Error message:", error.message);
+        console.log("⚠️ Full error:", error);
+        console.log("⚠️ Error stack:", error.stack);
+        // Continue anyway - don't let transaction history failure block the sale
       }
 
       console.log("*** STAR SELLING COMPLETED SUCCESSFULLY");
