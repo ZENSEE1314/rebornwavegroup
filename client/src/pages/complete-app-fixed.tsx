@@ -41,8 +41,9 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
   
   // Fetch top contributors for this user
   const { data: topContributors = [] } = useQuery({
-    queryKey: ['/api/kos/top-contributors-with-details', userItem.id],
-    queryFn: () => fetch(`/api/kos/top-contributors-with-details/${userItem.id}`).then(res => res.json()),
+    queryKey: ['/api/kos/top-contributors-with-details', userItem?.id],
+    queryFn: () => fetch(`/api/kos/top-contributors-with-details/${userItem?.id}`).then(res => res.json()),
+    enabled: !!userItem?.id,
     staleTime: 5000,
   });
 
@@ -77,7 +78,7 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
       return;
     }
 
-    if (targetUser.id === user.id) {
+    if (targetUser?.id === user?.id) {
       toast({
         title: "Cannot vote for yourself",
         description: "You cannot vote for your own profile",
@@ -86,7 +87,7 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
       return;
     }
 
-    voteMutation.mutate({ targetUserId: targetUser.id, type });
+    voteMutation.mutate({ targetUserId: targetUser?.id, type });
   };
 
   return (
@@ -149,43 +150,73 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
               </span>
             </div>
 
-            {/* Top Supporters Section */}
-            {topContributors && topContributors.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-100">
-                <div className="text-xs font-medium text-gray-700 mb-1">Top Supporters:</div>
-                <div className="flex space-x-1">
-                  {topContributors.slice(0, 3).map((contributor: any, idx: number) => (
-                    <div key={contributor.contributorUserId} className="flex items-center space-x-1">
-                      {contributor.profileImageUrl ? (
-                        <img
-                          src={contributor.profileImageUrl}
-                          alt={contributor.username || contributor.firstName || "Supporter"}
-                          className="w-6 h-6 rounded-full object-cover border border-gray-200"
-                        />
-                      ) : (
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white ${
-                          idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
-                          idx === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' :
-                          'bg-gradient-to-br from-purple-400 to-purple-600'
-                        }`}>
-                          {(contributor.username || contributor.firstName || "S").charAt(0).toUpperCase()}
+            {/* Top Supporters Box - 3 Circular Photos */}
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <div className="text-xs font-medium text-gray-700 mb-2">Top Supporters</div>
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
+                <div className="flex justify-center space-x-4">
+                  {/* Show top contributors if available */}
+                  {topContributors && topContributors.length > 0 ? (
+                    <>
+                      {topContributors.slice(0, 3).map((contributor: any, idx: number) => (
+                        <div key={contributor.contributorUserId} className="flex flex-col items-center">
+                          {/* Circular Photo */}
+                          <div className="relative">
+                            {contributor.profileImageUrl ? (
+                              <img
+                                src={contributor.profileImageUrl}
+                                alt={contributor.username || contributor.firstName || "Supporter"}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white border-2 border-white shadow-md ${
+                                idx === 0 ? 'bg-gradient-to-br from-blue-400 to-blue-600' :
+                                idx === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                                'bg-gradient-to-br from-purple-400 to-purple-600'
+                              }`}>
+                                {(contributor.username || contributor.firstName || "S").charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            {/* Star count badge */}
+                            <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] h-5 flex items-center justify-center font-bold shadow-md">
+                              {contributor.totalStars}
+                            </div>
+                          </div>
+                          {/* Name below photo */}
+                          <div className="text-xs text-gray-700 font-medium mt-2 text-center max-w-[70px] truncate">
+                            {contributor.username || contributor.firstName || 'Anonymous'}
+                          </div>
                         </div>
-                      )}
-                      <span className="text-xs text-gray-600">
-                        {contributor.username || `${contributor.firstName || ''} ${contributor.lastName || ''}`.trim() || 'Anonymous'}
-                      </span>
-                      <span className="text-xs text-yellow-600 font-medium">
-                        {contributor.totalStars}⭐
-                      </span>
-                    </div>
-                  ))}
+                      ))}
+                      
+                      {/* Fill empty slots with placeholder circles if less than 3 supporters */}
+                      {Array.from({ length: Math.max(0, 3 - topContributors.length) }).map((_, idx) => (
+                        <div key={`empty-${idx}`} className="flex flex-col items-center">
+                          <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white flex items-center justify-center shadow-md">
+                            <User className="w-5 h-5 text-gray-400" />
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2 font-medium">No supporter</div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    /* Show 3 empty slots when no contributors */
+                    Array.from({ length: 3 }).map((_, idx) => (
+                      <div key={`empty-${idx}`} className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 bg-white flex items-center justify-center shadow-md">
+                          <User className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <div className="text-xs text-gray-400 mt-2 font-medium">No supporter</div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
           
           {/* Action buttons */}
-          {userItem.id !== user?.id && (
+          {userItem?.id !== user?.id && (
             <div className="flex flex-col space-y-1">
               <Button
                 size={isTop3 ? "default" : "sm"}
@@ -209,7 +240,7 @@ const UserCard = ({ userItem, isTop3 = false, index }: { userItem: any; isTop3?:
             </div>
           )}
           {/* Show "You" badge for own profile */}
-          {userItem.id === user?.id && (
+          {userItem?.id === user?.id && (
             <div className="flex items-center">
               <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                 <User className="w-3 h-3 mr-1" />
