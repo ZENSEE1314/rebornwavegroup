@@ -405,6 +405,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserStars(userId, { totalStars: newStarsCount });
       console.log("✓ Stars updated:", currentStars, "→", newStarsCount);
 
+      // Create transaction record for history
+      try {
+        const purchaseRecord = await storage.createStarPurchase({
+          userId: userId,
+          starsAmount: starsAmount,
+          rpCost: rpCost,
+          transactionType: 'purchase',
+          status: 'completed'
+        });
+        console.log("✓ Transaction record created:", purchaseRecord.id);
+      } catch (error) {
+        console.log("⚠️ Failed to create transaction record:", error);
+      }
+
       console.log("*** FINAL STAR PURCHASE COMPLETED SUCCESSFULLY");
       res.json({ 
         success: true, 
@@ -437,9 +451,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get star purchase history
       let starHistory = [];
       try {
-        starHistory = await storage.getStarPurchaseHistory(userId);
+        starHistory = await storage.getStarPurchasesByUserId(userId);
+        console.log("*** STAR HISTORY FOUND:", starHistory);
       } catch (error) {
-        console.log("No star history found");
+        console.log("*** No star history found:", error);
         starHistory = [];
       }
       
@@ -508,6 +523,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newCredits = currentCredits + rpReturn;
       await storage.updateUserCredits(userId, newCredits.toString());
       console.log("✓ Credits updated:", currentCredits, "→", newCredits);
+
+      // Create transaction record for history
+      try {
+        const sellRecord = await storage.createStarPurchase({
+          userId: userId,
+          starsAmount: starsAmount,
+          rpCost: rpReturn,
+          transactionType: 'sale',
+          status: 'completed'
+        });
+        console.log("✓ Sell transaction record created:", sellRecord.id);
+      } catch (error) {
+        console.log("⚠️ Failed to create sell transaction record:", error);
+      }
 
       console.log("*** STAR SELLING COMPLETED SUCCESSFULLY");
       res.json({ 
