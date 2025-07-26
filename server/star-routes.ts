@@ -20,7 +20,9 @@ export function registerStarRoutes(app: Express) {
         // Create initial stars record if it doesn't exist
         const newUserStars = await storage.createUserStars({
           userId,
-          stars: 0,
+          totalStars: 0,
+          individualStars: 0,
+          tournamentStars: 0,
           influencerPoints: 0,
           influencerTier: 1,
           totalEarnings: "0.00"
@@ -112,9 +114,7 @@ export function registerStarRoutes(app: Express) {
           fromUserId: userId,
           toUserId: userId,
           starsAmount: starsAmount,
-          type: 'purchase',
-          rpCost: rpCost,
-          description: `Purchased ${starsAmount} stars for ${rpCost} RP`
+          type: 'purchase'
         });
         console.log("✓ Star transaction created");
       } catch (error) {
@@ -429,14 +429,14 @@ export function registerStarRoutes(app: Express) {
           targetUserStars = { totalStars: 0, tournamentStars: 0, individualStars: 0 };
         }
         
-        const newTargetTournamentStars = (targetUserStars.tournamentStars || 0) + starsAmount;
-        const newTargetTotalStars = (targetUserStars.totalStars || 0) + starsAmount;
+        const newTargetTournamentStars = (targetUserStars?.tournamentStars || 0) + starsAmount;
+        const newTargetTotalStars = (targetUserStars?.totalStars || 0) + starsAmount;
         await storage.updateUserStars(targetUserId, { 
           tournamentStars: newTargetTournamentStars,
           totalStars: newTargetTotalStars 
         });
-        console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars.tournamentStars, "New:", newTargetTournamentStars);
-        console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars.individualStars);
+        console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars?.tournamentStars, "New:", newTargetTournamentStars);
+        console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars?.individualStars);
         
         // TOURNAMENT TIMER SYSTEM: Check/Create active tournament and set 7-day timer
         await ensureActiveTournament();
@@ -494,7 +494,7 @@ export function registerStarRoutes(app: Express) {
 
     } catch (error) {
       console.error("*** LIKE ERROR (STAR-ROUTES):", error);
-      console.error("*** LIKE ERROR STACK:", error.stack);
+      console.error("*** LIKE ERROR STACK:", (error as Error).stack);
       res.status(500).json({ error: 'Internal server error during like operation' });
     }
   });
@@ -566,7 +566,7 @@ async function distributeTournamentPrizes(tournamentId: number) {
     console.log("*** DISTRIBUTING TOURNAMENT PRIZES FOR TOURNAMENT:", tournamentId);
     
     // Get all KOS users with their tournament stars (sorted by tournament stars desc)
-    const users = await storage.getKOSUsersWithRankings('tournament');
+    const users = await storage.getKOSUsersWithRankings('tournament', '', 1, 1000);
     console.log("*** TOURNAMENT PARTICIPANTS:", users.length);
     
     // Get top 10 users based on tournament stars

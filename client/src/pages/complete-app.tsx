@@ -432,12 +432,20 @@ function KOSSection({
 
   const handleConfirmVote = () => {
     if (voteTargetUser) {
-      // Tournament mode only - vote with stars using vote endpoint
+      // Vote with stars using vote endpoint (works for both individual and tournament modes)
+      console.log('*** SUBMITTING VOTE:', {
+        targetUserId: voteTargetUser.id,
+        type: 'vote', 
+        starsAmount: voteStarsAmount,
+        mode: kosActiveTab
+      });
       voteMutation.mutate({ 
         targetUserId: voteTargetUser.id, 
         type: 'vote',
         starsAmount: voteStarsAmount
       });
+      setShowVoteDialog(false);
+      setVoteTargetUser(null);
     }
   };
 
