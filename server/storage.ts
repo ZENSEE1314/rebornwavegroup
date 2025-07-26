@@ -3536,6 +3536,12 @@ export class DatabaseStorage implements IStorage {
   // Helper method to award individual stars (for likes) without deducting from voter
   async awardIndividualStar(userId: string, amount: number, createTransaction: boolean = true): Promise<void> {
     try {
+      // First check if target user exists in users table
+      const targetUser = await this.getUser(userId);
+      if (!targetUser) {
+        throw new Error(`Target user ${userId} does not exist`);
+      }
+      
       // Get or create user stars data
       let userStarsData = await this.getUserStars(userId);
       
@@ -3575,6 +3581,8 @@ export class DatabaseStorage implements IStorage {
           status: 'completed'
         });
         console.log(`*** INDIVIDUAL STAR TRANSACTION CREATED - Type: individual_like`);
+      } else {
+        console.log(`*** INDIVIDUAL STAR TRANSACTION SKIPPED (createTransaction: false)`);
       }
 
       console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);

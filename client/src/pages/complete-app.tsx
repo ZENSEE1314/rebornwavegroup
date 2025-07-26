@@ -321,6 +321,14 @@ function KOSSection({
   const voteMutation = useMutation({
     mutationFn: ({ targetUserId, type, starsAmount }: { targetUserId: string; type: 'vote' | 'like'; starsAmount?: number }) => {
       if (type === 'vote') {
+        console.log('*** FRONTEND VOTE MUTATION - Starting fetch request');
+        console.log('*** Vote URL:', '/api/kos/vote');
+        console.log('*** Vote request body:', { 
+          targetUserId, 
+          starsAmount: starsAmount || 1,
+          mode: kosActiveTab
+        });
+        
         return fetch('/api/kos/vote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -331,8 +339,18 @@ function KOSSection({
             mode: kosActiveTab // Pass the current mode (individual or tournament)
           })
         }).then(res => {
-          if (!res.ok) throw new Error('Failed to vote');
+          console.log('*** FRONTEND VOTE RESPONSE - Status:', res.status, 'OK:', res.ok);
+          if (!res.ok) {
+            console.log('*** FRONTEND VOTE ERROR - Response not OK');
+            throw new Error(`Failed to vote - Status: ${res.status}`);
+          }
           return res.json();
+        }).then(data => {
+          console.log('*** FRONTEND VOTE SUCCESS - Response data:', data);
+          return data;
+        }).catch(error => {
+          console.error('*** FRONTEND VOTE FETCH ERROR:', error);
+          throw error;
         });
       } else {
         console.log('*** FRONTEND LIKE MUTATION - Starting fetch request');

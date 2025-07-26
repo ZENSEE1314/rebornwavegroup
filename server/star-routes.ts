@@ -360,7 +360,12 @@ export function registerStarRoutes(app: Express) {
   // KOS Vote endpoint (bypassing authentication like star trading endpoints)
   app.post('/api/kos/vote', async (req, res) => {
     try {
-      console.log("*** VOTE REQUEST RECEIVED (STAR-ROUTES):", req.body);
+      console.log("*** ========================================");
+      console.log("*** VOTE REQUEST RECEIVED IN STAR-ROUTES!");
+      console.log("*** ========================================");
+      console.log("*** VOTE REQUEST BODY:", req.body);
+      console.log("*** VOTE REQUEST HEADERS:", req.headers);
+      
       // Use hardcoded user ID for testing (same as star trading endpoints)
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** VOTE USER ID (hardcoded for testing):", userId);
@@ -401,7 +406,7 @@ export function registerStarRoutes(app: Express) {
         });
         console.log("*** VOTER'S TOTAL STARS DEDUCTED - Old:", currentStars, "New:", newTotalStars);
         
-        await storage.awardIndividualStar(targetUserId, starsAmount);
+        await storage.awardIndividualStar(targetUserId, starsAmount, false);
         console.log("*** INDIVIDUAL STARS AWARDED TO TARGET IMMEDIATELY:", starsAmount);
 
         res.json({ 
