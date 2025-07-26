@@ -592,7 +592,7 @@ async function distributeTournamentPrizes(tournamentId: number) {
     
     if (totalPrizePool > 0 && topUsers.length > 0) {
       // Prize distribution percentages for top 10
-      const prizePercentages = [30, 20, 15, 10, 8, 6, 4, 3, 2, 2]; // Total: 100%
+      const prizePercentages = [50, 20, 10, 5, 5, 3, 2, 2, 2, 1]; // Total: 100%
       
       for (let i = 0; i < topUsers.length; i++) {
         const user = topUsers[i];

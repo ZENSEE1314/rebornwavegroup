@@ -1001,7 +1001,7 @@ function KOSSection({
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-yellow-600 font-medium">🥇 1st Place:</span>
-                        <span className="font-bold">30%</span>
+                        <span className="font-bold">50%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500 font-medium">🥈 2nd Place:</span>
@@ -1009,15 +1009,15 @@ function KOSSection({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-amber-600 font-medium">🥉 3rd Place:</span>
-                        <span className="font-bold">15%</span>
+                        <span className="font-bold">10%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">4th-5th Place:</span>
-                        <span>10% & 8%</span>
+                        <span>5% & 5%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">6th-10th Place:</span>
-                        <span>6%, 4%, 3%, 2%, 2%</span>
+                        <span>3%, 2%, 2%, 2%, 1%</span>
                       </div>
                     </div>
                   </div>
