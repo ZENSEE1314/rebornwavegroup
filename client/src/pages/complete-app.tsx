@@ -779,6 +779,13 @@ function KOSSection({
 
       {/* User Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+          <CardContent className="p-4 text-center">
+            <Star className="w-6 h-6 text-purple-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || 0}</div>
+            <div className="text-xs text-gray-600">My Current Stars</div>
+          </CardContent>
+        </Card>
         <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
@@ -811,13 +818,6 @@ function KOSSection({
             <div className="text-xs text-gray-600">
               {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
             </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-          <CardContent className="p-4 text-center">
-            <Trophy className="w-6 h-6 text-purple-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.tournamentWins || 0}</div>
-            <div className="text-xs text-gray-600">Wins</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
