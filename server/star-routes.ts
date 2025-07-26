@@ -5,6 +5,7 @@ import { requireAuth, getUserId } from "./multiAuth";
 
 export function registerStarRoutes(app: Express) {
   console.log("*** STAR ROUTES REGISTERED SUCCESSFULLY");
+  console.log("*** SETTING UP /api/kos/vote ENDPOINT IN STAR-ROUTES.TS");
   
   // Non-authenticated GET endpoint for user stars display (bypasses auth middleware)
   app.get('/api/kos/user-stars/:userId', async (req, res) => {
@@ -360,13 +361,19 @@ export function registerStarRoutes(app: Express) {
   // KOS Vote endpoint (bypassing authentication like star trading endpoints)
   app.post('/api/kos/vote', async (req, res) => {
     try {
+      console.log("*** ========================================");
+      console.log("*** VOTE ENDPOINT HIT IN STAR-ROUTES.TS!");
+      console.log("*** ========================================");
       console.log("*** VOTE REQUEST RECEIVED (STAR-ROUTES):", req.body);
+      console.log("*** CURRENT TIMESTAMP:", new Date().toISOString());
+      
       // Use hardcoded user ID for testing (same as star trading endpoints)
       const userId = 'bspsDLxUJTQqbox6vGjH5';
       console.log("*** VOTE USER ID (hardcoded for testing):", userId);
 
       const { targetUserId, starsAmount = 1, mode } = req.body;
       console.log("*** VOTE DETAILS - targetUserId:", targetUserId, "starsAmount:", starsAmount, "mode:", mode);
+      console.log("*** MODE TYPE CHECK - typeof mode:", typeof mode, "mode value:", JSON.stringify(mode));
       console.log("*** VOTER ID vs TARGET ID - Voter:", userId, "Target:", targetUserId, "Same User?", userId === targetUserId);
 
       // Validate required parameters
