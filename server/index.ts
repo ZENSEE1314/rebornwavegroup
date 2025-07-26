@@ -35,6 +35,17 @@ app.use((req, res, next) => {
     console.log('*** ===============================');
   }
   
+  // SPECIFIC VOTE ENDPOINT DEBUGGING
+  if (req.url === '/api/kos/vote' && req.method === 'POST') {
+    console.log('*** ===============================');
+    console.log('*** VOTE ENDPOINT HIT IN GLOBAL MIDDLEWARE');
+    console.log('*** URL:', req.url);
+    console.log('*** METHOD:', req.method);
+    console.log('*** BODY:', req.body);
+    console.log('*** MODE PARAMETER:', req.body?.mode);
+    console.log('*** ===============================');
+  }
+  
   next();
 });
 
