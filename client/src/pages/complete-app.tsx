@@ -124,7 +124,8 @@ function KOSSection({
       }
       return res.json();
     },
-    staleTime: 30000,
+    staleTime: 0, // Disable caching for immediate updates
+    cacheTime: 0, // Disable cache storage 
     retry: false,
   });
 

@@ -3665,17 +3665,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void> {
-    await db
-      .update(starContributors)
-      .set({
-        totalStarsGiven: starsGiven,
-        lastContributionDate: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(starContributors.recipientUserId, recipientUserId),
-        eq(starContributors.contributorUserId, contributorUserId)
-      ));
+    try {
+      // Check if a contribution record already exists
+      const [existingContribution] = await db
+        .select()
+        .from(starContributors)
+        .where(and(
+          eq(starContributors.recipientUserId, recipientUserId),
+          eq(starContributors.contributorUserId, contributorUserId)
+        ));
+
+      if (existingContribution) {
+        // Update existing contribution record by adding to the current total
+        await db
+          .update(starContributors)
+          .set({
+            totalStarsGiven: existingContribution.totalStarsGiven + starsGiven,
+            lastContributionDate: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(starContributors.recipientUserId, recipientUserId),
+            eq(starContributors.contributorUserId, contributorUserId)
+          ));
+        console.log(`*** UPDATED STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Total: ${existingContribution.totalStarsGiven + starsGiven}`);
+      } else {
+        // Create new contribution record
+        await db
+          .insert(starContributors)
+          .values({
+            recipientUserId,
+            contributorUserId,
+            totalStarsGiven: starsGiven,
+            lastContributionDate: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        console.log(`*** CREATED NEW STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Total: ${starsGiven}`);
+      }
+    } catch (error) {
+      console.error('Error updating star contribution:', error);
+      throw error;
+    }
   }
 
   async getTopContributors(recipientUserId: string, limit: number = 10): Promise<StarContributor[]> {
