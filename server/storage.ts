@@ -348,7 +348,7 @@ export interface IStorage {
   // Star Contributors operations
   createStarContributor(contributor: InsertStarContributor): Promise<StarContributor>;
   getStarContributors(recipientUserId: string): Promise<StarContributor[]>;
-  updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void>;
+  updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number, mode: 'individual' | 'tournament'): Promise<void>;
   getTopContributors(recipientUserId: string, limit?: number): Promise<StarContributor[]>;
 
   // Influencer Ranks operations
@@ -3664,7 +3664,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(starContributors.totalStarsGiven));
   }
 
-  async updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number): Promise<void> {
+  async updateStarContribution(recipientUserId: string, contributorUserId: string, starsGiven: number, mode: 'individual' | 'tournament'): Promise<void> {
     try {
       // Check if a contribution record already exists
       const [existingContribution] = await db
@@ -3676,32 +3676,45 @@ export class DatabaseStorage implements IStorage {
         ));
 
       if (existingContribution) {
-        // Update existing contribution record by adding to the current total
+        // Update existing contribution record by adding to the appropriate mode total
+        const updateData: any = {
+          lastContributionDate: new Date(),
+          updatedAt: new Date(),
+        };
+
+        if (mode === 'individual') {
+          updateData.individualStarsGiven = (existingContribution.individualStarsGiven || 0) + starsGiven;
+          updateData.totalStarsGiven = (existingContribution.individualStarsGiven || 0) + (existingContribution.tournamentStarsGiven || 0) + starsGiven;
+        } else if (mode === 'tournament') {
+          updateData.tournamentStarsGiven = (existingContribution.tournamentStarsGiven || 0) + starsGiven;
+          updateData.totalStarsGiven = (existingContribution.individualStarsGiven || 0) + (existingContribution.tournamentStarsGiven || 0) + starsGiven;
+        }
+
         await db
           .update(starContributors)
-          .set({
-            totalStarsGiven: existingContribution.totalStarsGiven + starsGiven,
-            lastContributionDate: new Date(),
-            updatedAt: new Date(),
-          })
+          .set(updateData)
           .where(and(
             eq(starContributors.recipientUserId, recipientUserId),
             eq(starContributors.contributorUserId, contributorUserId)
           ));
-        console.log(`*** UPDATED STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Total: ${existingContribution.totalStarsGiven + starsGiven}`);
+        console.log(`*** UPDATED ${mode.toUpperCase()} STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Amount: ${starsGiven}`);
       } else {
         // Create new contribution record
+        const createData: any = {
+          recipientUserId,
+          contributorUserId,
+          individualStarsGiven: mode === 'individual' ? starsGiven : 0,
+          tournamentStarsGiven: mode === 'tournament' ? starsGiven : 0,
+          totalStarsGiven: starsGiven,
+          lastContributionDate: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
         await db
           .insert(starContributors)
-          .values({
-            recipientUserId,
-            contributorUserId,
-            totalStarsGiven: starsGiven,
-            lastContributionDate: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        console.log(`*** CREATED NEW STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Total: ${starsGiven}`);
+          .values(createData);
+        console.log(`*** CREATED NEW ${mode.toUpperCase()} STAR CONTRIBUTION: ${contributorUserId} → ${recipientUserId}, Amount: ${starsGiven}`);
       }
     } catch (error) {
       console.error('Error updating star contribution:', error);

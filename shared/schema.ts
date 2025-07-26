@@ -1189,7 +1189,9 @@ export const starContributors = pgTable("star_contributors", {
   id: serial("id").primaryKey(),
   recipientUserId: varchar("recipient_user_id").notNull().references(() => users.id),
   contributorUserId: varchar("contributor_user_id").notNull().references(() => users.id),
-  totalStarsGiven: integer("total_stars_given").default(0).notNull(),
+  individualStarsGiven: integer("individual_stars_given").default(0).notNull(),
+  tournamentStarsGiven: integer("tournament_stars_given").default(0).notNull(),
+  totalStarsGiven: integer("total_stars_given").default(0).notNull(), // Keep for backward compatibility
   lastContributionDate: timestamp("last_contribution_date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

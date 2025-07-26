@@ -409,9 +409,9 @@ export function registerStarRoutes(app: Express) {
         await storage.awardIndividualStar(targetUserId, starsAmount, false);
         console.log("*** INDIVIDUAL STARS AWARDED TO TARGET IMMEDIATELY:", starsAmount);
 
-        // Track star contribution for real-time UI data
-        await storage.updateStarContribution(targetUserId, userId, starsAmount);
-        console.log("*** INDIVIDUAL VOTE - STAR CONTRIBUTION TRACKED");
+        // Track star contribution for real-time UI data (INDIVIDUAL MODE)
+        await storage.updateStarContribution(targetUserId, userId, starsAmount, 'individual');
+        console.log("*** INDIVIDUAL VOTE - STAR CONTRIBUTION TRACKED (INDIVIDUAL MODE)");
 
         res.json({ 
           success: true, 
@@ -447,9 +447,9 @@ export function registerStarRoutes(app: Express) {
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars?.tournamentStars, "New:", newTargetTournamentStars);
         console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars?.individualStars);
         
-        // Track star contribution for real-time UI data
-        await storage.updateStarContribution(targetUserId, userId, starsAmount);
-        console.log("*** TOURNAMENT VOTE - STAR CONTRIBUTION TRACKED");
+        // Track star contribution for real-time UI data (TOURNAMENT MODE)
+        await storage.updateStarContribution(targetUserId, userId, starsAmount, 'tournament');
+        console.log("*** TOURNAMENT VOTE - STAR CONTRIBUTION TRACKED (TOURNAMENT MODE)");
         
         // TOURNAMENT TIMER SYSTEM: Check/Create active tournament and set 7-day timer
         await ensureActiveTournament();
@@ -579,7 +579,7 @@ async function distributeTournamentPrizes(tournamentId: number) {
     console.log("*** DISTRIBUTING TOURNAMENT PRIZES FOR TOURNAMENT:", tournamentId);
     
     // Get all KOS users with their tournament stars (sorted by tournament stars desc)
-    const users = await storage.getKOSUsersWithRankings('tournament', '', 1, 1000);
+    const users = await storage.getKOSUsersWithRankings('tournament');
     console.log("*** TOURNAMENT PARTICIPANTS:", users.length);
     
     // Get top 10 users based on tournament stars
