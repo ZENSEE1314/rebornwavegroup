@@ -64,6 +64,11 @@ function KOSSection({
   const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Notify parent component when mode changes
+  useEffect(() => {
+    onModeChange(kosActiveTab);
+  }, [kosActiveTab, onModeChange]);
+
   // Fetch real KOS users data
   const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
     queryKey: ['/api/kos/users', kosActiveTab, currentPage],
@@ -2211,41 +2216,6 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
           variant: "destructive"
         });
       }
-    }
-  };
-
-  // Vote confirmation handler
-  const handleConfirmVote = async () => {
-    if (!voteTargetUser) return;
-
-    try {
-      const response = await fetch('/api/kos/vote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          targetUserId: voteTargetUser.id,
-          starsAmount: starsAmount,
-          mode: currentKosMode // Use actual current mode (second instance)
-        })
-      });
-
-      if (response.ok) {
-        queryClient.invalidateQueries({ queryKey: ['/api/kos/users'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
-        setShowVoteDialog(false);
-        setVoteTargetUser(null);
-        setStarsAmount(1);
-        toast({ title: "Success", description: "Vote cast successfully!" });
-      } else {
-        throw new Error('Failed to cast vote');
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to cast vote. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
