@@ -575,18 +575,16 @@ function KOSSection({
   };
 
   const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
-    // Find how many stars this user has given to others (context-aware)
+    // Find how many stars this user has given to others (MODE-SPECIFIC)
     const totalStarsSupported = userContributions
       .filter((c: any) => c.contributorUserId === userItem.id)
       .reduce((sum: number, c: any) => {
-        // For now, we'll use total stars given since we need to update the backend to track individual vs tournament stars
-        // TODO: Implement context-aware star contribution tracking in backend
+        // Use mode-specific star contributions only
         const starsGiven = kosActiveTab === 'tournament' 
-          ? (c.tournamentStarsGiven || 0)  // Use tournament-specific stars when available
-          : (c.individualStarsGiven || 0); // Use individual-specific stars when available
+          ? (c.tournamentStarsGiven || 0)  // Tournament mode: only tournament contributions
+          : (c.individualStarsGiven || 0); // Individual mode: only individual contributions
         
-        // Fallback to total stars for now until backend is updated
-        return sum + (starsGiven || c.totalStarsGiven || 0);
+        return sum + starsGiven;
       }, 0);
     
     return (
@@ -650,10 +648,17 @@ function KOSSection({
                 </div>
                 <div className="flex items-center gap-1">
                   {(() => {
-                    // Find top 3 users who gave stars to this user
+                    // Find top 3 users who gave stars to this user (MODE-SPECIFIC)
                     const userSupporters = userContributions
                       .filter((c: any) => c.recipientUserId === userItem.id)
-                      .sort((a: any, b: any) => (b.totalStarsGiven || 0) - (a.totalStarsGiven || 0))
+                      .map((c: any) => ({
+                        ...c,
+                        relevantStars: kosActiveTab === 'tournament' 
+                          ? (c.tournamentStarsGiven || 0)  // Tournament mode: only tournament contributions
+                          : (c.individualStarsGiven || 0)  // Individual mode: only individual contributions
+                      }))
+                      .filter((c: any) => c.relevantStars > 0) // Only show supporters with relevant contributions
+                      .sort((a: any, b: any) => b.relevantStars - a.relevantStars)
                       .slice(0, 3);
                     
                     if (userSupporters.length === 0) {
@@ -698,7 +703,7 @@ function KOSSection({
                                     </div>
                                   )}
                                 </div>
-                                <span className="text-xs text-gray-500">{supporter.totalStarsGiven}</span>
+                                <span className="text-xs text-gray-500">{supporter.relevantStars}</span>
                               </div>
                             );
                           })}
@@ -779,10 +784,15 @@ function KOSSection({
             <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
             <div className="text-xl font-bold text-gray-900">
               {(() => {
-                // Calculate total stars given by this user (real data)
+                // Calculate mode-specific stars given by this user
                 const totalStarsGiven = userContributions
                   .filter((c: any) => c.contributorUserId === user?.id)
-                  .reduce((sum: number, c: any) => sum + (c.totalStarsGiven || 0), 0);
+                  .reduce((sum: number, c: any) => {
+                    const starsGiven = kosActiveTab === 'tournament' 
+                      ? (c.tournamentStarsGiven || 0)  // Tournament mode: only tournament contributions
+                      : (c.individualStarsGiven || 0); // Individual mode: only individual contributions
+                    return sum + starsGiven;
+                  }, 0);
                 return totalStarsGiven.toLocaleString();
               })()}
             </div>
