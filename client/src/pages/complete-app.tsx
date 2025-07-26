@@ -773,6 +773,21 @@ function KOSSection({
 
       {/* User Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
+          <CardContent className="p-4 text-center">
+            <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
+            <div className="text-xl font-bold text-gray-900">
+              {(() => {
+                // Calculate total stars given by this user (real data)
+                const totalStarsGiven = userContributions
+                  .filter((c: any) => c.contributorUserId === user?.id)
+                  .reduce((sum: number, c: any) => sum + (c.totalStarsGiven || 0), 0);
+                return totalStarsGiven.toLocaleString();
+              })()}
+            </div>
+            <div className="text-xs text-gray-600">Stars Given</div>
+          </CardContent>
+        </Card>
         <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
@@ -792,13 +807,6 @@ function KOSSection({
             <Trophy className="w-6 h-6 text-purple-500 mx-auto mb-1" />
             <div className="text-xl font-bold text-gray-900">{userStarsData?.tournamentWins || 0}</div>
             <div className="text-xs text-gray-600">Wins</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
-          <CardContent className="p-4 text-center">
-            <Heart className="w-6 h-6 text-pink-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.votesCast || 0}</div>
-            <div className="text-xs text-gray-600">Votes Cast</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
