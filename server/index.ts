@@ -166,7 +166,7 @@ app.use((req, res, next) => {
 
         for (const pet of qualifyingPets) {
           // Check if pet is 24+ hours old
-          const petAge = now.getTime() - new Date(pet.createdAt).getTime();
+          const petAge = now.getTime() - new Date(pet.createdAt || now).getTime();
           const hoursOld = petAge / (1000 * 60 * 60);
           
           if (hoursOld < 24) continue;
@@ -180,7 +180,7 @@ app.use((req, res, next) => {
           if (!allStatsHealthy) continue;
 
           // Check if 24 hours have passed since last token claim
-          const lastClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : new Date(pet.createdAt);
+          const lastClaim = pet.lastTokenClaim ? new Date(pet.lastTokenClaim) : new Date(pet.createdAt || now);
           const hoursSinceLastClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
           
           if (hoursSinceLastClaim < 24) continue;
