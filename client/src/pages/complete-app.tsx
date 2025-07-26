@@ -468,6 +468,15 @@ function KOSSection({
     }
   };
 
+  // Helper functions for UserCard props
+  const handleUserVote = (user: any) => {
+    handleVote(user, 'vote');
+  };
+
+  const handleUserLike = (user: any) => {
+    handleVote(user, 'like');
+  };
+
   // Tournament timer component with real-time updates
   const TournamentTimer = ({ tournament }: { tournament: any }) => {
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
@@ -574,7 +583,14 @@ function KOSSection({
     );
   };
 
-  const UserCard = ({ user: userItem, isTop3 = false, rank }: { user: any; isTop3?: boolean; rank: number }) => {
+  const UserCard = ({ user: userItem, isTop3 = false, rank, onVote, onLike, voteMutationPending }: { 
+    user: any; 
+    isTop3?: boolean; 
+    rank: number;
+    onVote: (user: any) => void;
+    onLike: (user: any) => void;
+    voteMutationPending: boolean;
+  }) => {
     // Find how many stars this user has given to others (MODE-SPECIFIC)
     const totalStarsSupported = userContributions
       .filter((c: any) => c.contributorUserId === userItem.id)
@@ -731,8 +747,8 @@ function KOSSection({
               <Button
                 size={isTop3 ? "default" : "sm"}
                 className="bg-pink-500 hover:bg-pink-600 text-white"
-                onClick={() => handleVote(userItem, 'vote')}
-                disabled={voteMutation.isPending}
+                onClick={() => onVote(userItem)}
+                disabled={voteMutationPending}
               >
                 <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
                 Vote
@@ -741,8 +757,8 @@ function KOSSection({
                 size={isTop3 ? "default" : "sm"}
                 variant="outline"
                 className="border-pink-300 text-pink-600 hover:bg-pink-50"
-                onClick={() => handleVote(userItem, 'like')}
-                disabled={voteMutation.isPending}
+                onClick={() => onLike(userItem)}
+                disabled={voteMutationPending}
               >
                 <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
                 Like
@@ -1106,7 +1122,15 @@ function KOSSection({
             </h4>
             <div className="space-y-3">
               {top3Users.map((user, index) => (
-                <UserCard key={user.id} user={user} isTop3={true} rank={index + 1} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  isTop3={true} 
+                  rank={index + 1}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
           </div>
@@ -1119,7 +1143,14 @@ function KOSSection({
             </h4>
             <div className="space-y-2">
               {top10Users.map((user, index) => (
-                <UserCard key={user.id} user={user} rank={index + 4} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  rank={index + 4}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
           </div>
@@ -1132,7 +1163,14 @@ function KOSSection({
             </h4>
             <div className="space-y-2">
               {paginatedUsers.map((user, index) => (
-                <UserCard key={user.id} user={user} rank={11 + (currentPage - 1) * usersPerPage + index} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  rank={11 + (currentPage - 1) * usersPerPage + index}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
             
@@ -1306,7 +1344,15 @@ function KOSSection({
             </h4>
             <div className="space-y-3">
               {top3Users.map((user, index) => (
-                <UserCard key={user.id} user={user} isTop3={true} rank={index + 1} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  isTop3={true} 
+                  rank={index + 1}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
           </div>
@@ -1319,7 +1365,14 @@ function KOSSection({
             </h4>
             <div className="space-y-2">
               {top10Users.map((user, index) => (
-                <UserCard key={user.id} user={user} rank={index + 4} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  rank={index + 4}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
           </div>
@@ -1332,7 +1385,14 @@ function KOSSection({
             </h4>
             <div className="space-y-2">
               {paginatedUsers.map((user, index) => (
-                <UserCard key={user.id} user={user} rank={11 + (currentPage - 1) * usersPerPage + index} />
+                <UserCard 
+                  key={user.id} 
+                  user={user} 
+                  rank={11 + (currentPage - 1) * usersPerPage + index}
+                  onVote={handleUserVote}
+                  onLike={handleUserLike}
+                  voteMutationPending={voteMutation.isPending}
+                />
               ))}
             </div>
             
