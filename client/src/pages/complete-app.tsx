@@ -1058,13 +1058,27 @@ function KOSSection({
                             className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
                             onClick={() => handleTournamentSearchClick(result)}
                           >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm">
-                              👤
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
+                              {result.profileImageUrl ? (
+                                <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
+                              ) : (
+                                '👤'
+                              )}
                             </div>
                             <div className="flex-1">
                               <div className="font-medium text-sm">{result.username}</div>
-                              <div className="text-xs text-gray-600">
-                                {result.firstName} {result.lastName}
+                              <div className="text-xs text-gray-600 flex items-center gap-3">
+                                <span>{result.firstName} {result.lastName}</span>
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-3 h-3 text-yellow-500" />
+                                  <span className="font-medium">
+                                    {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Heart className="w-3 h-3 text-pink-500" />
+                                  <span>{result.likes || 0}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1244,13 +1258,27 @@ function KOSSection({
                             className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
                             onClick={() => handleIndividualSearchClick(result)}
                           >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm">
-                              👤
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
+                              {result.profileImageUrl ? (
+                                <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
+                              ) : (
+                                '👤'
+                              )}
                             </div>
                             <div className="flex-1">
                               <div className="font-medium text-sm">{result.username}</div>
-                              <div className="text-xs text-gray-600">
-                                {result.firstName} {result.lastName}
+                              <div className="text-xs text-gray-600 flex items-center gap-3">
+                                <span>{result.firstName} {result.lastName}</span>
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-3 h-3 text-yellow-500" />
+                                  <span className="font-medium">
+                                    {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Heart className="w-3 h-3 text-pink-500" />
+                                  <span>{result.likes || 0}</span>
+                                </div>
                               </div>
                             </div>
                           </div>

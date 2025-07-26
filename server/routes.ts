@@ -9309,15 +9309,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const users = await storage.searchUsersByUsername(searchTerm.trim());
+      console.log(`*** SEARCH DEBUG: Found ${users.length} users:`, users);
       
-      // Return users with basic info needed for search results
-      const userResults = users.map(user => ({
-        id: user.id,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl
-      }));
+      // Get complete KOS user data for each search result
+      const userResults = await Promise.all(
+        users.map(async (user) => {
+          try {
+            console.log(`*** SEARCH DEBUG: Getting KOS data for user ${user.id} (${user.username})`);
+            // Get user's star data from the KOS system
+            const userStars = await storage.getUserStars(user.id);
+            console.log(`*** SEARCH DEBUG: UserStars result:`, userStars);
+            const userLikesReceived = await storage.getLikesReceived(user.id);
+            console.log(`*** SEARCH DEBUG: UserLikesReceived result:`, userLikesReceived);
+            
+            return {
+              id: user.id,
+              username: user.username,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImageUrl: user.profileImageUrl,
+              individualStars: userStars?.individualStars || 0,
+              tournamentStars: userStars?.tournamentStars || 0,
+              totalStars: userStars?.totalStars || 0,
+              likes: userLikesReceived.length || 0,
+              influencerRank: userStars?.influencerRank || 'Newbie Spark',
+              influencerTier: userStars?.influencerTier || 1
+            };
+          } catch (error) {
+            console.error(`Error getting KOS data for user ${user.id}:`, error);
+            // Return basic user data if KOS data fails
+            return {
+              id: user.id,
+              username: user.username,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImageUrl: user.profileImageUrl,
+              individualStars: 0,
+              tournamentStars: 0,
+              totalStars: 0,
+              likes: 0,
+              influencerRank: 'Newbie Spark',
+              influencerTier: 1
+            };
+          }
+        })
+      );
       
       res.json(userResults);
     } catch (error) {
