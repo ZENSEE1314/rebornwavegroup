@@ -4091,19 +4091,33 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Get all star contributions data (both givers and receivers)
-  async getAllStarContributions(): Promise<Array<{ recipientUserId: string; contributorUserId: string; totalStarsGiven: number }>> {
+  // Get all star contributions data (both givers and receivers) with separated tracking
+  async getAllStarContributions(): Promise<Array<{ 
+    recipientUserId: string; 
+    contributorUserId: string; 
+    totalStarsGiven: number;
+    individualStarsGiven: number;
+    tournamentStarsGiven: number;
+  }>> {
     try {
       const contributions = await db
         .select({
           recipientUserId: starContributors.recipientUserId,
           contributorUserId: starContributors.contributorUserId,
-          totalStarsGiven: starContributors.totalStarsGiven
+          totalStarsGiven: starContributors.totalStarsGiven,
+          individualStarsGiven: starContributors.individualStarsGiven,
+          tournamentStarsGiven: starContributors.tournamentStarsGiven
         })
         .from(starContributors)
         .orderBy(desc(starContributors.totalStarsGiven));
 
-      return contributions;
+      return contributions.map(c => ({
+        recipientUserId: c.recipientUserId,
+        contributorUserId: c.contributorUserId,
+        totalStarsGiven: c.totalStarsGiven || 0,
+        individualStarsGiven: c.individualStarsGiven || 0,
+        tournamentStarsGiven: c.tournamentStarsGiven || 0
+      }));
     } catch (error) {
       console.error('Error getting all star contributions:', error);
       return [];
