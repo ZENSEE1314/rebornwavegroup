@@ -16,7 +16,7 @@ import {
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
   Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp,
-  Volume2, VolumeX, Search, BarChart3, Info
+  Volume2, VolumeX, Search, BarChart3, Info, Vote
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import logoImage from "@assets/2-removebg-preview.png";
@@ -1071,8 +1071,7 @@ function KOSSection({
                         searchResults.map((result) => (
                           <div
                             key={result.id}
-                            className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => handleTournamentSearchClick(result)}
+                            className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
                           >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
                               {result.profileImageUrl ? (
@@ -1096,6 +1095,34 @@ function KOSSection({
                                   <span>{result.likes || 0}</span>
                                 </div>
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUserVote(result);
+                                }}
+                                disabled={voteMutation.isPending}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Vote className="w-3 h-3 mr-1" />
+                                Vote
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUserLike(result);
+                                }}
+                                disabled={voteMutation.isPending}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Heart className="w-3 h-3 mr-1" />
+                                Like
+                              </Button>
                             </div>
                           </div>
                         ))
@@ -1293,8 +1320,7 @@ function KOSSection({
                         searchResults.map((result) => (
                           <div
                             key={result.id}
-                            className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => handleIndividualSearchClick(result)}
+                            className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
                           >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
                               {result.profileImageUrl ? (
@@ -1318,6 +1344,34 @@ function KOSSection({
                                   <span>{result.likes || 0}</span>
                                 </div>
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUserVote(result);
+                                }}
+                                disabled={voteMutation.isPending}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Vote className="w-3 h-3 mr-1" />
+                                Vote
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUserLike(result);
+                                }}
+                                disabled={voteMutation.isPending}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <Heart className="w-3 h-3 mr-1" />
+                                Like
+                              </Button>
                             </div>
                           </div>
                         ))
