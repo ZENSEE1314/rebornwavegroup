@@ -45,7 +45,8 @@ function KOSSection({
   voteTargetUser,
   setVoteTargetUser,
   starsAmount,
-  setStarsAmount
+  setStarsAmount,
+  onModeChange
 }: { 
   user: any; 
   queryClient: any; 
@@ -57,6 +58,7 @@ function KOSSection({
   setVoteTargetUser: (user: any) => void;
   starsAmount: number;
   setStarsAmount: (amount: number) => void;
+  onModeChange: (mode: 'tournament' | 'individual') => void;
 }) {
   const { toast } = useToast();
   const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
@@ -429,7 +431,7 @@ function KOSSection({
         body: JSON.stringify({
           targetUserId: voteTargetUser.id,
           starsAmount: starsAmount,
-          mode: 'individual' // Always individual for now
+          mode: currentKosMode // Use actual current mode (first instance)
         })
       });
 
@@ -905,7 +907,11 @@ function KOSSection({
       </Card>
 
       {/* Tabs */}
-      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual')} className="w-full">
+      <Tabs value={kosActiveTab} onValueChange={(value) => {
+        const newTab = value as 'tournament' | 'individual';
+        setKosActiveTab(newTab);
+        onModeChange(newTab);
+      }} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="tournament" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
@@ -2220,7 +2226,7 @@ function CoinCatchingGame({ pet, language, onClose, user }: { pet: any; language
         body: JSON.stringify({
           targetUserId: voteTargetUser.id,
           starsAmount: starsAmount,
-          mode: 'individual' // Always individual for now
+          mode: currentKosMode // Use actual current mode (second instance)
         })
       });
 
@@ -5359,6 +5365,9 @@ export default function CompleteApp() {
   const [voteTargetUser, setVoteTargetUser] = useState<any>(null);
   const [starsAmount, setStarsAmount] = useState(1);
   const [customStarsAmount, setCustomStarsAmount] = useState<string>('');
+  
+  // Current mode from KOSSection
+  const [currentKosMode, setCurrentKosMode] = useState<'tournament' | 'individual'>('tournament');
 
   // Handler for user selection from search
   const handleUserSelect = (user: any) => {
@@ -10813,6 +10822,7 @@ export default function CompleteApp() {
             setVoteTargetUser={setVoteTargetUser}
             starsAmount={starsAmount}
             setStarsAmount={setStarsAmount}
+            onModeChange={setCurrentKosMode}
           />
         )}
 
