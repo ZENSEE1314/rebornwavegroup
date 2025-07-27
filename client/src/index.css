@@ -268,6 +268,51 @@ button[class*="dashboard-button"] svg {
   }
 }
 
+/* Global text visibility improvements for fantasy background */
+body {
+  color: white !important;
+}
+
+/* Ensure all text elements are visible */
+p, span, div, h1, h2, h3, h4, h5, h6, label, a {
+  color: white !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* White background elements keep dark text */
+.bg-white, 
+.bg-white *, 
+.bg-gray-50, 
+.bg-gray-50 *, 
+.bg-gray-100, 
+.bg-gray-100 *,
+[class*="bg-white"],
+[class*="bg-white"] *,
+[class*="bg-gray-50"],
+[class*="bg-gray-50"] * {
+  color: #1f2937 !important;
+  text-shadow: none !important;
+}
+
+/* Cards and content areas with semi-transparent backgrounds */
+.border, .rounded, .shadow, [class*="border"], [class*="rounded"], [class*="shadow"] {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #1f2937 !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Buttons maintain their original colors */
+button {
+  text-shadow: none !important;
+}
+
+/* Input elements */
+input, textarea, select {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  color: #1f2937 !important;
+  text-shadow: none !important;
+}
+
 .achievement-text-tiny {
   font-size: 8px !important;
   line-height: 1.2 !important;

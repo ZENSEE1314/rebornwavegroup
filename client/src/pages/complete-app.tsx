@@ -8016,7 +8016,7 @@ export default function CompleteApp() {
     
       <div className="min-h-screen relative pb-20 md:pb-0">
       {/* Enhanced Modern App Header */}
-      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
+      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg text-gray-900">
         <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Left Side - Logo and Welcome Text */}
