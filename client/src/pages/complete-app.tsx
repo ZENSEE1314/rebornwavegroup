@@ -290,7 +290,7 @@ function KOSSection({
   const searchUsers = async (query: string) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
-      setShowSearchResults(false);
+      setShowSearchDialog(false);
       return;
     }
 
@@ -300,28 +300,22 @@ function KOSSection({
       if (response.ok) {
         const results = await response.json();
         setSearchResults(results);
-        setShowSearchResults(true);
+        setShowSearchDialog(true);
       }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
+      setShowSearchDialog(true);
     }
     setIsSearching(false);
   };
 
-  // Debounced search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery) {
-        searchUsers(searchQuery);
-      } else {
-        setSearchResults([]);
-        setShowSearchResults(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  // Manual search trigger
+  const handleSearchClick = () => {
+    if (searchQuery.trim()) {
+      searchUsers(searchQuery);
+    }
+  };
 
   const voteMutation = useMutation({
     mutationFn: ({ targetUserId, type, starsAmount }: { targetUserId: string; type: 'vote' | 'like'; starsAmount?: number }) => {
