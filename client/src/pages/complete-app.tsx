@@ -720,11 +720,23 @@ function KOSSection({
               )}
             </div>
 
+            {/* Voter Tier Badge */}
+            <div className="flex-shrink-0">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                userItem.voterTierColor || 'bg-gray-500'
+              }`}>
+                T{userItem.voterTierLevel || 1}
+              </div>
+            </div>
+
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
+              <div className="text-sm text-purple-700 font-medium mb-1">
+                {userItem.voterTierName || 'Newbie Spark'} (Tier {userItem.voterTierLevel || 1})
+              </div>
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-500" />

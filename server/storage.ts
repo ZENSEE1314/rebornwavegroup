@@ -3784,24 +3784,24 @@ export class DatabaseStorage implements IStorage {
   // Helper function to calculate voter tier based on stars given
   private calculateVoterTier(starsGiven: number): { tierName: string; tierLevel: number; color: string } {
     const voterTiers = [
-      { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
-      { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
-      { tier: 3, name: "Bright Talent", minStars: 500, maxStars: 999, color: "bg-blue-500" },
-      { tier: 4, name: "Shining Voice", minStars: 1000, maxStars: 2499, color: "bg-purple-500" },
-      { tier: 5, name: "Golden Singer", minStars: 2500, maxStars: 4999, color: "bg-yellow-500" },
-      { tier: 6, name: "Platinum Voice", minStars: 5000, maxStars: 9999, color: "bg-gray-400" },
-      { tier: 7, name: "Diamond Star", minStars: 10000, maxStars: 19999, color: "bg-cyan-500" },
-      { tier: 8, name: "Royal Performer", minStars: 20000, maxStars: 39999, color: "bg-pink-500" },
-      { tier: 9, name: "Legendary Voice", minStars: 40000, maxStars: 74999, color: "bg-red-500" },
-      { tier: 10, name: "Supreme Artist", minStars: 75000, maxStars: 149999, color: "bg-orange-500" },
-      { tier: 11, name: "Celestial Singer", minStars: 150000, maxStars: 299999, color: "bg-violet-500" },
-      { tier: 12, name: "Mythical Legend", minStars: 300000, maxStars: 599999, color: "bg-rose-500" },
-      { tier: 13, name: "Cosmic Voice", minStars: 600000, maxStars: 999999, color: "bg-emerald-500" },
-      { tier: 14, name: "Universal Star", minStars: 1000000, maxStars: 1999999, color: "bg-amber-500" },
-      { tier: 15, name: "Infinite Harmony", minStars: 2000000, maxStars: 4999999, color: "bg-teal-500" },
-      { tier: 16, name: "Eternal Melody", minStars: 5000000, maxStars: 9999999, color: "bg-indigo-500" },
-      { tier: 17, name: "Divine Virtuoso", minStars: 10000000, maxStars: 24999999, color: "bg-lime-500" },
-      { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
+      { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 19, color: "bg-gray-500" },
+      { tier: 2, name: "Rising Star", minStars: 20, maxStars: 39, color: "bg-green-500" },
+      { tier: 3, name: "Bright Talent", minStars: 40, maxStars: 59, color: "bg-blue-500" },
+      { tier: 4, name: "Shining Voice", minStars: 60, maxStars: 79, color: "bg-purple-500" },
+      { tier: 5, name: "Golden Singer", minStars: 80, maxStars: 99, color: "bg-yellow-500" },
+      { tier: 6, name: "Platinum Voice", minStars: 100, maxStars: 149, color: "bg-gray-400" },
+      { tier: 7, name: "Diamond Star", minStars: 150, maxStars: 199, color: "bg-cyan-500" },
+      { tier: 8, name: "Royal Performer", minStars: 200, maxStars: 299, color: "bg-pink-500" },
+      { tier: 9, name: "Legendary Voice", minStars: 300, maxStars: 499, color: "bg-red-500" },
+      { tier: 10, name: "Supreme Artist", minStars: 500, maxStars: 749, color: "bg-orange-500" },
+      { tier: 11, name: "Celestial Singer", minStars: 750, maxStars: 999, color: "bg-violet-500" },
+      { tier: 12, name: "Mythical Legend", minStars: 1000, maxStars: 1499, color: "bg-rose-500" },
+      { tier: 13, name: "Cosmic Voice", minStars: 1500, maxStars: 2499, color: "bg-emerald-500" },
+      { tier: 14, name: "Universal Star", minStars: 2500, maxStars: 4999, color: "bg-amber-500" },
+      { tier: 15, name: "Infinite Harmony", minStars: 5000, maxStars: 9999, color: "bg-teal-500" },
+      { tier: 16, name: "Eternal Melody", minStars: 10000, maxStars: 24999, color: "bg-indigo-500" },
+      { tier: 17, name: "Divine Virtuoso", minStars: 25000, maxStars: 99999, color: "bg-lime-500" },
+      { tier: 18, name: "Omnipotent Maestro", minStars: 100000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
     ];
 
     const tier = voterTiers.find(t => 
