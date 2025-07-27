@@ -268,32 +268,6 @@ button[class*="dashboard-button"] svg {
   }
 }
 
-/* Only target text that's directly on the fantasy background, not inside containers */
-.fantasy-text-on-background {
-  color: white !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
-}
-
-/* Apply white text to elements that are directly on fantasy background */
-body > div[class*="min-h-screen"] > div:not([class*="bg-white"]):not([class*="bg-gray"]):not([class*="border"]):not([class*="rounded"]):not([class*="shadow"]) {
-  color: white !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
-}
-
-/* Ensure cards/containers keep their original styling */
-.border, .rounded, .shadow, [class*="border"], [class*="rounded"], [class*="shadow"],
-.bg-white, .bg-gray-50, .bg-gray-100, [class*="bg-white"], [class*="bg-gray"] {
-  color: inherit !important;
-  text-shadow: none !important;
-}
-
-/* All content inside cards/containers uses original colors */
-.border *, .rounded *, .shadow *, [class*="border"] *, [class*="rounded"] *, [class*="shadow"] *,
-.bg-white *, .bg-gray-50 *, .bg-gray-100 *, [class*="bg-white"] *, [class*="bg-gray"] * {
-  color: inherit !important;
-  text-shadow: none !important;
-}
-
 .achievement-text-tiny {
   font-size: 8px !important;
   line-height: 1.2 !important;
