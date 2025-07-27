@@ -695,6 +695,37 @@ function KOSSection({
         
         return sum + starsGiven;
       }, 0);
+
+    // Calculate individual rank based on stars received (same tier system as individual rankings)
+    const calculateIndividualRank = (starsReceived: number) => {
+      const ranks = [
+        { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
+        { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
+        { tier: 3, name: "Bright Talent", minStars: 500, maxStars: 999, color: "bg-blue-500" },
+        { tier: 4, name: "Shining Voice", minStars: 1000, maxStars: 2499, color: "bg-purple-500" },
+        { tier: 5, name: "Golden Singer", minStars: 2500, maxStars: 4999, color: "bg-yellow-500" },
+        { tier: 6, name: "Platinum Voice", minStars: 5000, maxStars: 9999, color: "bg-gray-400" },
+        { tier: 7, name: "Diamond Star", minStars: 10000, maxStars: 19999, color: "bg-cyan-500" },
+        { tier: 8, name: "Royal Performer", minStars: 20000, maxStars: 39999, color: "bg-pink-500" },
+        { tier: 9, name: "Legendary Voice", minStars: 40000, maxStars: 74999, color: "bg-red-500" },
+        { tier: 10, name: "Supreme Artist", minStars: 75000, maxStars: 149999, color: "bg-orange-500" },
+        { tier: 11, name: "Celestial Singer", minStars: 150000, maxStars: 299999, color: "bg-violet-500" },
+        { tier: 12, name: "Mythical Legend", minStars: 300000, maxStars: 599999, color: "bg-rose-500" },
+        { tier: 13, name: "Cosmic Voice", minStars: 600000, maxStars: 999999, color: "bg-emerald-500" },
+        { tier: 14, name: "Universal Star", minStars: 1000000, maxStars: 1999999, color: "bg-amber-500" },
+        { tier: 15, name: "Infinite Harmony", minStars: 2000000, maxStars: 4999999, color: "bg-teal-500" },
+        { tier: 16, name: "Eternal Melody", minStars: 5000000, maxStars: 9999999, color: "bg-indigo-500" },
+        { tier: 17, name: "Divine Virtuoso", minStars: 10000000, maxStars: 24999999, color: "bg-lime-500" },
+        { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
+      ];
+      
+      return ranks.find(rank => 
+        starsReceived >= rank.minStars && (rank.maxStars === null || starsReceived <= rank.maxStars)
+      ) || ranks[0];
+    };
+
+    const individualStarsReceived = userItem.individualStars || 0;
+    const individualRank = calculateIndividualRank(individualStarsReceived);
     
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
@@ -729,13 +760,25 @@ function KOSSection({
               </div>
             </div>
 
+            {/* Individual Rank Badge */}
+            <div className="flex-shrink-0">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                individualRank.color
+              }`}>
+                R{individualRank.tier}
+              </div>
+            </div>
+
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
               <div className="text-sm text-purple-700 font-medium mb-1">
-                {userItem.voterTierName || 'Newbie Spark'} (Tier {userItem.voterTierLevel || 1})
+                Voter: {userItem.voterTierName || 'Newbie Spark'} (T{userItem.voterTierLevel || 1})
+              </div>
+              <div className="text-sm text-blue-700 font-medium mb-1">
+                Individual: {individualRank.name} (R{individualRank.tier})
               </div>
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">
