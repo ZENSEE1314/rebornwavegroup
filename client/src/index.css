@@ -1056,6 +1056,39 @@ button, .interactive {
 .magic-sparkle:nth-child(4) { top: 75%; left: 65%; animation-delay: 0.9s; }
 .magic-sparkle:nth-child(5) { top: 85%; left: 45%; animation-delay: 1.2s; }
 
+/* Global white text styling for fantasy theme */
+body {
+  color: white !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: white !important;
+}
+
+p, span, div {
+  color: white !important;
+}
+
+/* Override specific dark text classes */
+.text-gray-700,
+.text-gray-800,
+.text-gray-900,
+.text-slate-700,
+.text-slate-800,
+.text-slate-900,
+.text-black {
+  color: white !important;
+}
+
+/* Keep card content readable - only affects elements inside cards */
+.card *, 
+[class*="card"] *,
+[class*="bg-white"] *,
+[class*="bg-gray"] *,
+[class*="border"] * {
+  color: initial !important;
+}
+
 /* Fantasy Glass Effect for Cards */
 .fantasy-card {
   background: rgba(255, 255, 255, 0.1);
