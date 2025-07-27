@@ -8043,10 +8043,10 @@ export default function CompleteApp() {
               
               <div className="hidden lg:flex items-center space-x-3">
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-700">
+                  <p className="text-sm font-semibold text-white">
                     {t('dashboard.welcome')}, {user?.firstName || 'User'}!
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-300">
                     {user?.role === 'admin' ? 'Administrator' : 'Member'}
                   </p>
                 </div>
@@ -8266,8 +8266,8 @@ export default function CompleteApp() {
                 {/* Label with enhanced typography */}
                 <span className={`text-xs font-medium transition-all duration-300 ${
                   activeTab === tab.id
-                    ? 'text-gray-900 font-semibold'
-                    : 'text-gray-500'
+                    ? 'text-white font-semibold'
+                    : 'text-gray-300'
                 }`}>
                   {tab.label}
                 </span>
