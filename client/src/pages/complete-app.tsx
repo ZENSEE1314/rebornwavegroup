@@ -290,7 +290,6 @@ function KOSSection({
   const searchUsers = async (query: string) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
-      setShowSearchDialog(false);
       return;
     }
 
@@ -300,12 +299,10 @@ function KOSSection({
       if (response.ok) {
         const results = await response.json();
         setSearchResults(results);
-        setShowSearchDialog(true);
       }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
-      setShowSearchDialog(true);
     }
     setIsSearching(false);
   };
@@ -317,7 +314,6 @@ function KOSSection({
         searchUsers(searchQuery);
       } else {
         setSearchResults([]);
-        setShowSearchDialog(false);
       }
     }, 300);
 
@@ -1294,91 +1290,123 @@ function KOSSection({
             </CardContent>
           </Card>
           
-          {/* Top 3 Users */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
-              <Crown className="w-5 h-5 text-yellow-500" />
-              Top 3 Individual Performers
-            </h4>
-            <div className="space-y-3">
-              {top3Users.map((user, index) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  isTop3={true} 
-                  rank={index + 1}
-                  onVote={handleUserVote}
-                  onLike={handleUserLike}
-                  voteMutationPending={voteMutation.isPending}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Top 10 Users */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
-              <Medal className="w-5 h-5 text-purple-500" />
-              Top 10 Individual Rankings
-            </h4>
-            <div className="space-y-2">
-              {top10Users.map((user, index) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  rank={index + 4}
-                  onVote={handleUserVote}
-                  onLike={handleUserLike}
-                  voteMutationPending={voteMutation.isPending}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Remaining Users with Pagination */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
-              <Users className="w-5 h-5 text-gray-500" />
-              All Individual Performers (Page {currentPage} of {totalPages})
-            </h4>
-            <div className="space-y-2">
-              {paginatedUsers.map((user, index) => (
-                <UserCard 
-                  key={user.id} 
-                  user={user} 
-                  rank={11 + (currentPage - 1) * usersPerPage + index}
-                  onVote={handleUserVote}
-                  onLike={handleUserLike}
-                  voteMutationPending={voteMutation.isPending}
-                />
-              ))}
-            </div>
-            
-            {/* Pagination */}
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Previous
-              </Button>
-              <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
-                <span className="text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </span>
+          {/* Search Results or Regular Lists */}
+          {searchResults.length > 0 ? (
+            <div className="space-y-4">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <Search className="w-5 h-5 text-blue-500" />
+                Search Results ({searchResults.length} found)
+              </h4>
+              <div className="space-y-2">
+                {searchResults.map((user, index) => (
+                  <UserCard 
+                    key={user.id} 
+                    user={user} 
+                    rank={index + 1}
+                    onVote={handleUserVote}
+                    onLike={handleUserLike}
+                    voteMutationPending={voteMutation.isPending}
+                  />
+                ))}
               </div>
-              <Button
-                variant="outline"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
             </div>
-          </div>
+          ) : searchQuery.trim().length >= 2 ? (
+            <div className="space-y-4">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <Search className="w-5 h-5 text-gray-400" />
+                No results found for "{searchQuery}"
+              </h4>
+              <p className="text-gray-500 text-sm">Try searching with different keywords.</p>
+            </div>
+          ) : (
+            <>
+              {/* Top 3 Users */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-yellow-500" />
+                  Top 3 Individual Performers
+                </h4>
+                <div className="space-y-3">
+                  {top3Users.map((user, index) => (
+                    <UserCard 
+                      key={user.id} 
+                      user={user} 
+                      isTop3={true} 
+                      rank={index + 1}
+                      onVote={handleUserVote}
+                      onLike={handleUserLike}
+                      voteMutationPending={voteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Top 10 Users */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                  <Medal className="w-5 h-5 text-purple-500" />
+                  Top 10 Individual Rankings
+                </h4>
+                <div className="space-y-2">
+                  {top10Users.map((user, index) => (
+                    <UserCard 
+                      key={user.id} 
+                      user={user} 
+                      rank={index + 4}
+                      onVote={handleUserVote}
+                      onLike={handleUserLike}
+                      voteMutationPending={voteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Remaining Users with Pagination */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-gray-500" />
+                  All Individual Performers (Page {currentPage} of {totalPages})
+                </h4>
+                <div className="space-y-2">
+                  {paginatedUsers.map((user, index) => (
+                    <UserCard 
+                      key={user.id} 
+                      user={user} 
+                      rank={11 + (currentPage - 1) * usersPerPage + index}
+                      onVote={handleUserVote}
+                      onLike={handleUserLike}
+                      voteMutationPending={voteMutation.isPending}
+                    />
+                  ))}
+                </div>
+                
+                {/* Pagination */}
+                <div className="flex justify-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
