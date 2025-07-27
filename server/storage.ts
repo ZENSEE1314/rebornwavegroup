@@ -3826,6 +3826,14 @@ export class DatabaseStorage implements IStorage {
             eq(starTransactions.type, 'tournament_vote')
           ));
 
+        // Get total stars given by this user (for voter rankings)
+        const [starsGivenCount] = await db
+          .select({ total: sql<number>`COALESCE(SUM(${starContributors.totalStarsGiven}), 0)` })
+          .from(starContributors)
+          .where(eq(starContributors.contributorUserId, user.userId));
+        
+        console.log(`Stars given debug for user ${user.userId} (${user.username}):`, starsGivenCount);
+
         return {
           id: user.userId,
           username: user.username, // Add username field for frontend
@@ -3839,7 +3847,9 @@ export class DatabaseStorage implements IStorage {
           totalStars: userStarsData?.totalStars || 0, // Keep for trading balance
           tournamentStars: userStarsData?.tournamentStars || 0,
           individualStars: userStarsData?.individualStars || 0,
+          totalStarsGiven: starsGivenCount?.total || 0, // Add for voter rankings
           likes: likesCount?.count || 0,
+          likesCount: likesCount?.count || 0, // Alias for consistency
           votes: votesCount?.total || 0,
           influencerRank: userStarsData?.influencerRank || 'Bronze I',
           influencerTier: userStarsData?.influencerTier || 1,
@@ -3853,6 +3863,9 @@ export class DatabaseStorage implements IStorage {
         if (type === 'tournament') {
           // Sort by tournament stars received (not total tradeable stars)
           return b.tournamentStars - a.tournamentStars;
+        } else if (type === 'voters') {
+          // Sort by total stars given (voting activity)
+          return b.totalStarsGiven - a.totalStarsGiven;
         } else {
           // Individual rankings sort by individual stars received  
           return b.individualStars - a.individualStars;

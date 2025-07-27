@@ -34,6 +34,90 @@ import MobileBackButton from "@/components/mobile-back-button";
 import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
 
+// VoterCard Component for displaying individual voters
+function VoterCard({ 
+  user, 
+  rank, 
+  totalVotes, 
+  onUserSelect, 
+  queryClient, 
+  currentUser 
+}: { 
+  user: any; 
+  rank: number; 
+  totalVotes: number; 
+  onUserSelect: (user: any) => void;
+  queryClient: any;
+  currentUser: any;
+}) {
+  const { toast } = useToast();
+
+  const handleViewProfile = () => {
+    onUserSelect(user);
+  };
+
+  return (
+    <Card className="border hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          {/* Rank Badge */}
+          <div className="flex-shrink-0">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+              rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+              rank === 2 ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
+              rank === 3 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+              'bg-gradient-to-r from-blue-400 to-blue-600'
+            }`}>
+              #{rank}
+            </div>
+          </div>
+
+          {/* User Info */}
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-lg overflow-hidden flex-shrink-0">
+                {user.profileImageUrl ? (
+                  <img src={user.profileImageUrl} alt={user.username} className="w-full h-full object-cover" />
+                ) : (
+                  '👤'
+                )}
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">
+                  {user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous'}
+                </h4>
+                <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Vote className="w-4 h-4 text-purple-500" />
+                    <span className="font-medium">{totalVotes} stars given</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="w-4 h-4 text-red-500" />
+                    <span>{user.likesCount || 0} likes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewProfile}
+              className="text-xs"
+            >
+              <Eye className="w-3 h-3 mr-1" />
+              View Profile
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // KOS (Kings Of Singers) Component
 function KOSSection({ 
   user, 
@@ -45,7 +129,7 @@ function KOSSection({
   onUserSelect: (user: any) => void;
 }) {
   const { toast } = useToast();
-  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
+  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual' | 'voters'>('tournament');
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch real KOS users data
@@ -263,6 +347,11 @@ function KOSSection({
   const filteredUsers = kosActiveTab === 'tournament' 
     ? displayUsers.filter(user => (user.tournamentStars || 0) > 0)
     : displayUsers;
+  
+  // For voters tab, sort by total stars given (voting activity)
+  const votersList = kosActiveTab === 'voters' 
+    ? [...displayUsers].sort((a, b) => (b.totalStarsGiven || 0) - (a.totalStarsGiven || 0))
+    : [];
   
   const top3Users = filteredUsers.slice(0, 3);
   const top10Users = filteredUsers.slice(3, 10);
@@ -959,8 +1048,8 @@ function KOSSection({
       </Card>
 
       {/* Tabs */}
-      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voters')} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
           <TabsTrigger value="tournament" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
             Tournaments
@@ -968,6 +1057,10 @@ function KOSSection({
           <TabsTrigger value="individual" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Individual
+          </TabsTrigger>
+          <TabsTrigger value="voters" className="flex items-center gap-2">
+            <Vote className="w-4 h-4" />
+            Voter Rankings
           </TabsTrigger>
         </TabsList>
 
@@ -1437,6 +1530,135 @@ function KOSSection({
                   </Button>
                 </div>
               </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="voters" className="space-y-6">
+          <h3 className="text-xl font-semibold text-gray-900">Voter Rankings</h3>
+          <p className="text-gray-600">Users ranked by their voting activity - how many stars they've given to others</p>
+          
+          {/* Search functionality for voters */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search voters by username..."
+              value={searchQuery}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                
+                if (query.length >= 2) {
+                  setIsSearching(true);
+                  const timeoutId = setTimeout(() => {
+                    fetch(`/api/kos/users/search?query=${encodeURIComponent(query)}`)
+                      .then(res => res.json())
+                      .then(data => {
+                        setSearchResults(data.users || []);
+                        setIsSearching(false);
+                      })
+                      .catch(err => {
+                        console.error('Search error:', err);
+                        setIsSearching(false);
+                      });
+                  }, 300);
+                  
+                  return () => clearTimeout(timeoutId);
+                } else {
+                  setSearchResults([]);
+                  setIsSearching(false);
+                }
+              }}
+              className="pl-10 pr-4 py-2 w-full"
+            />
+          </div>
+
+          {/* Search Results for Voters */}
+          {searchQuery.length >= 2 && (
+            <>
+              {isSearching ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                  <span className="ml-2 text-gray-600">Searching voters...</span>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-800">
+                    Search Results ({searchResults.length} found)
+                  </h4>
+                  <div className="grid gap-4">
+                    {searchResults.map((userItem, index) => (
+                      <VoterCard
+                        key={userItem.id}
+                        user={userItem}
+                        rank={index + 1}
+                        totalVotes={userItem.totalStarsGiven || 0}
+                        onUserSelect={onUserSelect}
+                        queryClient={queryClient}
+                        currentUser={user}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No voters found for "{searchQuery}"</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Regular Voters List (when not searching) */}
+          {searchQuery.length < 2 && (
+            <>
+              {kosUsersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                  <span className="ml-2 text-gray-600">Loading voter rankings...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {votersList.map((userItem, index) => (
+                      <VoterCard
+                        key={userItem.id}
+                        user={userItem}
+                        rank={index + 1}
+                        totalVotes={userItem.totalStarsGiven || 0}
+                        onUserSelect={onUserSelect}
+                        queryClient={queryClient}
+                        currentUser={user}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Pagination */}
+                  <div className="flex justify-center gap-2 mt-6">
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
+                      <span className="text-sm font-medium">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </TabsContent>
