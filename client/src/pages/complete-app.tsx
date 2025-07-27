@@ -282,6 +282,8 @@ function KOSSection({
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [showUserCard, setShowUserCard] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchSelectedUser, setSearchSelectedUser] = useState<any>(null);
 
   // Search users
@@ -1379,34 +1381,39 @@ function KOSSection({
         </TabsContent>
       </Tabs>
 
-      {/* Search Users Dialog */}
+      {/* Search Users Dialog - Selection List */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Search className="w-5 h-5 text-blue-500" />
               Search Results for "{searchQuery}"
             </DialogTitle>
             <DialogDescription>
-              Vote or like performers to show your support
+              Select a user to view their profile
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            {/* Search Results */}
+            {/* Search Results - Simple List */}
             {isSearching ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
                 <span className="ml-2 text-gray-600">Searching...</span>
               </div>
             ) : searchResults.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {searchResults.map((result) => (
-                  <div
+                  <button
                     key={result.id}
-                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      setSelectedUser(result);
+                      setShowSearchDialog(false);
+                      setShowUserCard(true);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg border hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
                   >
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-lg overflow-hidden flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
                       {result.profileImageUrl ? (
                         <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
                       ) : (
@@ -1414,54 +1421,23 @@ function KOSSection({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 truncate">{result.username}</div>
+                      <div className="font-medium text-gray-900 truncate">{result.username}</div>
                       <div className="text-sm text-gray-600 truncate">{result.firstName} {result.lastName}</div>
-                      <div className="flex items-center gap-4 mt-1">
+                      <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm font-medium">
+                          <Star className="w-3 h-3 text-yellow-500" />
+                          <span className="text-xs">
                             {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Heart className="w-4 h-4 text-pink-500" />
-                          <span className="text-sm">{result.likes || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Crown className="w-4 h-4 text-purple-500" />
-                          <span className="text-xs text-gray-600">{result.influencerRank}</span>
+                          <Heart className="w-3 h-3 text-pink-500" />
+                          <span className="text-xs">{result.likes || 0}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          handleUserVote(result);
-                          setShowSearchDialog(false);
-                        }}
-                        disabled={voteMutation.isPending}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <Vote className="w-3 h-3 mr-1" />
-                        Vote
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          handleUserLike(result);
-                          setShowSearchDialog(false);
-                        }}
-                        disabled={voteMutation.isPending}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <Heart className="w-3 h-3 mr-1" />
-                        Like
-                      </Button>
-                    </div>
-                  </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </button>
                 ))}
               </div>
             ) : (
@@ -1475,6 +1451,113 @@ function KOSSection({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSearchDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed User Card Dialog */}
+      <Dialog open={showUserCard} onOpenChange={setShowUserCard}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-purple-500" />
+              User Profile
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="space-y-6">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                  {selectedUser.profileImageUrl ? (
+                    <img src={selectedUser.profileImageUrl} alt={selectedUser.username} className="w-full h-full object-cover" />
+                  ) : (
+                    '👤'
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">{selectedUser.username}</h3>
+                  <p className="text-gray-600">{selectedUser.firstName} {selectedUser.lastName}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Crown className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm text-purple-600 font-medium">{selectedUser.influencerRank}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    <span className="font-medium text-gray-700">
+                      {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {kosActiveTab === 'tournament' ? (selectedUser.tournamentStars || 0) : (selectedUser.individualStars || 0)}
+                  </div>
+                </div>
+
+                <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Heart className="w-5 h-5 text-pink-500" />
+                    <span className="font-medium text-gray-700">Likes</span>
+                  </div>
+                  <div className="text-2xl font-bold text-pink-600">{selectedUser.likes || 0}</div>
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="w-5 h-5 text-green-500" />
+                    <span className="font-medium text-gray-700">Total Stars</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">{selectedUser.totalStars || 0}</div>
+                </div>
+
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown className="w-5 h-5 text-purple-500" />
+                    <span className="font-medium text-gray-700">Tier</span>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600">{selectedUser.influencerTier || 1}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    handleUserVote(selectedUser);
+                    setShowUserCard(false);
+                  }}
+                  disabled={voteMutation.isPending}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Vote className="w-4 h-4 mr-2" />
+                  Vote for User
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleUserLike(selectedUser);
+                    setShowUserCard(false);
+                  }}
+                  disabled={voteMutation.isPending}
+                  className="flex-1"
+                >
+                  <Heart className="w-4 h-4 mr-2" />
+                  Like User
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUserCard(false)}>
               Close
             </Button>
           </DialogFooter>
