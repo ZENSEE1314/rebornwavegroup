@@ -281,6 +281,8 @@ function KOSSection({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [searchSelectedUser, setSearchSelectedUser] = useState<any>(null);
 
   // Search users
   const searchUsers = async (query: string) => {
@@ -1060,82 +1062,30 @@ function KOSSection({
                       placeholder="Search users by username..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-4 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchQuery.trim()) {
+                          setShowSearchDialog(true);
+                        }
+                      }}
+                      className="pl-10 pr-20 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                     {isSearching && (
-                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-3 top-1/2 transform -translate-y-1/2 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-12 top-1/2 transform -translate-y-1/2 animate-spin" />
                     )}
+                    {/* Search Button */}
+                    <Button
+                      onClick={() => {
+                        if (searchQuery.trim()) {
+                          setShowSearchDialog(true);
+                        }
+                      }}
+                      disabled={!searchQuery.trim() || isSearching}
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                      size="sm"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
                   </div>
-                  
-                  {/* Search Results Dropdown */}
-                  {showSearchResults && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                      {searchResults.length > 0 ? (
-                        searchResults.map((result) => (
-                          <div
-                            key={result.id}
-                            className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
-                          >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
-                              {result.profileImageUrl ? (
-                                <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
-                              ) : (
-                                '👤'
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{result.username}</div>
-                              <div className="text-xs text-gray-600 flex items-center gap-3">
-                                <span>{result.firstName} {result.lastName}</span>
-                                <div className="flex items-center gap-1">
-                                  <Star className="w-3 h-3 text-yellow-500" />
-                                  <span className="font-medium">
-                                    {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Heart className="w-3 h-3 text-pink-500" />
-                                  <span>{result.likes || 0}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUserVote(result);
-                                }}
-                                disabled={voteMutation.isPending}
-                                className="h-7 px-2 text-xs"
-                              >
-                                <Vote className="w-3 h-3 mr-1" />
-                                Vote
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUserLike(result);
-                                }}
-                                disabled={voteMutation.isPending}
-                                className="h-7 px-2 text-xs"
-                              >
-                                <Heart className="w-3 h-3 mr-1" />
-                                Like
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center text-gray-500 text-sm">
-                          No users found
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div className="text-sm text-gray-600">
                   Search by username to find performers
@@ -1309,82 +1259,30 @@ function KOSSection({
                       placeholder="Search users by username..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-4 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchQuery.trim()) {
+                          setShowSearchDialog(true);
+                        }
+                      }}
+                      className="pl-10 pr-20 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                     {isSearching && (
-                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-3 top-1/2 transform -translate-y-1/2 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-12 top-1/2 transform -translate-y-1/2 animate-spin" />
                     )}
+                    {/* Search Button */}
+                    <Button
+                      onClick={() => {
+                        if (searchQuery.trim()) {
+                          setShowSearchDialog(true);
+                        }
+                      }}
+                      disabled={!searchQuery.trim() || isSearching}
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                      size="sm"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
                   </div>
-                  
-                  {/* Search Results Dropdown */}
-                  {showSearchResults && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                      {searchResults.length > 0 ? (
-                        searchResults.map((result) => (
-                          <div
-                            key={result.id}
-                            className="flex items-center gap-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
-                          >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-sm overflow-hidden">
-                              {result.profileImageUrl ? (
-                                <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
-                              ) : (
-                                '👤'
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{result.username}</div>
-                              <div className="text-xs text-gray-600 flex items-center gap-3">
-                                <span>{result.firstName} {result.lastName}</span>
-                                <div className="flex items-center gap-1">
-                                  <Star className="w-3 h-3 text-yellow-500" />
-                                  <span className="font-medium">
-                                    {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Heart className="w-3 h-3 text-pink-500" />
-                                  <span>{result.likes || 0}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUserVote(result);
-                                }}
-                                disabled={voteMutation.isPending}
-                                className="h-7 px-2 text-xs"
-                              >
-                                <Vote className="w-3 h-3 mr-1" />
-                                Vote
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUserLike(result);
-                                }}
-                                disabled={voteMutation.isPending}
-                                className="h-7 px-2 text-xs"
-                              >
-                                <Heart className="w-3 h-3 mr-1" />
-                                Like
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-3 text-center text-gray-500 text-sm">
-                          No users found
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div className="text-sm text-gray-600">
                   Search by username to find performers
@@ -1480,6 +1378,108 @@ function KOSSection({
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Search Users Dialog */}
+      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="w-5 h-5 text-blue-500" />
+              Search Results for "{searchQuery}"
+            </DialogTitle>
+            <DialogDescription>
+              Vote or like performers to show your support
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Search Results */}
+            {isSearching ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                <span className="ml-2 text-gray-600">Searching...</span>
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <div
+                    key={result.id}
+                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-lg overflow-hidden flex-shrink-0">
+                      {result.profileImageUrl ? (
+                        <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
+                      ) : (
+                        '👤'
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900 truncate">{result.username}</div>
+                      <div className="text-sm text-gray-600 truncate">{result.firstName} {result.lastName}</div>
+                      <div className="flex items-center gap-4 mt-1">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-500" />
+                          <span className="text-sm font-medium">
+                            {kosActiveTab === 'tournament' ? (result.tournamentStars || 0) : (result.individualStars || 0)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="w-4 h-4 text-pink-500" />
+                          <span className="text-sm">{result.likes || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Crown className="w-4 h-4 text-purple-500" />
+                          <span className="text-xs text-gray-600">{result.influencerRank}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleUserVote(result);
+                          setShowSearchDialog(false);
+                        }}
+                        disabled={voteMutation.isPending}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <Vote className="w-3 h-3 mr-1" />
+                        Vote
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          handleUserLike(result);
+                          setShowSearchDialog(false);
+                        }}
+                        disabled={voteMutation.isPending}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <Heart className="w-3 h-3 mr-1" />
+                        Like
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <div className="text-gray-600 font-medium">No users found</div>
+                <div className="text-gray-500 text-sm">Try searching with a different username</div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSearchDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Star Trading Dialog */}
       <Dialog open={showStarDialog} onOpenChange={setShowStarDialog}>
