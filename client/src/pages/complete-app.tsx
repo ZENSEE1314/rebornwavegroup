@@ -53,7 +53,7 @@ function KOSSection({
     queryKey: ['/api/kos/users', kosActiveTab, currentPage],
     queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
     staleTime: 0, // Force fresh data on tab switches
-    cacheTime: 0, // Don't cache between tab switches
+    gcTime: 0, // Don't cache between tab switches
   });
 
   // Fetch current tournament data
@@ -89,7 +89,7 @@ function KOSSection({
     },
     enabled: !!user?.id,
     staleTime: 0, // Disable caching for now to force fresh data
-    cacheTime: 0, // Disable cache storage
+    gcTime: 0, // Disable cache storage
     retry: false,
   });
 
@@ -125,7 +125,7 @@ function KOSSection({
       return res.json();
     },
     staleTime: 0, // Disable caching for immediate updates
-    cacheTime: 0, // Disable cache storage 
+    gcTime: 0, // Disable cache storage 
     retry: false,
   });
 
@@ -399,10 +399,12 @@ function KOSSection({
       queryClient.invalidateQueries({ queryKey: ['/api/kos/user-stars'] });
       queryClient.invalidateQueries({ queryKey: ['/api/kos/user-contributions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kos/current-tournament'] });
       // Force immediate refetch
       queryClient.refetchQueries({ queryKey: ['/api/kos/users'] });
       queryClient.refetchQueries({ queryKey: ['/api/kos/user-stars'] });
       queryClient.refetchQueries({ queryKey: ['/api/kos/user-contributions'] });
+      queryClient.refetchQueries({ queryKey: ['/api/kos/current-tournament'] });
       setShowVoteDialog(false);
       setVoteTargetUser(null);
       setVoteStarsAmount(1);
@@ -479,7 +481,7 @@ function KOSSection({
 
   // Tournament timer component with real-time updates
   const TournamentTimer = ({ tournament }: { tournament: any }) => {
-    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
     
     useEffect(() => {
       if (!tournament?.endDate) return;
@@ -490,23 +492,24 @@ function KOSSection({
         const timeDiff = endDate.getTime() - now.getTime();
         
         if (timeDiff <= 0) {
-          return { days: 0, hours: 0, minutes: 0 };
+          return { days: 0, hours: 0, minutes: 0, seconds: 0 };
         }
 
         const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
 
-        return { days, hours, minutes };
+        return { days, hours, minutes, seconds };
       };
       
       // Update immediately
       setTimeLeft(calculateTimeLeft());
       
-      // Update every minute
+      // Update every second
       const interval = setInterval(() => {
         setTimeLeft(calculateTimeLeft());
-      }, 60000);
+      }, 1000);
       
       return () => clearInterval(interval);
     }, [tournament?.endDate]);
@@ -530,7 +533,7 @@ function KOSSection({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m
+                {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
               </div>
               <div className="text-sm text-gray-600">Time Left</div>
             </div>
