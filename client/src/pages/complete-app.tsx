@@ -91,12 +91,17 @@ function VoterCard({
             )}
           </div>
 
-          {/* Voter Tier Badge - Enhanced Design */}
+          {/* Custom Voter Tier Logo */}
           <div className="flex-shrink-0">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ${
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 border-white ${
               user.voterTierColor || 'bg-gray-500'
             }`}>
-              T{user.voterTierLevel || 1}
+              <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z"/>
+                <text x="12" y="16" textAnchor="middle" className="text-[8px] font-bold fill-current">
+                  T{user.voterTierLevel || 1}
+                </text>
+              </svg>
             </div>
           </div>
 
@@ -788,22 +793,24 @@ function KOSSection({
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
               
-              {/* Tier Names - Simplified without redundant text */}
-              <div className="text-sm font-medium mb-2 text-purple-600">
+              {/* Single Tier Name - Clean Interface */}
+              <div className="text-sm font-medium mb-3 text-purple-600">
                 {userItem.voterTierName || 'Newbie Spark'}
-              </div>
-              <div className="text-sm font-medium mb-3 text-blue-600">
-                {individualRank.name}
               </div>
               
               {/* Stars and Likes with Custom Tier Badges */}
               <div className="flex items-center gap-4 mt-2">
-                {/* Stars with Tier Badge */}
+                {/* Stars with Custom Voter Tier Logo */}
                 <div className="flex items-center gap-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-md ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border border-white ${
                     userItem.voterTierColor || 'bg-gray-500'
                   }`}>
-                    T{userItem.voterTierLevel || 1}
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z"/>
+                      <text x="12" y="15" textAnchor="middle" className="text-[6px] font-bold fill-current">
+                        T{userItem.voterTierLevel || 1}
+                      </text>
+                    </svg>
                   </div>
                   <Star className="w-5 h-5 text-yellow-500" />
                   <span className={`${isTop3 ? 'text-lg font-bold' : 'text-base font-semibold'} text-gray-700`}>
@@ -811,12 +818,17 @@ function KOSSection({
                   </span>
                 </div>
                 
-                {/* Individual Rank Badge */}
+                {/* Individual Rank Badge with Custom Logo */}
                 <div className="flex items-center gap-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-md ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border border-white ${
                     individualRank.color
                   }`}>
-                    R{individualRank.tier}
+                    <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0l1.09 3.26L16 2L14.98 5.75L19 4.25L16.65 8.5L21 9L17.5 12L22 14.75L17.5 17.5L21 20.5L16.65 20.75L19 24L14.98 22.25L16 26L12 24l-1.09 3.26L8 26L9.02 22.25L5 24L7.35 20.75L3 20.5L6.5 17.5L2 14.75L6.5 12L2 9L7.35 8.5L5 4.25L9.02 5.75L8 2L11.09 3.26L12 0Z"/>
+                      <text x="12" y="15" textAnchor="middle" className="text-[6px] font-bold fill-current">
+                        R{individualRank.tier}
+                      </text>
+                    </svg>
                   </div>
                   <Heart className="w-5 h-5 text-pink-500" />
                   <span className={`${isTop3 ? 'text-lg font-bold' : 'text-base font-semibold'} text-gray-700`}>
