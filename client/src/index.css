@@ -72,24 +72,218 @@ button[class*="dashboard-button"] svg {
     width: 100% !important;
     margin-bottom: 1rem !important;
   }
-  
-  .achievement-text-tiny {
-    font-size: 8px !important;
-    line-height: 1.2 !important;
+}
+
+/* Fantasy Background with Animated Shooting Stars */
+.fantasy-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, 
+    #0c0f2b 0%, 
+    #1a0b3d 25%, 
+    #2d1b5c 50%, 
+    #4a2c85 75%, 
+    #6a3d9a 100%);
+  background-size: 400% 400%;
+  animation: magicalGradient 20s ease infinite;
+  z-index: -1;
+  overflow: hidden;
+}
+
+/* Magical Gradient Animation */
+@keyframes magicalGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Shooting Stars */
+.shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: linear-gradient(45deg, #fff, #ffeb3b, #ff9800);
+  border-radius: 50%;
+  animation: shootingStar 3s linear infinite;
+  box-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b, 0 0 30px #ff9800;
+}
+
+.shooting-star:nth-child(1) {
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+  animation-duration: 3s;
+}
+
+.shooting-star:nth-child(2) {
+  top: 20%;
+  left: 80%;
+  animation-delay: 1s;
+  animation-duration: 2.5s;
+}
+
+.shooting-star:nth-child(3) {
+  top: 70%;
+  left: 20%;
+  animation-delay: 2s;
+  animation-duration: 3.5s;
+}
+
+.shooting-star:nth-child(4) {
+  top: 40%;
+  left: 90%;
+  animation-delay: 0.5s;
+  animation-duration: 2.8s;
+}
+
+.shooting-star:nth-child(5) {
+  top: 80%;
+  left: 60%;
+  animation-delay: 1.5s;
+  animation-duration: 3.2s;
+}
+
+.shooting-star:nth-child(6) {
+  top: 30%;
+  left: 40%;
+  animation-delay: 2.5s;
+  animation-duration: 2.7s;
+}
+
+.shooting-star:nth-child(7) {
+  top: 60%;
+  left: 10%;
+  animation-delay: 0.8s;
+  animation-duration: 3.8s;
+}
+
+.shooting-star:nth-child(8) {
+  top: 90%;
+  left: 70%;
+  animation-delay: 1.8s;
+  animation-duration: 2.3s;
+}
+
+@keyframes shootingStar {
+  0% {
+    transform: translateX(0) translateY(0) scale(0);
+    opacity: 0;
   }
-  
-  /* Hide desktop layout on mobile */
-  .mobile-stats-grid > .hidden {
-    display: none !important;
+  10% {
+    transform: translateX(10px) translateY(10px) scale(1);
+    opacity: 1;
   }
-  
-  /* Force mobile grid to work properly */
-  @media (max-width: 767px) {
-    div[class*="grid-cols-2"] {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr !important;
-      gap: 0.5rem !important;
-    }
+  90% {
+    transform: translateX(300px) translateY(300px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(400px) translateY(400px) scale(0);
+    opacity: 0;
+  }
+}
+
+/* Twinkling Stars */
+.twinkling-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle infinite ease-in-out;
+  box-shadow: 0 0 6px #fff, 0 0 12px #e3f2fd, 0 0 18px #bbdefb;
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Magic Sparkles */
+.magic-sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: linear-gradient(45deg, #e1bee7, #f8bbd9, #fff59d);
+  border-radius: 50%;
+  animation: sparkle 4s ease-in-out infinite;
+  box-shadow: 0 0 8px #e1bee7, 0 0 16px #f8bbd9, 0 0 24px #fff59d;
+}
+
+.magic-sparkle:nth-child(1) {
+  top: 15%;
+  left: 25%;
+  animation-delay: 0s;
+}
+
+.magic-sparkle:nth-child(2) {
+  top: 65%;
+  left: 75%;
+  animation-delay: 1s;
+}
+
+.magic-sparkle:nth-child(3) {
+  top: 85%;
+  left: 15%;
+  animation-delay: 2s;
+}
+
+.magic-sparkle:nth-child(4) {
+  top: 25%;
+  left: 65%;
+  animation-delay: 3s;
+}
+
+.magic-sparkle:nth-child(5) {
+  top: 45%;
+  left: 85%;
+  animation-delay: 0.5s;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  25% {
+    opacity: 0.8;
+    transform: scale(1) rotate(90deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3) rotate(180deg);
+  }
+  75% {
+    opacity: 0.8;
+    transform: scale(1) rotate(270deg);
+  }
+}
+
+.achievement-text-tiny {
+  font-size: 8px !important;
+  line-height: 1.2 !important;
+}
+
+/* Hide desktop layout on mobile */
+.mobile-stats-grid > .hidden {
+  display: none !important;
+}
+
+/* Force mobile grid to work properly */
+@media (max-width: 767px) {
+  div[class*="grid-cols-2"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
   }
 }
 
@@ -682,6 +876,417 @@ button, .interactive {
 @keyframes fill-12 { to { width: 12%; } }
 @keyframes fill-13 { to { width: 13%; } }
 @keyframes fill-14 { to { width: 14%; } }
+
+/* Fantasy Theme - Animated Shooting Stars Background */
+@keyframes shootingStar {
+  0% {
+    transform: translateX(-100vw) translateY(100vh) rotate(-45deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100vw) translateY(-100vh) rotate(-45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes magicParticle {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-200px) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Fantasy Background */
+.fantasy-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, 
+    #0f0f23 0%, 
+    #1a1a3a 25%, 
+    #2d1b69 50%, 
+    #1a1a3a 75%, 
+    #0f0f23 100%);
+  overflow: hidden;
+  z-index: -1;
+}
+
+/* Shooting Stars */
+.shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: shootingStar linear infinite;
+}
+
+.shooting-star::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 100px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 100%);
+  transform: translateY(-50%);
+  border-radius: 50%;
+}
+
+.shooting-star:nth-child(1) {
+  top: 10%;
+  left: 10%;
+  animation-duration: 3s;
+  animation-delay: 0s;
+}
+
+.shooting-star:nth-child(2) {
+  top: 20%;
+  left: 20%;
+  animation-duration: 4s;
+  animation-delay: 1s;
+}
+
+.shooting-star:nth-child(3) {
+  top: 30%;
+  left: 30%;
+  animation-duration: 2.5s;
+  animation-delay: 2s;
+}
+
+.shooting-star:nth-child(4) {
+  top: 40%;
+  left: 40%;
+  animation-duration: 3.5s;
+  animation-delay: 0.5s;
+}
+
+.shooting-star:nth-child(5) {
+  top: 60%;
+  left: 10%;
+  animation-duration: 2.8s;
+  animation-delay: 1.5s;
+}
+
+.shooting-star:nth-child(6) {
+  top: 70%;
+  left: 60%;
+  animation-duration: 4.2s;
+  animation-delay: 2.5s;
+}
+
+.shooting-star:nth-child(7) {
+  top: 80%;
+  left: 30%;
+  animation-duration: 3.2s;
+  animation-delay: 3s;
+}
+
+.shooting-star:nth-child(8) {
+  top: 15%;
+  left: 70%;
+  animation-duration: 2.7s;
+  animation-delay: 0.8s;
+}
+
+/* Twinkling Stars */
+.twinkling-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.twinkling-star:nth-child(odd) {
+  animation-delay: 1s;
+}
+
+/* Magic Sparkles */
+.magic-sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #ffd700;
+  border-radius: 50%;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+.magic-sparkle:nth-child(1) { top: 25%; left: 15%; animation-delay: 0s; }
+.magic-sparkle:nth-child(2) { top: 35%; left: 75%; animation-delay: 0.3s; }
+.magic-sparkle:nth-child(3) { top: 55%; left: 25%; animation-delay: 0.6s; }
+.magic-sparkle:nth-child(4) { top: 75%; left: 65%; animation-delay: 0.9s; }
+.magic-sparkle:nth-child(5) { top: 85%; left: 45%; animation-delay: 1.2s; }
+
+/* Fantasy Glass Effect for Cards */
+.fantasy-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.fantasy-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.fantasy-card:hover::before {
+  left: 100%;
+}
+
+.fantasy-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 0 20px rgba(138, 43, 226, 0.3);
+}
+
+/* Fantasy Button */
+.fantasy-button {
+  background: linear-gradient(135deg, #8A2BE2 0%, #4B0082 50%, #9370DB 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.fantasy-button::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  transform: rotate(45deg);
+  transition: all 0.3s ease;
+  opacity: 0;
+}
+
+.fantasy-button:hover::before {
+  opacity: 1;
+  transform: rotate(45deg) translate(25%, 25%);
+}
+
+.fantasy-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 25px rgba(138, 43, 226, 0.4),
+    0 0 20px rgba(138, 43, 226, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Fantasy Badge */
+.fantasy-badge {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  color: #000;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 4px 15px rgba(255, 215, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+/* Fantasy Input */
+.fantasy-input {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  color: white;
+  placeholder-color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.fantasy-input:focus {
+  border-color: rgba(138, 43, 226, 0.8);
+  box-shadow: 
+    0 0 20px rgba(138, 43, 226, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fantasy-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Fantasy Tab */
+.fantasy-tab {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.fantasy-tab.active {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.8) 0%, rgba(75, 0, 130, 0.8) 100%);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: white;
+  box-shadow: 
+    0 8px 25px rgba(138, 43, 226, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.fantasy-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* Fantasy Progress Bar */
+.fantasy-progress {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.fantasy-progress-fill {
+  background: linear-gradient(90deg, #8A2BE2 0%, #DA70D6 50%, #DDA0DD 100%);
+  border-radius: 8px;
+  position: relative;
+  transition: width 0.5s ease;
+}
+
+.fantasy-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Fantasy Modal */
+.fantasy-modal {
+  background: rgba(15, 15, 35, 0.95);
+  backdrop-filter: blur(30px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.fantasy-modal::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(138, 43, 226, 0.1) 0%, transparent 70%);
+  animation: magicParticle 4s ease-in-out infinite;
+}
+
+/* Fantasy Header */
+.fantasy-header {
+  background: linear-gradient(135deg, rgba(15, 15, 35, 0.9) 0%, rgba(26, 26, 58, 0.9) 100%);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+/* Magic Particle Effect */
+.magic-particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.magic-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #FFD700;
+  border-radius: 50%;
+  animation: magicParticle 3s ease-out infinite;
+}
+
+.magic-particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+.magic-particle:nth-child(2) { left: 30%; animation-delay: 0.5s; }
+.magic-particle:nth-child(3) { left: 50%; animation-delay: 1s; }
+.magic-particle:nth-child(4) { left: 70%; animation-delay: 1.5s; }
+.magic-particle:nth-child(5) { left: 90%; animation-delay: 2s; }
 @keyframes fill-15 { to { width: 15%; } }
 @keyframes fill-16 { to { width: 16%; } }
 @keyframes fill-17 { to { width: 17%; } }

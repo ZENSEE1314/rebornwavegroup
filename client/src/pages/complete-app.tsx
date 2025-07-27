@@ -7979,7 +7979,42 @@ export default function CompleteApp() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+    <>
+      {/* Fantasy Background with Animated Shooting Stars */}
+      <div className="fantasy-background">
+        {/* Shooting Stars */}
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        <div className="shooting-star"></div>
+        
+        {/* Twinkling Stars */}
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div
+            key={`star-${i}`}
+            className="twinkling-star"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${1.5 + Math.random() * 2}s`
+            }}
+          />
+        ))}
+        
+        {/* Magic Sparkles */}
+        <div className="magic-sparkle"></div>
+        <div className="magic-sparkle"></div>
+        <div className="magic-sparkle"></div>
+        <div className="magic-sparkle"></div>
+        <div className="magic-sparkle"></div>
+      </div>
+    
+      <div className="min-h-screen relative pb-20 md:pb-0">
       {/* Enhanced Modern App Header */}
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
         <div className="w-full px-3 md:px-6 py-3 md:py-4">
@@ -12710,6 +12745,7 @@ export default function CompleteApp() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
