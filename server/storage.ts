@@ -3867,6 +3867,89 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Voting Power Rankings - users ranked by total votes cast (both tournament and individual)
+  async getVotingPowerRankings(page: number, limit: number): Promise<any[]> {
+    try {
+      const offset = (page - 1) * limit;
+      
+      // Get all users with their voting power (total stars given)
+      const allUsers = await db
+        .select({
+          userId: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          email: users.email,
+        })
+        .from(users)
+        .limit(limit)
+        .offset(offset);
+
+      // Process each user and add voting power data
+      const usersWithVotingPower = await Promise.all(allUsers.map(async (user) => {
+        // Get user's basic KOS data
+        const [userStarsData] = await db
+          .select()
+          .from(userStars)
+          .where(eq(userStars.userId, user.userId))
+          .limit(1);
+
+        // Get user's total voting power (stars given to others) - combined individual + tournament
+        const [votingPowerResult] = await db
+          .select({ 
+            individualStarsGiven: sql<number>`COALESCE(SUM(${starContributors.individualStarsGiven}), 0)`,
+            tournamentStarsGiven: sql<number>`COALESCE(SUM(${starContributors.tournamentStarsGiven}), 0)`,
+            totalStarsGiven: sql<number>`COALESCE(SUM(${starContributors.totalStarsGiven}), 0)`
+          })
+          .from(starContributors)
+          .where(eq(starContributors.contributorUserId, user.userId));
+
+        // Count likes received for this user
+        const [likesCount] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(userLikes)
+          .where(eq(userLikes.toUserId, user.userId));
+
+        const votingPower = votingPowerResult?.totalStarsGiven || 0;
+        const individualVotes = votingPowerResult?.individualStarsGiven || 0;
+        const tournamentVotes = votingPowerResult?.tournamentStarsGiven || 0;
+
+        return {
+          id: user.userId,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Anonymous',
+          photo: user.profileImageUrl || '/api/placeholder/50/50',
+          profileImageUrl: user.profileImageUrl,
+          // Voting power metrics
+          votingPower: votingPower, // Total stars given (both tournament + individual)
+          individualVotes: individualVotes, // Individual mode votes cast
+          tournamentVotes: tournamentVotes, // Tournament mode votes cast
+          // Basic KOS data
+          totalStars: userStarsData?.totalStars || 0,
+          tournamentStars: userStarsData?.tournamentStars || 0,
+          individualStars: userStarsData?.individualStars || 0,
+          likes: likesCount?.count || 0,
+          influencerRank: userStarsData?.influencerRank || 'Bronze I',
+          influencerTier: userStarsData?.influencerTier || 1,
+          earnings: parseFloat(userStarsData?.totalEarnings || '0'),
+          email: user.email
+        };
+      }));
+
+      // Sort by total voting power (stars given) - highest first
+      const sortedUsers = usersWithVotingPower.sort((a, b) => b.votingPower - a.votingPower);
+
+      console.log('Voting Power Rankings Result:', sortedUsers);
+      return sortedUsers;
+    } catch (error) {
+      console.error('Error fetching voting power rankings:', error);
+      return [];
+    }
+  }
+
   async getCurrentTournament(): Promise<any | null> {
     try {
       const [currentTournament] = await db
