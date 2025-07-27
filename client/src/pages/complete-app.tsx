@@ -60,15 +60,12 @@ function VoterCard({
     <Card className="border hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
-          {/* Rank Badge */}
+          {/* Voter Tier Badge */}
           <div className="flex-shrink-0">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-              rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-              rank === 2 ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
-              rank === 3 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
-              'bg-gradient-to-r from-blue-400 to-blue-600'
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+              user.voterTierColor || 'bg-gray-500'
             }`}>
-              #{rank}
+              T{user.voterTierLevel || 1}
             </div>
           </div>
 
@@ -86,6 +83,9 @@ function VoterCard({
                 <h4 className="font-semibold text-gray-900">
                   {user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous'}
                 </h4>
+                <div className="text-sm text-purple-700 font-medium mb-1">
+                  {user.voterTierName || 'Newbie Spark'} (Tier {user.voterTierLevel || 1})
+                </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <Vote className="w-4 h-4 text-purple-500" />
@@ -1536,7 +1536,7 @@ function KOSSection({
 
         <TabsContent value="voters" className="space-y-6">
           <h3 className="text-xl font-semibold text-gray-900">Voter Rankings</h3>
-          <p className="text-gray-600">Users ranked by their voting activity - how many stars they've given to others</p>
+          <p className="text-gray-600">Users ranked by their voter tier progression based on stars given to others (Newbie Spark → Rising Star → ... → Omnipotent Maestro)</p>
           
           {/* Search functionality for voters */}
           <div className="relative">
