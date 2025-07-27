@@ -45,21 +45,13 @@ function KOSSection({
   onUserSelect: (user: any) => void;
 }) {
   const { toast } = useToast();
-  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual' | 'voting-power'>('tournament');
+  const [kosActiveTab, setKosActiveTab] = useState<'tournament' | 'individual'>('tournament');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch real KOS users data based on tab
+  // Fetch real KOS users data
   const { data: kosUsers = [], isLoading: kosUsersLoading } = useQuery({
-    queryKey: kosActiveTab === 'voting-power' 
-      ? ['/api/kos/voting-power-rankings', currentPage]
-      : ['/api/kos/users', kosActiveTab, currentPage],
-    queryFn: () => {
-      if (kosActiveTab === 'voting-power') {
-        return fetch(`/api/kos/voting-power-rankings?page=${currentPage}&limit=113`).then(res => res.json());
-      } else {
-        return fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json());
-      }
-    },
+    queryKey: ['/api/kos/users', kosActiveTab, currentPage],
+    queryFn: () => fetch(`/api/kos/users?type=${kosActiveTab}&page=${currentPage}&limit=113`).then(res => res.json()),
     staleTime: 0, // Force fresh data on tab switches
     gcTime: 0, // Don't cache between tab switches
   });
@@ -595,15 +587,13 @@ function KOSSection({
     );
   };
 
-  const UserCard = ({ user: userItem, isTop3 = false, rank, onVote, onLike, voteMutationPending, kosActiveTab, showVotingPower = false }: { 
+  const UserCard = ({ user: userItem, isTop3 = false, rank, onVote, onLike, voteMutationPending }: { 
     user: any; 
     isTop3?: boolean; 
     rank: number;
     onVote: (user: any) => void;
     onLike: (user: any) => void;
     voteMutationPending: boolean;
-    kosActiveTab?: string;
-    showVotingPower?: boolean;
   }) => {
     // Find how many stars this user has given to others (MODE-SPECIFIC)
     const totalStarsSupported = userContributions
@@ -647,52 +637,27 @@ function KOSSection({
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
               <div className="flex items-center gap-4 mt-1">
-                {showVotingPower ? (
-                  // Voting Power mode: Show voting power (total stars given)
-                  <>
-                    <div className="flex items-center gap-1">
-                      <Zap className="w-4 h-4 text-purple-500" />
-                      <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-purple-700`}>
-                        {userItem.votingPower?.toLocaleString() || 0}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-pink-500" />
-                      <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                        {userItem.likes?.toLocaleString() || 0}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  // Normal mode: Show stars received and stars supported
-                  <>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                        {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-pink-500" />
-                      <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                        {userItem.likes?.toLocaleString() || 0}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-4 h-4 text-purple-500" />
-                      <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
-                        {totalStarsSupported.toLocaleString()}
-                      </span>
-                    </div>
-                  </>
-                )}
+                <div className="flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Heart className="w-4 h-4 text-pink-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {userItem.likes?.toLocaleString() || 0}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4 text-purple-500" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                    {totalStarsSupported.toLocaleString()}
+                  </span>
+                </div>
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {showVotingPower ? (
-                  `${userItem.influencerRank} - Tier ${userItem.influencerTier} • Total Voting Power: ${userItem.votingPower || 0} stars given`
-                ) : (
-                  `${userItem.influencerRank} - Tier ${userItem.influencerTier} • ${totalStarsSupported} ${kosActiveTab === 'tournament' ? 'Tournament' : 'Individual'} Stars Supported`
-                )}
+                {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} {kosActiveTab === 'tournament' ? 'Tournament' : 'Individual'} Stars Supported
               </div>
               
               {/* Top 3 Supporters Photos */}
@@ -994,8 +959,8 @@ function KOSSection({
       </Card>
 
       {/* Tabs */}
-      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voting-power')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+      <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="tournament" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
             Tournaments
@@ -1003,10 +968,6 @@ function KOSSection({
           <TabsTrigger value="individual" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Individual
-          </TabsTrigger>
-          <TabsTrigger value="voting-power" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Voting Power
           </TabsTrigger>
         </TabsList>
 
@@ -1475,206 +1436,6 @@ function KOSSection({
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </div>
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="voting-power" className="space-y-6">
-          <h3 className="text-xl font-semibold text-gray-900">Voting Power Rankings</h3>
-          <p className="text-gray-600 mb-4">Users ranked by their total voting activity (stars given to others in both tournament and individual modes)</p>
-          
-          {kosUsersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-              <span className="ml-2 text-gray-600">Loading voting power rankings...</span>
-            </div>
-          ) : (
-            <>
-              {/* Search Bar with inline results */}
-              <div className="relative">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search users by username..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-2 w-full border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                
-                {/* Search Results - Inline display */}
-                {isSearching && searchQuery.length >= 2 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
-                      <span className="ml-2 text-gray-600 text-sm">Searching...</span>
-                    </div>
-                  </div>
-                )}
-                
-                {!isSearching && searchResults.length > 0 && searchQuery.length >= 2 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">
-                    <div className="p-2 text-sm font-medium text-gray-600 bg-gray-50 border-b">
-                      Search Results ({searchResults.length} found)
-                    </div>
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        onClick={() => {
-                          setSelectedUser(result);
-                          setShowUserCard(true);
-                          setSearchQuery(''); // Clear search after selection
-                        }}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-purple-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-xs overflow-hidden flex-shrink-0">
-                          {result.profileImageUrl ? (
-                            <img src={result.profileImageUrl} alt={result.username} className="w-full h-full object-cover" />
-                          ) : (
-                            '👤'
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900 text-sm truncate">{result.username}</div>
-                          <div className="text-xs text-gray-600 truncate">{result.firstName} {result.lastName}</div>
-                          <div className="flex items-center gap-3 mt-1">
-                            <div className="flex items-center gap-1">
-                              <Zap className="w-3 h-3 text-purple-500" />
-                              <span className="text-xs font-medium text-purple-600">{result.votingPower || 0}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Heart className="w-3 h-3 text-pink-500" />
-                              <span className="text-xs">{result.likes || 0}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Display filtered or search results */}
-              <div className="space-y-6">
-                {/* Show search results or normal ranking */}
-                {searchQuery.length >= 2 && searchResults.length > 0 ? (
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-gray-900">Search Results ({searchResults.length} found)</h4>
-                    <div className="grid gap-4">
-                      {searchResults.map((user, index) => (
-                        <UserCard
-                          key={user.id}
-                          user={user}
-                          rank={index + 1}
-                          onVote={handleUserVote}
-                          onLike={handleUserLike}
-                          currentUserId={user?.id}
-                          kosActiveTab="voting-power"
-                          showVotingPower={true}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : searchQuery.length >= 2 && searchResults.length === 0 && !isSearching ? (
-                  <div className="text-center py-8">
-                    <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <div className="text-gray-600 font-medium">No users found</div>
-                    <div className="text-gray-500 text-sm">Try searching with a different username</div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Top 3 */}
-                    {top3Users.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-gray-900">🏆 Top 3 Voting Power Leaders</h4>
-                        <div className="grid gap-4">
-                          {top3Users.map((user, index) => (
-                            <UserCard
-                              key={user.id}
-                              user={user}
-                              rank={index + 1}
-                              onVote={handleUserVote}
-                              onLike={handleUserLike}
-                              currentUserId={user?.id}
-                              kosActiveTab="voting-power"
-                              showVotingPower={true}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Top 4-10 */}
-                    {top10Users.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-gray-900">⭐ Top 10 Performers</h4>
-                        <div className="grid gap-4">
-                          {top10Users.map((user, index) => (
-                            <UserCard
-                              key={user.id}
-                              user={user}
-                              rank={index + 4}
-                              onVote={handleUserVote}
-                              onLike={handleUserLike}
-                              currentUserId={user?.id}
-                              kosActiveTab="voting-power"
-                              showVotingPower={true}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Remaining users with pagination */}
-                    {paginatedUsers.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-lg font-semibold text-gray-900">🎤 Other Voting Contributors</h4>
-                        <div className="grid gap-4">
-                          {paginatedUsers.map((user, index) => (
-                            <UserCard
-                              key={user.id}
-                              user={user}
-                              rank={11 + (currentPage - 1) * usersPerPage + index}
-                              onVote={handleUserVote}
-                              onLike={handleUserLike}
-                              currentUserId={user?.id}
-                              kosActiveTab="voting-power"
-                              showVotingPower={true}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Pagination */}
-                    <div className="flex justify-center gap-2 mt-6">
-                      <Button
-                        variant="outline"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      >
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        Previous
-                      </Button>
-                      <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
-                        <span className="text-sm font-medium">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      >
-                        Next
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </div>
-                  </>
-                )}
               </div>
             </>
           )}

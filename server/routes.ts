@@ -9300,21 +9300,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Voting Power Rankings - users ranked by total votes cast (both tournament and individual)
-  app.get("/api/kos/voting-power-rankings", async (req, res) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 113;
-      
-      // Get users ranked by their total voting activity
-      const users = await storage.getVotingPowerRankings(page, limit);
-      res.json(users);
-    } catch (error) {
-      console.error("Error fetching voting power rankings:", error);
-      res.status(500).json({ error: "Failed to fetch voting power rankings" });
-    }
-  });
-
   // Search users by username
   app.get("/api/kos/users/search", async (req, res) => {
     try {
