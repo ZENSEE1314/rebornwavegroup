@@ -310,12 +310,19 @@ function KOSSection({
     setIsSearching(false);
   };
 
-  // Manual search trigger
-  const handleSearchClick = () => {
-    if (searchQuery.trim()) {
-      searchUsers(searchQuery);
-    }
-  };
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        searchUsers(searchQuery);
+      } else {
+        setSearchResults([]);
+        setShowSearchDialog(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const voteMutation = useMutation({
     mutationFn: ({ targetUserId, type, starsAmount }: { targetUserId: string; type: 'vote' | 'like'; starsAmount?: number }) => {
