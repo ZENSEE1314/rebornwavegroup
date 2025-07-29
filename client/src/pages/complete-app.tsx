@@ -2256,7 +2256,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
       {selectedSeason && sectors.length === 0 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h4 className="text-xl font-bold text-slate-900">
+            <h4 className="text-xl font-bold text-white">
               {selectedSeason?.displayName || selectedSeason?.name || 'Season'} Collection
             </h4>
             <p className="text-gray-600">Seasonal toys available in this collection</p>
@@ -3695,7 +3695,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          <h2 className="text-3xl font-bold text-white mb-2">
             {t('petCare.system')}
           </h2>
           <p className="text-slate-600">
@@ -4616,7 +4616,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          <h2 className="text-3xl font-bold text-white mb-2">
             {t('pet.care.title')}
           </h2>
           <p className="text-slate-600">
@@ -4630,7 +4630,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+        <h2 className="text-3xl font-bold text-white mb-2">
           {t('pet.care.title')}
         </h2>
         <p className="text-slate-600">
@@ -4746,7 +4746,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">
+          <h2 className="text-3xl font-bold text-white mb-2">
             {t('petCareSystem.title')}
           </h2>
           <p className="text-slate-600">
@@ -4772,7 +4772,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+        <h2 className="text-3xl font-bold text-white mb-2">
           {t('petCareSystem.title')}
         </h2>
         <p className="text-slate-600">
@@ -9477,7 +9477,7 @@ export default function CompleteApp() {
 
             {/* All Loyalty Levels Overview */}
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-slate-900 mb-4">
+              <h3 className="text-xl font-bold text-white mb-4">
                 {t('loyalty.allLoyaltyLevels')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -10250,7 +10250,7 @@ export default function CompleteApp() {
               <h2 className="text-3xl font-bold text-white mb-2">
                 {t('toys.marketplace')}
               </h2>
-              <p className="text-slate-600">
+              <p className="text-white">
                 Buy random toys from seasons or purchase specific toys from other users
               </p>
             </div>
@@ -12390,7 +12390,7 @@ export default function CompleteApp() {
                 <h2 className="text-3xl font-bold text-white">
                   {t('admin.dashboard')}
                 </h2>
-                <p className="text-slate-600">
+                <p className="text-white">
                   {t('admin.manageSystem')}
                 </p>
               </div>
