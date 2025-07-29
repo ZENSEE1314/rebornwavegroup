@@ -2216,7 +2216,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
       {selectedSector && (
         <div className="space-y-4">
           <div className="text-center">
-            <h4 className="text-xl font-bold text-slate-900">
+            <h4 className="text-xl font-bold text-white">
               {selectedSector?.name || 'Collection'} Collection
             </h4>
             <p className="text-gray-600">{selectedSector?.description || ''}</p>
@@ -2237,7 +2237,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                         }}
                       />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">{toy?.name || 'Toy'}</h3>
                     <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
                       {toy?.rarity || 'Unknown'}
                     </Badge>
@@ -3698,7 +3698,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
           <h2 className="text-3xl font-bold text-white mb-2">
             {t('petCare.system')}
           </h2>
-          <p className="text-slate-600">
+          <p className="text-white">
             {t('petCare.description')}
           </p>
           
@@ -4619,7 +4619,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
           <h2 className="text-3xl font-bold text-white mb-2">
             {t('pet.care.title')}
           </h2>
-          <p className="text-slate-600">
+          <p className="text-white">
             {t('pet.care.noToys')}
           </p>
         </div>
@@ -4633,7 +4633,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
         <h2 className="text-3xl font-bold text-white mb-2">
           {t('pet.care.title')}
         </h2>
-        <p className="text-slate-600">
+        <p className="text-white">
           {t('pet.care.activate')}
         </p>
       </div>
@@ -4749,7 +4749,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
           <h2 className="text-3xl font-bold text-white mb-2">
             {t('petCareSystem.title')}
           </h2>
-          <p className="text-slate-600">
+          <p className="text-white">
             {t('petCareSystem.buyToys')}
           </p>
         </div>
@@ -4775,7 +4775,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
         <h2 className="text-3xl font-bold text-white mb-2">
           {t('petCareSystem.title')}
         </h2>
-        <p className="text-slate-600">
+        <p className="text-white">
           {t('petCareSystem.description')}
         </p>
       </div>
