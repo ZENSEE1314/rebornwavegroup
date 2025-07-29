@@ -1560,3 +1560,33 @@ button, .interactive {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+/* Fantasy Theme Container Styling Override */
+.bg-white {
+  background: rgba(15, 15, 40, 0.85) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(106, 61, 154, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(106, 61, 154, 0.2) !important;
+}
+
+/* Fantasy theme for cards, panels, and containers */
+.fantasy-container,
+.bg-gray-50,
+.bg-gray-100 {
+  background: rgba(25, 25, 55, 0.9) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(106, 61, 154, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(106, 61, 154, 0.3) !important;
+}
+
+/* Override all potential white/light backgrounds */
+.bg-slate-50,
+.bg-slate-100,
+.bg-neutral-50,
+.bg-neutral-100,
+.bg-stone-50,
+.bg-stone-100 {
+  background: rgba(25, 25, 55, 0.9) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(106, 61, 154, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(106, 61, 154, 0.3) !important;
+}
