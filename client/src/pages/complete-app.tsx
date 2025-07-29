@@ -932,11 +932,11 @@ function KOSSection({
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
+        <h2 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
           <Crown className="w-8 h-8 text-pink-600" />
           KOS - Kings Of Singers
         </h2>
-        <p className="text-slate-600">
+        <p className="text-white">
           Compete, Vote, and Earn Stars in the Ultimate Singing Competition
         </p>
       </div>
@@ -1120,7 +1120,7 @@ function KOSSection({
         </TabsList>
 
         <TabsContent value="tournament" className="space-y-6">
-          <h3 className="text-xl font-semibold text-gray-900">Tournament Rankings</h3>
+          <h3 className="text-xl font-semibold text-white">Tournament Rankings</h3>
           
           {/* Tournament Timer */}
           <TournamentTimer tournament={currentTournament} />
@@ -1273,7 +1273,7 @@ function KOSSection({
             <>
               {/* Top 3 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-500" />
                   Top 3 Performers
                 </h4>
@@ -1294,7 +1294,7 @@ function KOSSection({
 
               {/* Top 10 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Medal className="w-5 h-5 text-purple-500" />
                   Top 10 Rankings
                 </h4>
@@ -1314,7 +1314,7 @@ function KOSSection({
 
               {/* Remaining Users with Pagination */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-500" />
                   All Participants (Page {currentPage} of {totalPages})
                 </h4>
@@ -1502,7 +1502,7 @@ function KOSSection({
             <>
               {/* Top 3 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-500" />
                   Top 3 Individual Performers
                 </h4>
@@ -1523,7 +1523,7 @@ function KOSSection({
 
               {/* Top 10 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Medal className="w-5 h-5 text-purple-500" />
                   Top 10 Individual Rankings
                 </h4>
@@ -1543,7 +1543,7 @@ function KOSSection({
 
               {/* Remaining Users with Pagination */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <h4 className="text-lg font-medium text-white flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-500" />
                   All Individual Performers (Page {currentPage} of {totalPages})
                 </h4>

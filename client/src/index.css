@@ -268,20 +268,8 @@ button[class*="dashboard-button"] svg {
   }
 }
 
-/* White text for all major headers */
-.fantasy-header-text {
-  color: white !important;
-}
-
-/* Global overrides for specific text elements to be white */
-h1, h2, h3, h4, h5, h6 {
-  color: white !important;
-}
-
-/* Override any dark text headers to white */
-.text-gray-900,
-.text-slate-900,
-.text-black {
+/* Specific header text overrides for fantasy theme */
+.fantasy-header-white {
   color: white !important;
 }
 
