@@ -1361,7 +1361,7 @@ function KOSSection({
         </TabsContent>
 
         <TabsContent value="individual" className="space-y-6">
-          <h3 className="text-xl font-semibold text-gray-900">Individual Rankings</h3>
+          <h3 className="text-xl font-semibold text-white">Individual Rankings</h3>
           
           {/* Ranking System Information */}
           <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -1590,7 +1590,7 @@ function KOSSection({
         </TabsContent>
 
         <TabsContent value="voters" className="space-y-6">
-          <h3 className="text-xl font-semibold text-gray-900">Voter Rankings</h3>
+          <h3 className="text-xl font-semibold text-white">Voter Rankings</h3>
           <p className="text-gray-600">Users ranked by their voter tier progression based on stars given to others (Newbie Spark → Rising Star → ... → Omnipotent Maestro)</p>
           
           {/* Search functionality for voters */}
@@ -2165,7 +2165,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
     <div className="space-y-6">
       {/* Season Selection */}
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-slate-900 mb-4">Seasonal Collections</h3>
+        <h3 className="text-2xl font-bold text-white mb-4">Seasonal Collections</h3>
         <div className="flex flex-wrap justify-center gap-2 mb-6">
           {seasons.map((season) => (
             <Button
@@ -5548,7 +5548,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">
+        <h2 className="text-3xl font-bold text-white mb-2">
           {t('purchase.title')}
         </h2>
         <p className="text-slate-600">
@@ -9429,7 +9429,7 @@ export default function CompleteApp() {
         {activeTab === "loyalty" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {t('loyalty.title')}
               </h2>
               <p className="text-slate-600">
@@ -9446,7 +9446,7 @@ export default function CompleteApp() {
                       <currentLoyaltyLevel.icon className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-slate-900">{currentLoyaltyLevel.name}</h3>
+                      <h3 className="text-2xl font-bold text-white">{currentLoyaltyLevel.name}</h3>
                       <p className="text-slate-600">Level {currentLoyaltyLevel.level}</p>
                       {currentLoyaltyLevel.discount > 0 && (
                         <p className="text-green-600 font-semibold">{currentLoyaltyLevel.discount}% {t("loyalty.discountActive")}</p>
@@ -9956,7 +9956,7 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-slate-900">
+                <h2 className="text-3xl font-bold text-white">
                   {t('booking.title')}
                 </h2>
                 <p className="text-slate-600">
@@ -10247,7 +10247,7 @@ export default function CompleteApp() {
         {activeTab === "marketplace" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {t('toys.marketplace')}
               </h2>
               <p className="text-slate-600">
@@ -10882,7 +10882,7 @@ export default function CompleteApp() {
         {activeTab === "inventory" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {t('toys.myCollection')}
               </h2>
               <p className="text-slate-600">
@@ -11231,7 +11231,7 @@ export default function CompleteApp() {
         {activeTab === "referrals" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {t("referral.program")}
               </h2>
               <p className="text-slate-600">
@@ -12387,7 +12387,7 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-slate-900">
+                <h2 className="text-3xl font-bold text-white">
                   {t('admin.dashboard')}
                 </h2>
                 <p className="text-slate-600">
@@ -12596,7 +12596,7 @@ export default function CompleteApp() {
             <div className="p-6">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">User Profile</h3>
+                <h3 className="text-xl font-bold text-white">User Profile</h3>
                 <Button
                   variant="outline"
                   size="sm"
