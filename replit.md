@@ -38,8 +38,13 @@
 - **Pet Care Descriptions**: Updated pet care section descriptions (`pet.care.description`, `pet.care.noToys`, `pet.care.activate`) to white text
 - **Pet Care System Descriptions**: Updated `petCareSystem.buyToys` and `petCareSystem.description` to white text for consistent readability
 - **Collection Headers**: Updated seasonal collection headers to white for improved contrast against fantasy background
-- **Comprehensive Text Visibility**: Both section headers and their accompanying description text now provide optimal readability
-- **Production Ready**: All specified headers and description text now display clearly in white against the magical fantasy-themed background
+- **Toy Names Update**: Updated toy names in collection grids from gray to white text for better visibility
+- **BRONZE LOYALTY TIER EXCEPTION**: ✅ APPLIED BLACK TEXT TO BRONZE LOYALTY TIER TITLES AS REQUESTED
+- **Special Case Handling**: Implemented conditional styling so Bronze loyalty tier titles display in black (`text-black`) while all other loyalty tiers remain white
+- **Tier Card Update**: Updated tier display in stats cards from gray to black specifically for Bronze tier
+- **Loyalty Section Update**: Updated loyalty level display section to conditionally show black text for Bronze levels using `currentLoyaltyLevel.name.includes('Bronze')` logic
+- **Comprehensive Text Visibility**: Both section headers and their accompanying description text now provide optimal readability with Bronze tier exception
+- **Production Ready**: All specified headers and description text now display clearly in white against the magical fantasy-themed background, with Bronze loyalty tier specifically in black as requested
 
 ### Comprehensive Audio Mute/Unmute System Implementation (July 13, 2025)
 - **MAJOR FEATURE**: ✅ COMPLETE AUDIO MUTE/UNMUTE SYSTEM FOR PET CARE INTERACTIONS
