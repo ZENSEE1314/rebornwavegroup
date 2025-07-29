@@ -1056,6 +1056,39 @@ button, .interactive {
 .magic-sparkle:nth-child(4) { top: 75%; left: 65%; animation-delay: 0.9s; }
 .magic-sparkle:nth-child(5) { top: 85%; left: 45%; animation-delay: 1.2s; }
 
+/* Global white text styling for fantasy theme */
+body {
+  color: white !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: white !important;
+}
+
+p, span, div {
+  color: white !important;
+}
+
+/* Override specific dark text classes */
+.text-gray-700,
+.text-gray-800,
+.text-gray-900,
+.text-slate-700,
+.text-slate-800,
+.text-slate-900,
+.text-black {
+  color: white !important;
+}
+
+/* Keep card content readable - only affects elements inside cards */
+.card *, 
+[class*="card"] *,
+[class*="bg-white"] *,
+[class*="bg-gray"] *,
+[class*="border"] * {
+  color: initial !important;
+}
+
 /* Fantasy Glass Effect for Cards */
 .fantasy-card {
   background: rgba(255, 255, 255, 0.1);
@@ -1559,34 +1592,4 @@ button, .interactive {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-/* Fantasy Theme Container Styling Override */
-.bg-white {
-  background: rgba(15, 15, 40, 0.85) !important;
-  backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(106, 61, 154, 0.3) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(106, 61, 154, 0.2) !important;
-}
-
-/* Fantasy theme for cards, panels, and containers */
-.fantasy-container,
-.bg-gray-50,
-.bg-gray-100 {
-  background: rgba(25, 25, 55, 0.9) !important;
-  backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(106, 61, 154, 0.4) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(106, 61, 154, 0.3) !important;
-}
-
-/* Override all potential white/light backgrounds */
-.bg-slate-50,
-.bg-slate-100,
-.bg-neutral-50,
-.bg-neutral-100,
-.bg-stone-50,
-.bg-stone-100 {
-  background: rgba(25, 25, 55, 0.9) !important;
-  backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(106, 61, 154, 0.4) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(106, 61, 154, 0.3) !important;
 }

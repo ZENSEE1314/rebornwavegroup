@@ -80,7 +80,7 @@ function VoterCard({
                 )}
               </div>
               <div>
-                <h4 className="font-semibold text-white">
+                <h4 className="font-semibold text-gray-900">
                   {user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Anonymous'}
                 </h4>
                 <div className="text-sm text-purple-700 font-medium mb-1">
@@ -611,7 +611,7 @@ function KOSSection({
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-purple-600" />
                 {tournament.name}
               </h3>
@@ -641,7 +641,7 @@ function KOSSection({
     return (
       <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 mb-6">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-600" />
             Previous Tournament Winners
           </h3>
@@ -771,7 +771,7 @@ function KOSSection({
 
             {/* User Info */}
             <div className="flex-1 min-w-0">
-              <h3 className={`font-semibold text-white ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
+              <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
               <div className="text-sm text-purple-700 font-medium mb-1">
@@ -783,19 +783,19 @@ function KOSSection({
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-white`}>
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
                     {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Heart className="w-4 h-4 text-pink-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-white`}>
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
                     {userItem.likes?.toLocaleString() || 0}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <TrendingUp className="w-4 h-4 text-purple-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-white`}>
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
                     {totalStarsSupported.toLocaleString()}
                   </span>
                 </div>
@@ -932,11 +932,11 @@ function KOSSection({
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
           <Crown className="w-8 h-8 text-pink-600" />
           KOS - Kings Of Singers
         </h2>
-        <p className="text-white">
+        <p className="text-slate-600">
           Compete, Vote, and Earn Stars in the Ultimate Singing Competition
         </p>
       </div>
@@ -946,14 +946,14 @@ function KOSSection({
         <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-purple-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-white">{userStarsData?.totalStars || 0}</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || 0}</div>
             <div className="text-xs text-gray-600">My Current Stars</div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-bold text-gray-900">
               {(() => {
                 // Calculate mode-specific stars given by this user
                 const totalStarsGiven = userContributions
@@ -973,7 +973,7 @@ function KOSSection({
         <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
           <CardContent className="p-4 text-center">
             <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-bold text-gray-900">
               {kosActiveTab === 'tournament' 
                 ? (userStarsData?.tournamentStars || 0)
                 : (userStarsData?.individualStars || 0)
@@ -987,7 +987,7 @@ function KOSSection({
         <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
           <CardContent className="p-4 text-center">
             <TrendingUp className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-white">{userStarsData?.influencerRank || 'Bronze I'}</div>
+            <div className="text-xl font-bold text-gray-900">{userStarsData?.influencerRank || 'Bronze I'}</div>
             <div className="text-xs text-gray-600">Tier</div>
           </CardContent>
         </Card>
@@ -1000,7 +1000,7 @@ function KOSSection({
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-white mb-2">Star Trading</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Star Trading</h3>
               <p className="text-sm text-gray-600 mb-2">
                 Buy Stars (1 Star = RP 1,000) • Sell Stars (70% return rate)
               </p>
@@ -1120,7 +1120,7 @@ function KOSSection({
         </TabsList>
 
         <TabsContent value="tournament" className="space-y-6">
-          <h3 className="text-xl font-semibold text-white">Tournament Rankings</h3>
+          <h3 className="text-xl font-semibold text-gray-900">Tournament Rankings</h3>
           
           {/* Tournament Timer */}
           <TournamentTimer tournament={currentTournament} />
@@ -1128,7 +1128,7 @@ function KOSSection({
           {/* Tournament Rules */}
           <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50">
             <CardContent className="p-6">
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Info className="w-5 h-5 text-purple-600" />
                 7-Day Tournament Rules
               </h4>
@@ -1137,35 +1137,35 @@ function KOSSection({
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">1</div>
                     <div>
-                      <div className="font-medium text-white">7-Day Competition</div>
+                      <div className="font-medium text-gray-900">7-Day Competition</div>
                       <div className="text-sm text-gray-600">Each tournament runs for exactly 7 days</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">2</div>
                     <div>
-                      <div className="font-medium text-white">Prize Pool System</div>
+                      <div className="font-medium text-gray-900">Prize Pool System</div>
                       <div className="text-sm text-gray-600">All tournament votes go to prize pool</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">3</div>
                     <div>
-                      <div className="font-medium text-white">Top 10 Winners</div>
+                      <div className="font-medium text-gray-900">Top 10 Winners</div>
                       <div className="text-sm text-gray-600">Only top 10 performers win prizes</div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">4</div>
                     <div>
-                      <div className="font-medium text-white">Automatic Distribution</div>
+                      <div className="font-medium text-gray-900">Automatic Distribution</div>
                       <div className="text-sm text-gray-600">Prizes awarded automatically after 7 days</div>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div className="bg-white p-4 rounded-lg border">
-                    <h5 className="font-semibold text-white mb-2">Prize Distribution</h5>
+                    <h5 className="font-semibold text-gray-900 mb-2">Prize Distribution</h5>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-yellow-600 font-medium">🥇 1st Place:</span>
@@ -1244,7 +1244,7 @@ function KOSSection({
           {/* Search Results or Regular Lists */}
           {searchResults.length > 0 ? (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium text-white flex items-center gap-2">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                 <Search className="w-5 h-5 text-blue-500" />
                 Search Results ({searchResults.length} found)
               </h4>
@@ -1263,7 +1263,7 @@ function KOSSection({
             </div>
           ) : searchQuery.trim().length >= 2 ? (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium text-white flex items-center gap-2">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                 <Search className="w-5 h-5 text-gray-400" />
                 No results found for "{searchQuery}"
               </h4>
@@ -1273,7 +1273,7 @@ function KOSSection({
             <>
               {/* Top 3 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-500" />
                   Top 3 Performers
                 </h4>
@@ -1294,7 +1294,7 @@ function KOSSection({
 
               {/* Top 10 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Medal className="w-5 h-5 text-purple-500" />
                   Top 10 Rankings
                 </h4>
@@ -1314,7 +1314,7 @@ function KOSSection({
 
               {/* Remaining Users with Pagination */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-500" />
                   All Participants (Page {currentPage} of {totalPages})
                 </h4>
@@ -1361,12 +1361,12 @@ function KOSSection({
         </TabsContent>
 
         <TabsContent value="individual" className="space-y-6">
-          <h3 className="text-xl font-semibold text-white">Individual Rankings</h3>
+          <h3 className="text-xl font-semibold text-gray-900">Individual Rankings</h3>
           
           {/* Ranking System Information */}
           <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
             <CardContent className="p-6">
-              <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Award className="w-5 h-5 text-indigo-600" />
                 Individual Ranking System
               </h4>
@@ -1397,13 +1397,13 @@ function KOSSection({
                         {rank.tier}
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-white text-sm">{rank.name}</div>
+                        <div className="font-semibold text-gray-900 text-sm">{rank.name}</div>
                         <div className="text-xs text-gray-600">
                           Tier {rank.tier}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-white">
+                    <div className="text-xs text-gray-700">
                       <div className="font-medium">Stars Required:</div>
                       <div>
                         {rank.minStars.toLocaleString()} - {rank.maxStars ? rank.maxStars.toLocaleString() : '∞'} stars
@@ -1473,7 +1473,7 @@ function KOSSection({
           {/* Search Results or Regular Lists */}
           {searchResults.length > 0 ? (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium text-white flex items-center gap-2">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                 <Search className="w-5 h-5 text-blue-500" />
                 Search Results ({searchResults.length} found)
               </h4>
@@ -1492,7 +1492,7 @@ function KOSSection({
             </div>
           ) : searchQuery.trim().length >= 2 ? (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium text-white flex items-center gap-2">
+              <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                 <Search className="w-5 h-5 text-gray-400" />
                 No results found for "{searchQuery}"
               </h4>
@@ -1502,7 +1502,7 @@ function KOSSection({
             <>
               {/* Top 3 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-500" />
                   Top 3 Individual Performers
                 </h4>
@@ -1523,7 +1523,7 @@ function KOSSection({
 
               {/* Top 10 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Medal className="w-5 h-5 text-purple-500" />
                   Top 10 Individual Rankings
                 </h4>
@@ -1543,7 +1543,7 @@ function KOSSection({
 
               {/* Remaining Users with Pagination */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-lg font-medium text-gray-700 flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-500" />
                   All Individual Performers (Page {currentPage} of {totalPages})
                 </h4>
@@ -1590,7 +1590,7 @@ function KOSSection({
         </TabsContent>
 
         <TabsContent value="voters" className="space-y-6">
-          <h3 className="text-xl font-semibold text-white">Voter Rankings</h3>
+          <h3 className="text-xl font-semibold text-gray-900">Voter Rankings</h3>
           <p className="text-gray-600">Users ranked by their voter tier progression based on stars given to others (Newbie Spark → Rising Star → ... → Omnipotent Maestro)</p>
           
           {/* Search functionality for voters */}
@@ -1759,7 +1759,7 @@ function KOSSection({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-white truncate">{result.username}</div>
+                      <div className="font-medium text-gray-900 truncate">{result.username}</div>
                       <div className="text-sm text-gray-600 truncate">{result.firstName} {result.lastName}</div>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1">
@@ -1817,7 +1817,7 @@ function KOSSection({
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white">{selectedUser.username}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{selectedUser.username}</h3>
                   <p className="text-gray-600">{selectedUser.firstName} {selectedUser.lastName}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Crown className="w-4 h-4 text-purple-500" />
@@ -1831,7 +1831,7 @@ function KOSSection({
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-5 h-5 text-yellow-500" />
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-gray-700">
                       {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
                     </span>
                   </div>
@@ -1843,7 +1843,7 @@ function KOSSection({
                 <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Heart className="w-5 h-5 text-pink-500" />
-                    <span className="font-medium text-white">Likes</span>
+                    <span className="font-medium text-gray-700">Likes</span>
                   </div>
                   <div className="text-2xl font-bold text-pink-600">{selectedUser.likes || 0}</div>
                 </div>
@@ -1851,7 +1851,7 @@ function KOSSection({
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-5 h-5 text-green-500" />
-                    <span className="font-medium text-white">Total Stars</span>
+                    <span className="font-medium text-gray-700">Total Stars</span>
                   </div>
                   <div className="text-2xl font-bold text-green-600">{selectedUser.totalStars || 0}</div>
                 </div>
@@ -1859,7 +1859,7 @@ function KOSSection({
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Crown className="w-5 h-5 text-purple-500" />
-                    <span className="font-medium text-white">Tier</span>
+                    <span className="font-medium text-gray-700">Tier</span>
                   </div>
                   <div className="text-2xl font-bold text-purple-600">{selectedUser.influencerTier || 1}</div>
                 </div>
@@ -2165,7 +2165,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
     <div className="space-y-6">
       {/* Season Selection */}
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-white mb-4">Seasonal Collections</h3>
+        <h3 className="text-2xl font-bold text-slate-900 mb-4">Seasonal Collections</h3>
         <div className="flex flex-wrap justify-center gap-2 mb-6">
           {seasons.map((season) => (
             <Button
@@ -2216,7 +2216,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
       {selectedSector && (
         <div className="space-y-4">
           <div className="text-center">
-            <h4 className="text-xl font-bold text-white">
+            <h4 className="text-xl font-bold text-slate-900">
               {selectedSector?.name || 'Collection'} Collection
             </h4>
             <p className="text-gray-600">{selectedSector?.description || ''}</p>
@@ -2237,7 +2237,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                         }}
                       />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">{toy?.name || 'Toy'}</h3>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
                     <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
                       {toy?.rarity || 'Unknown'}
                     </Badge>
@@ -2256,7 +2256,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
       {selectedSeason && sectors.length === 0 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h4 className="text-xl font-bold text-white">
+            <h4 className="text-xl font-bold text-slate-900">
               {selectedSeason?.displayName || selectedSeason?.name || 'Season'} Collection
             </h4>
             <p className="text-gray-600">Seasonal toys available in this collection</p>
@@ -2274,7 +2274,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
                   }}
                 />
                 <div className="text-sm">
-                  <div className="font-semibold text-white mb-1">{toy?.name || 'Toy'}</div>
+                  <div className="font-semibold text-slate-800 mb-1">{toy?.name || 'Toy'}</div>
                   <div className="flex justify-center items-center gap-2 text-xs">
                     <span className={`px-2 py-1 rounded-full ${
                       toy.gender === 'male' 
@@ -2630,7 +2630,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
             <Coins className="w-5 h-5 text-yellow-600" />
           </div>
           <div>
-            <p className="font-semibold text-white">
+            <p className="font-semibold text-gray-900">
               {t('tokens.current')}
             </p>
             <p className="text-2xl font-bold text-yellow-600">{userTokens || 0}</p>
@@ -2641,7 +2641,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
       {/* Reward Status */}
       <div className="bg-white rounded-lg p-4 border">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-white">
+          <h4 className="font-semibold text-gray-900">
             {t('dailyReward.title')}
           </h4>
           <Badge variant={canClaim ? "default" : "secondary"}>
@@ -2692,7 +2692,7 @@ function DailyTokenReward({ language, userTokens, dailyRewardStatus, claimDailyR
             <p className="text-sm text-gray-500 mb-1">
               {t('dailyReward.nextAvailable')}
             </p>
-            <p className="font-mono text-lg font-semibold text-white">
+            <p className="font-mono text-lg font-semibold text-gray-700">
               {timeUntilNext}
             </p>
           </div>
@@ -3695,10 +3695,10 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
             {t('petCare.system')}
           </h2>
-          <p className="text-white">
+          <p className="text-slate-600">
             {t('petCare.description')}
           </p>
           
@@ -4205,7 +4205,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">😊</div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-gray-700">
                           {t('petStats.happiness')}
                         </div>
                         <div className={`text-2xl font-bold ${
@@ -4218,7 +4218,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">🍎</div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-gray-700">
                           {t('petStats.hunger')}
                         </div>
                         <div className={`text-2xl font-bold ${
@@ -4231,7 +4231,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">🛁</div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-gray-700">
                           {t('petStats.cleanliness')}
                         </div>
                         <div className={`text-2xl font-bold ${
@@ -4244,7 +4244,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <div className="text-2xl mb-2">⚡</div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-gray-700">
                           {t('petStats.energy')}
                         </div>
                         <div className={`text-2xl font-bold ${
@@ -4318,7 +4318,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
 
                   {/* Daily Care Activities */}
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-white">
+                    <h4 className="font-semibold text-gray-900">
                       {t('dailyActivities.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -4524,7 +4524,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
 
                   {/* Feeding Game */}
                   <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
-                    <h5 className="font-semibold text-white mb-3">
+                    <h5 className="font-semibold text-gray-900 mb-3">
                       {t('games.feedingTime')}
                     </h5>
                     <Button 
@@ -4541,7 +4541,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
 
                   {/* Comprehensive Pet Info */}
                   <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold text-white text-center">
+                    <h4 className="font-semibold text-gray-900 text-center">
                       {t('petInfo.title')}
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -4616,10 +4616,10 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
             {t('pet.care.title')}
           </h2>
-          <p className="text-white">
+          <p className="text-slate-600">
             {t('pet.care.noToys')}
           </p>
         </div>
@@ -4630,10 +4630,10 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
           {t('pet.care.title')}
         </h2>
-        <p className="text-white">
+        <p className="text-slate-600">
           {t('pet.care.activate')}
         </p>
       </div>
@@ -4654,8 +4654,8 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                     key={`${toy.id}-${toy.imageUrl}`}
                   />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">{toy?.name || 'Toy'}</h3>
-                <p className="text-sm text-white mb-4">{toy.series}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
+                <p className="text-sm text-slate-600 mb-4">{toy.series}</p>
                 
                 <div className="mb-4">
                   {toy.isActivated ? (
@@ -4746,10 +4746,10 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
     return (
       <div className="space-y-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">
             {t('petCareSystem.title')}
           </h2>
-          <p className="text-white">
+          <p className="text-slate-600">
             {t('petCareSystem.buyToys')}
           </p>
         </div>
@@ -4772,10 +4772,10 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
           {t('petCareSystem.title')}
         </h2>
-        <p className="text-white">
+        <p className="text-slate-600">
           {t('petCareSystem.description')}
         </p>
       </div>
@@ -5034,7 +5034,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <div className="text-2xl mb-2">💖</div>
-                  <div className="text-sm font-medium text-white">Happiness</div>
+                  <div className="text-sm font-medium text-gray-700">Happiness</div>
                   <div className={`text-2xl font-bold ${
                     (safePets[currentPetIndex].happiness || 0) >= 75 ? 'text-green-600' :
                     (safePets[currentPetIndex].happiness || 0) >= 50 ? 'text-purple-600' :
@@ -5045,7 +5045,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <div className="text-2xl mb-2">🍎</div>
-                  <div className="text-sm font-medium text-white">Hunger</div>
+                  <div className="text-sm font-medium text-gray-700">Hunger</div>
                   <div className={`text-2xl font-bold ${
                     (safePets[currentPetIndex].hunger || 0) >= 75 ? 'text-green-600' :
                     (safePets[currentPetIndex].hunger || 0) >= 50 ? 'text-purple-600' :
@@ -5056,7 +5056,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <div className="text-2xl mb-2">🛁</div>
-                  <div className="text-sm font-medium text-white">Cleanliness</div>
+                  <div className="text-sm font-medium text-gray-700">Cleanliness</div>
                   <div className={`text-2xl font-bold ${
                     (safePets[currentPetIndex].cleanliness || 0) >= 75 ? 'text-green-600' :
                     (safePets[currentPetIndex].cleanliness || 0) >= 50 ? 'text-purple-600' :
@@ -5067,7 +5067,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <div className="text-2xl mb-2">⚡</div>
-                  <div className="text-sm font-medium text-white">Energy</div>
+                  <div className="text-sm font-medium text-gray-700">Energy</div>
                   <div className={`text-2xl font-bold ${
                     (safePets[currentPetIndex].energy || 0) >= 75 ? 'text-green-600' :
                     (safePets[currentPetIndex].energy || 0) >= 50 ? 'text-purple-600' :
@@ -5548,10 +5548,10 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
           {t('purchase.title')}
         </h2>
-        <p className="text-white">
+        <p className="text-slate-600">
           {t('purchase.description')}
         </p>
       </div>
@@ -8027,7 +8027,7 @@ export default function CompleteApp() {
                   onClick={() => setActiveTab("dashboard")}
                   variant="ghost"
                   size="sm"
-                  className="md:hidden flex items-center gap-2 text-white hover:text-white p-2 mr-2"
+                  className="md:hidden flex items-center gap-2 text-slate-600 hover:text-slate-900 p-2 mr-2"
                 >
                   <ArrowLeft className="h-5 w-5" />
                   <span className="text-sm font-medium">Back</span>
@@ -8178,8 +8178,8 @@ export default function CompleteApp() {
                 }}
                 className={`relative flex items-center space-x-2 lg:space-x-3 py-3 lg:py-4 px-4 lg:px-5 rounded-2xl font-medium text-sm lg:text-base whitespace-nowrap transition-all duration-300 transform hover:scale-105 ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-white to-gray-50 text-white shadow-lg border border-gray-200'
-                    : 'text-gray-500 hover:text-white hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-white to-gray-50 text-gray-900 shadow-lg border border-gray-200'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {/* Active indicator background */}
@@ -8713,9 +8713,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                             <Users className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">Total Users</span>
+                          <span className="text-gray-900 font-medium">Total Users</span>
                         </div>
-                        <span className="text-white font-bold">{dashboardStats?.totalUsers || 0}</span>
+                        <span className="text-gray-900 font-bold">{dashboardStats?.totalUsers || 0}</span>
                       </div>
                     </div>
 
@@ -8726,9 +8726,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-pink-600 rounded-full flex items-center justify-center">
                             <Heart className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">Active Pets</span>
+                          <span className="text-gray-900 font-medium">Active Pets</span>
                         </div>
-                        <span className="text-white font-bold">{dashboardStats?.totalPets || 0}</span>
+                        <span className="text-gray-900 font-bold">{dashboardStats?.totalPets || 0}</span>
                       </div>
                     </div>
 
@@ -8739,9 +8739,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                             <TrendingUp className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">Total Revenue</span>
+                          <span className="text-gray-900 font-medium">Total Revenue</span>
                         </div>
-                        <span className="text-white font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
+                        <span className="text-gray-900 font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                       </div>
                     </div>
 
@@ -8752,9 +8752,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                             <Clock className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">Pending Approvals</span>
+                          <span className="text-gray-900 font-medium">Pending Approvals</span>
                         </div>
-                        <span className="text-white font-bold">0</span>
+                        <span className="text-gray-900 font-bold">0</span>
                       </div>
                     </div>
                   </div>
@@ -8772,9 +8772,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                             <DollarSign className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">{t('dashboard.credits')}</span>
+                          <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                         </div>
-                        <span className="text-white font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                        <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                       </div>
                     </div>
 
@@ -8785,9 +8785,9 @@ export default function CompleteApp() {
                           <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                             <Gift className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
+                          <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
                         </div>
-                        <span className="text-white font-bold">{loyaltyPoints}</span>
+                        <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
                       </div>
                     </div>
                   </div>
@@ -8810,14 +8810,14 @@ export default function CompleteApp() {
                         <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-white font-medium">{t('dashboard.credits')}</span>
+                        <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
                       </div>
-                      <span className="text-white font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                      <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                     </div>
                     <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                       <button 
                         onClick={() => setShowCreditTopUpModal(true)}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                       >
                         <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                           <Plus className="w-4 h-4" />
@@ -8826,7 +8826,7 @@ export default function CompleteApp() {
                       </button>
                       <button 
                         onClick={() => setShowCashOutModal(true)}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                       >
                         <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                           <ArrowLeft className="w-4 h-4" />
@@ -8839,7 +8839,7 @@ export default function CompleteApp() {
                           setModalHistoryPage(1);
                           setShowHistoryModal(true);
                         }}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                       >
                         <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                           <Clock className="w-4 h-4" />
@@ -8864,14 +8864,14 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
+                      <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
                     </div>
-                    <span className="text-white font-bold">{loyaltyPoints}</span>
+                    <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
                   </div>
                   <div id="loyalty-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4" />
@@ -8884,7 +8884,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Clock className="w-4 h-4" />
@@ -8909,14 +8909,14 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-white font-medium">{t('dashboard.tokens')}</span>
+                      <span className="text-gray-900 font-medium">{t('dashboard.tokens')}</span>
                     </div>
-                    <span className="text-white font-bold">{userTokens}</span>
+                    <span className="text-gray-900 font-bold">{userTokens}</span>
                   </div>
                   <div id="tokens-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Star className="w-4 h-4" />
@@ -8929,7 +8929,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Clock className="w-4 h-4" />
@@ -8954,14 +8954,14 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-white font-medium">{t("navigation.referrals")}</span>
+                      <span className="text-gray-900 font-medium">{t("navigation.referrals")}</span>
                     </div>
-                    <span className="text-white font-bold">{userReferrals.length}</span>
+                    <span className="text-gray-900 font-bold">{userReferrals.length}</span>
                   </div>
                   <div id="referrals-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Users className="w-4 h-4" />
@@ -8970,7 +8970,7 @@ export default function CompleteApp() {
                     </button>
                     <button 
                       onClick={toggleAchievementRules}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                         <Trophy className="w-4 h-4" />
@@ -8987,9 +8987,9 @@ export default function CompleteApp() {
                         <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-white font-medium">{t('dashboard.referralEarnings')}</span>
+                        <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-white font-bold">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -9039,16 +9039,16 @@ export default function CompleteApp() {
                   {/* Admin System Stats Grid */}
                   <div className="grid grid-cols-2 gap-6">
                     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4">System Overview</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                               <Users className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">Total Users</span>
+                            <span className="text-gray-700">Total Users</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">{dashboardStats?.totalUsers || 0}</span>
+                          <span className="text-2xl font-bold text-gray-900">{dashboardStats?.totalUsers || 0}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -9056,9 +9056,9 @@ export default function CompleteApp() {
                             <div className="w-10 h-10 bg-pink-600 rounded-full flex items-center justify-center">
                               <Heart className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">Active Pets</span>
+                            <span className="text-gray-700">Active Pets</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">{dashboardStats?.totalPets || 0}</span>
+                          <span className="text-2xl font-bold text-gray-900">{dashboardStats?.totalPets || 0}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -9066,24 +9066,24 @@ export default function CompleteApp() {
                             <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
                               <TrendingUp className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">Revenue</span>
+                            <span className="text-gray-700">Revenue</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
+                          <span className="text-2xl font-bold text-gray-900">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4">Personal Account</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Account</h3>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
                               <DollarSign className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">{t('dashboard.credits')}</span>
+                            <span className="text-gray-700">{t('dashboard.credits')}</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                          <span className="text-2xl font-bold text-gray-900">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -9091,9 +9091,9 @@ export default function CompleteApp() {
                             <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                               <Gift className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">{t('dashboard.loyaltyPoints')}</span>
+                            <span className="text-gray-700">{t('dashboard.loyaltyPoints')}</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">{loyaltyPoints}</span>
+                          <span className="text-2xl font-bold text-gray-900">{loyaltyPoints}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
@@ -9101,9 +9101,9 @@ export default function CompleteApp() {
                             <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
                               <Star className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-white">{t('dashboard.tokens')}</span>
+                            <span className="text-gray-700">{t('dashboard.tokens')}</span>
                           </div>
-                          <span className="text-2xl font-bold text-white">{userTokens}</span>
+                          <span className="text-2xl font-bold text-gray-900">{userTokens}</span>
                         </div>
                       </div>
                     </div>
@@ -9127,14 +9127,14 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
                         <DollarSign className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-white font-medium text-lg">{t('dashboard.credits')}</span>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.credits')}</span>
                     </div>
-                    <span className="text-white font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                   </div>
                   <div id="desktop-credits-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowCreditTopUpModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Plus className="w-5 h-5" />
@@ -9143,7 +9143,7 @@ export default function CompleteApp() {
                     </button>
                     <button 
                       onClick={() => setShowCashOutModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <ArrowLeft className="w-5 h-5" />
@@ -9156,7 +9156,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
@@ -9181,14 +9181,14 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-white font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
                     </div>
-                    <span className="text-white font-bold text-xl">{loyaltyPoints}</span>
+                    <span className="text-gray-900 font-bold text-xl">{loyaltyPoints}</span>
                   </div>
                   <div id="desktop-loyalty-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5" />
@@ -9201,7 +9201,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
@@ -9226,14 +9226,14 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-white font-medium text-lg">{t('dashboard.tokens')}</span>
+                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.tokens')}</span>
                     </div>
-                    <span className="text-white font-bold text-xl">{userTokens}</span>
+                    <span className="text-gray-900 font-bold text-xl">{userTokens}</span>
                   </div>
                   <div id="desktop-tokens-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Star className="w-5 h-5" />
@@ -9246,7 +9246,7 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
@@ -9271,14 +9271,14 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-white font-medium text-lg">{t("navigation.referrals")}</span>
+                      <span className="text-gray-900 font-medium text-lg">{t("navigation.referrals")}</span>
                     </div>
-                    <span className="text-white font-bold text-xl">{userReferrals.length}</span>
+                    <span className="text-gray-900 font-bold text-xl">{userReferrals.length}</span>
                   </div>
                   <div id="desktop-referrals-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5" />
@@ -9287,7 +9287,7 @@ export default function CompleteApp() {
                     </button>
                     <button 
                       onClick={toggleAchievementRules}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-white transition-colors"
+                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                         <Trophy className="w-5 h-5" />
@@ -9304,9 +9304,9 @@ export default function CompleteApp() {
                         <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-white font-medium text-lg">{t('dashboard.referralEarnings')}</span>
+                        <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-white font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -9429,10 +9429,10 @@ export default function CompleteApp() {
         {activeTab === "loyalty" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t('loyalty.title')}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 {t('loyalty.description')}
               </p>
             </div>
@@ -9446,16 +9446,16 @@ export default function CompleteApp() {
                       <currentLoyaltyLevel.icon className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">{currentLoyaltyLevel.name}</h3>
-                      <p className="text-white">Level {currentLoyaltyLevel.level}</p>
+                      <h3 className="text-2xl font-bold text-slate-900">{currentLoyaltyLevel.name}</h3>
+                      <p className="text-slate-600">Level {currentLoyaltyLevel.level}</p>
                       {currentLoyaltyLevel.discount > 0 && (
                         <p className="text-green-600 font-semibold">{currentLoyaltyLevel.discount}% {t("loyalty.discountActive")}</p>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl font-bold text-white">{loyaltyPoints}</p>
-                    <p className="text-white">{t('loyalty.availablePoints')}</p>
+                    <p className="text-3xl font-bold text-slate-900">{loyaltyPoints}</p>
+                    <p className="text-slate-600">{t('loyalty.availablePoints')}</p>
                   </div>
                 </div>
 
@@ -9465,7 +9465,7 @@ export default function CompleteApp() {
                       <span className="text-sm font-medium text-slate-700">
                         {t('loyalty.progressTo')} {nextLoyaltyLevel.name}
                       </span>
-                      <span className="text-sm text-white">
+                      <span className="text-sm text-slate-600">
                         {loyaltyPointsToNext} {t('loyalty.pointsNeeded')}
                       </span>
                     </div>
@@ -9477,7 +9477,7 @@ export default function CompleteApp() {
 
             {/* All Loyalty Levels Overview */}
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-white mb-4">
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
                 {t('loyalty.allLoyaltyLevels')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -9492,7 +9492,7 @@ export default function CompleteApp() {
                       </div>
                       <h4 className="font-bold text-sm mb-1">{level.name}</h4>
                       <p className="text-xs text-gray-600 mb-2">Level {level.level}</p>
-                      <p className="text-xs font-medium text-white mb-2">
+                      <p className="text-xs font-medium text-slate-900 mb-2">
                         {level.minPoints === 0 ? 
                           `0 - ${level.maxPoints.toLocaleString()}` : 
                           level.maxPoints === Infinity ? 
@@ -9537,7 +9537,7 @@ export default function CompleteApp() {
                             <div className="flex items-center space-x-3">
                               <span className="text-3xl">{reward.imageUrl || getCategorySymbol(reward.category, reward.id)}</span>
                               <div>
-                                <h4 className="font-semibold text-white">{reward.name}</h4>
+                                <h4 className="font-semibold text-slate-900">{reward.name}</h4>
                                 <Badge className={getCategoryColor(reward.category)}>
                                   {reward.category}
                                 </Badge>
@@ -9637,8 +9637,8 @@ export default function CompleteApp() {
                             {paginatedPoints.map((history) => (
                               <div key={history.id} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
                                 <div>
-                                  <p className="font-medium text-white">{history.description}</p>
-                                  <p className="text-sm text-white">{new Date(history.createdAt).toLocaleString()}</p>
+                                  <p className="font-medium text-slate-900">{history.description}</p>
+                                  <p className="text-sm text-slate-600">{new Date(history.createdAt).toLocaleString()}</p>
                                 </div>
                                 <div className="text-right">
                                   <span className={`font-bold ${history.type === 'earned' ? 'text-green-600' : 'text-red-600'}`}>
@@ -9829,7 +9829,7 @@ export default function CompleteApp() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAchievementRules(false)}
-                  className="text-gray-500 hover:text-white"
+                  className="text-gray-500 hover:text-gray-700"
                 >
                   ✕
                 </Button>
@@ -9844,13 +9844,13 @@ export default function CompleteApp() {
                   </h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-white">
+                      <span className="text-gray-700">
                         t('referral.eachSuccessful')
                       </span>
                       <span className="font-bold text-blue-600">+50 {t("common.points")}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-white">
+                      <span className="text-gray-700">
                         t('referral.bonusEvery5')
                       </span>
                       <span className="font-bold text-purple-600">+150 {t("common.points")}</span>
@@ -9867,7 +9867,7 @@ export default function CompleteApp() {
                   <div className="grid grid-cols-2 gap-3">
                     {allAchievements.filter(a => a.type === 'referral').map((achievement, index) => (
                       <div key={index} className="flex justify-between items-center bg-white rounded p-3 shadow-sm">
-                        <span className="text-white font-medium">{achievement.count} {t('common.referrals')}</span>
+                        <span className="text-gray-700 font-medium">{achievement.count} {t('common.referrals')}</span>
                         <span className="font-bold text-green-600">
                           {achievement.count === 1 ? '50' : 
                            achievement.count === 5 ? '400' :
@@ -9911,19 +9911,19 @@ export default function CompleteApp() {
                   </h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-white">
+                      <span className="text-gray-700">
                         {t("referral.totalReferrals")}
                       </span>
                       <span className="font-bold text-purple-600">{userReferrals.length}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-white">
+                      <span className="text-gray-700">
                         {t('loyalty.totalPoints')}:
                       </span>
                       <span className="font-bold text-purple-600">{loyaltyPoints}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-white">
+                      <span className="text-gray-700">
                         {t("referral.nextMilestone")}
                       </span>
                       <span className="font-bold text-gray-800">
@@ -9956,10 +9956,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-3xl font-bold text-slate-900">
                   {t('booking.title')}
                 </h2>
-                <p className="text-white">
+                <p className="text-slate-600">
                   {t('booking.viewAppointments')}
                 </p>
               </div>
@@ -10138,8 +10138,8 @@ export default function CompleteApp() {
                                 <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-white text-sm sm:text-base truncate">{apt.title}</h4>
-                                <p className="text-xs sm:text-sm text-white">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
+                                <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
+                                <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
                                 <p className="text-xs sm:text-sm text-slate-500">{apt.description}</p>
                               </div>
                             </div>
@@ -10247,10 +10247,10 @@ export default function CompleteApp() {
         {activeTab === "marketplace" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t('toys.marketplace')}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 Buy random toys from seasons or purchase specific toys from other users
               </p>
             </div>
@@ -10299,13 +10299,13 @@ export default function CompleteApp() {
                               </div>
                             )}
                           </div>
-                          <h3 className="text-2xl font-bold text-white mb-2">
+                          <h3 className="text-2xl font-bold text-slate-900 mb-2">
                             {season?.displayName || season?.name || 'Season'}
                           </h3>
                           
                           {/* Season Description */}
                           {season?.description && (
-                            <p className="text-white mb-4">
+                            <p className="text-slate-600 mb-4">
                               {season?.description || ''}
                             </p>
                           )}
@@ -10407,7 +10407,7 @@ export default function CompleteApp() {
                           
                           <div className="space-y-3">
                             <div>
-                              <h3 className="font-bold text-lg text-white">{listing?.name || 'Item'}</h3>
+                              <h3 className="font-bold text-lg text-slate-900">{listing?.name || 'Item'}</h3>
                               <div className="flex items-center space-x-2 mt-1">
                                 <Badge 
                                   variant="outline" 
@@ -10600,10 +10600,10 @@ export default function CompleteApp() {
         {activeTab === "token-history" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t("history.complete")}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 {t("history.manage")}
               </p>
             </div>
@@ -10882,10 +10882,10 @@ export default function CompleteApp() {
         {activeTab === "inventory" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t('toys.myCollection')}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 {t('toys.viewCollection')}
               </p>
             </div>
@@ -10967,7 +10967,7 @@ export default function CompleteApp() {
                           }}
                         />
                       </div>
-                      <h3 className="text-xl font-bold text-white mb-2">{purchase.toy?.name}</h3>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
                       <div className="flex justify-center gap-2 mb-2">
                         <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
                           {purchase.toy?.rarity}
@@ -10986,7 +10986,7 @@ export default function CompleteApp() {
                         {t("purchase.waitingSeller")}
                       </Badge>
                       <div className="mt-4 space-y-2">
-                        <p className="text-sm text-white">
+                        <p className="text-sm text-slate-600">
                           {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
@@ -11017,7 +11017,7 @@ export default function CompleteApp() {
                           }}
                         />
                       </div>
-                      <h3 className="text-xl font-bold text-white mb-2">{purchase.toy?.name}</h3>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{purchase.toy?.name}</h3>
                       <div className="flex justify-center gap-2 mb-2">
                         <Badge className={getRarityColor(purchase.toy?.rarity)} variant="secondary">
                           {purchase.toy?.rarity}
@@ -11036,7 +11036,7 @@ export default function CompleteApp() {
                         {t("purchase.awaitingDelivery")}
                       </Badge>
                       <div className="mt-4 space-y-2">
-                        <p className="text-sm text-white">
+                        <p className="text-sm text-slate-600">
                           {t("purchase.purchased")}: {new Date(purchase.createdAt).toLocaleDateString()}
                         </p>
                         <p className="text-lg font-bold text-green-600">
@@ -11134,7 +11134,7 @@ export default function CompleteApp() {
                             }}
                           />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">{toy?.name || 'Toy'}</h3>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{toy?.name || 'Toy'}</h3>
                         <div className="flex justify-center gap-2 mb-2 flex-wrap">
                           <Badge className={getRarityColor(toy?.rarity)} variant="secondary">
                             {toy?.rarity || 'Unknown'}
@@ -11171,7 +11171,7 @@ export default function CompleteApp() {
                           )}
                         </div>
                         <div className="mt-4 space-y-2">
-                          <p className="text-sm text-white">
+                          <p className="text-sm text-slate-600">
                             {t("toy.acquired")}: {toy.createdAt ? new Date(toy.createdAt).toLocaleString() : toy.acquiredDate}
                           </p>
                           <div className="bg-gray-100 p-2 rounded">
@@ -11231,10 +11231,10 @@ export default function CompleteApp() {
         {activeTab === "referrals" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t("referral.program")}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 {t("referral.inviteEarn")}
               </p>
             </div>
@@ -11336,7 +11336,7 @@ export default function CompleteApp() {
                         {t("referral.totalReferrals")}
                         <span className="text-green-600">{userStats?.referrals?.length || 0}</span>
                       </p>
-                      <p className="text-sm text-white">
+                      <p className="text-sm text-slate-600">
                         {t("referral.totalEarningsLabel")}
                         <span className="font-bold text-green-600">RP {formatRupiah(userStats?.referralEarnings || 0)}</span>
                       </p>
@@ -11374,10 +11374,10 @@ export default function CompleteApp() {
         {activeTab === "profile" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
                 {t("profile.title")}
               </h2>
-              <p className="text-white">
+              <p className="text-slate-600">
                 {t('profile.manageSettings')}
               </p>
             </div>
@@ -11464,11 +11464,11 @@ export default function CompleteApp() {
                       }}
                     />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">
                     {user?.firstName || 'Candy'} {user?.lastName || 'Heng'}
                   </h3>
-                  <p className="text-white mb-2">{user?.email || 'candy@example.com'}</p>
-                  <p className="text-white mb-4">{phoneNumber}</p>
+                  <p className="text-slate-600 mb-2">{user?.email || 'candy@example.com'}</p>
+                  <p className="text-slate-600 mb-4">{phoneNumber}</p>
                   <Badge className="bg-blue-100 text-blue-800 mb-4">
                     {currentLevelInfo?.name || 'Level'}
                   </Badge>
@@ -11497,7 +11497,7 @@ export default function CompleteApp() {
                 <CardContent className="space-y-6">
                   {/* Personal Information */}
                   <div>
-                    <h4 className="font-semibold text-white mb-4">
+                    <h4 className="font-semibold text-slate-900 mb-4">
                       {t("personal.information")}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -11586,7 +11586,7 @@ export default function CompleteApp() {
 
                   {/* Preferences */}
                   <div>
-                    <h4 className="font-semibold text-white mb-4">
+                    <h4 className="font-semibold text-slate-900 mb-4">
                       {t('preferences.title')}
                     </h4>
                     <div className="space-y-4">
@@ -11595,7 +11595,7 @@ export default function CompleteApp() {
                           <p className="font-medium">
                             {t('preferences.emailNotifications')}
                           </p>
-                          <p className="text-sm text-white">
+                          <p className="text-sm text-slate-600">
                             {t('preferences.emailDescription')}
                           </p>
                         </div>
@@ -11609,7 +11609,7 @@ export default function CompleteApp() {
 
                   {/* Account Actions */}
                   <div>
-                    <h4 className="font-semibold text-white mb-4">
+                    <h4 className="font-semibold text-slate-900 mb-4">
                       {t('account.actions')}
                     </h4>
                     <div className="space-y-3">
@@ -11651,26 +11651,26 @@ export default function CompleteApp() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">RP {formatRupiah(userCredits)}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(userCredits)}</p>
+                    <p className="text-sm text-slate-600">
                       {t('account.currentCredits')}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{loyaltyPoints}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-2xl font-bold text-slate-900">{loyaltyPoints}</p>
+                    <p className="text-sm text-slate-600">
                       {t('account.loyaltyPoints')}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{userAppointments.length}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-2xl font-bold text-slate-900">{userAppointments.length}</p>
+                    <p className="text-sm text-slate-600">
                       {t('account.totalBookings')}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">RP {formatRupiah(referralEarnings)}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
+                    <p className="text-sm text-slate-600">
                       {t('account.referralEarnings')}
                     </p>
                   </div>
@@ -11688,10 +11688,10 @@ export default function CompleteApp() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="text-center mb-6">
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-white mb-2">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {t('marketplace.confirmPurchase')}
               </h3>
-              <p className="text-white mb-4">
+              <p className="text-slate-600 mb-4">
                 {t('marketplace.confirmPurchaseQuestion')}
               </p>
               <div className="bg-slate-50 rounded-lg p-4 mb-4">
@@ -11702,7 +11702,7 @@ export default function CompleteApp() {
                     className="w-16 h-16 mx-auto object-contain"
                   />
                 </div>
-                <h4 className="font-bold text-white">{selectedPurchaseListing.toy?.name}</h4>
+                <h4 className="font-bold text-slate-900">{selectedPurchaseListing.toy?.name}</h4>
                 <p className="text-xl font-bold text-green-600 mt-2">
                   RP {parseFloat(selectedPurchaseListing.price || '0').toLocaleString('id-ID')}
                 </p>
@@ -11715,7 +11715,7 @@ export default function CompleteApp() {
                   </p>
                 </div>
               </div>
-              <p className="text-sm text-white">
+              <p className="text-sm text-slate-600">
                 {t('marketplace.creditDeductionNote')}
               </p>
             </div>
@@ -11764,7 +11764,7 @@ export default function CompleteApp() {
 
             {/* Tab Navigation - Removed, showing only RP Credits */}
             <div className="mb-4">
-              <h4 className="text-lg font-semibold text-white border-b pb-3 mb-4">
+              <h4 className="text-lg font-semibold text-slate-800 border-b pb-3 mb-4">
                 <DollarSign className="w-5 h-5 mr-2 inline" />
                 {t('account.rpCredits')}
               </h4>
@@ -11973,7 +11973,7 @@ export default function CompleteApp() {
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-white mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('password.current')}
                 </label>
                 <Input
@@ -11984,7 +11984,7 @@ export default function CompleteApp() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('password.new')}
                 </label>
                 <Input
@@ -11995,7 +11995,7 @@ export default function CompleteApp() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-white mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('password.confirm')}
                 </label>
                 <Input
@@ -12047,7 +12047,7 @@ export default function CompleteApp() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-white">
+                  <label className="block text-sm font-medium text-gray-700">
                     {t('profile.emailNotifications')}
                   </label>
                   <p className="text-xs text-gray-500">
@@ -12063,7 +12063,7 @@ export default function CompleteApp() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-white">
+                  <label className="block text-sm font-medium text-gray-700">
                     {t('profile.smsNotifications')}
                   </label>
                   <p className="text-xs text-gray-500">
@@ -12114,7 +12114,7 @@ export default function CompleteApp() {
                   <p className="text-sm text-gray-600 mt-1">{selectedReward.description}</p>
                 )}
                 <div className="bg-blue-50 rounded-lg p-3 mt-3">
-                  <p className="text-sm text-white">
+                  <p className="text-sm text-gray-700">
                     {t('rewards.cost')}: <span className="font-bold text-blue-600">{selectedReward.pointsCost} {t('common.points')}</span>
                   </p>
                   {selectedReward.type === 'credit' && selectedReward.creditAmount && (
@@ -12387,10 +12387,10 @@ export default function CompleteApp() {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-3xl font-bold text-slate-900">
                   {t('admin.dashboard')}
                 </h2>
-                <p className="text-white">
+                <p className="text-slate-600">
                   {t('admin.manageSystem')}
                 </p>
               </div>
@@ -12400,7 +12400,7 @@ export default function CompleteApp() {
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
                   <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
                     {t('admin.dashboard')}
                   </h3>
                   <p className="text-gray-500 mb-4">
@@ -12596,7 +12596,7 @@ export default function CompleteApp() {
             <div className="p-6">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">User Profile</h3>
+                <h3 className="text-xl font-bold text-gray-900">User Profile</h3>
                 <Button
                   variant="outline"
                   size="sm"
@@ -12623,7 +12623,7 @@ export default function CompleteApp() {
                     <span className="text-2xl">👤</span>
                   )}
                 </div>
-                <h4 className="text-lg font-semibold text-white">@{selectedUser.username}</h4>
+                <h4 className="text-lg font-semibold text-gray-900">@{selectedUser.username}</h4>
                 <p className="text-sm text-gray-600">{selectedUser.firstName} {selectedUser.lastName}</p>
               </div>
 
@@ -12657,8 +12657,8 @@ export default function CompleteApp() {
 
               {/* Ranking Information */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <h5 className="font-semibold text-white mb-2">Individual Ranking</h5>
-                <div className="text-sm text-white">
+                <h5 className="font-semibold text-gray-900 mb-2">Individual Ranking</h5>
+                <div className="text-sm text-gray-700">
                   {(() => {
                     const totalReceivedStars = selectedUser.individualStars || 0;
                     const ranks = [
