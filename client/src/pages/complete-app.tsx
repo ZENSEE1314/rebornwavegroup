@@ -729,19 +729,17 @@ function KOSSection({
     
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
-        <CardContent className={`p-${isTop3 ? '6' : '4'}`}>
+        <CardContent className={`p-${isTop3 ? '6' : '4'} relative`}>
           <div className="flex items-center gap-4">
-            {/* Rank Badge */}
-            <div className={`flex-shrink-0 ${isTop3 ? 'w-12 h-12' : 'w-8 h-8'} rounded-full ${
-              rank === 1 ? 'bg-yellow-500' : 
-              rank === 2 ? 'bg-gray-400' : 
-              rank === 3 ? 'bg-amber-600' : 'bg-blue-500'
-            } flex items-center justify-center text-white font-bold ${isTop3 ? 'text-lg' : 'text-sm'}`}>
-              {rank}
+            {/* Small Rank Number - Top Left */}
+            <div className="absolute top-2 left-2">
+              <span className="text-xs font-bold text-gray-600">
+                {rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`}
+              </span>
             </div>
 
-            {/* User Photo */}
-            <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16' : 'w-12 h-12'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
+            {/* User Photo - Made Bigger */}
+            <div className={`flex-shrink-0 ${isTop3 ? 'w-20 h-20' : 'w-16 h-16'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
               {userItem.profileImageUrl ? (
                 <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
               ) : (
@@ -774,12 +772,6 @@ function KOSSection({
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
-              <div className="text-sm text-purple-700 font-medium mb-1">
-                Voter: {userItem.voterTierName || 'Newbie Spark'} (T{userItem.voterTierLevel || 1})
-              </div>
-              <div className="text-sm text-blue-700 font-medium mb-1">
-                Individual: {individualRank.name} (R{individualRank.tier})
-              </div>
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-yellow-500" />
