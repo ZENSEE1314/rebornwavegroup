@@ -1588,6 +1588,133 @@ function KOSSection({
           <h3 className="text-xl font-semibold text-white">Voter Rankings</h3>
           <p className="text-gray-600">Users ranked by their voter tier progression based on stars given to others (Newbie Spark → Rising Star → ... → Omnipotent Maestro)</p>
           
+          {/* Voter Tier Progression Board */}
+          {userStarsData && (
+            <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-700">
+                  <Target className="w-5 h-5" />
+                  Your Voter Tier Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(() => {
+                  // Define voter tier requirements (based on stars given to others)
+                  const voterTiers = [
+                    { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
+                    { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
+                    { tier: 3, name: "Bright Talent", minStars: 500, maxStars: 999, color: "bg-blue-500" },
+                    { tier: 4, name: "Shining Voice", minStars: 1000, maxStars: 2499, color: "bg-purple-500" },
+                    { tier: 5, name: "Golden Singer", minStars: 2500, maxStars: 4999, color: "bg-yellow-500" },
+                    { tier: 6, name: "Platinum Voice", minStars: 5000, maxStars: 9999, color: "bg-gray-400" },
+                    { tier: 7, name: "Diamond Star", minStars: 10000, maxStars: 19999, color: "bg-cyan-500" },
+                    { tier: 8, name: "Royal Performer", minStars: 20000, maxStars: 39999, color: "bg-pink-500" },
+                    { tier: 9, name: "Legendary Voice", minStars: 40000, maxStars: 74999, color: "bg-red-500" },
+                    { tier: 10, name: "Supreme Artist", minStars: 75000, maxStars: 149999, color: "bg-orange-500" },
+                    { tier: 11, name: "Celestial Singer", minStars: 150000, maxStars: 299999, color: "bg-violet-500" },
+                    { tier: 12, name: "Mythical Legend", minStars: 300000, maxStars: 599999, color: "bg-rose-500" },
+                    { tier: 13, name: "Cosmic Voice", minStars: 600000, maxStars: 999999, color: "bg-emerald-500" },
+                    { tier: 14, name: "Universal Star", minStars: 1000000, maxStars: 1999999, color: "bg-amber-500" },
+                    { tier: 15, name: "Infinite Harmony", minStars: 2000000, maxStars: 4999999, color: "bg-teal-500" },
+                    { tier: 16, name: "Eternal Melody", minStars: 5000000, maxStars: 9999999, color: "bg-indigo-500" },
+                    { tier: 17, name: "Divine Virtuoso", minStars: 10000000, maxStars: 24999999, color: "bg-lime-500" },
+                    { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
+                  ];
+
+                  // Calculate total stars given by user (voter tier is based on stars given, not received)
+                  const totalStarsGiven = userContributions
+                    .filter((c: any) => c.contributorUserId === user?.id)
+                    .reduce((sum: number, c: any) => sum + (c.totalStarsGiven || 0), 0);
+
+                  // Find current voter tier
+                  const currentTier = voterTiers.find(tier => 
+                    totalStarsGiven >= tier.minStars && (tier.maxStars === null || totalStarsGiven <= tier.maxStars)
+                  ) || voterTiers[0];
+
+                  // Find next tier
+                  const nextTier = voterTiers.find(tier => tier.tier === currentTier.tier + 1);
+                  const starsNeeded = nextTier ? nextTier.minStars - totalStarsGiven : 0;
+                  const progressPercentage = nextTier 
+                    ? ((totalStarsGiven - currentTier.minStars) / (nextTier.minStars - currentTier.minStars)) * 100
+                    : 100;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Current Tier Display */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${currentTier.color}`}>
+                            T{currentTier.tier}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-800">{currentTier.name}</h4>
+                            <p className="text-sm text-gray-600">{totalStarsGiven.toLocaleString()} stars given</p>
+                          </div>
+                        </div>
+                        {nextTier && (
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-purple-700">{starsNeeded.toLocaleString()} stars to next tier</p>
+                            <p className="text-xs text-gray-500">Next: {nextTier.name}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress Bar */}
+                      {nextTier && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>{currentTier.minStars.toLocaleString()}</span>
+                            <span>{Math.round(progressPercentage)}%</span>
+                            <span>{nextTier.minStars.toLocaleString()}</span>
+                          </div>
+                          <Progress value={Math.max(0, Math.min(100, progressPercentage))} className="h-3" />
+                        </div>
+                      )}
+
+                      {/* Achievement Badge for Max Tier */}
+                      {!nextTier && (
+                        <div className="text-center py-2">
+                          <Badge className="bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 text-white">
+                            <Crown className="w-4 h-4 mr-1" />
+                            Maximum Tier Achieved!
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Quick Tier Overview */}
+                      <div className="bg-white bg-opacity-60 rounded-lg p-3">
+                        <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                          <Info className="w-4 h-4" />
+                          Tier Requirements Overview
+                        </h5>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          {voterTiers.slice(0, 9).map((tier) => (
+                            <div 
+                              key={tier.tier} 
+                              className={`flex items-center gap-1 p-1 rounded ${
+                                tier.tier === currentTier.tier ? 'bg-purple-100 border border-purple-300' : 'bg-gray-50'
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-xs ${tier.color}`}>
+                                {tier.tier}
+                              </div>
+                              <span className="truncate">{tier.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {voterTiers.length > 9 && (
+                          <p className="text-xs text-gray-500 mt-1 text-center">
+                            ... and {voterTiers.length - 9} more tiers
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+          
           {/* Search functionality for voters */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
