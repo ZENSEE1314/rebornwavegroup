@@ -51,3 +51,14 @@ A comprehensive digital financial management and collectible toy platform combin
 - **SendGrid**: For email communication, including welcome emails and bulk messaging.
 - **Twilio**: (In progress) For WhatsApp communication.
 - **PostgreSQL**: The relational database used for all data storage.
+
+### KOS User List UI Overhaul & Tournament Voting Fix (August 4, 2025)
+- **KOS USER LIST VISUAL REDESIGN**: ✅ MAJOR UI IMPROVEMENTS COMPLETED
+- **Text Removal**: Removed voter and individual tier descriptive text, now showing only T/R tier logos for cleaner visual presentation
+- **Ranking Display**: Changed ranking numbers to small ordinal format (1st, 2nd, 3rd, etc.) positioned on top-left corner of cards
+- **Profile Photos**: Increased profile photo sizes from w-12 h-12/w-16 h-16 to w-16 h-16/w-20 h-20 for better visual prominence
+- **Layout Enhancement**: Implemented relative positioning with absolute rank badges for improved visual hierarchy
+- **CRITICAL BUG FIX**: ✅ TOURNAMENT VOTING SYSTEM CORRECTED 
+- **Tournament Mode Fix**: Fixed tournament voting to only add stars to prize pool (tournamentStars) without increasing user's total star count
+- **Voting Logic**: Removed incorrect totalStars increment in tournament mode - votes now properly go only to tournament prize pool
+- **System Integrity**: Tournament and individual modes now function as intended - tournament votes accumulate for 7-day prize distribution, individual votes award immediately

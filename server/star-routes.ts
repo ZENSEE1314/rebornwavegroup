@@ -439,10 +439,9 @@ export function registerStarRoutes(app: Express) {
         }
         
         const newTargetTournamentStars = (targetUserStars?.tournamentStars || 0) + starsAmount;
-        const newTargetTotalStars = (targetUserStars?.totalStars || 0) + starsAmount;
+        // Tournament mode: Only update tournament stars (prize pool), NOT total stars
         await storage.updateUserStars(targetUserId, { 
-          tournamentStars: newTargetTournamentStars,
-          totalStars: newTargetTotalStars 
+          tournamentStars: newTargetTournamentStars
         });
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars?.tournamentStars, "New:", newTargetTournamentStars);
         console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars?.individualStars);
