@@ -635,6 +635,31 @@ async function distributeTournamentPrizes(tournamentId: number) {
       activeTournamentTimer = null;
     }
     
+    // AUTO-RESTART: Create new 7-day tournament immediately
+    console.log("*** AUTO-RESTARTING TOURNAMENT SYSTEM - Creating new 7-day tournament");
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
+    
+    const newTournament = await storage.createTournament({
+      name: `Weekly Tournament ${startDate.toLocaleDateString()}`,
+      type: 'weekly',
+      status: 'active',
+      startDate,
+      endDate,
+      totalStarPool: 0,
+      isDistributed: false
+    });
+    
+    console.log("*** NEW TOURNAMENT AUTO-CREATED:", newTournament.id, "End Date:", endDate);
+    
+    // Set timer for the new tournament (7 days)
+    const timeUntilEnd = endDate.getTime() - Date.now();
+    activeTournamentTimer = setTimeout(async () => {
+      await distributeTournamentPrizes(newTournament.id);
+    }, timeUntilEnd);
+    
+    console.log("*** NEW TOURNAMENT TIMER SET - Will auto-distribute prizes in 7 days");
+    
   } catch (error) {
     console.error("*** ERROR DISTRIBUTING TOURNAMENT PRIZES:", error);
   }
