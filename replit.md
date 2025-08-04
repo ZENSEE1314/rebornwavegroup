@@ -63,6 +63,10 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Voting Logic**: Removed incorrect totalStars increment in tournament mode - votes now properly go only to tournament prize pool
 - **System Integrity**: Tournament and individual modes now function as intended - tournament votes accumulate for 7-day prize distribution, individual votes award immediately
 - **AUTOMATIC TOURNAMENT RESET**: ✅ PERPETUAL TOURNAMENT CYCLE IMPLEMENTED
-- **Auto-Restart Logic**: When tournament timer hits 0, system automatically distributes prizes to top 10 winners and starts new 7-day tournament
+- **Auto-Restart Logic**: When tournament timer hits 0, system automatically distributes prizes to top 10 winners and starts new tournament
 - **Prize Pool Reset**: Prize pool resets to 0 after distribution, ensuring clean slate for each tournament cycle
-- **Continuous Operation**: Tournament system now runs perpetually without manual intervention - 7-day cycles with automatic transitions
+- **Continuous Operation**: Tournament system now runs perpetually without manual intervention with automatic transitions
+- **INDONESIA TIME ZONE SUPPORT**: ✅ WEEKLY MONDAY-TO-MONDAY TOURNAMENT SCHEDULE
+- **Monday Start**: Tournaments now begin and end on Mondays at 00:00 Indonesia Time (WIB - UTC+7)
+- **Timezone Accuracy**: All tournament scheduling follows Indonesia timezone for proper local time alignment
+- **Weekly Cycles**: Tournament cycles run from Monday to Monday Indonesia time, providing consistent weekly competition periods

@@ -517,6 +517,38 @@ export function registerStarRoutes(app: Express) {
 // Tournament Timer System Functions
 let activeTournamentTimer: NodeJS.Timeout | null = null;
 
+// Helper function to get current time in Indonesia (WIB - UTC+7)
+function getIndonesiaTime() {
+  const now = new Date();
+  // Convert to Indonesia time (UTC+7)
+  return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
+// Helper function to get next Monday at 00:00 in Indonesia time
+function getNextMondayInIndonesia() {
+  const indonesiaTime = getIndonesiaTime();
+  const dayOfWeek = indonesiaTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  
+  // Calculate days until next Monday
+  let daysUntilMonday;
+  if (dayOfWeek === 0) { // Sunday
+    daysUntilMonday = 1;
+  } else if (dayOfWeek === 1) { // Monday
+    // If it's already Monday, schedule for next Monday
+    daysUntilMonday = 7;
+  } else { // Tuesday to Saturday
+    daysUntilMonday = 8 - dayOfWeek;
+  }
+  
+  // Set to next Monday at 00:00 Indonesia time
+  const nextMonday = new Date(indonesiaTime);
+  nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+  nextMonday.setHours(0, 0, 0, 0);
+  
+  // Convert back to UTC for storage
+  return new Date(nextMonday.getTime() - (7 * 60 * 60 * 1000));
+}
+
 // Ensure there's an active tournament, create one if needed
 async function ensureActiveTournament() {
   try {
@@ -525,9 +557,13 @@ async function ensureActiveTournament() {
     console.log("*** CHECKING ACTIVE TOURNAMENTS:", activeTournaments.length);
     
     if (activeTournaments.length === 0) {
-      // Create new 7-day tournament
-      const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
+      // Create new tournament from current Monday to next Monday (Indonesia time)
+      const indonesiaTime = getIndonesiaTime();
+      const startDate = new Date(); // Current time
+      const endDate = getNextMondayInIndonesia(); // Next Monday 00:00 Indonesia time
+      
+      console.log("*** INDONESIA TIME NOW:", indonesiaTime.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
+      console.log("*** TOURNAMENT END DATE (Indonesia):", new Date(endDate.getTime() + (7 * 60 * 60 * 1000)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
       
       const newTournament = await storage.createTournament({
         name: `Weekly Tournament ${startDate.toLocaleDateString()}`,
@@ -541,7 +577,7 @@ async function ensureActiveTournament() {
       
       console.log("*** NEW TOURNAMENT CREATED:", newTournament.id, "End Date:", endDate);
       
-      // Set timer for tournament end (7 days)
+      // Set timer for tournament end (until next Monday Indonesia time)
       const timeUntilEnd = endDate.getTime() - Date.now();
       if (activeTournamentTimer) {
         clearTimeout(activeTournamentTimer);
@@ -551,7 +587,7 @@ async function ensureActiveTournament() {
         await distributeTournamentPrizes(newTournament.id);
       }, timeUntilEnd);
       
-      console.log("*** TOURNAMENT TIMER SET - Will distribute prizes in", Math.round(timeUntilEnd / (1000 * 60 * 60 * 24)), "days");
+      console.log("*** TOURNAMENT TIMER SET - Will distribute prizes in", Math.round(timeUntilEnd / (1000 * 60 * 60 * 24)), "days (until next Monday Indonesia time)");
       
     } else {
       const tournament = activeTournaments[0];
@@ -635,10 +671,14 @@ async function distributeTournamentPrizes(tournamentId: number) {
       activeTournamentTimer = null;
     }
     
-    // AUTO-RESTART: Create new 7-day tournament immediately
-    console.log("*** AUTO-RESTARTING TOURNAMENT SYSTEM - Creating new 7-day tournament");
+    // AUTO-RESTART: Create new tournament immediately (until next Monday Indonesia time)
+    console.log("*** AUTO-RESTARTING TOURNAMENT SYSTEM - Creating new tournament until next Monday Indonesia time");
+    const indonesiaTime = getIndonesiaTime();
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
+    const endDate = getNextMondayInIndonesia(); // Next Monday 00:00 Indonesia time
+    
+    console.log("*** RESTART - INDONESIA TIME NOW:", indonesiaTime.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
+    console.log("*** RESTART - TOURNAMENT END DATE (Indonesia):", new Date(endDate.getTime() + (7 * 60 * 60 * 1000)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }));
     
     const newTournament = await storage.createTournament({
       name: `Weekly Tournament ${startDate.toLocaleDateString()}`,
@@ -658,7 +698,7 @@ async function distributeTournamentPrizes(tournamentId: number) {
       await distributeTournamentPrizes(newTournament.id);
     }, timeUntilEnd);
     
-    console.log("*** NEW TOURNAMENT TIMER SET - Will auto-distribute prizes in 7 days");
+    console.log("*** NEW TOURNAMENT TIMER SET - Will auto-distribute prizes on next Monday (Indonesia time)");
     
   } catch (error) {
     console.error("*** ERROR DISTRIBUTING TOURNAMENT PRIZES:", error);
