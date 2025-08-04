@@ -793,7 +793,10 @@ function KOSSection({
                 </div>
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {userItem.influencerRank} - Tier {userItem.influencerTier} • {totalStarsSupported} {kosActiveTab === 'tournament' ? 'Tournament' : 'Individual'} Stars Supported
+                Voter: {userItem.voterTierName || 'Newbie Spark'} (T{userItem.voterTierLevel || 1}) • Individual: {individualRank.name} (R{individualRank.tier})
+              </div>
+              <div className="text-xs text-gray-400">
+                {totalStarsSupported} {kosActiveTab === 'tournament' ? 'Tournament' : 'Individual'} Stars Supported
               </div>
               
               {/* Top 3 Supporters Photos */}
