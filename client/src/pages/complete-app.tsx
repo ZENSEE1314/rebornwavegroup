@@ -2381,7 +2381,7 @@ function SeasonalCollectionsTab({ activateToyAsPet }: { activateToyAsPet: (toy: 
             <h4 className="text-xl font-bold text-white">
               {selectedSeason?.displayName || selectedSeason?.name || 'Season'} Collection
             </h4>
-            <p className="text-gray-600">Seasonal toys available in this collection</p>
+            <p className="text-white">Seasonal toys available in this collection</p>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -5673,7 +5673,7 @@ function PurchaseVerificationSection({ language, user, userTokens }: { language:
         <h2 className="text-3xl font-bold text-white mb-2">
           {t('purchase.title')}
         </h2>
-        <p className="text-slate-600">
+        <p className="text-white">
           {t('purchase.description')}
         </p>
       </div>
@@ -9554,7 +9554,7 @@ export default function CompleteApp() {
               <h2 className="text-3xl font-bold text-white mb-2">
                 {t('loyalty.title')}
               </h2>
-              <p className="text-slate-600">
+              <p className="text-white">
                 {t('loyalty.description')}
               </p>
             </div>
@@ -11356,7 +11356,7 @@ export default function CompleteApp() {
               <h2 className="text-3xl font-bold text-white mb-2">
                 {t("referral.program")}
               </h2>
-              <p className="text-slate-600">
+              <p className="text-white">
                 {t("referral.inviteEarn")}
               </p>
             </div>
@@ -11458,7 +11458,7 @@ export default function CompleteApp() {
                         {t("referral.totalReferrals")}
                         <span className="text-green-600">{userStats?.referrals?.length || 0}</span>
                       </p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-white">
                         {t("referral.totalEarningsLabel")}
                         <span className="font-bold text-green-600">RP {formatRupiah(userStats?.referralEarnings || 0)}</span>
                       </p>
@@ -11786,13 +11786,13 @@ export default function CompleteApp() {
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">{userAppointments.length}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-white">
                       {t('account.totalBookings')}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-white">
                       {t('account.referralEarnings')}
                     </p>
                   </div>
