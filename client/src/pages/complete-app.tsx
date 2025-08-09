@@ -11496,10 +11496,10 @@ export default function CompleteApp() {
         {activeTab === "profile" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {t("profile.title")}
               </h2>
-              <p className="text-slate-600">
+              <p className="text-white">
                 {t('profile.manageSettings')}
               </p>
             </div>
@@ -11586,11 +11586,11 @@ export default function CompleteApp() {
                       }}
                     />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  <h3 className="text-xl font-bold text-white mb-1">
                     {user?.firstName || 'Candy'} {user?.lastName || 'Heng'}
                   </h3>
-                  <p className="text-slate-600 mb-2">{user?.email || 'candy@example.com'}</p>
-                  <p className="text-slate-600 mb-4">{phoneNumber}</p>
+                  <p className="text-white mb-2">{user?.email || 'candy@example.com'}</p>
+                  <p className="text-white mb-4">{phoneNumber}</p>
                   <Badge className="bg-blue-100 text-blue-800 mb-4">
                     {currentLevelInfo?.name || 'Level'}
                   </Badge>

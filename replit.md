@@ -70,3 +70,15 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Monday Start**: Tournaments now begin and end on Mondays at 00:00 Indonesia Time (WIB - UTC+7)
 - **Timezone Accuracy**: All tournament scheduling follows Indonesia timezone for proper local time alignment
 - **Weekly Cycles**: Tournament cycles run from Monday to Monday Indonesia time, providing consistent weekly competition periods
+
+### Username Display & Fantasy UI Enhancement (August 9, 2025)
+- **USERNAME AUTHENTICATION FIX**: ✅ CRITICAL ENDPOINT UPDATE COMPLETED
+- **Missing Field Resolution**: Added username field to /api/auth/user endpoint response in server/multiAuth.ts
+- **Complete User Data**: Added referralCode, bankName, bankAccountNumber, accountHolderName fields for comprehensive user profile support
+- **Account Settings**: Username now properly displays in profile Account Settings section
+- **KOS Rankings**: Username correctly appears in Kings of Singers leaderboards instead of falling back to first/last names
+- **FANTASY UI READABILITY**: ✅ WHITE TEXT IMPLEMENTATION
+- **Profile Title Enhancement**: Changed profile section title from slate-900 to white text for better visibility on fantasy background
+- **Profile Description**: Updated profile management description text from slate-600 to white for improved readability
+- **User Information**: Enhanced user name, email, and phone display with white text in profile card section
+- **Visual Consistency**: Maintained Bronze loyalty tier exception (black text) while applying white text throughout fantasy-themed sections
