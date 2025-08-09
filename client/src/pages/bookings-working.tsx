@@ -112,8 +112,8 @@ export default function Bookings() {
       
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">My Appointments</h1>
-          <p className="text-slate-600 mt-2">Manage your beauty, fun & entertainment bookings</p>
+          <h1 className="text-3xl font-bold text-white">My Appointments</h1>
+          <p className="text-white mt-2">Manage your beauty, fun & entertainment bookings</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

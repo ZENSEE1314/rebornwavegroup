@@ -86,7 +86,7 @@ export default function SimpleCollections() {
   if (!selectedSeason) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Seasonal Collections</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center text-white">Seasonal Collections</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {seasons.map((season) => (
@@ -125,7 +125,7 @@ export default function SimpleCollections() {
           <ArrowLeft className="w-4 h-4" />
           Back to Collections
         </Button>
-        <h1 className="text-3xl font-bold">{selectedSeasonData?.displayName}</h1>
+        <h1 className="text-3xl font-bold text-white">{selectedSeasonData?.displayName}</h1>
       </div>
 
       {loadingSeasonToys ? (
@@ -153,7 +153,7 @@ export default function SimpleCollections() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-white">
           <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>No toy templates found in this season yet.</p>
           <p className="text-sm">Check back later for new additions!</p>
