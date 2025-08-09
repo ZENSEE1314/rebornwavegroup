@@ -770,12 +770,7 @@ function KOSSection({
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
-                {/* Debug: Show all possible display values */}
-                {(() => {
-                  const displayName = userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User';
-                  console.log('UserCard Debug - userItem.username:', userItem.username, 'firstName:', userItem.firstName, 'lastName:', userItem.lastName, 'final displayName:', displayName);
-                  return displayName;
-                })()}
+                {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-1">

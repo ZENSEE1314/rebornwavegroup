@@ -362,6 +362,7 @@ If you didn't request this password reset, please ignore this email.
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        username: user.username,
         phoneNumber: user.phoneNumber,
         gender: user.gender,
         dateOfBirth: user.dateOfBirth,
@@ -372,6 +373,10 @@ If you didn't request this password reset, please ignore this email.
         loyaltyPoints: user.loyaltyPoints,
         lifetimePoints: user.lifetimePoints,
         referralEarnings: user.referralEarnings,
+        referralCode: user.referralCode,
+        bankName: user.bankName,
+        bankAccountNumber: user.bankAccountNumber,
+        accountHolderName: user.accountHolderName,
         tokens: user.tokens
       });
     } catch (error) {
