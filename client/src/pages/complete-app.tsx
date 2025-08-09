@@ -10077,11 +10077,11 @@ export default function CompleteApp() {
         {activeTab === "bookings" && (
           <div className="space-y-8">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="text-center w-full">
                 <h2 className="text-3xl font-bold text-white">
                   {t('booking.title')}
                 </h2>
-                <p className="text-slate-600">
+                <p className="text-white">
                   {t('booking.viewAppointments')}
                 </p>
               </div>
