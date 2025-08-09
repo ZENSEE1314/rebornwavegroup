@@ -77,8 +77,8 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Complete User Data**: Added referralCode, bankName, bankAccountNumber, accountHolderName fields for comprehensive user profile support
 - **Account Settings**: Username now properly displays in profile Account Settings section
 - **KOS Rankings**: Username correctly appears in Kings of Singers leaderboards instead of falling back to first/last names
-- **FANTASY UI READABILITY**: ✅ WHITE TEXT IMPLEMENTATION
-- **Profile Title Enhancement**: Changed profile section title from slate-900 to white text for better visibility on fantasy background
-- **Profile Description**: Updated profile management description text from slate-600 to white for improved readability
-- **User Information**: Enhanced user name, email, and phone display with white text in profile card section
-- **Visual Consistency**: Maintained Bronze loyalty tier exception (black text) while applying white text throughout fantasy-themed sections
+- **FANTASY UI READABILITY**: ✅ SELECTIVE WHITE TEXT IMPLEMENTATION
+- **Profile Section Headers**: Changed main profile title and description from dark slate to white text for better visibility on fantasy background
+- **User Information Cards**: Maintained original slate colors (dark text) for user name, email, and phone within profile cards for optimal readability
+- **Balanced Contrast**: Profile section headers in white for fantasy theme visibility, while keeping user data readable in dark text on light card backgrounds
+- **Visual Consistency**: Maintained Bronze loyalty tier exception (black text) while selectively applying white text only to main section headers
