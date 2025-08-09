@@ -11007,7 +11007,7 @@ export default function CompleteApp() {
               <h2 className="text-3xl font-bold text-white mb-2">
                 {t('toys.myCollection')}
               </h2>
-              <p className="text-slate-600">
+              <p className="text-white">
                 {t('toys.viewCollection')}
               </p>
             </div>
