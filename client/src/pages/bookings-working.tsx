@@ -111,7 +111,7 @@ export default function Bookings() {
       <MobileBackButton className="mb-4" />
       
       <div className="flex items-center justify-between mb-8">
-        <div>
+        <div className="text-center">
           <h1 className="text-3xl font-bold text-white">My Appointments</h1>
           <p className="text-white mt-2">Manage your beauty, fun & entertainment bookings</p>
         </div>

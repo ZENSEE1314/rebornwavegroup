@@ -102,7 +102,7 @@ export default function SimpleCollections() {
                 <CardTitle className="text-xl">{season.displayName}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 mb-4">{season.description}</p>
+                <p className="text-white mb-4">{season.description}</p>
                 <Button className="w-full">
                   View Collection
                 </Button>
