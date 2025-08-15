@@ -3562,10 +3562,12 @@ export class DatabaseStorage implements IStorage {
       // Add to individual stars AND total stars (individual stars contribute to total balance)
       const newIndividualStars = userStarsData.individualStars + amount;
       const newTotalStars = userStarsData.totalStars + amount;
+      const newTotalIndividualStarsReceived = (userStarsData.totalIndividualStarsReceived || 0) + amount;
       
       await this.updateUserStars(userId, {
         individualStars: newIndividualStars,
-        totalStars: newTotalStars
+        totalStars: newTotalStars,
+        totalIndividualStarsReceived: newTotalIndividualStarsReceived
       });
 
       // Only create transaction record for actual votes (not likes) to avoid foreign key issues
@@ -3585,7 +3587,7 @@ export class DatabaseStorage implements IStorage {
         console.log(`*** INDIVIDUAL STAR TRANSACTION SKIPPED (createTransaction: false)`);
       }
 
-      console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}`);
+      console.log(`*** INDIVIDUAL STAR AWARDED - User: ${userId}, Amount: ${amount}, New Individual Stars: ${newIndividualStars}, New Total Stars: ${newTotalStars}, Cumulative Individual: ${newTotalIndividualStarsReceived}`);
     } catch (error) {
       console.error('Error awarding individual star:', error);
       throw error;
@@ -3906,6 +3908,7 @@ export class DatabaseStorage implements IStorage {
           totalStars: userStarsData?.totalStars || 0, // Keep for trading balance
           tournamentStars: userStarsData?.tournamentStars || 0,
           individualStars: userStarsData?.individualStars || 0,
+          totalIndividualStarsReceived: userStarsData?.totalIndividualStarsReceived || userStarsData?.individualStars || 0,
           totalStarsGiven: starsGivenCount?.total || 0, // Add for voter rankings
           // Voter tier information
           voterTierName: voterTier.tierName,
@@ -3934,8 +3937,8 @@ export class DatabaseStorage implements IStorage {
           // Within same tier, sort by total stars given
           return b.totalStarsGiven - a.totalStarsGiven;
         } else {
-          // Individual rankings sort by individual stars received  
-          return b.individualStars - a.individualStars;
+          // Individual rankings sort by cumulative individual stars received
+          return b.totalIndividualStarsReceived - a.totalIndividualStarsReceived;
         }
       });
 

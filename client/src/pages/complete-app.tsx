@@ -724,7 +724,7 @@ function KOSSection({
       ) || ranks[0];
     };
 
-    const individualStarsReceived = userItem.individualStars || 0;
+    const individualStarsReceived = userItem.totalIndividualStarsReceived || userItem.individualStars || 0;
     const individualRank = calculateIndividualRank(individualStarsReceived);
     
     return (

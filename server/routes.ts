@@ -9329,6 +9329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastName: user.lastName,
               profileImageUrl: user.profileImageUrl,
               individualStars: userStars?.individualStars || 0,
+              totalIndividualStarsReceived: userStars?.totalIndividualStarsReceived || userStars?.individualStars || 0,
               tournamentStars: userStars?.tournamentStars || 0,
               totalStars: userStars?.totalStars || 0,
               likes: userLikesReceived.length || 0,
