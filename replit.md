@@ -82,6 +82,13 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Voter Tier Accuracy**: Voter tier rankings properly reset based on individual star giving only
 - **Fair Competition**: Both tournament stars received AND tournament stars given reset for completely fair new tournaments
 
+### Voter Tier Cumulative System Fix (August 15, 2025)
+- **VOTER TIER PRESERVATION**: ✅ CRITICAL CUMULATIVE SYSTEM RESTORATION COMPLETED
+- **Cumulative Progress**: Voter tier now correctly maintains cumulative progress and never decreases during tournament resets
+- **Tournament Reset Fix**: Modified `resetTournamentStarContributions()` to only reset tournament-specific star giving while preserving total cumulative star contribution count
+- **Tier Progression**: Voter tier (T1-T18) is now based on lifetime total stars given across all time periods, ensuring users can only progress upward
+- **System Integrity**: Tournament resets only affect current tournament cycle participation, not overall voter tier achievement progress
+
 ### Username Display & Fantasy UI Enhancement (August 9, 2025)
 - **USERNAME AUTHENTICATION FIX**: ✅ CRITICAL ENDPOINT UPDATE COMPLETED
 - **Missing Field Resolution**: Added username field to /api/auth/user endpoint response in server/multiAuth.ts

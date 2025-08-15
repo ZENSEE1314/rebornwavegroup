@@ -3725,17 +3725,19 @@ export class DatabaseStorage implements IStorage {
   // Reset tournament star contributions for all users (fresh tournament start)
   async resetTournamentStarContributions(): Promise<void> {
     try {
-      console.log("*** RESETTING ALL TOURNAMENT STAR CONTRIBUTIONS FOR NEW TOURNAMENT");
+      console.log("*** RESETTING TOURNAMENT STAR CONTRIBUTIONS FOR NEW TOURNAMENT");
+      console.log("*** NOTE: Preserving cumulative totalStarsGiven for voter tier progression");
       
+      // Only reset tournament stars given, preserve cumulative total for voter tier
       await db
         .update(starContributors)
         .set({
           tournamentStarsGiven: 0,
-          totalStarsGiven: sql`individual_stars_given`, // Recalculate total as only individual stars
+          // DO NOT reset totalStarsGiven - this should remain cumulative for voter tier progression
           updatedAt: new Date(),
         });
       
-      console.log("*** SUCCESSFULLY RESET ALL TOURNAMENT STAR CONTRIBUTIONS");
+      console.log("*** SUCCESSFULLY RESET TOURNAMENT STAR CONTRIBUTIONS (PRESERVED VOTER TIER PROGRESS)");
     } catch (error) {
       console.error('Error resetting tournament star contributions:', error);
       throw error;
