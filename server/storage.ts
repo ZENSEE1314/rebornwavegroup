@@ -3722,6 +3722,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Reset tournament star contributions for all users (fresh tournament start)
+  async resetTournamentStarContributions(): Promise<void> {
+    try {
+      console.log("*** RESETTING ALL TOURNAMENT STAR CONTRIBUTIONS FOR NEW TOURNAMENT");
+      
+      await db
+        .update(starContributors)
+        .set({
+          tournamentStarsGiven: 0,
+          totalStarsGiven: sql`individual_stars_given`, // Recalculate total as only individual stars
+          updatedAt: new Date(),
+        });
+      
+      console.log("*** SUCCESSFULLY RESET ALL TOURNAMENT STAR CONTRIBUTIONS");
+    } catch (error) {
+      console.error('Error resetting tournament star contributions:', error);
+      throw error;
+    }
+  }
+
   async getTopContributors(recipientUserId: string, limit: number = 10): Promise<StarContributor[]> {
     return await db
       .select()

@@ -659,6 +659,14 @@ async function distributeTournamentPrizes(tournamentId: number) {
           });
         }
       }
+      
+      // Reset tournament star contributions (stars given) for fresh competition
+      await storage.resetTournamentStarContributions();
+      console.log("*** TOURNAMENT STAR CONTRIBUTIONS RESET - Fresh start for new tournament");
+      
+      // Reset tournament star contributions (stars given) for fresh competition
+      await storage.resetTournamentStarContributions();
+      console.log("*** TOURNAMENT STAR CONTRIBUTIONS RESET - Fresh start for new tournament");
     }
     
     // Mark tournament as completed
