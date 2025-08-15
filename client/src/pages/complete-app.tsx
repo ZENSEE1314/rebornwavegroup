@@ -344,9 +344,9 @@ function KOSSection({
   const displayUsers = Array.isArray(kosUsers) ? kosUsers : [];
   
   // Filter users based on current tab - tournament mode only shows participants with tournament stars > 0
-  const filteredUsers = kosActiveTab === 'tournament' 
-    ? displayUsers.filter(user => (user.tournamentStars || 0) > 0)
-    : displayUsers;
+  // Show all users for tournament voting (they can participate even with 0 stars)
+  // Only filter for individual mode if needed for specific UI requirements
+  const filteredUsers = displayUsers;
   
   // For voters tab, sort by total stars given (voting activity)
   const votersList = kosActiveTab === 'voters' 

@@ -73,6 +73,10 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Monday Start**: Tournaments now begin and end on Mondays at 00:00 Indonesia Time (WIB - UTC+7)
 - **Timezone Accuracy**: All tournament scheduling follows Indonesia timezone for proper local time alignment
 - **Weekly Cycles**: Tournament cycles run from Monday to Monday Indonesia time, providing consistent weekly competition periods
+- **TOURNAMENT DISPLAY FIX**: ✅ USER LIST VISIBILITY AFTER RESET CORRECTED
+- **Voting Access**: Tournament tab now shows all eligible users regardless of current tournament star count
+- **Fresh Start Support**: Users with 0 tournament stars are visible for voting participation after tournament resets
+- **Continuous Engagement**: Maintains user engagement by ensuring voting opportunities throughout tournament cycles
 
 ### Username Display & Fantasy UI Enhancement (August 9, 2025)
 - **USERNAME AUTHENTICATION FIX**: ✅ CRITICAL ENDPOINT UPDATE COMPLETED
