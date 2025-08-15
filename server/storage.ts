@@ -3562,13 +3562,10 @@ export class DatabaseStorage implements IStorage {
       // Add to individual stars AND total stars (individual stars contribute to total balance)
       const newIndividualStars = userStarsData.individualStars + amount;
       const newTotalStars = userStarsData.totalStars + amount;
-      // Add to cumulative total stars received for individual tier progression
-      const newTotalStarsReceived = (userStarsData.totalStarsReceived || 0) + amount;
       
       await this.updateUserStars(userId, {
         individualStars: newIndividualStars,
-        totalStars: newTotalStars,
-        totalStarsReceived: newTotalStarsReceived
+        totalStars: newTotalStars
       });
 
       // Only create transaction record for actual votes (not likes) to avoid foreign key issues
@@ -3909,7 +3906,6 @@ export class DatabaseStorage implements IStorage {
           totalStars: userStarsData?.totalStars || 0, // Keep for trading balance
           tournamentStars: userStarsData?.tournamentStars || 0,
           individualStars: userStarsData?.individualStars || 0,
-          totalStarsReceived: userStarsData?.totalStarsReceived || 0, // Add cumulative stars received for individual tier progression
           totalStarsGiven: starsGivenCount?.total || 0, // Add for voter rankings
           // Voter tier information
           voterTierName: voterTier.tierName,

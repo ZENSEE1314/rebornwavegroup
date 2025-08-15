@@ -1112,7 +1112,6 @@ export const userStars = pgTable("user_stars", {
   totalStars: integer("total_stars").default(0).notNull(),
   tournamentStars: integer("tournament_stars").default(0).notNull(), // Stars earned in tournaments (pending)
   individualStars: integer("individual_stars").default(0).notNull(), // Stars earned in individual mode (claimable)
-  totalStarsReceived: integer("total_stars_received").default(0).notNull(), // Cumulative lifetime stars received for individual tier progression
   totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00").notNull(), // Total RP earned from stars
   influencerRank: varchar("influencer_rank").default("Newbie Spark").notNull(),
   influencerTier: integer("influencer_tier").default(1).notNull(),

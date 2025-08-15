@@ -465,13 +465,9 @@ export function registerStarRoutes(app: Express) {
         }
         
         const newTargetTournamentStars = (targetUserStars?.tournamentStars || 0) + starsAmount;
-        // Add to cumulative total stars received for individual tier progression (tournament votes also count toward individual tier)
-        const newTotalStarsReceived = (targetUserStars?.totalStarsReceived || 0) + starsAmount;
-        
-        // Tournament mode: Only update tournament stars (prize pool), NOT total stars, BUT update cumulative received count
+        // Tournament mode: Only update tournament stars (prize pool), NOT total stars
         await storage.updateUserStars(targetUserId, { 
-          tournamentStars: newTargetTournamentStars,
-          totalStarsReceived: newTotalStarsReceived
+          tournamentStars: newTargetTournamentStars
         });
         console.log("*** TARGET USER'S TOURNAMENT STARS INCREASED - Old:", targetUserStars?.tournamentStars, "New:", newTargetTournamentStars);
         console.log("*** TARGET USER INDIVIDUAL STARS (SHOULD REMAIN UNCHANGED):", targetUserStars?.individualStars);

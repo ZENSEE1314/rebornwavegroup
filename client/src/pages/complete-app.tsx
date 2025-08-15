@@ -696,8 +696,8 @@ function KOSSection({
         return sum + starsGiven;
       }, 0);
 
-    // Calculate individual rank based on cumulative stars received (cumulative tier system like voter tier)
-    const calculateIndividualRank = (totalStarsReceived: number) => {
+    // Calculate individual rank based on stars received (same tier system as individual rankings)
+    const calculateIndividualRank = (starsReceived: number) => {
       const ranks = [
         { tier: 1, name: "Newbie Spark", minStars: 0, maxStars: 99, color: "bg-gray-500" },
         { tier: 2, name: "Rising Star", minStars: 100, maxStars: 499, color: "bg-green-500" },
@@ -719,21 +719,13 @@ function KOSSection({
         { tier: 18, name: "Omnipotent Maestro", minStars: 25000000, maxStars: null, color: "bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500" }
       ];
       
-      // Find the highest tier the user has achieved (cumulative system - only goes up)
-      let currentTier = ranks[0];
-      for (const rank of ranks) {
-        if (totalStarsReceived >= rank.minStars) {
-          currentTier = rank;
-        } else {
-          break;
-        }
-      }
-      
-      return currentTier;
+      return ranks.find(rank => 
+        starsReceived >= rank.minStars && (rank.maxStars === null || starsReceived <= rank.maxStars)
+      ) || ranks[0];
     };
 
-    const totalStarsReceived = userItem.totalStarsReceived || 0;
-    const individualRank = calculateIndividualRank(totalStarsReceived);
+    const individualStarsReceived = userItem.individualStars || 0;
+    const individualRank = calculateIndividualRank(individualStarsReceived);
     
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
