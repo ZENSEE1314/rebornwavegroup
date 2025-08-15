@@ -705,5 +705,29 @@ async function distributeTournamentPrizes(tournamentId: number) {
   }
 }
 
+// Check for expired tournaments and auto-distribute prizes
+async function checkExpiredTournaments() {
+  try {
+    const activeTournaments = await storage.getActiveTournaments();
+    const now = new Date();
+    
+    for (const tournament of activeTournaments) {
+      const endDate = new Date(tournament.endDate);
+      if (endDate <= now && !tournament.isDistributed) {
+        console.log("*** FOUND EXPIRED TOURNAMENT:", tournament.id, "End Date:", endDate, "Now:", now);
+        await distributeTournamentPrizes(tournament.id);
+      }
+    }
+  } catch (error) {
+    console.error("*** ERROR CHECKING EXPIRED TOURNAMENTS:", error);
+  }
+}
+
 // Initialize tournament system on server start
 ensureActiveTournament();
+
+// Check for expired tournaments every 5 minutes
+setInterval(checkExpiredTournaments, 5 * 60 * 1000);
+
+// Check immediately on startup for any expired tournaments
+checkExpiredTournaments();

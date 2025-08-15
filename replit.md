@@ -62,10 +62,13 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Tournament Mode Fix**: Fixed tournament voting to only add stars to prize pool (tournamentStars) without increasing user's total star count
 - **Voting Logic**: Removed incorrect totalStars increment in tournament mode - votes now properly go only to tournament prize pool
 - **System Integrity**: Tournament and individual modes now function as intended - tournament votes accumulate for 7-day prize distribution, individual votes award immediately
-- **AUTOMATIC TOURNAMENT RESET**: ✅ PERPETUAL TOURNAMENT CYCLE IMPLEMENTED
+- **AUTOMATIC TOURNAMENT RESET**: ✅ ROBUST PERPETUAL TOURNAMENT CYCLE IMPLEMENTED
+- **Enhanced Timer System**: Replaced unreliable long-duration setTimeout with interval-based expired tournament checker (every 5 minutes)
 - **Auto-Restart Logic**: When tournament timer hits 0, system automatically distributes prizes to top 10 winners and starts new tournament
 - **Prize Pool Reset**: Prize pool resets to 0 after distribution, ensuring clean slate for each tournament cycle
+- **Tournament Stars Reset**: All users' tournament_stars reset to 0 for fair competition in next tournament
 - **Continuous Operation**: Tournament system now runs perpetually without manual intervention with automatic transitions
+- **Startup Recovery**: System checks for expired tournaments immediately on server restart to ensure no missed prize distributions
 - **INDONESIA TIME ZONE SUPPORT**: ✅ WEEKLY MONDAY-TO-MONDAY TOURNAMENT SCHEDULE
 - **Monday Start**: Tournaments now begin and end on Mondays at 00:00 Indonesia Time (WIB - UTC+7)
 - **Timezone Accuracy**: All tournament scheduling follows Indonesia timezone for proper local time alignment
