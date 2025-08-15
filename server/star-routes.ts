@@ -357,6 +357,32 @@ export function registerStarRoutes(app: Express) {
     res.json({ message: "Working endpoint responding", body: req.body });
   });
 
+  app.post('/api/test-tournament-reset', async (req, res) => {
+    try {
+      console.log("*** MANUAL TOURNAMENT RESET TEST INITIATED");
+      
+      // Get current star contributions before reset
+      const beforeReset = await storage.getAllStarContributions();
+      console.log("*** BEFORE RESET - Star Contributions:", beforeReset.slice(0, 5));
+      
+      // Reset tournament star contributions
+      await storage.resetTournamentStarContributions();
+      
+      // Get star contributions after reset
+      const afterReset = await storage.getAllStarContributions();
+      console.log("*** AFTER RESET - Star Contributions:", afterReset.slice(0, 5));
+      
+      res.json({ 
+        message: 'Tournament star contributions reset completed',
+        beforeReset: beforeReset.slice(0, 5),
+        afterReset: afterReset.slice(0, 5)
+      });
+    } catch (error) {
+      console.error("*** ERROR IN MANUAL TOURNAMENT RESET:", error);
+      res.status(500).json({ error: 'Reset failed', details: error.message });
+    }
+  });
+
   // KOS Vote endpoint (bypassing authentication like star trading endpoints)
   app.post('/api/kos/vote', async (req, res) => {
     try {
