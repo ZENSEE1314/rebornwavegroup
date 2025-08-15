@@ -2146,21 +2146,42 @@ function KOSSection({
           
           <div className="space-y-4">
             {/* Star amount selector */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-medium">Stars to spend</label>
+              
+              {/* First row: Small amounts */}
               <div className="grid grid-cols-4 gap-2">
-                {[1, 5, 10, 25].map((amount) => (
+                {[1, 5, 10, 50].map((amount) => (
                   <Button
                     key={amount}
                     variant={voteStarsAmount === amount ? "default" : "outline"}
                     size="sm"
                     onClick={() => setVoteStarsAmount(amount)}
                     disabled={amount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
+                    className="text-xs"
                   >
                     {amount}
                   </Button>
                 ))}
               </div>
+              
+              {/* Second row: Large amounts */}
+              <div className="grid grid-cols-4 gap-2">
+                {[100, 500, 1000, 5000].map((amount) => (
+                  <Button
+                    key={amount}
+                    variant={voteStarsAmount === amount ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setVoteStarsAmount(amount)}
+                    disabled={amount > (userStarsData?.totalStars || userStarsData?.stars || 0)}
+                    className="text-xs font-bold"
+                  >
+                    {amount >= 1000 ? `${amount/1000}K` : amount}
+                  </Button>
+                ))}
+              </div>
+              
+              {/* Custom amount input */}
               <Input
                 type="number"
                 placeholder="Custom amount"
@@ -2168,6 +2189,7 @@ function KOSSection({
                 onChange={(e) => setVoteStarsAmount(parseInt(e.target.value) || 1)}
                 min="1"
                 max={userStarsData?.stars || 0}
+                className="mt-2"
               />
             </div>
 

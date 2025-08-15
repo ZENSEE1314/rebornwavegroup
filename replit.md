@@ -89,6 +89,14 @@ A comprehensive digital financial management and collectible toy platform combin
 - **Tier Progression**: Voter tier (T1-T18) is now based on lifetime total stars given across all time periods, ensuring users can only progress upward
 - **System Integrity**: Tournament resets only affect current tournament cycle participation, not overall voter tier achievement progress
 
+### Enhanced Voting Interface (August 15, 2025)
+- **PRESET VOTING AMOUNTS**: ✅ COMPREHENSIVE STAR AMOUNT SELECTION IMPLEMENTED
+- **Expanded Options**: Updated vote dialog with 8 preset amounts: 1, 5, 10, 50, 100, 500, 1K, 5K stars
+- **Two-Row Layout**: Organized small amounts (1-50) in first row, large amounts (100-5K) in second row  
+- **Visual Enhancement**: Large amounts display as "1K", "5K" format for better readability
+- **Custom Input**: Maintained custom amount input field for precise star spending
+- **User Experience**: Streamlined voting process with quick preset selection for common amounts
+
 ### Username Display & Fantasy UI Enhancement (August 9, 2025)
 - **USERNAME AUTHENTICATION FIX**: ✅ CRITICAL ENDPOINT UPDATE COMPLETED
 - **Missing Field Resolution**: Added username field to /api/auth/user endpoint response in server/multiAuth.ts
