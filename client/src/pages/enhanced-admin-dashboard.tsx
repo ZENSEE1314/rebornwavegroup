@@ -714,7 +714,8 @@ function EnhancedAdminDashboard() {
 
   // Filter toys (exclude templates, only generated toys)
   const filteredToys = useMemo(() => {
-    const allToys = allToysQuery?.data?.data || [];
+    const queryData = allToysQuery?.data as any;
+    const allToys = queryData?.data || [];
     const generatedToys = allToys.filter((toy: any) => !toy.ownerId && toy.templateId);
     
     if (!toySearchTerm) return generatedToys;
@@ -725,7 +726,7 @@ function EnhancedAdminDashboard() {
       toy.rarity?.toLowerCase().includes(toySearchTerm.toLowerCase()) ||
       toy.gender?.toLowerCase().includes(toySearchTerm.toLowerCase())
     );
-  }, [allToysQuery?.data?.data, toySearchTerm]);
+  }, [allToysQuery?.data, toySearchTerm]);
 
   // Filter active pets - server already provides paginated data (10 per page)
   const filteredPets = useMemo(() => {
@@ -977,10 +978,12 @@ function EnhancedAdminDashboard() {
       setShowTemplateDialog(false);
       setTemplateToyForm({
         name: "",
-        color: "",
-        imageUrl: "",
+        seasonId: "",
         rarity: "welcome",
-        gender: "active"
+        color: "",
+        gender: "active",
+        imageUrl: "",
+        basePrice: ""
       });
     },
     onError: (error: any) => {
@@ -3929,8 +3932,8 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {Array.isArray(promotionBanners.data || promotionBanners) && (promotionBanners.data || promotionBanners).length > 0 ? (
-                      (promotionBanners.data || promotionBanners).map((banner: any) => (
+                    {Array.isArray((promotionBanners as any)?.data || promotionBanners) && ((promotionBanners as any)?.data || promotionBanners).length > 0 ? (
+                      ((promotionBanners as any)?.data || promotionBanners).map((banner: any) => (
                         <div key={banner.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -4027,8 +4030,8 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {Array.isArray(rewardItems.data || rewardItems) && (rewardItems.data || rewardItems).length > 0 ? (
-                      (rewardItems.data || rewardItems).map((reward: any) => (
+                    {Array.isArray((rewardItems as any)?.data || rewardItems) && ((rewardItems as any)?.data || rewardItems).length > 0 ? (
+                      ((rewardItems as any)?.data || rewardItems).map((reward: any) => (
                         <div key={reward.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -4179,8 +4182,8 @@ function EnhancedAdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {Array.isArray(pointsHistory.data || pointsHistory) && (pointsHistory.data || pointsHistory).length > 0 ? (
-                      (pointsHistory.data || pointsHistory).filter((entry: any) => entry.type === 'redeemed').map((entry: any) => (
+                    {Array.isArray((pointsHistory as any)?.data || pointsHistory) && ((pointsHistory as any)?.data || pointsHistory).length > 0 ? (
+                      ((pointsHistory as any)?.data || pointsHistory).filter((entry: any) => entry.type === 'redeemed').map((entry: any) => (
                         <div key={entry.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -5204,7 +5207,7 @@ function EnhancedAdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-yellow-600/20 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-300">
-                        {allToysQuery?.data?.pagination?.totalCount || 0}
+                        {(allToysQuery?.data as any)?.pagination?.totalCount || 0}
                       </div>
                       <div className="text-sm text-gray-300">Generated Toys</div>
                       <div className="text-xs text-gray-400 mt-1">Ready to collect</div>
@@ -6488,10 +6491,12 @@ function EnhancedAdminDashboard() {
                     setShowTemplateDialog(false);
                     setTemplateToyForm({
                       name: "",
-                      color: "",
-                      imageUrl: "",
+                      seasonId: "",
                       rarity: "welcome",
-                      gender: "active"
+                      color: "",
+                      gender: "active",
+                      imageUrl: "",
+                      basePrice: ""
                     });
                   }}
                   className="border-white/20 text-white hover:bg-white/10 bg-gray-700/50"
@@ -6575,7 +6580,7 @@ function EnhancedAdminDashboard() {
               <Input
                 type="number"
                 value={rewardForm.stockQuantity || ''}
-                onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? parseInt(e.target.value) : null})}
+                onChange={(e) => setRewardForm({...rewardForm, stockQuantity: e.target.value ? (parseInt(e.target.value) || null) : null})}
                 placeholder="Leave blank for unlimited"
                 className="bg-white/10 border-white/20 text-white"
               />
