@@ -55,7 +55,7 @@ export default function CompleteAdminDashboard() {
     retry: false,
   });
 
-  const { data: allTransactions = [] } = useQuery({
+  const { data: allTransactionsResponse } = useQuery({
     queryKey: ['/api/admin/transactions'],
     retry: false,
   });
@@ -101,6 +101,7 @@ export default function CompleteAdminDashboard() {
   const allUsers = (usersResponse as any)?.data || [];
   const cashOutRequests = (cashOutResponse as any)?.data || [];
   const tokenTransactions = (tokenTransactionsResponse as any)?.data || [];
+  const allTransactions = (allTransactionsResponse as any)?.data || [];
 
   // Filter functions
   const filteredUsers = allUsers.filter((user: any) => {

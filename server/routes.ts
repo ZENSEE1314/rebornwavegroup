@@ -7870,53 +7870,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = (page - 1) * limit;
 
-      // Get admin action logs with user details
+      // Get admin action logs without complex joins to avoid .as() issues
       const actionLogs = await db
-        .select({
-          id: schema.adminActionLogs.id,
-          adminId: schema.adminActionLogs.adminId,
-          targetUserId: schema.adminActionLogs.targetUserId,
-          action: schema.adminActionLogs.action,
-          previousValue: schema.adminActionLogs.previousValue,
-          newValue: schema.adminActionLogs.newValue,
-          field: schema.adminActionLogs.field,
-          details: schema.adminActionLogs.description,
-          createdAt: schema.adminActionLogs.createdAt,
-          adminUser: {
-            firstName: sql<string>`admin_user.first_name`,
-            lastName: sql<string>`admin_user.last_name`,
-            email: sql<string>`admin_user.email`
-          },
-          targetUser: {
-            firstName: sql<string>`target_user.first_name`,
-            lastName: sql<string>`target_user.last_name`,
-            email: sql<string>`target_user.email`
-          }
-        })
+        .select()
         .from(schema.adminActionLogs)
-        .leftJoin(schema.users.as('admin_user'), eq(schema.adminActionLogs.adminId, sql`admin_user.id`))
-        .leftJoin(schema.users.as('target_user'), eq(schema.adminActionLogs.targetUserId, sql`target_user.id`))
         .orderBy(desc(schema.adminActionLogs.createdAt))
         .limit(limit)
         .offset(offset);
 
-      // Transform the data to match frontend expectations
-      const transformedLogs = actionLogs.map(log => ({
-        id: log.id,
-        action: log.action,
-        details: log.details,
-        createdAt: log.createdAt,
-        adminUser: {
-          firstName: log.adminUser.firstName,
-          lastName: log.adminUser.lastName,
-          email: log.adminUser.email
-        },
-        targetUser: {
-          firstName: log.targetUser.firstName,
-          lastName: log.targetUser.lastName,
-          email: log.targetUser.email
-        }
-      }));
+      // Get user details separately to avoid join syntax issues
+      const transformedLogs = [];
+      for (const log of actionLogs) {
+        const adminUser = log.adminId ? await storage.getUser(log.adminId) : null;
+        const targetUser = log.targetUserId ? await storage.getUser(log.targetUserId) : null;
+        
+        transformedLogs.push({
+          id: log.id,
+          action: log.action,
+          details: log.description,
+          createdAt: log.createdAt,
+          adminUser: adminUser ? {
+            firstName: adminUser.firstName || '',
+            lastName: adminUser.lastName || '',
+            email: adminUser.email || ''
+          } : null,
+          targetUser: targetUser ? {
+            firstName: targetUser.firstName || '',
+            lastName: targetUser.lastName || '',
+            email: targetUser.email || ''
+          } : null
+        });
+      }
 
       // Get total count for pagination
       const totalCountResult = await db
