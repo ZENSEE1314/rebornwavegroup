@@ -243,7 +243,7 @@ export default function CompleteAdminDashboard() {
                         <TableHead className="text-gray-300">Credits</TableHead>
                         <TableHead className="text-gray-300">RP Points</TableHead>
                         <TableHead className="text-gray-300">Tokens</TableHead>
-                        <TableHead className="text-gray-300">Card Number</TableHead>
+                        <TableHead className="text-gray-300">Membership Card</TableHead>
                         <TableHead className="text-gray-300">Mpoints</TableHead>
                         <TableHead className="text-gray-300">Referrals</TableHead>
                         <TableHead className="text-gray-300">Ref. Earnings</TableHead>
