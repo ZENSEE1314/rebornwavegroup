@@ -2511,6 +2511,8 @@ function EnhancedAdminDashboard() {
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[100px]">Credits</TableHead>
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Points</TableHead>
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Tokens</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[120px]">Membership Card</TableHead>
+                          <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Mpoints</TableHead>
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[80px]">Role</TableHead>
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[120px]">Join Date</TableHead>
                           <TableHead className="text-gray-300 font-medium py-3 px-4 min-w-[150px]">Actions</TableHead>
@@ -2657,6 +2659,31 @@ function EnhancedAdminDashboard() {
                               Edit
                             </Button>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-blue-300">
+                          {editingUser?.id === user.id ? (
+                            <Input
+                              placeholder="Card Number"
+                              value={editedUserData.membershipCardNumber || user.membershipCardNumber || ''}
+                              onChange={(e) => setEditedUserData({...editedUserData, membershipCardNumber: e.target.value})}
+                              className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[120px]"
+                            />
+                          ) : (
+                            user.membershipCardNumber || 'N/A'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-green-300">
+                          {editingUser?.id === user.id ? (
+                            <Input
+                              placeholder="Mpoints"
+                              type="number"
+                              value={editedUserData.mpoint !== undefined ? editedUserData.mpoint : (user.mpoint || 0)}
+                              onChange={(e) => setEditedUserData({...editedUserData, mpoint: parseInt(e.target.value) || 0})}
+                              className="bg-gray-800 border-gray-600 text-white text-sm h-10 min-w-[80px]"
+                            />
+                          ) : (
+                            user.mpoint || 0
+                          )}
                         </TableCell>
                         <TableCell>
                           {editingUser?.id === user.id ? (
