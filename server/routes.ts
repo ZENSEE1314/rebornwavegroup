@@ -7635,6 +7635,313 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to update user membership card number
+  app.patch('/api/admin/users/:userId/membership-card', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { membershipCardNumber } = req.body;
+      
+      // Get old values for logging
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldCardNumber = targetUser.membershipCardNumber;
+      
+      // Update membership card number
+      await db.update(schema.users)
+        .set({ membershipCardNumber })
+        .where(eq(schema.users.id, userId));
+
+      // Log admin action
+      await db.insert(schema.adminActionLogs).values({
+        adminId: adminUserId,
+        targetUserId: userId,
+        action: 'edit_membership_card',
+        previousValue: oldCardNumber || 'null',
+        newValue: membershipCardNumber || 'null',
+        field: 'membershipCardNumber',
+        description: `Admin ${currentUser.firstName || currentUser.email} updated membership card number from ${oldCardNumber || 'none'} to ${membershipCardNumber || 'none'}`,
+      });
+
+      res.json({ message: "Membership card number updated successfully" });
+    } catch (error) {
+      console.error("Error updating membership card number:", error);
+      res.status(500).json({ message: "Failed to update membership card number" });
+    }
+  });
+
+  // Admin endpoint to update user mpoints
+  app.patch('/api/admin/users/:userId/mpoints', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { mpoint } = req.body;
+      
+      if (typeof mpoint !== 'number' || mpoint < 0) {
+        return res.status(400).json({ message: "Valid mpoint amount required" });
+      }
+      
+      // Get old values for logging
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldMpoint = targetUser.mpoint || 0;
+      
+      // Update mpoint
+      await db.update(schema.users)
+        .set({ mpoint })
+        .where(eq(schema.users.id, userId));
+
+      // Log admin action
+      await db.insert(schema.adminActionLogs).values({
+        adminId: adminUserId,
+        targetUserId: userId,
+        action: 'edit_mpoint',
+        previousValue: oldMpoint.toString(),
+        newValue: mpoint.toString(),
+        field: 'mpoint',
+        description: `Admin ${currentUser.firstName || currentUser.email} updated mpoints from ${oldMpoint} to ${mpoint}`,
+      });
+
+      res.json({ message: "Mpoints updated successfully" });
+    } catch (error) {
+      console.error("Error updating mpoints:", error);
+      res.status(500).json({ message: "Failed to update mpoints" });
+    }
+  });
+
+  // Admin endpoint to update user membership (both card number and mpoints)
+  app.patch('/api/admin/users/:userId/membership', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { membershipCardNumber, mpoint } = req.body;
+      
+      // Get old values for logging
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const oldCardNumber = targetUser.membershipCardNumber;
+      const oldMpoint = targetUser.mpoint || 0;
+      
+      // Build update object based on provided fields
+      const updateData: any = {};
+      if (membershipCardNumber !== undefined) {
+        updateData.membershipCardNumber = membershipCardNumber;
+      }
+      if (mpoint !== undefined) {
+        if (typeof mpoint !== 'number' || mpoint < 0) {
+          return res.status(400).json({ message: "Valid mpoint amount required" });
+        }
+        updateData.mpoint = mpoint;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field (membershipCardNumber or mpoint) is required" });
+      }
+
+      // Update membership data
+      await db.update(schema.users)
+        .set(updateData)
+        .where(eq(schema.users.id, userId));
+
+      // Build details string for logging
+      const changes = [];
+      if (membershipCardNumber !== undefined) {
+        changes.push(`Card number: ${oldCardNumber || 'none'} → ${membershipCardNumber || 'none'}`);
+      }
+      if (mpoint !== undefined) {
+        changes.push(`Mpoints: ${oldMpoint} → ${mpoint}`);
+      }
+
+      // Log admin action
+      await db.insert(schema.adminActionLogs).values({
+        adminId: adminUserId,
+        targetUserId: userId,
+        action: 'update_membership',
+        previousValue: JSON.stringify({ cardNumber: oldCardNumber, mpoint: oldMpoint }),
+        newValue: JSON.stringify({ cardNumber: membershipCardNumber, mpoint }),
+        field: 'membership',
+        description: `Admin ${currentUser.firstName || currentUser.email} updated membership: ${changes.join(', ')}`,
+      });
+
+      res.json({ message: "Membership updated successfully" });
+    } catch (error) {
+      console.error("Error updating membership:", error);
+      res.status(500).json({ message: "Failed to update membership" });
+    }
+  });
+
+  // Admin endpoint to get admin action logs
+  app.get('/api/admin/action-logs', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      // Get admin action logs with user details
+      const actionLogs = await db
+        .select({
+          id: schema.adminActionLogs.id,
+          adminId: schema.adminActionLogs.adminId,
+          targetUserId: schema.adminActionLogs.targetUserId,
+          action: schema.adminActionLogs.action,
+          previousValue: schema.adminActionLogs.previousValue,
+          newValue: schema.adminActionLogs.newValue,
+          field: schema.adminActionLogs.field,
+          description: schema.adminActionLogs.description,
+          createdAt: schema.adminActionLogs.createdAt,
+          adminName: sql<string>`CONCAT(admin_user.first_name, ' ', admin_user.last_name)`,
+          targetUserName: sql<string>`CONCAT(target_user.first_name, ' ', target_user.last_name)`,
+          adminEmail: sql<string>`admin_user.email`,
+          targetUserEmail: sql<string>`target_user.email`
+        })
+        .from(schema.adminActionLogs)
+        .leftJoin(schema.users.as('admin_user'), eq(schema.adminActionLogs.adminId, sql`admin_user.id`))
+        .leftJoin(schema.users.as('target_user'), eq(schema.adminActionLogs.targetUserId, sql`target_user.id`))
+        .orderBy(desc(schema.adminActionLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.adminActionLogs);
+      const totalCount = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.json({
+        data: actionLogs,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching admin action logs:", error);
+      res.status(500).json({ message: "Failed to fetch admin action logs" });
+    }
+  });
+
+  // Admin endpoint to get admin logs (alias for action-logs)
+  app.get('/api/admin/logs', requireAuth, async (req: any, res) => {
+    try {
+      const adminUserId = getUserId(req);
+      const currentUser = await storage.getUser(adminUserId);
+      
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      // Get admin action logs with user details
+      const actionLogs = await db
+        .select({
+          id: schema.adminActionLogs.id,
+          adminId: schema.adminActionLogs.adminId,
+          targetUserId: schema.adminActionLogs.targetUserId,
+          action: schema.adminActionLogs.action,
+          previousValue: schema.adminActionLogs.previousValue,
+          newValue: schema.adminActionLogs.newValue,
+          field: schema.adminActionLogs.field,
+          details: schema.adminActionLogs.description,
+          createdAt: schema.adminActionLogs.createdAt,
+          adminUser: {
+            firstName: sql<string>`admin_user.first_name`,
+            lastName: sql<string>`admin_user.last_name`,
+            email: sql<string>`admin_user.email`
+          },
+          targetUser: {
+            firstName: sql<string>`target_user.first_name`,
+            lastName: sql<string>`target_user.last_name`,
+            email: sql<string>`target_user.email`
+          }
+        })
+        .from(schema.adminActionLogs)
+        .leftJoin(schema.users.as('admin_user'), eq(schema.adminActionLogs.adminId, sql`admin_user.id`))
+        .leftJoin(schema.users.as('target_user'), eq(schema.adminActionLogs.targetUserId, sql`target_user.id`))
+        .orderBy(desc(schema.adminActionLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Transform the data to match frontend expectations
+      const transformedLogs = actionLogs.map(log => ({
+        id: log.id,
+        action: log.action,
+        details: log.details,
+        createdAt: log.createdAt,
+        adminUser: {
+          firstName: log.adminUser.firstName,
+          lastName: log.adminUser.lastName,
+          email: log.adminUser.email
+        },
+        targetUser: {
+          firstName: log.targetUser.firstName,
+          lastName: log.targetUser.lastName,
+          email: log.targetUser.email
+        }
+      }));
+
+      // Get total count for pagination
+      const totalCountResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.adminActionLogs);
+      const totalCount = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      res.json({
+        data: transformedLogs,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching admin logs:", error);
+      res.status(500).json({ message: "Failed to fetch admin logs" });
+    }
+  });
+
   // Admin add tokens to user
   app.post('/api/admin/users/:adminUserId/add-tokens', isAuthenticated, async (req: any, res) => {
     try {

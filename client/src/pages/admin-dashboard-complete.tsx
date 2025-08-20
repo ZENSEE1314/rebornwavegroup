@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { 
@@ -90,6 +90,12 @@ export default function CompleteAdminDashboard() {
     queryKey: ['/api/admin/reward-items'],
     retry: false,
   });
+
+  const { data: adminLogsResponse } = useQuery({
+    queryKey: ['/api/admin/logs'],
+    retry: false,
+  });
+  const adminLogs = (adminLogsResponse as any)?.data || [];
 
   // Extract data
   const allUsers = (usersResponse as any)?.data || [];
@@ -182,7 +188,7 @@ export default function CompleteAdminDashboard() {
 
         <Tabs defaultValue="users" className="space-y-6">
           <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-            <TabsList className="grid w-full grid-cols-8 bg-white/20 backdrop-blur">
+            <TabsList className="grid w-full grid-cols-9 bg-white/20 backdrop-blur">
               <TabsTrigger value="users" className="data-[state=active]:bg-white/30 text-white">Users</TabsTrigger>
               <TabsTrigger value="cashouts" className="data-[state=active]:bg-white/30 text-white">Cash Outs</TabsTrigger>
               <TabsTrigger value="transactions" className="data-[state=active]:bg-white/30 text-white">Transactions</TabsTrigger>
@@ -191,6 +197,7 @@ export default function CompleteAdminDashboard() {
               <TabsTrigger value="leaderboard" className="data-[state=active]:bg-white/30 text-white">Leaderboard</TabsTrigger>
               <TabsTrigger value="marketplace" className="data-[state=active]:bg-white/30 text-white">Marketplace</TabsTrigger>
               <TabsTrigger value="tokens" className="data-[state=active]:bg-white/30 text-white">Tokens</TabsTrigger>
+              <TabsTrigger value="logs" className="data-[state=active]:bg-white/30 text-white">Audit Logs</TabsTrigger>
             </TabsList>
           </div>
 
@@ -236,9 +243,12 @@ export default function CompleteAdminDashboard() {
                         <TableHead className="text-gray-300">Credits</TableHead>
                         <TableHead className="text-gray-300">RP Points</TableHead>
                         <TableHead className="text-gray-300">Tokens</TableHead>
+                        <TableHead className="text-gray-300">Card Number</TableHead>
+                        <TableHead className="text-gray-300">Mpoints</TableHead>
                         <TableHead className="text-gray-300">Referrals</TableHead>
                         <TableHead className="text-gray-300">Ref. Earnings</TableHead>
                         <TableHead className="text-gray-300">Joined</TableHead>
+                        <TableHead className="text-gray-300">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -256,6 +266,12 @@ export default function CompleteAdminDashboard() {
                             {user.loyaltyPoints || 0}
                           </TableCell>
                           <TableCell className="text-yellow-300">{user.tokens || 0}</TableCell>
+                          <TableCell className="text-orange-300 font-medium">
+                            {user.membershipCardNumber || 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-emerald-300 font-semibold">
+                            {user.mpoint || 0}
+                          </TableCell>
                           <TableCell className="text-purple-300 font-semibold">
                             {user.referralCount || 0}
                           </TableCell>
@@ -264,6 +280,24 @@ export default function CompleteAdminDashboard() {
                           </TableCell>
                           <TableCell className="text-gray-300">
                             {formatDate(user.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="bg-white/10 text-white border-white/20">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-gray-900 border-gray-700">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white">Edit User Membership</DialogTitle>
+                                  <DialogDescription className="text-gray-400">
+                                    Update {user.firstName} {user.lastName}'s membership details
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <UserMembershipForm user={user} />
+                              </DialogContent>
+                            </Dialog>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -923,8 +957,155 @@ export default function CompleteAdminDashboard() {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Admin Logs Tab */}
+          <TabsContent value="logs">
+            <Card className="bg-white/10 backdrop-blur border-white/20">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-white">Admin Action Audit Logs</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="text-white">
+                      Total Actions: <span className="font-semibold">{adminLogs.length}</span>
+                    </div>
+                    <Button 
+                      onClick={() => downloadCSV(adminLogs, 'admin-logs')}
+                      variant="outline" 
+                      size="sm"
+                      className="bg-white/10 text-white border-white/20"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-gray-300">Admin</TableHead>
+                        <TableHead className="text-gray-300">Action</TableHead>
+                        <TableHead className="text-gray-300">Target User</TableHead>
+                        <TableHead className="text-gray-300">Changes Made</TableHead>
+                        <TableHead className="text-gray-300">Timestamp</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adminLogs.length > 0 ? (
+                        adminLogs.map((log: any) => (
+                          <TableRow key={log.id}>
+                            <TableCell className="text-white">
+                              {log.adminUser?.firstName} {log.adminUser?.lastName}
+                              <div className="text-sm text-gray-400">{log.adminUser?.email}</div>
+                            </TableCell>
+                            <TableCell className="text-blue-300 font-semibold">
+                              {log.action}
+                            </TableCell>
+                            <TableCell className="text-white">
+                              {log.targetUser?.firstName} {log.targetUser?.lastName}
+                              <div className="text-sm text-gray-400">{log.targetUser?.email}</div>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              <div className="max-w-xs truncate" title={log.details}>
+                                {log.details}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {formatDate(log.createdAt)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-gray-400">
+                            No admin action logs available
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
+  );
+}
+
+// User Membership Form Component
+function UserMembershipForm({ user }: { user: any }) {
+  const [membershipCardNumber, setMembershipCardNumber] = useState(user.membershipCardNumber || '');
+  const [mpoint, setMpoint] = useState(user.mpoint?.toString() || '0');
+  const { toast } = useToast();
+
+  const updateMembershipMutation = useMutation({
+    mutationFn: async (data: { membershipCardNumber: string; mpoint: number }) => {
+      return apiRequest(`/api/admin/users/${user.id}/membership`, 'PATCH', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ 
+        title: "Membership updated successfully",
+        description: `Updated membership details for ${user.firstName} ${user.lastName}`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update membership", 
+        description: error?.message || "Please try again",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const mpointNumber = parseInt(mpoint) || 0;
+    updateMembershipMutation.mutate({
+      membershipCardNumber: membershipCardNumber.trim(),
+      mpoint: mpointNumber
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="cardNumber" className="text-white">Membership Card Number</Label>
+        <Input
+          id="cardNumber"
+          value={membershipCardNumber}
+          onChange={(e) => setMembershipCardNumber(e.target.value)}
+          placeholder="Enter card number"
+          className="bg-gray-800 border-gray-600 text-white"
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="mpoint" className="text-white">Mpoints</Label>
+        <Input
+          id="mpoint"
+          type="number"
+          min="0"
+          value={mpoint}
+          onChange={(e) => setMpoint(e.target.value)}
+          placeholder="Enter mpoints"
+          className="bg-gray-800 border-gray-600 text-white"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button 
+          type="submit" 
+          disabled={updateMembershipMutation.isPending}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          {updateMembershipMutation.isPending ? 'Updating...' : 'Update Membership'}
+        </Button>
+      </div>
+    </form>
   );
 }

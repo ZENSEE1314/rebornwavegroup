@@ -54,6 +54,8 @@ export const users = pgTable("users", {
   bankAccountNumber: varchar("bank_account_number"),
   bankName: varchar("bank_name"),
   accountHolderName: varchar("account_holder_name"),
+  membershipCardNumber: varchar("membership_card_number"),
+  mpoint: integer("mpoint").default(0).notNull(),
   passwordResetToken: varchar("password_reset_token"),
   passwordResetExpiry: timestamp("password_reset_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -480,6 +482,19 @@ export const dailyCareStatus = pgTable("daily_care_status", {
   index("idx_pet_care_date").on(table.petId, table.careDate)
 ]);
 
+// Admin action logs table
+export const adminActionLogs = pgTable("admin_action_logs", {
+  id: serial("id").primaryKey(),
+  adminId: varchar("admin_id").notNull(),
+  targetUserId: varchar("target_user_id"),
+  action: varchar("action").notNull(), // 'edit_membership_card', 'edit_mpoint', etc.
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  field: varchar("field"), // 'membershipCardNumber', 'mpoint', etc.
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   referrals: many(referrals, { relationName: "referrer" }),
@@ -500,6 +515,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   petCareActivities: many(petCareActivities),
   dailyCareStatus: many(dailyCareStatus),
   collectionProgress: many(userCollectionProgress),
+  adminActions: many(adminActionLogs, { relationName: "admin" }),
+  targetOfAdminActions: many(adminActionLogs, { relationName: "target" }),
 }));
 
 export const referralsRelations = relations(referrals, ({ one }) => ({
@@ -700,6 +717,19 @@ export const tokenTransactionsRelations = relations(tokenTransactions, ({ one })
   user: one(users, {
     fields: [tokenTransactions.userId],
     references: [users.id],
+  }),
+}));
+
+export const adminActionLogsRelations = relations(adminActionLogs, ({ one }) => ({
+  admin: one(users, {
+    fields: [adminActionLogs.adminId],
+    references: [users.id],
+    relationName: "admin",
+  }),
+  targetUser: one(users, {
+    fields: [adminActionLogs.targetUserId],
+    references: [users.id],
+    relationName: "target",
   }),
 }));
 
