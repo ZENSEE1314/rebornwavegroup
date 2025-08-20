@@ -1303,18 +1303,25 @@ function EnhancedAdminDashboard() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, userData }: { userId: string; userData: any }) => {
-      // First update basic user data
-      const basicUserResponse = await apiRequest('PATCH', `/api/admin/users/${userId}`, userData);
+      const promises = [];
       
-      // If membership data is included, update that separately
-      if (userData.membershipCardNumber !== undefined || userData.mpoint !== undefined) {
-        await apiRequest('PATCH', `/api/admin/users/${userId}/membership`, {
-          membershipCardNumber: userData.membershipCardNumber,
-          mpoint: userData.mpoint
-        });
+      // Handle basic user data (excluding membership fields)
+      const { membershipCardNumber, mpoint, ...basicUserData } = userData;
+      if (Object.keys(basicUserData).length > 0) {
+        promises.push(apiRequest('PATCH', `/api/admin/users/${userId}`, basicUserData));
       }
       
-      return basicUserResponse;
+      // Handle membership data separately if present
+      if (membershipCardNumber !== undefined || mpoint !== undefined) {
+        promises.push(apiRequest('PATCH', `/api/admin/users/${userId}/membership`, {
+          membershipCardNumber,
+          mpoint
+        }));
+      }
+      
+      // Execute all requests
+      const results = await Promise.all(promises);
+      return results[0]; // Return the first result
     },
     onSuccess: () => {
       toast({ title: "User updated successfully" });
@@ -1325,7 +1332,11 @@ function EnhancedAdminDashboard() {
     },
     onError: (error: any) => {
       console.error('User update error:', error);
-      toast({ title: "Failed to update user", variant: "destructive" });
+      toast({ 
+        title: "Failed to update user", 
+        description: error?.message || "Please check console for details",
+        variant: "destructive" 
+      });
     }
   });
 
