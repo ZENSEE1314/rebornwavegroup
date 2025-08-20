@@ -157,10 +157,10 @@ function AdminLogsSection() {
                     <TableCell className="text-white">
                       <div>
                         <div className="font-medium">
-                          {log.admin?.firstName} {log.admin?.lastName}
+                          {log.adminName || (log.admin?.firstName && log.admin?.lastName ? `${log.admin.firstName} ${log.admin.lastName}` : log.adminEmail || 'Admin')}
                         </div>
                         <div className="text-sm text-gray-400">
-                          {log.admin?.email}
+                          {log.adminEmail || log.admin?.email}
                         </div>
                       </div>
                     </TableCell>
@@ -173,13 +173,13 @@ function AdminLogsSection() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-white">
-                      {log.targetUser ? (
+                      {log.targetUser || log.targetUserName ? (
                         <div>
                           <div className="font-medium">
-                            {log.targetUser.firstName} {log.targetUser.lastName}
+                            {log.targetUserName || (log.targetUser?.firstName && log.targetUser?.lastName ? `${log.targetUser.firstName} ${log.targetUser.lastName}` : log.targetUserEmail || 'User')}
                           </div>
                           <div className="text-sm text-gray-400">
-                            {log.targetUser.email}
+                            {log.targetUserEmail || log.targetUser?.email}
                           </div>
                         </div>
                       ) : (
@@ -188,7 +188,7 @@ function AdminLogsSection() {
                     </TableCell>
                     <TableCell className="text-white">
                       <Badge variant="outline" className="border-slate-600 text-gray-300">
-                        {log.entityType}
+                        {log.entityType || log.field || 'N/A'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-white text-sm max-w-md truncate">

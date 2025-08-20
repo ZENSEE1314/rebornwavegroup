@@ -7777,7 +7777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Log admin action
-      await db.insert(schema.adminActionLogs).values({
+      const logEntry = await db.insert(schema.adminActionLogs).values({
         adminId: adminUserId,
         targetUserId: userId,
         action: 'update_membership',
@@ -7785,7 +7785,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newValue: JSON.stringify({ cardNumber: membershipCardNumber, mpoint }),
         field: 'membership',
         description: `Admin ${currentUser.firstName || currentUser.email} updated membership: ${changes.join(', ')}`,
-      });
+      }).returning();
+
+      // Broadcast admin log update for real-time dashboard
+      if (logEntry[0]) {
+        broadcastAdminLogUpdate({
+          id: logEntry[0].id,
+          adminId: logEntry[0].adminId,
+          targetUserId: logEntry[0].targetUserId,
+          action: logEntry[0].action,
+          field: logEntry[0].field,
+          description: logEntry[0].description,
+          createdAt: logEntry[0].createdAt,
+          adminName: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email,
+          targetUserName: `${targetUser.firstName || ''} ${targetUser.lastName || ''}`.trim() || targetUser.email
+        });
+      }
+
+      // Get updated user data for broadcasting
+      const updatedUser = await storage.getUser(userId);
+
+      // Broadcast real-time user data updates via WebSocket
+      if (wss) {
+        const message = {
+          type: 'USER_DATA_UPDATED',
+          userId: userId,
+          userData: {
+            id: updatedUser.id,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            role: updatedUser.role,
+            credits: updatedUser.credits,
+            loyaltyPoints: updatedUser.loyaltyPoints,
+            tokens: updatedUser.tokens,
+            membershipCardNumber: updatedUser.membershipCardNumber,
+            mpoint: updatedUser.mpoint
+          }
+        };
+
+        wss.clients.forEach((client: any) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+      }
 
       res.json({ message: "Membership updated successfully" });
     } catch (error) {
