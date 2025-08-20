@@ -1303,15 +1303,28 @@ function EnhancedAdminDashboard() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, userData }: { userId: string; userData: any }) => {
-      return apiRequest('PATCH', `/api/admin/users/${userId}`, userData);
+      // First update basic user data
+      const basicUserResponse = await apiRequest('PATCH', `/api/admin/users/${userId}`, userData);
+      
+      // If membership data is included, update that separately
+      if (userData.membershipCardNumber !== undefined || userData.mpoint !== undefined) {
+        await apiRequest('PATCH', `/api/admin/users/${userId}/membership`, {
+          membershipCardNumber: userData.membershipCardNumber,
+          mpoint: userData.mpoint
+        });
+      }
+      
+      return basicUserResponse;
     },
     onSuccess: () => {
       toast({ title: "User updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
       setEditingUser(null);
       setEditedUserData({});
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('User update error:', error);
       toast({ title: "Failed to update user", variant: "destructive" });
     }
   });
