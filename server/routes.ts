@@ -7,7 +7,7 @@ import multer from "multer";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, count, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql, count, isNull, isNotNull, ne } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
@@ -7746,6 +7746,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oldCardNumber = targetUser.membershipCardNumber;
       const oldMpoint = targetUser.mpoint || 0;
       
+      // Validate membership card number uniqueness if provided
+      if (membershipCardNumber !== undefined && membershipCardNumber !== null) {
+        const existingCardUser = await db
+          .select()
+          .from(schema.users)
+          .where(and(
+            eq(schema.users.membershipCardNumber, membershipCardNumber),
+            ne(schema.users.id, userId)
+          ))
+          .limit(1);
+        
+        if (existingCardUser.length > 0) {
+          return res.status(400).json({ message: "Membership card number already exists" });
+        }
+      }
+
       // Build update object based on provided fields
       const updateData: any = {};
       if (membershipCardNumber !== undefined) {

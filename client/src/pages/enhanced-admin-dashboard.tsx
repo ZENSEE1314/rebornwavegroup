@@ -254,7 +254,31 @@ function EnhancedAdminDashboard() {
   const { toast } = useToast();
   
   // Enable WebSocket for real-time updates only for admin users
-  useWebSocket(Boolean(user && (user as any).role === 'admin'));
+  useWebSocket({
+    enabled: Boolean(user && (user as any).role === 'admin'),
+    onMessage: (data) => {
+      try {
+        const message = JSON.parse(data);
+        
+        // Handle user data updates for real-time membership changes
+        if (message.type === 'USER_DATA_UPDATED') {
+          // Immediately invalidate and refetch user data
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+          queryClient.refetchQueries({ queryKey: ['/api/admin/users'] });
+        }
+        
+        // Handle admin log updates
+        if (message.type === 'ADMIN_LOG_UPDATE') {
+          queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+        }
+      } catch (error) {
+        // Silently ignore WebSocket parsing errors in production
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('WebSocket message parsing error:', error);
+        }
+      }
+    }
+  });
   
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
