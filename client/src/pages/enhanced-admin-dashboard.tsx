@@ -254,31 +254,8 @@ function EnhancedAdminDashboard() {
   const { toast } = useToast();
   
   // Enable WebSocket for real-time updates only for admin users
-  useWebSocket({
-    enabled: Boolean(user && (user as any).role === 'admin'),
-    onMessage: (data) => {
-      try {
-        const message = JSON.parse(data);
-        
-        // Handle user data updates for real-time membership changes
-        if (message.type === 'USER_DATA_UPDATED') {
-          // Immediately invalidate and refetch user data
-          queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-          queryClient.refetchQueries({ queryKey: ['/api/admin/users'] });
-        }
-        
-        // Handle admin log updates
-        if (message.type === 'ADMIN_LOG_UPDATE') {
-          queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
-        }
-      } catch (error) {
-        // Silently ignore WebSocket parsing errors in production
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('WebSocket message parsing error:', error);
-        }
-      }
-    }
-  });
+  // In development, this uses polling fallback for reliable updates
+  useWebSocket(Boolean(user && (user as any).role === 'admin'));
   
   // State management
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -1352,8 +1329,22 @@ function EnhancedAdminDashboard() {
     },
     onSuccess: () => {
       toast({ title: "User updated successfully" });
+      
+      // Force immediate refresh of all user-related queries with different patterns
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/users'] });
+      
+      // Handle paginated user queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes('/api/admin/users')
+      });
+      queryClient.refetchQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes('/api/admin/users')
+      });
+      
+      // Refresh admin logs
       queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      
       setEditingUser(null);
       setEditedUserData({});
     },

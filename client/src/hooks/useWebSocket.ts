@@ -20,13 +20,22 @@ export function useWebSocket(enabled: boolean = true) {
     }
     
     pollingTimeoutRef.current = setInterval(() => {
-      // Refresh all admin dashboard queries every 3 seconds for real-time updates
+      // Refresh all admin dashboard queries every 2 seconds for better real-time updates
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payment-verifications'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/commission-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/dashboard-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/points-history'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/all-pending-purchases'] });
+      
+      // Force immediate refresh of user data with different query patterns
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes('/api/admin/users')
+      });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.refetchQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes('/api/admin/users')
+      });
       
       // Refresh user stats for real-time balance updates
       queryClient.invalidateQueries({ queryKey: ['/api/user-stats'] });
@@ -37,7 +46,7 @@ export function useWebSocket(enabled: boolean = true) {
       queryClient.refetchQueries({ queryKey: ['/api/admin/commission-stats'] });
       queryClient.refetchQueries({ queryKey: ['/api/admin/dashboard-stats'] });
       queryClient.refetchQueries({ queryKey: ['/api/user-stats'] });
-    }, 3000);
+    }, 2000);
   }, []);
   
   // Stop polling fallback
