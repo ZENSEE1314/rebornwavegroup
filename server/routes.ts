@@ -7660,7 +7660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ membershipCardNumber })
         .where(eq(schema.users.id, userId));
 
-      // Log admin action
+      // Log admin action with detailed description
       await db.insert(schema.adminActionLogs).values({
         adminId: adminUserId,
         targetUserId: userId,
@@ -7668,7 +7668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousValue: oldCardNumber || 'null',
         newValue: membershipCardNumber || 'null',
         field: 'membershipCardNumber',
-        description: `Admin ${currentUser.firstName || currentUser.email} updated membership card number from ${oldCardNumber || 'none'} to ${membershipCardNumber || 'none'}`,
+        description: `Admin ${currentUser.firstName || currentUser.email} updated ${targetUser.firstName || targetUser.email}'s Membership Card Number: "${oldCardNumber || 'none'}" → "${membershipCardNumber || 'none'}"`,
       });
 
       res.json({ message: "Membership card number updated successfully" });
@@ -7707,7 +7707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ mpoint })
         .where(eq(schema.users.id, userId));
 
-      // Log admin action
+      // Log admin action with detailed description
       await db.insert(schema.adminActionLogs).values({
         adminId: adminUserId,
         targetUserId: userId,
@@ -7715,7 +7715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousValue: oldMpoint.toString(),
         newValue: mpoint.toString(),
         field: 'mpoint',
-        description: `Admin ${currentUser.firstName || currentUser.email} updated mpoints from ${oldMpoint} to ${mpoint}`,
+        description: `Admin ${currentUser.firstName || currentUser.email} updated ${targetUser.firstName || targetUser.email}'s Mpoints: ${oldMpoint} → ${mpoint}`,
       });
 
       res.json({ message: "Mpoints updated successfully" });
@@ -7783,13 +7783,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set(updateData)
         .where(eq(schema.users.id, userId));
 
-      // Build details string for logging
+      // Build detailed description for logging
       const changes = [];
       if (membershipCardNumber !== undefined) {
-        changes.push(`Card number: ${oldCardNumber || 'none'} → ${membershipCardNumber || 'none'}`);
+        changes.push(`Membership Card Number: "${oldCardNumber || 'none'}" → "${membershipCardNumber || 'none'}"`);
       }
       if (mpoint !== undefined) {
         changes.push(`Mpoints: ${oldMpoint} → ${mpoint}`);
+      }
+
+      // Create more descriptive log message
+      let description = `Admin ${currentUser.firstName || currentUser.email} updated ${targetUser.firstName || targetUser.email}'s membership`;
+      if (changes.length > 0) {
+        description += ` - ${changes.join(', ')}`;
       }
 
       // Log admin action
@@ -7800,7 +7806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousValue: JSON.stringify({ cardNumber: oldCardNumber, mpoint: oldMpoint }),
         newValue: JSON.stringify({ cardNumber: membershipCardNumber, mpoint }),
         field: 'membership',
-        description: `Admin ${currentUser.firstName || currentUser.email} updated membership: ${changes.join(', ')}`,
+        description: description,
       }).returning();
 
       // Broadcast admin log update for real-time dashboard
@@ -7870,6 +7876,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = (page - 1) * limit;
 
       // Get admin action logs with user details
+      const adminUser = schema.users;
+      const targetUser = schema.users;
+      
       const actionLogs = await db
         .select({
           id: schema.adminActionLogs.id,
@@ -7881,14 +7890,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           field: schema.adminActionLogs.field,
           description: schema.adminActionLogs.description,
           createdAt: schema.adminActionLogs.createdAt,
-          adminName: sql<string>`CONCAT(admin_user.first_name, ' ', admin_user.last_name)`,
-          targetUserName: sql<string>`CONCAT(target_user.first_name, ' ', target_user.last_name)`,
-          adminEmail: sql<string>`admin_user.email`,
-          targetUserEmail: sql<string>`target_user.email`
         })
         .from(schema.adminActionLogs)
-        .leftJoin(schema.users.as('admin_user'), eq(schema.adminActionLogs.adminId, sql`admin_user.id`))
-        .leftJoin(schema.users.as('target_user'), eq(schema.adminActionLogs.targetUserId, sql`target_user.id`))
         .orderBy(desc(schema.adminActionLogs.createdAt))
         .limit(limit)
         .offset(offset);
