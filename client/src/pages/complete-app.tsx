@@ -730,16 +730,16 @@ function KOSSection({
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
         <CardContent className={`p-${isTop3 ? '6' : '4'} relative`}>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             {/* Small Rank Number - Top Left */}
-            <div className="absolute top-2 left-2">
+            <div className="absolute top-2 left-2 sm:static sm:mt-0">
               <span className="text-xs font-bold text-gray-600">
                 {rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`}
               </span>
             </div>
 
             {/* User Photo - Made Bigger */}
-            <div className={`flex-shrink-0 ${isTop3 ? 'w-20 h-20' : 'w-16 h-16'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
+            <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16 sm:w-20 sm:h-20' : 'w-12 h-12 sm:w-16 sm:h-16'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
               {userItem.profileImageUrl ? (
                 <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
               ) : (
@@ -749,45 +749,48 @@ function KOSSection({
               )}
             </div>
 
-            {/* Voter Tier Badge */}
-            <div className="flex-shrink-0">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
-                userItem.voterTierColor || 'bg-gray-500'
-              }`}>
-                T{userItem.voterTierLevel || 1}
+            {/* Voter & Individual Rank Badges */}
+            <div className="flex gap-2">
+              {/* Voter Tier Badge */}
+              <div className="flex-shrink-0">
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                  userItem.voterTierColor || 'bg-gray-500'
+                }`}>
+                  T{userItem.voterTierLevel || 1}
+                </div>
               </div>
-            </div>
 
-            {/* Individual Rank Badge */}
-            <div className="flex-shrink-0">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
-                individualRank.color
-              }`}>
-                R{individualRank.tier}
+              {/* Individual Rank Badge */}
+              <div className="flex-shrink-0">
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                  individualRank.color
+                }`}>
+                  R{individualRank.tier}
+                </div>
               </div>
             </div>
 
             {/* User Info */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full sm:w-auto">
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
-              <div className="flex items-center gap-4 mt-1">
+              <div className="grid grid-cols-3 sm:flex sm:gap-4 gap-2 mt-1">
                 <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Heart className="w-4 h-4 text-pink-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                  <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 flex-shrink-0" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {userItem.likes?.toLocaleString() || 0}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4 text-purple-500" />
-                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-sm'} text-gray-700`}>
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500 flex-shrink-0" />
+                  <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {totalStarsSupported.toLocaleString()}
                   </span>
                 </div>
@@ -886,32 +889,34 @@ function KOSSection({
 
           {/* Action Buttons - Hide for own profile */}
           {userItem.id !== user?.id && (
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 w-full sm:w-auto flex-shrink-0 mt-2 sm:mt-0">
               <Button
                 size={isTop3 ? "default" : "sm"}
-                className="bg-pink-500 hover:bg-pink-600 text-white"
+                className="bg-pink-500 hover:bg-pink-600 text-white flex-1 sm:flex-none text-xs sm:text-sm"
                 onClick={() => onVote(userItem)}
                 disabled={voteMutationPending}
               >
                 <Star className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
-                Vote
+                <span className="hidden sm:inline">Vote</span>
+                <span className="sm:hidden">V</span>
               </Button>
               <Button
                 size={isTop3 ? "default" : "sm"}
                 variant="outline"
-                className="border-pink-300 text-pink-600 hover:bg-pink-50"
+                className="border-pink-300 text-pink-600 hover:bg-pink-50 flex-1 sm:flex-none text-xs sm:text-sm"
                 onClick={() => onLike(userItem)}
                 disabled={voteMutationPending}
               >
                 <Heart className={`${isTop3 ? 'w-4 h-4' : 'w-3 h-3'} mr-1`} />
-                Like
+                <span className="hidden sm:inline">Like</span>
+                <span className="sm:hidden">L</span>
               </Button>
             </div>
           )}
           {/* Show "You" badge for own profile */}
           {userItem.id === user?.id && (
-            <div className="flex items-center">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            <div className="flex items-center flex-shrink-0 mt-2 sm:mt-0">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
                 <User className="w-3 h-3 mr-1" />
                 You
               </Badge>

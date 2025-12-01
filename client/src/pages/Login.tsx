@@ -402,11 +402,21 @@ export default function Login() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="remember-me"
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="remember-me" className="text-sm font-normal text-gray-700 dark:text-gray-300 cursor-pointer">
+                      {t('auth.rememberMe') || 'Remember me'}
+                    </Label>
+                  </div>
                   <Button
                     type="button"
                     variant="link"
-                    className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800"
+                    className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800 ml-auto"
                     onClick={() => setActiveTab("forgot-password")}
                   >
                     {t('auth.forgotPassword')}
