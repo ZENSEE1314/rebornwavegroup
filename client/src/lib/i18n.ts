@@ -784,9 +784,9 @@ export const translations: Translations = {
     id: 'Atau lanjutkan dengan'
   },
   'auth.title': {
-    en: 'Kings Of Singers (KOS)',
-    zh: '歌王',
-    id: 'Kings Of Singers (KOS)'
+    en: 'Reborn Wave Group',
+    zh: 'Reborn Wave Group',
+    id: 'Reborn Wave Group'
   },
   'auth.subtitle': {
     en: 'Your singing competition journey begins here',
