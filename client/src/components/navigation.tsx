@@ -32,11 +32,11 @@ export default function Navigation() {
   return (
     <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-2 sm:py-2.5">
+        <div className="flex justify-between items-center py-4">
           <div className="flex items-center gap-0.5 md:gap-8 flex-shrink-0 min-w-0">
             <Link href="/">
               <div className="flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-4 sm:h-6 w-auto" />
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto" />
               </div>
             </Link>
             

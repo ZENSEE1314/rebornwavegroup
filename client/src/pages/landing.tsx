@@ -32,11 +32,11 @@ export default function Landing() {
       </div>
 
       {/* Enhanced Header */}
-      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-2">
+      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-4">
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center gap-1">
             <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
-              <img src={rwgLogo} alt="Reborn Wave Group" className="h-4 sm:h-6 w-auto flex-shrink-0" />
+              <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto flex-shrink-0" />
               <div className="hidden md:block">
                 <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
                   Reborn Wave Group
