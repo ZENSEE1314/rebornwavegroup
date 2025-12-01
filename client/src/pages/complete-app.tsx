@@ -11760,13 +11760,13 @@ export default function CompleteApp() {
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">{userAppointments.length}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-sm text-slate-600">
                       {t('account.totalBookings')}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-900">RP {formatRupiah(referralEarnings)}</p>
-                    <p className="text-sm text-white">
+                    <p className="text-sm text-slate-600">
                       {t('account.referralEarnings')}
                     </p>
                   </div>
