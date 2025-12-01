@@ -1104,18 +1104,18 @@ function KOSSection({
 
       {/* Tabs */}
       <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voters')} className="w-full">
-        <TabsList className="grid grid-cols-3 gap-1 mb-6 bg-white dark:bg-slate-900 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
-          <TabsTrigger value="tournament" className="flex items-center justify-center gap-2 py-2 px-2 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <Trophy className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs sm:text-sm">Tournament</span>
+        <TabsList className="grid grid-cols-3 gap-2 mb-6 bg-transparent p-0">
+          <TabsTrigger value="tournament" className={`flex items-center justify-center gap-2 py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${kosActiveTab === 'tournament' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/30' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 shadow-sm'}`}>
+            <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Tournament</span>
           </TabsTrigger>
-          <TabsTrigger value="individual" className="flex items-center justify-center gap-2 py-2 px-2 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs sm:text-sm">Individual</span>
+          <TabsTrigger value="individual" className={`flex items-center justify-center gap-2 py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${kosActiveTab === 'individual' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 shadow-sm'}`}>
+            <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Individual</span>
           </TabsTrigger>
-          <TabsTrigger value="voters" className="flex items-center justify-center gap-2 py-2 px-2 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <Vote className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs sm:text-sm">Voters</span>
+          <TabsTrigger value="voters" className={`flex items-center justify-center gap-2 py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${kosActiveTab === 'voters' ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/30' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 shadow-sm'}`}>
+            <Vote className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Voters</span>
           </TabsTrigger>
         </TabsList>
 
