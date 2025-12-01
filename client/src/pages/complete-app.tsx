@@ -19,7 +19,7 @@ import {
   Volume2, VolumeX, Search, BarChart3, Info, Vote
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import logoImage from "@assets/2-removebg-preview.png";
+import logoImage from "@assets/rwg-logo.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import doluruuGrandpaImage from "@assets/Doluruu Grandpa_1749903476706.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -3272,56 +3272,7 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
       if (pet?.cleanliness === 0) criticalStats.push('Cleanliness');
       if (pet?.energy === 0) criticalStats.push('Energy');
       
-      // Show notification if any stats hit 0% (but throttle to once every 5 minutes per pet)
-      if (criticalStats.length > 0) {
-        const notificationKey = `${pet?.id}-${criticalStats.join('-')}`;
-        const lastTime = lastNotificationTime[notificationKey] || 0;
-        const currentTime = Date.now();
-        const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
-        
-        // Only show notification if it's been more than 5 minutes since the last one for this pet/stats combination
-        if (currentTime - lastTime > fiveMinutes) {
-          const message = `⚠️ URGENT: ${pet?.name || 'Your pet'}'s ${criticalStats.join(', ')} ${criticalStats.length > 1 ? 'are' : 'is'} at 0%! Please take care of them immediately!`;
-          
-          try {
-            // Show browser notification if possible
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('Pet Care Alert!', {
-                body: message,
-                icon: '/favicon.ico',
-                badge: '/favicon.ico'
-              });
-            } else if ('Notification' in window && Notification.permission !== 'denied') {
-              Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                  new Notification('Pet Care Alert!', {
-                    body: message,
-                    icon: '/favicon.ico',
-                    badge: '/favicon.ico'
-                  });
-                }
-              }).catch(error => {
-                console.log('Notification permission error:', error);
-              });
-            }
-            
-            // Also play urgent audio notification if not muted
-            if (!isMuted) {
-              playFemaleCuteVoice(`Urgent! ${pet?.name || 'Your pet'} needs immediate attention! Their ${criticalStats.join(' and ')} ${criticalStats.length > 1 ? 'are' : 'is'} critically low!`, false);
-            }
-            
-            console.log('🚨 CRITICAL PET STATUS ALERT:', message);
-            
-            // Update the last notification time for this pet/stats combination
-            setLastNotificationTime(prev => ({
-              ...prev,
-              [notificationKey]: currentTime
-            }));
-          } catch (error) {
-            console.log('Notification error caught:', error);
-          }
-        }
-      }
+      // Notifications disabled - no alerts for pet care status
     }
   }, [safePets, currentPetIndex, isMuted, lastNotificationTime]);
 
