@@ -32,27 +32,22 @@ export default function Landing() {
       </div>
 
       {/* Enhanced Header */}
-      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl">
+      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
-              <div className="relative group">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto" />
-              </div>
+              <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto" />
               <div className="hidden sm:block">
-                <span className="text-lg font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                <span className="text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   Reborn Wave Group
                 </span>
-                <div className="text-xs text-white/60 font-medium tracking-wider">
-                  5-in-1 Lifestyle Platform
-                </div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <LanguageSelector />
               <Button 
                 onClick={handleLogin} 
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-4 sm:px-6 py-2 rounded-full font-semibold text-sm shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-4 sm:px-6 py-1.5 rounded-full font-semibold text-sm shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5"
               >
                 <Zap className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">{t('landing.getStarted')}</span>
