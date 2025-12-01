@@ -31,12 +31,12 @@ export default function Navigation() {
 
   return (
     <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
-          <div className="flex items-center gap-0.5 md:gap-8 flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
             <Link href="/">
-              <div className="flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto" />
+              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto" />
               </div>
             </Link>
             
@@ -58,18 +58,18 @@ export default function Navigation() {
             </div>
           </div>
           
-          <div className="flex items-center gap-0 sm:gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
             {/* Credits */}
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full flex-shrink-0 text-xs">
-              <Coins className="h-3 w-3 text-amber-500 flex-shrink-0" />
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full flex-shrink-0 text-sm">
+              <Coins className="h-4 w-4 text-amber-500 flex-shrink-0" />
               <span className="font-medium whitespace-nowrap">
                 {formatCurrency(user?.credits || '0')}
               </span>
             </div>
             
             {/* Loyalty Points */}
-            <div className="hidden md:flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0 text-xs">
-              <Star className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full flex-shrink-0 text-sm">
+              <Star className="h-4 w-4 text-emerald-500 flex-shrink-0" />
               <span className="font-medium text-emerald-700 whitespace-nowrap">
                 {user?.loyaltyPoints?.toLocaleString() || 0} pts
               </span>
@@ -78,8 +78,8 @@ export default function Navigation() {
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-0 p-0.5 sm:p-1.5 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0">
-                  <Avatar className="w-5 h-5 sm:w-7 sm:h-7">
+                <Button variant="ghost" className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0">
+                  <Avatar className="w-8 h-8 sm:w-9 sm:h-9">
                     <AvatarImage 
                       src={user?.profileImageUrl} 
                       alt={`${user?.firstName} ${user?.lastName}`} 
