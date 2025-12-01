@@ -19,7 +19,7 @@ import {
   Volume2, VolumeX, Search, BarChart3, Info, Vote
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import logoImage from "@assets/rwg-logo.png";
+import logoImage from "@assets/Untitled design (3)_1764560142304.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import doluruuGrandpaImage from "@assets/Doluruu Grandpa_1749903476706.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8131,9 +8131,10 @@ export default function CompleteApp() {
               
               <Button
                 onClick={() => setActiveTab("dashboard")}
-                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center p-2 shadow-lg hover:scale-105 transition-all duration-300"
+                variant="ghost"
+                className="h-auto p-0 hover:bg-transparent"
               >
-                <img src={logoImage} alt="Reborn Wave House" className="w-8 h-8 object-contain filter brightness-0 invert" />
+                <img src={logoImage} alt="Reborn Wave Group" className="h-12 w-auto object-contain" />
               </Button>
               
               <div className="hidden lg:flex items-center space-x-3">
