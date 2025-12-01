@@ -34,7 +34,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
-            <Link href="/" className="hidden md:block">
+            <Link href="/" className="hidden lg:block">
               <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <div style={{ width: '32px', height: '32px', minWidth: '32px', maxWidth: '32px', minHeight: '32px', maxHeight: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '32px', height: '32px', objectFit: 'contain', display: 'block' }} />
