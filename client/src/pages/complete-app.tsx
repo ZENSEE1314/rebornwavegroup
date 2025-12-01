@@ -19,7 +19,6 @@ import {
   Volume2, VolumeX, Search, BarChart3, Info, Vote
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import rwgLogo from "@assets/rwg-logo.png";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
 import doluruuGrandpaImage from "@assets/Doluruu Grandpa_1749903476706.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8143,14 +8142,6 @@ export default function CompleteApp() {
                   <span className="text-sm font-medium">Back</span>
                 </Button>
               )}
-              
-              <Button
-                onClick={() => setActiveTab("dashboard")}
-                variant="ghost"
-                className="h-auto p-0 hover:bg-transparent"
-              >
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto object-contain" />
-              </Button>
               
               <div className="hidden lg:flex items-center space-x-3">
                 <div className="text-left">
