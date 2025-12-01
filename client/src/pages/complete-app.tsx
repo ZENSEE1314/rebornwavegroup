@@ -32,7 +32,6 @@ import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import MobileBackButton from "@/components/mobile-back-button";
 import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
-import rwgLogo from "@assets/rwg-logo.png";
 
 // VoterCard Component for displaying individual voters
 function VoterCard({ 
@@ -8127,7 +8126,7 @@ export default function CompleteApp() {
       <div className="min-h-screen relative pb-20 md:pb-0">
       {/* Enhanced Modern App Header */}
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
-        <div className="w-full px-3 md:px-6 py-6">
+        <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Left Side - Logo and Welcome Text */}
             <div className="flex items-center space-x-3 flex-1">
@@ -8143,14 +8142,6 @@ export default function CompleteApp() {
                   <span className="text-sm font-medium">Back</span>
                 </Button>
               )}
-              
-              <Button
-                onClick={() => setActiveTab("dashboard")}
-                variant="ghost"
-                className="h-auto p-0 hover:bg-transparent"
-              >
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto object-contain" />
-              </Button>
               
               <div className="hidden lg:flex items-center space-x-3">
                 <div className="text-left">
