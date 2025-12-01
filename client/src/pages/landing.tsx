@@ -40,7 +40,7 @@ export default function Landing() {
                 <img src={rwgLogo} alt="Reborn Wave Group" className="h-12 w-auto" />
               </div>
               <div className="hidden sm:block">
-                <span className="text-2xl font-bold text-white">
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   Reborn Wave Group
                 </span>
                 <div className="text-xs text-white/60 font-medium tracking-wider">
