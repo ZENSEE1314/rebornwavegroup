@@ -1105,21 +1105,18 @@ function KOSSection({
 
       {/* Tabs */}
       <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voters')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6 text-xs sm:text-sm">
-          <TabsTrigger value="tournament" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-            <Trophy className="w-4 h-4" />
-            <span className="hidden sm:inline">Tournaments</span>
-            <span className="sm:hidden">Tour</span>
+        <TabsList className="grid w-full grid-cols-3 gap-2 mb-6 bg-white dark:bg-slate-900 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+          <TabsTrigger value="tournament" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <Trophy className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Tournament</span>
           </TabsTrigger>
-          <TabsTrigger value="individual" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-            <Users className="w-4 h-4" />
+          <TabsTrigger value="individual" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <Users className="w-4 h-4 flex-shrink-0" />
             <span className="hidden sm:inline">Individual</span>
-            <span className="sm:hidden">Indiv</span>
           </TabsTrigger>
-          <TabsTrigger value="voters" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
-            <Vote className="w-4 h-4" />
-            <span className="hidden sm:inline">Voter Rankings</span>
-            <span className="sm:hidden">Voters</span>
+          <TabsTrigger value="voters" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <Vote className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Voters</span>
           </TabsTrigger>
         </TabsList>
 
