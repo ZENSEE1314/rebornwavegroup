@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Link, useLocation } from "wouter";
 import { ChevronDown, Coins, Star, Settings, LogOut, Shield } from "lucide-react";
 import { cn, formatCurrency, generateAvatarUrl } from "@/lib/utils";
+import rwgLogo from "@assets/rwg-logo.png";
 
 export default function Navigation() {
   const { user } = useAuth();
@@ -34,14 +35,8 @@ export default function Navigation() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-8">
             <Link href="/">
-              <div className="flex items-center space-x-2 cursor-pointer">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/>
-                    <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/>
-                  </svg>
-                </div>
-                <span className="text-xl font-bold text-slate-800">Reborn Wave</span>
+              <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-10 w-auto" />
               </div>
             </Link>
             
