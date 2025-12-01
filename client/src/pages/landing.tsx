@@ -36,7 +36,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center gap-1">
             <div className="flex items-center gap-1">
-              <div style={{ width: '32px', height: '32px', minWidth: '32px', maxWidth: '32px', minHeight: '32px', maxHeight: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="hidden md:flex" style={{ width: '32px', height: '32px', minWidth: '32px', maxWidth: '32px', minHeight: '32px', maxHeight: '32px', flex: '0 0 32px', alignItems: 'center', justifyContent: 'center' }}>
                 <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '32px', height: '32px', objectFit: 'contain', display: 'block' }} />
               </div>
               <div className="hidden md:block">
