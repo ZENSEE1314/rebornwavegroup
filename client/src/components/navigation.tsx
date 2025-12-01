@@ -36,7 +36,7 @@ export default function Navigation() {
           <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto" />
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-8 object-contain" />
               </div>
             </Link>
             
