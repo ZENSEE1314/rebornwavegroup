@@ -32,11 +32,11 @@ export default function Navigation() {
   return (
     <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-8">
+        <div className="flex justify-between items-center py-4 sm:py-3">
+          <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
             <Link href="/">
-              <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto" />
+              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-6 w-auto" />
               </div>
             </Link>
             
@@ -48,7 +48,7 @@ export default function Navigation() {
                       item.current
                         ? "text-primary-600 font-medium border-b-2 border-primary-500 pb-4"
                         : "text-slate-600 hover:text-primary-600 transition-colors pb-4",
-                      "cursor-pointer"
+                      "cursor-pointer text-sm whitespace-nowrap"
                     )}
                   >
                     {item.name}
@@ -58,19 +58,19 @@ export default function Navigation() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-1 sm:gap-3 md:gap-4 flex-shrink-0">
             {/* Credits */}
-            <div className="hidden sm:flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-full">
-              <Coins className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-medium">
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full flex-shrink-0">
+              <Coins className="h-4 w-4 text-amber-500 flex-shrink-0" />
+              <span className="text-sm font-medium whitespace-nowrap">
                 {formatCurrency(user?.credits || '0')}
               </span>
             </div>
             
             {/* Loyalty Points */}
-            <div className="hidden sm:flex items-center space-x-2 bg-emerald-50 px-3 py-1 rounded-full">
-              <Star className="h-4 w-4 text-emerald-500" />
-              <span className="text-sm font-medium text-emerald-700">
+            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full flex-shrink-0">
+              <Star className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-emerald-700 whitespace-nowrap">
                 {user?.loyaltyPoints?.toLocaleString() || 0} pts
               </span>
             </div>
