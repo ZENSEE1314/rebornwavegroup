@@ -39,7 +39,6 @@ export default function Landing() {
               <div style={{ width: '32px', height: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-              </div>
               <div className="hidden md:block">
                 <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
                   Reborn Wave Group
