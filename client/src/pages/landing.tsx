@@ -47,11 +47,6 @@ export default function Landing() {
                   5-in-1 Lifestyle Platform
                 </div>
               </div>
-              <div className="sm:hidden">
-                <span className="text-xl font-bold text-white">
-                  RWG
-                </span>
-              </div>
             </div>
             <div className="flex items-center space-x-3">
               <LanguageSelector />
