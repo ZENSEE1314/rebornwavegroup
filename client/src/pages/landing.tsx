@@ -37,7 +37,7 @@ export default function Landing() {
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-4">
               <div className="relative group">
-                <img src={rwgLogo} alt="Reborn Wave Group" className="h-12 w-auto" />
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-8 w-auto" />
               </div>
               <div className="hidden sm:block">
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
