@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap, ChevronRight, TrendingUp, Award, DollarSign, ArrowRight, Check, Globe, Shield, Rocket } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import rwgLogo from "@assets/rwg-logo.png";
 
 export default function Landing() {
   const { t } = useTranslation();
@@ -36,21 +37,18 @@ export default function Landing() {
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-4">
               <div className="relative group">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
-                  <Sparkles className="w-6 h-6 text-white relative z-10" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-2xl blur-sm opacity-50 group-hover:opacity-75 transition-opacity duration-300"></div>
-                </div>
+                <img src={rwgLogo} alt="Reborn Wave Group" className="h-12 w-auto" />
               </div>
               <div className="hidden sm:block">
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  {t('landing.title')}
+                <span className="text-2xl font-bold text-white">
+                  Reborn Wave Group
                 </span>
                 <div className="text-xs text-white/60 font-medium tracking-wider">
-                  {t('landing.platformSubtitle')}
+                  5-in-1 Lifestyle Platform
                 </div>
               </div>
               <div className="sm:hidden">
-                <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                <span className="text-xl font-bold text-white">
                   RWG
                 </span>
               </div>
@@ -81,13 +79,13 @@ export default function Landing() {
           </div>
           
           <h1 className="text-4xl sm:text-6xl lg:text-8xl xl:text-9xl font-bold mb-8 leading-tight tracking-tight">
-            <span className="bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent drop-shadow-2xl">
-              {t('landing.title')}
+            <span className="text-white drop-shadow-2xl">
+              Reborn Wave Group
             </span>
           </h1>
           
           <p className="text-lg sm:text-xl lg:text-2xl text-white/80 mb-12 max-w-5xl mx-auto leading-relaxed font-light">
-            {t('landing.description')}
+            Care for virtual dragons, earn tokens, and build your collection in this immersive pet care experience.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
@@ -115,16 +113,16 @@ export default function Landing() {
             <div className="text-center mb-12">
               <div className="mb-6">
                 <span className="px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-sm font-medium text-white">
-                  🌟 Singapore Innovation
+                  🌟 About Reborn Wave Group
                 </span>
               </div>
               <h3 className="text-3xl md:text-4xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  {t('landing.aboutCompany')}
+                  The World's First 5-in-1 Business Concept
                 </span>
               </h3>
               <p className="text-xl text-white/70 max-w-4xl mx-auto mb-8">
-                {t('landing.aboutDescription')}
+                Revolutionizing lifestyle experiences through innovative integration of beauty, entertainment, dining, and digital gaming.
               </p>
             </div>
             
@@ -161,15 +159,15 @@ export default function Landing() {
                     <p className="text-white/70 text-sm">{t('landing.globalFirstDescription')}</p>
                   </div>
                   <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
-                    <h4 className="text-xl font-bold text-white mb-4">{t('landing.visitUs')}</h4>
+                    <h4 className="text-xl font-bold text-white mb-4">Visit Us</h4>
                     <div className="flex items-start space-x-3">
                       <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
                         <span className="text-sm">📍</span>
                       </div>
                       <div>
-                        <h5 className="text-white font-semibold">{t('landing.ourLocation')}</h5>
-                        <p className="text-white/70 text-sm">42RX+GWX, Jl. Gajah Mada, Sadai</p>
-                        <p className="text-white/70 text-sm">Kec. Bengkong, Kota Batam</p>
+                        <h5 className="text-white font-semibold">Oceanic Bliss</h5>
+                        <p className="text-white/70 text-sm">Ruko Batamas, Jl. Pasir Putih No.49-51</p>
+                        <p className="text-white/70 text-sm">Sadai, Kec. Bengkong, Kota Batam</p>
                         <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
                       </div>
                     </div>
