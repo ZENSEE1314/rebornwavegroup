@@ -8128,27 +8128,27 @@ export default function CompleteApp() {
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
         <div className="w-full px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            {/* Left Side - Logo and Welcome Text */}
-            <div className="flex items-center space-x-3 flex-1">
+            {/* Left Side - Welcome Text */}
+            <div className="flex items-center space-x-2 md:space-x-3 flex-1">
               {/* Mobile Back Button - Show when not on dashboard tab */}
               {activeTab !== "dashboard" && (
                 <Button
                   onClick={() => setActiveTab("dashboard")}
                   variant="ghost"
                   size="sm"
-                  className="md:hidden flex items-center gap-2 text-slate-600 hover:text-slate-900 p-2 mr-2"
+                  className="md:hidden flex items-center gap-1 text-slate-600 hover:text-slate-900 p-1.5"
                 >
-                  <ArrowLeft className="h-5 w-5" />
-                  <span className="text-sm font-medium">Back</span>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="text-xs font-medium">Back</span>
                 </Button>
               )}
               
-              <div className="hidden lg:flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-700">
+                  <p className="text-xs md:text-sm font-semibold text-gray-700">
                     {t('dashboard.welcome')}, {user?.firstName || 'User'}!
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="hidden md:block text-xs text-gray-500">
                     {user?.role === 'admin' ? 'Administrator' : 'Member'}
                   </p>
                 </div>
