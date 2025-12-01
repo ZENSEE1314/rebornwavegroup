@@ -144,25 +144,25 @@ export default function Landing() {
               {/* Features & Location - Shows second on mobile, right side on desktop */}
               <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4">
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 text-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4 mx-auto">
                       <span className="text-2xl">🏢</span>
                     </div>
                     <h4 className="text-lg font-bold text-white mb-2">{t('landing.conceptTitle')}</h4>
                     <p className="text-white/70 text-sm">{t('landing.conceptDescription')}</p>
                   </div>
-                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 text-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4 mx-auto">
                       <span className="text-2xl">🌏</span>
                     </div>
                     <h4 className="text-lg font-bold text-white mb-2">{t('landing.globalFirstTitle')}</h4>
                     <p className="text-white/70 text-sm">{t('landing.globalFirstDescription')}</p>
                   </div>
-                  <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
+                  <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6 text-center">
                     <h4 className="text-xl font-bold text-white mb-4">Visit Us</h4>
-                    <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mt-1">
-                        <span className="text-sm">📍</span>
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                        <span className="text-lg">📍</span>
                       </div>
                       <div>
                         <h5 className="text-white font-semibold">Oceanic Bliss</h5>
