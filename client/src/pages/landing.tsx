@@ -32,28 +32,28 @@ export default function Landing() {
       </div>
 
       {/* Enhanced Header */}
-      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-3">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 flex-shrink-0 min-w-0">
-              <img src={rwgLogo} alt="Reborn Wave Group" className="h-5 sm:h-6 w-auto flex-shrink-0" />
+      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-2">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
+              <img src={rwgLogo} alt="Reborn Wave Group" className="h-4 sm:h-6 w-auto flex-shrink-0" />
               <div className="hidden md:block">
                 <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
                   Reborn Wave Group
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-0 sm:gap-2 flex-shrink-0">
               <div className="hidden sm:block">
                 <LanguageSelector />
               </div>
               <Button 
                 onClick={handleLogin} 
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-full font-semibold text-xs shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5 whitespace-nowrap"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-1.5 sm:px-4 py-0.5 sm:py-2 rounded-full font-semibold text-xs shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5 whitespace-nowrap"
               >
-                <Zap className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                <Zap className="w-2.5 h-2.5 sm:w-4 sm:h-4 sm:mr-1" />
                 <span className="hidden sm:inline">{t('landing.getStarted')}</span>
-                <span className="sm:hidden">{t('landing.login')}</span>
+                <span className="sm:hidden text-xs">{t('landing.login')}</span>
               </Button>
             </div>
           </div>
