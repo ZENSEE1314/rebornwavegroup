@@ -789,9 +789,9 @@ export const translations: Translations = {
     id: 'Reborn Wave Group'
   },
   'auth.subtitle': {
-    en: 'Your singing competition journey begins here',
-    zh: '您的歌唱比赛之旅从这里开始',
-    id: 'Perjalanan kompetisi menyanyi Anda dimulai di sini'
+    en: 'Your oasis of joy begins here',
+    zh: '您的欢乐绿洲从这里开始',
+    id: 'Oasis kebahagiaan Anda dimulai di sini'
   },
   'auth.reset': {
     en: 'Reset',
