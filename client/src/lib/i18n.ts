@@ -445,9 +445,9 @@ export const translations: Translations = {
     id: 'Platform Digital Premium'
   },
   'landing.subtitle': {
-    en: 'Interactive Singing Competition Platform',
-    zh: '互动歌唱比赛平台',
-    id: 'Platform Kompetisi Menyanyi Interaktif'
+    en: 'Your Oasis of Joy',
+    zh: '您的欢乐绿洲',
+    id: 'Oasis Kebahagiaan Anda'
   },
   'landing.aboutCompany': {
     en: 'About Kings Of Singers',
