@@ -35,8 +35,10 @@ export default function Navigation() {
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
             <Link href="/">
-              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
-                <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '32px', height: '32px', display: 'block', flex: '0 0 32px' }} />
+              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <div style={{ width: '32px', height: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
               </div>
             </Link>
             

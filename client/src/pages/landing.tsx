@@ -35,8 +35,11 @@ export default function Landing() {
       <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-4">
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center gap-1">
-            <div className="flex items-center gap-1 flex-shrink-0 min-w-0">
-              <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '32px', height: '32px', display: 'block', flex: '0 0 32px' }} />
+            <div className="flex items-center gap-1">
+              <div style={{ width: '32px', height: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </div>
+              </div>
               <div className="hidden md:block">
                 <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
                   Reborn Wave Group
