@@ -6,7 +6,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Link, useLocation } from "wouter";
 import { ChevronDown, Coins, Star, Settings, LogOut, Shield } from "lucide-react";
 import { cn, formatCurrency, generateAvatarUrl } from "@/lib/utils";
-import rwgLogo from "@assets/rwg-logo.png";
 
 export default function Navigation() {
   const { user } = useAuth();
