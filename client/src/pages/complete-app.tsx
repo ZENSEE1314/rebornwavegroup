@@ -1105,16 +1105,16 @@ function KOSSection({
 
       {/* Tabs */}
       <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voters')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 gap-2 mb-6 bg-white dark:bg-slate-900 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
-          <TabsTrigger value="tournament" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <TabsList className="flex sm:grid sm:grid-cols-3 gap-1 sm:gap-2 mb-6 bg-white dark:bg-slate-900 p-2 rounded-lg border border-gray-200 dark:border-gray-700 justify-center sm:justify-start overflow-x-auto">
+          <TabsTrigger value="tournament" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-3 sm:px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0">
             <Trophy className="w-4 h-4 flex-shrink-0" />
             <span className="hidden sm:inline">Tournament</span>
           </TabsTrigger>
-          <TabsTrigger value="individual" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <TabsTrigger value="individual" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-3 sm:px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0">
             <Users className="w-4 h-4 flex-shrink-0" />
             <span className="hidden sm:inline">Individual</span>
           </TabsTrigger>
-          <TabsTrigger value="voters" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <TabsTrigger value="voters" className="flex items-center justify-center gap-1 sm:gap-2 py-2 px-3 sm:px-1 text-xs sm:text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0">
             <Vote className="w-4 h-4 flex-shrink-0" />
             <span className="hidden sm:inline">Voters</span>
           </TabsTrigger>
