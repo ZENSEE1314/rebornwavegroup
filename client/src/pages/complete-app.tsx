@@ -730,15 +730,15 @@ function KOSSection({
     return (
       <Card className={`${isTop3 ? 'border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50' : 'hover:shadow-md'} transition-all duration-200`}>
         <CardContent className={`p-${isTop3 ? '6' : '4'} relative`}>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-            {/* Small Rank Number - Top Left */}
-            <div className="absolute top-2 left-2 sm:static sm:mt-0">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3 sm:gap-4">
+            {/* Small Rank Number - Centered on mobile */}
+            <div className="text-center sm:text-left">
               <span className="text-xs font-bold text-gray-600">
                 {rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`}
               </span>
             </div>
 
-            {/* User Photo - Made Bigger */}
+            {/* User Photo - Centered */}
             <div className={`flex-shrink-0 ${isTop3 ? 'w-16 h-16 sm:w-20 sm:h-20' : 'w-12 h-12 sm:w-16 sm:h-16'} rounded-full bg-gray-200 border-2 border-gray-300 overflow-hidden`}>
               {userItem.profileImageUrl ? (
                 <img src={userItem.profileImageUrl} alt={userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'} className="w-full h-full object-cover" />
@@ -749,7 +749,7 @@ function KOSSection({
               )}
             </div>
 
-            {/* Voter & Individual Rank Badges */}
+            {/* Voter & Individual Rank Badges - Centered on mobile */}
             <div className="flex gap-2">
               {/* Voter Tier Badge */}
               <div className="flex-shrink-0">
@@ -770,32 +770,32 @@ function KOSSection({
               </div>
             </div>
 
-            {/* User Info */}
-            <div className="flex-1 min-w-0 w-full sm:w-auto">
+            {/* User Info - Centered on mobile */}
+            <div className="flex-1 min-w-0 w-full sm:w-auto text-center sm:text-left">
               <h3 className={`font-semibold text-gray-900 ${isTop3 ? 'text-lg' : 'text-base'} truncate`}>
                 {userItem.username || `${userItem.firstName || ''} ${userItem.lastName || ''}`.trim() || 'User'}
               </h3>
-              <div className="grid grid-cols-3 sm:flex sm:gap-4 gap-2 mt-1">
-                <div className="flex items-center gap-1">
+              <div className="grid grid-cols-3 sm:flex sm:gap-4 gap-2 mt-1 justify-center sm:justify-start">
+                <div className="flex items-center gap-1 justify-center sm:justify-start">
                   <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
                   <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {kosActiveTab === 'tournament' ? (userItem.tournamentStars?.toLocaleString() || 0) : (userItem.individualStars?.toLocaleString() || 0)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 justify-center sm:justify-start">
                   <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 flex-shrink-0" />
                   <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {userItem.likes?.toLocaleString() || 0}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 justify-center sm:justify-start">
                   <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500 flex-shrink-0" />
                   <span className={`${isTop3 ? 'text-base font-semibold' : 'text-xs sm:text-sm'} text-gray-700`}>
                     {totalStarsSupported.toLocaleString()}
                   </span>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1 line-clamp-2">
                 Voter: {userItem.voterTierName || 'Newbie Spark'} (T{userItem.voterTierLevel || 1}) • Individual: {individualRank.name} (R{individualRank.tier})
               </div>
               <div className="text-xs text-gray-400">
@@ -804,11 +804,11 @@ function KOSSection({
               
               {/* Top 3 Supporters Photos */}
               <div className="mt-2">
-                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1 justify-center sm:justify-start">
                   <Award className="w-3 h-3" />
                   Top 3 Supporters:
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 justify-center sm:justify-start">
                   {(() => {
                     // Find top 3 users who gave stars to this user (MODE-SPECIFIC)
                     const userSupporters = userContributions
@@ -887,9 +887,9 @@ function KOSSection({
               </div>
             </div>
 
-          {/* Action Buttons - Hide for own profile */}
+          {/* Action Buttons - Hide for own profile - Centered on mobile */}
           {userItem.id !== user?.id && (
-            <div className="flex gap-1 sm:gap-2 w-full sm:w-auto flex-shrink-0 mt-2 sm:mt-0">
+            <div className="flex gap-1 sm:gap-2 w-full sm:w-auto flex-shrink-0 mt-3 sm:mt-0 justify-center sm:justify-start">
               <Button
                 size={isTop3 ? "default" : "sm"}
                 className="bg-pink-500 hover:bg-pink-600 text-white flex-1 sm:flex-none text-xs sm:text-sm"
@@ -913,9 +913,9 @@ function KOSSection({
               </Button>
             </div>
           )}
-          {/* Show "You" badge for own profile */}
+          {/* Show "You" badge for own profile - Centered on mobile */}
           {userItem.id === user?.id && (
-            <div className="flex items-center flex-shrink-0 mt-2 sm:mt-0">
+            <div className="flex items-center justify-center sm:justify-start flex-shrink-0 mt-3 sm:mt-0">
               <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
                 <User className="w-3 h-3 mr-1" />
                 You
