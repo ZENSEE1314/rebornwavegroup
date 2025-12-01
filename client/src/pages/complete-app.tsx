@@ -608,24 +608,24 @@ function KOSSection({
     
     return (
       <Card className="border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 mb-6">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center sm:justify-between">
+            <div className="flex-1">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-purple-600" />
                 {tournament.name}
               </h3>
-              <p className="text-sm text-gray-600 mb-2">{tournament.description}</p>
-              <div className="flex items-center gap-4 text-sm">
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">{tournament.description}</p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm">
                 <span className="text-gray-600">Prize Pool: <strong>{tournament.totalStarPool?.toLocaleString() || '0'} Stars</strong></span>
                 <span className="text-gray-600">Participants: <strong>{tournament.participantCount || 0}</strong></span>
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
+            <div className="text-center sm:text-right w-full sm:w-auto px-4 py-3 sm:p-0 bg-purple-100 sm:bg-transparent rounded-lg sm:rounded-none">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
                 {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
               </div>
-              <div className="text-sm text-gray-600">Time Left</div>
+              <div className="text-xs sm:text-sm text-gray-600">Time Left</div>
             </div>
           </div>
         </CardContent>
@@ -997,9 +997,9 @@ function KOSSection({
 
       {/* Stars Purchase Section */}
       <Card className="border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
+            <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Star Trading</h3>
               <p className="text-sm text-gray-600 mb-2">
                 Buy Stars (1 Star = RP 1,000) • Sell Stars (70% return rate)
@@ -1008,36 +1008,37 @@ function KOSSection({
                 Current Stars: {userStarsData?.totalStars || userStarsData?.stars || 0} • Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button 
-                className="bg-green-500 hover:bg-green-600 text-white"
+                className="bg-green-500 hover:bg-green-600 text-white text-xs sm:text-sm py-2 sm:py-2"
                 onClick={() => {
                   setStarDialogType('buy');
                   setShowStarDialog(true);
                 }}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Buy Stars
+                <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Buy</span>
+                <span className="sm:hidden">Buy</span> Stars
               </Button>
               <Button 
                 variant="outline"
-                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs sm:text-sm py-2 sm:py-2"
                 onClick={() => {
                   setStarDialogType('sell');
                   setShowStarDialog(true);
                 }}
                 disabled={!(userStarsData?.totalStars || userStarsData?.stars) || (userStarsData?.totalStars || userStarsData?.stars || 0) <= 0}
               >
-                <DollarSign className="w-4 h-4 mr-2" />
+                <DollarSign className="w-4 h-4 mr-1 sm:mr-2" />
                 Sell Stars
               </Button>
               <Button 
                 variant="outline"
-                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                className="border-blue-300 text-blue-600 hover:bg-blue-50 text-xs sm:text-sm py-2 sm:py-2"
                 onClick={() => setShowStarHistory(!showStarHistory)}
               >
-                <BarChart3 className="w-4 h-4 mr-2" />
-                {showStarHistory ? 'Hide History' : 'View History'}
+                <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{showStarHistory ? 'Hide' : 'View'}</span> History
               </Button>
             </div>
           </div>
@@ -1104,18 +1105,21 @@ function KOSSection({
 
       {/* Tabs */}
       <Tabs value={kosActiveTab} onValueChange={(value) => setKosActiveTab(value as 'tournament' | 'individual' | 'voters')} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="tournament" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-3 mb-6 text-xs sm:text-sm">
+          <TabsTrigger value="tournament" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
             <Trophy className="w-4 h-4" />
-            Tournaments
+            <span className="hidden sm:inline">Tournaments</span>
+            <span className="sm:hidden">Tour</span>
           </TabsTrigger>
-          <TabsTrigger value="individual" className="flex items-center gap-2">
+          <TabsTrigger value="individual" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
             <Users className="w-4 h-4" />
-            Individual
+            <span className="hidden sm:inline">Individual</span>
+            <span className="sm:hidden">Indiv</span>
           </TabsTrigger>
-          <TabsTrigger value="voters" className="flex items-center gap-2">
+          <TabsTrigger value="voters" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
             <Vote className="w-4 h-4" />
-            Voter Rankings
+            <span className="hidden sm:inline">Voter Rankings</span>
+            <span className="sm:hidden">Voters</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1197,16 +1201,16 @@ function KOSSection({
           {/* Previous Winners */}
           <PreviousWinners winners={previousWinners} />
           
-          {/* Search Bar */}
+          {/* Search Bar - Tournament */}
           <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 relative">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <div className="flex-1 w-full relative">
                   <div className="relative">
-                    <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <Search className="w-4 sm:w-5 h-4 sm:h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
                     <Input
                       type="text"
-                      placeholder="Search users by username..."
+                      placeholder="Search by username..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
@@ -1214,10 +1218,10 @@ function KOSSection({
                           setShowSearchDialog(true);
                         }
                       }}
-                      className="pl-10 pr-20 py-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full pl-10 pr-12 py-2 text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                     {isSearching && (
-                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-12 top-1/2 transform -translate-y-1/2 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-blue-500 absolute right-10 top-1/2 transform -translate-y-1/2 animate-spin" />
                     )}
                     {/* Search Button */}
                     <Button
@@ -1227,15 +1231,15 @@ function KOSSection({
                         }
                       }}
                       disabled={!searchQuery.trim() || isSearching}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-2 sm:px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm"
                       size="sm"
                     >
                       <Search className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  Search by username to find performers
+                <div className="text-xs sm:text-sm text-gray-600 hidden sm:block">
+                  Find performers
                 </div>
               </div>
             </CardContent>
@@ -1273,61 +1277,64 @@ function KOSSection({
             <>
               {/* Top 3 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-base sm:text-lg font-medium text-white flex items-center justify-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-500" />
                   Top 3 Performers
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3 flex flex-col items-center">
                   {top3Users.map((user, index) => (
-                    <UserCard 
-                      key={user.id} 
-                      user={user} 
-                      isTop3={true} 
-                      rank={index + 1}
-                      onVote={handleUserVote}
-                      onLike={handleUserLike}
-                      voteMutationPending={voteMutation.isPending}
-                    />
+                    <div key={user.id} className="w-full max-w-2xl">
+                      <UserCard 
+                        user={user} 
+                        isTop3={true} 
+                        rank={index + 1}
+                        onVote={handleUserVote}
+                        onLike={handleUserLike}
+                        voteMutationPending={voteMutation.isPending}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
 
               {/* Top 10 Users */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-base sm:text-lg font-medium text-white flex items-center justify-center gap-2">
                   <Medal className="w-5 h-5 text-purple-500" />
                   Top 10 Rankings
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col items-center w-full">
                   {top10Users.map((user, index) => (
-                    <UserCard 
-                      key={user.id} 
-                      user={user} 
-                      rank={index + 4}
-                      onVote={handleUserVote}
-                      onLike={handleUserLike}
-                      voteMutationPending={voteMutation.isPending}
-                    />
+                    <div key={user.id} className="w-full max-w-2xl">
+                      <UserCard 
+                        user={user} 
+                        rank={index + 4}
+                        onVote={handleUserVote}
+                        onLike={handleUserLike}
+                        voteMutationPending={voteMutation.isPending}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
 
               {/* Remaining Users with Pagination */}
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <h4 className="text-base sm:text-lg font-medium text-white flex items-center justify-center gap-2">
                   <Users className="w-5 h-5 text-gray-500" />
                   All Participants (Page {currentPage} of {totalPages})
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col items-center w-full">
                   {paginatedUsers.map((user, index) => (
-                    <UserCard 
-                      key={user.id} 
-                      user={user} 
-                      rank={11 + (currentPage - 1) * usersPerPage + index}
-                      onVote={handleUserVote}
-                      onLike={handleUserLike}
-                      voteMutationPending={voteMutation.isPending}
-                    />
+                    <div key={user.id} className="w-full max-w-2xl">
+                      <UserCard 
+                        user={user} 
+                        rank={11 + (currentPage - 1) * usersPerPage + index}
+                        onVote={handleUserVote}
+                        onLike={handleUserLike}
+                        voteMutationPending={voteMutation.isPending}
+                      />
+                    </div>
                   ))}
                 </div>
                 
@@ -1337,21 +1344,27 @@ function KOSSection({
                     variant="outline"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    size="sm"
+                    className="text-xs sm:text-sm"
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
-                    Previous
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">Prev</span>
                   </Button>
-                  <div className="flex items-center px-4 py-2 bg-gray-100 rounded-md">
-                    <span className="text-sm font-medium">
-                      Page {currentPage} of {totalPages}
+                  <div className="flex items-center px-3 sm:px-4 py-2 bg-gray-100 rounded-md">
+                    <span className="text-xs sm:text-sm font-medium">
+                      {currentPage}/{totalPages}
                     </span>
                   </div>
                   <Button
                     variant="outline"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    size="sm"
+                    className="text-xs sm:text-sm"
                   >
-                    Next
+                    <span className="hidden sm:inline">Next</span>
+                    <span className="sm:hidden">Nxt</span>
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </div>
