@@ -72,8 +72,8 @@ export default function Landing() {
             </div>
           </div>
           
-          <h1 className="text-4xl sm:text-6xl lg:text-8xl xl:text-9xl font-bold mb-8 leading-tight tracking-tight">
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-extrabold mb-8 leading-tight tracking-tight px-4">
+            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
               Reborn Wave Group
             </span>
           </h1>
