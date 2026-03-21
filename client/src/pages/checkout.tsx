@@ -8,12 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 
-// Make sure to call `loadStripe` outside of a component's render to avoid
-// recreating the `Stripe` object on every render.
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
 
 const CheckoutForm = ({ amount, description }: { amount: number; description: string }) => {
   const stripe = useStripe();
@@ -76,6 +73,19 @@ const CheckoutForm = ({ amount, description }: { amount: number; description: st
 };
 
 export default function Checkout() {
+  if (!stripePromise) {
+    return (
+      <div className="rwg-page-bg min-h-screen flex items-center justify-center">
+        <div className="rwg-card p-8 text-center max-w-md">
+          <CreditCard className="w-12 h-12 text-violet-400 mx-auto mb-4" />
+          <h2 className="text-white text-xl font-semibold mb-2">Payments Unavailable</h2>
+          <p className="text-white/60 text-sm mb-4">Stripe is not configured. Contact the administrator.</p>
+          <Link href="/" className="text-violet-400 hover:text-violet-300 text-sm">← Back to Home</Link>
+        </div>
+      </div>
+    );
+  }
+
   const [clientSecret, setClientSecret] = useState("");
   const [amount, setAmount] = useState(1000000); // Default RP 1,000,000
   const [description, setDescription] = useState("Pet Care Credits");
