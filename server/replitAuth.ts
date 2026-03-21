@@ -8,9 +8,8 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// Replit OAuth is optional — only active when REPLIT_DOMAINS is set
+const REPLIT_ENABLED = !!process.env.REPLIT_DOMAINS;
 
 const getOidcConfig = memoize(
   async () => {
@@ -67,6 +66,8 @@ async function upsertUser(claims: any) {
 }
 
 export async function setupAuth(app: Express) {
+  if (!REPLIT_ENABLED) return; // Skip Replit OAuth when not on Replit
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -84,7 +85,6 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Get domains from environment and add custom domain
   const domains = process.env.REPLIT_DOMAINS!.split(",");
   if (!domains.includes("rebornwavegroup.com")) {
     domains.push("rebornwavegroup.com");
@@ -107,11 +107,9 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    // Use fallback domain for custom domains not yet registered with OAuth
-    const authDomain = req.hostname === 'rebornwavegroup.com' 
-      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+    const authDomain = req.hostname === 'rebornwavegroup.com'
+      ? process.env.REPLIT_DOMAINS!.split(",")[0]
       : req.hostname;
-    
     passport.authenticate(`replitauth:${authDomain}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -119,11 +117,9 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
-    // Use fallback domain for custom domains not yet registered with OAuth
-    const authDomain = req.hostname === 'rebornwavegroup.com' 
-      ? process.env.REPLIT_DOMAINS!.split(",")[0] 
+    const authDomain = req.hostname === 'rebornwavegroup.com'
+      ? process.env.REPLIT_DOMAINS!.split(",")[0]
       : req.hostname;
-    
     passport.authenticate(`replitauth:${authDomain}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
