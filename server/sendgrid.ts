@@ -1,92 +1,67 @@
-import { MailService } from '@sendgrid/mail';
+import { Resend } from 'resend';
 
-const mailService = process.env.SENDGRID_API_KEY ? new MailService() : null;
-if (mailService && process.env.SENDGRID_API_KEY) {
-  mailService.setApiKey(process.env.SENDGRID_API_KEY);
-} else {
-  console.warn('SENDGRID_API_KEY not set — email sending disabled');
-}
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+if (!resend) console.warn('RESEND_API_KEY not set — email sending disabled');
+
+const FROM = 'admin@rebornwave.group';
 
 interface EmailParams {
   to: string;
-  from: string;
+  from?: string;
   subject: string;
   text?: string;
   html?: string;
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!mailService) return false;
+  if (!resend) return false;
   try {
-    console.log(`*** SENDGRID: Attempting to send email to: ${params.to}`);
-    console.log(`*** SENDGRID: From: ${params.from}`);
-    console.log(`*** SENDGRID: Subject: ${params.subject}`);
-    console.log(`*** SENDGRID: API Key configured: ${!!process.env.SENDGRID_API_KEY}`);
-    console.log(`*** SENDGRID: API Key starts with: ${process.env.SENDGRID_API_KEY?.substring(0, 10)}...`);
-    
-    const result = await mailService.send({
+    const { error } = await resend.emails.send({
+      from: params.from || FROM,
       to: params.to,
-      from: params.from,
       subject: params.subject,
       text: params.text,
       html: params.html,
     });
-    
-    console.log(`*** SENDGRID: Email sent successfully to: ${params.to}`, result);
+    if (error) {
+      console.error('Resend error:', error);
+      return false;
+    }
     return true;
   } catch (error: any) {
-    console.error('*** SENDGRID ERROR: Full error details:', error);
-    console.error('*** SENDGRID ERROR: Error message:', error?.message);
-    console.error('*** SENDGRID ERROR: Error code:', error?.code);
-    
-    if (error?.response?.body) {
-      console.error('*** SENDGRID ERROR: Response body:', error.response.body);
-      if (error.response.body.errors) {
-        error.response.body.errors.forEach((err: any, index: number) => {
-          console.error(`*** SENDGRID ERROR ${index + 1}:`, err);
-        });
-      }
-    }
-    
+    console.error('Resend email error:', error?.message);
     return false;
   }
 }
 
-// Helper function for welcome emails
 export async function sendWelcomeEmail(email: string, name: string): Promise<boolean> {
   return sendEmail({
     to: email,
-    from: 'admin@rebornwave.group', // Verified sender
     subject: 'Welcome to Reborn Wave Group!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Welcome to Reborn Wave Group!</h1>
+        <h1 style="color: #7c3aed;">Welcome to Reborn Wave Group!</h1>
         <p>Hi ${name},</p>
-        <p>Thank you for joining our digital pet care community! Your journey with virtual pets begins now.</p>
-        <p>Get started by:</p>
+        <p>Thank you for joining our community! Your journey begins now.</p>
         <ul>
-          <li>Exploring the marketplace for collectible toys</li>
-          <li>Caring for your digital pets</li>
-          <li>Earning loyalty points and tokens</li>
+          <li>Explore the marketplace for collectible toys</li>
+          <li>Care for your digital pets</li>
+          <li>Earn loyalty points and tokens</li>
         </ul>
-        <p>If you have any questions, feel free to reach out to our support team.</p>
         <p>Best regards,<br>The Reborn Wave Group Team</p>
       </div>
     `,
   });
 }
 
-// Helper function for pet evolution notifications
 export async function sendPetEvolutionEmail(email: string, petName: string, newStage: string): Promise<boolean> {
   return sendEmail({
     to: email,
-    from: 'admin@rebornwave.group',
     subject: `🎉 ${petName} has evolved!`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #2563eb;">Pet Evolution Alert!</h1>
+        <h1 style="color: #7c3aed;">Pet Evolution Alert!</h1>
         <p>Congratulations! Your pet <strong>${petName}</strong> has evolved to the <strong>${newStage}</strong> stage!</p>
-        <p>Continue caring for your pet to unlock more evolutionary stages and rewards.</p>
         <p>Visit your dashboard to see your pet's new appearance and abilities.</p>
         <p>Best regards,<br>The Reborn Wave Group Team</p>
       </div>

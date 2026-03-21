@@ -1,42 +1,33 @@
-import { MailService } from '@sendgrid/mail';
+import { Resend } from 'resend';
 
-const mailService = process.env.SENDGRID_API_KEY ? new MailService() : null;
-if (mailService && process.env.SENDGRID_API_KEY) {
-  mailService.setApiKey(process.env.SENDGRID_API_KEY);
-} else {
-  console.warn('SENDGRID_API_KEY not set — email sending disabled');
-}
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+if (!resend) console.warn('RESEND_API_KEY not set — appointment emails disabled');
+
+const FROM = 'admin@rebornwave.group';
+const ADMIN = 'admin@rebornwave.group';
 
 interface EmailParams {
   to: string;
-  from: string;
+  from?: string;
   subject: string;
   text?: string;
   html?: string;
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!mailService) return false;
+  if (!resend) return false;
   try {
-    console.log(`Attempting to send email to: ${params.to}`);
-    console.log(`From: ${params.from}`);
-    console.log(`Subject: ${params.subject}`);
-
-    await mailService.send({
+    const { error } = await resend.emails.send({
+      from: params.from || FROM,
       to: params.to,
-      from: params.from,
       subject: params.subject,
       text: params.text,
       html: params.html,
     });
-    
-    console.log(`Email sent successfully to: ${params.to}`);
+    if (error) { console.error('Resend error:', error); return false; }
     return true;
-  } catch (error) {
-    console.error('SendGrid email error details:', error);
-    if (error.response && error.response.body) {
-      console.error('SendGrid response body:', error.response.body);
-    }
+  } catch (error: any) {
+    console.error('Email error:', error?.message);
     return false;
   }
 }
@@ -48,82 +39,28 @@ export async function sendAppointmentConfirmationEmail(
   appointmentDate: Date,
   duration: number
 ): Promise<boolean> {
-  const formattedDate = appointmentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedTime = appointmentDate.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
+  const formattedDate = appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedTime = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const subject = `Appointment Confirmed - ${appointmentTitle}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Appointment Confirmed</h2>
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <h2 style="color:#7c3aed;">Appointment Confirmed</h2>
       <p>Dear ${userName},</p>
       <p>Your appointment has been successfully confirmed!</p>
-      
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #1e40af;">${appointmentTitle}</h3>
+      <div style="background:#f5f3ff;padding:20px;border-radius:8px;margin:20px 0;border-left:4px solid #7c3aed;">
+        <h3 style="margin-top:0;">${appointmentTitle}</h3>
         <p><strong>Date:</strong> ${formattedDate}</p>
         <p><strong>Time:</strong> ${formattedTime}</p>
         <p><strong>Duration:</strong> ${duration} minutes</p>
       </div>
-      
-      <p>Please arrive 10 minutes early for your appointment.</p>
-      <p>Thank you for choosing Reborn Wave House!</p>
-      
-      <hr style="margin: 30px 0;">
-      <p style="color: #64748b; font-size: 14px;">
-        Reborn Wave House - Your Oasis of Joy<br>
-        If you need to reschedule or cancel, please contact us as soon as possible.
-      </p>
+      <p>Please arrive 10 minutes early. Thank you for choosing Reborn Wave House!</p>
     </div>
   `;
-
   try {
-    // Send to user
-    await sendEmail({
-      to: userEmail,
-      from: 'candyheng198088@gmail.com',
-      subject,
-      html,
-    });
-
-    // Send notification to admin
-    const adminSubject = `New Appointment Booked - ${appointmentTitle}`;
-    const adminHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">New Appointment Notification</h2>
-        <p>A new appointment has been booked:</p>
-        
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #1e40af;">${appointmentTitle}</h3>
-          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedTime}</p>
-          <p><strong>Duration:</strong> ${duration} minutes</p>
-        </div>
-        
-        <p>Please ensure the appointment is properly scheduled in your system.</p>
-      </div>
-    `;
-
-    await sendEmail({
-      to: 'admin@rebornwavegroup.com',
-      from: 'candyheng198088@gmail.com',
-      subject: adminSubject,
-      html: adminHtml,
-    });
-
+    await sendEmail({ to: userEmail, subject, html });
+    await sendEmail({ to: ADMIN, subject: `New Booking - ${appointmentTitle}`, html: `<p><strong>${userName}</strong> (${userEmail}) booked <strong>${appointmentTitle}</strong> on ${formattedDate} at ${formattedTime} for ${duration} min.</p>` });
     return true;
-  } catch (error) {
-    console.error('Failed to send confirmation emails:', error);
-    return false;
-  }
+  } catch { return false; }
 }
 
 export async function sendAppointmentCancellationEmail(
@@ -132,82 +69,22 @@ export async function sendAppointmentCancellationEmail(
   appointmentTitle: string,
   appointmentDate: Date
 ): Promise<boolean> {
-  const formattedDate = appointmentDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedTime = appointmentDate.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
+  const formattedDate = appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedTime = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const subject = `Appointment Cancelled - ${appointmentTitle}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #dc2626;">Appointment Cancelled</h2>
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <h2 style="color:#dc2626;">Appointment Cancelled</h2>
       <p>Dear ${userName},</p>
-      <p>Your appointment has been cancelled as requested.</p>
-      
-      <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
-        <h3 style="margin-top: 0; color: #991b1b;">${appointmentTitle}</h3>
-        <p><strong>Date:</strong> ${formattedDate}</p>
-        <p><strong>Time:</strong> ${formattedTime}</p>
-        <p style="color: #dc2626;"><strong>Status:</strong> Cancelled</p>
-      </div>
-      
-      <p>We're sorry to see this appointment cancelled. Feel free to book a new appointment anytime.</p>
-      <p>Thank you for choosing Reborn Wave House!</p>
-      
-      <hr style="margin: 30px 0;">
-      <p style="color: #64748b; font-size: 14px;">
-        Reborn Wave House - Your Oasis of Joy<br>
-        We look forward to serving you in the future.
-      </p>
+      <p>Your appointment <strong>${appointmentTitle}</strong> on ${formattedDate} at ${formattedTime} has been cancelled.</p>
+      <p>Feel free to book a new appointment anytime. Thank you for choosing Reborn Wave House!</p>
     </div>
   `;
-
   try {
-    // Send to user
-    await sendEmail({
-      to: userEmail,
-      from: 'candyheng198088@gmail.com',
-      subject,
-      html,
-    });
-
-    // Send notification to admin
-    const adminSubject = `Appointment Cancelled - ${appointmentTitle}`;
-    const adminHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">Appointment Cancellation Notification</h2>
-        <p>An appointment has been cancelled:</p>
-        
-        <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
-          <h3 style="margin-top: 0; color: #991b1b;">${appointmentTitle}</h3>
-          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
-          <p><strong>Date:</strong> ${formattedDate}</p>
-          <p><strong>Time:</strong> ${formattedTime}</p>
-          <p style="color: #dc2626;"><strong>Status:</strong> Cancelled</p>
-        </div>
-        
-        <p>Please update your scheduling system accordingly.</p>
-      </div>
-    `;
-
-    await sendEmail({
-      to: 'admin@rebornwavegroup.com',
-      from: 'candyheng198088@gmail.com',
-      subject: adminSubject,
-      html: adminHtml,
-    });
-
+    await sendEmail({ to: userEmail, subject, html });
+    await sendEmail({ to: ADMIN, subject: `Cancelled - ${appointmentTitle}`, html: `<p><strong>${userName}</strong> (${userEmail}) cancelled <strong>${appointmentTitle}</strong> on ${formattedDate} at ${formattedTime}.</p>` });
     return true;
-  } catch (error) {
-    console.error('Failed to send cancellation emails:', error);
-    return false;
-  }
+  } catch { return false; }
 }
 
 export async function sendAppointmentRescheduleEmail(
@@ -218,95 +95,24 @@ export async function sendAppointmentRescheduleEmail(
   newDate: Date,
   duration: number
 ): Promise<boolean> {
-  const oldFormattedDate = oldDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const oldFormattedTime = oldDate.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  const newFormattedDate = newDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const newFormattedTime = newDate.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
+  const fmt = (d: Date) => `${d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
   const subject = `Appointment Rescheduled - ${appointmentTitle}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #f59e0b;">Appointment Rescheduled</h2>
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      <h2 style="color:#f59e0b;">Appointment Rescheduled</h2>
       <p>Dear ${userName},</p>
-      <p>Your appointment has been successfully rescheduled.</p>
-      
-      <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-        <h3 style="margin-top: 0; color: #92400e;">${appointmentTitle}</h3>
-        <div style="margin: 15px 0;">
-          <p style="color: #dc2626;"><strong>Previous Date:</strong> ${oldFormattedDate} at ${oldFormattedTime}</p>
-          <p style="color: #059669;"><strong>New Date:</strong> ${newFormattedDate} at ${newFormattedTime}</p>
-          <p><strong>Duration:</strong> ${duration} minutes</p>
-        </div>
+      <div style="background:#fffbeb;padding:20px;border-radius:8px;margin:20px 0;border-left:4px solid #f59e0b;">
+        <h3 style="margin-top:0;">${appointmentTitle}</h3>
+        <p style="color:#dc2626;"><strong>Previous:</strong> ${fmt(oldDate)}</p>
+        <p style="color:#059669;"><strong>New:</strong> ${fmt(newDate)}</p>
+        <p><strong>Duration:</strong> ${duration} minutes</p>
       </div>
-      
-      <p>Please make note of your new appointment time and arrive 10 minutes early.</p>
-      <p>Thank you for choosing Reborn Wave House!</p>
-      
-      <hr style="margin: 30px 0;">
-      <p style="color: #64748b; font-size: 14px;">
-        Reborn Wave House - Your Oasis of Joy<br>
-        If you need to reschedule again or cancel, please contact us as soon as possible.
-      </p>
+      <p>Please arrive 10 minutes early. Thank you for choosing Reborn Wave House!</p>
     </div>
   `;
-
   try {
-    // Send to user
-    await sendEmail({
-      to: userEmail,
-      from: 'candyheng198088@gmail.com',
-      subject,
-      html,
-    });
-
-    // Send notification to admin
-    const adminSubject = `Appointment Rescheduled - ${appointmentTitle}`;
-    const adminHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #f59e0b;">Appointment Reschedule Notification</h2>
-        <p>An appointment has been rescheduled:</p>
-        
-        <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <h3 style="margin-top: 0; color: #92400e;">${appointmentTitle}</h3>
-          <p><strong>Customer:</strong> ${userName} (${userEmail})</p>
-          <div style="margin: 15px 0;">
-            <p style="color: #dc2626;"><strong>Previous Date:</strong> ${oldFormattedDate} at ${oldFormattedTime}</p>
-            <p style="color: #059669;"><strong>New Date:</strong> ${newFormattedDate} at ${newFormattedTime}</p>
-            <p><strong>Duration:</strong> ${duration} minutes</p>
-          </div>
-        </div>
-        
-        <p>Please update your scheduling system with the new appointment time.</p>
-      </div>
-    `;
-
-    await sendEmail({
-      to: 'admin@rebornwavegroup.com',
-      from: 'candyheng198088@gmail.com',
-      subject: adminSubject,
-      html: adminHtml,
-    });
-
+    await sendEmail({ to: userEmail, subject, html });
+    await sendEmail({ to: ADMIN, subject: `Rescheduled - ${appointmentTitle}`, html: `<p><strong>${userName}</strong> (${userEmail}) rescheduled <strong>${appointmentTitle}</strong> from ${fmt(oldDate)} to ${fmt(newDate)}.</p>` });
     return true;
-  } catch (error) {
-    console.error('Failed to send reschedule emails:', error);
-    return false;
-  }
+  } catch { return false; }
 }
