@@ -8124,150 +8124,117 @@ export default function CompleteApp() {
       </div>
     
       <div className="min-h-screen relative pb-20 md:pb-0">
-      {/* Enhanced Modern App Header */}
-      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 shadow-lg">
-        <div className="w-full px-3 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between">
-            {/* Left Side - Welcome Text */}
-            <div className="flex items-center space-x-2 md:space-x-3 flex-1">
-              {/* Mobile Back Button - Show when not on dashboard tab */}
-              {activeTab !== "dashboard" && (
-                <Button
-                  onClick={() => setActiveTab("dashboard")}
-                  variant="ghost"
-                  size="sm"
-                  className="md:hidden flex items-center gap-1 text-slate-600 hover:text-slate-900 p-1.5"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span className="text-xs font-medium">Back</span>
-                </Button>
-              )}
-              
-              <div className="flex items-center space-x-3">
-                <div className="text-left">
-                  <p className="text-xs md:text-sm font-semibold text-gray-700">
-                    {t('dashboard.welcome')}, {user?.firstName || 'User'}!
-                  </p>
-                  <p className="hidden md:block text-xs text-gray-500">
-                    {user?.role === 'admin' ? 'Administrator' : 'Member'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Center - Empty Space */}
-            <div className="flex-shrink-0">
-            </div>
-            
-            {/* Right Side Controls - Enhanced Design */}
-            <div className="flex items-center space-x-3 md:space-x-5 flex-1 justify-end">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-md">
-                <LanguageSelector />
-              </div>
-              
-              {/* Admin Dashboard Button - Only for admin users */}
-              {user?.role === 'admin' && (
-                <div className="relative group">
-                  <Button
-                    onClick={() => window.location.href = '/admin'}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
-                    title="Admin Dashboard"
-                  >
-                    <Settings className="w-4 h-4 text-purple-600" />
-                  </Button>
-                  <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    Admin Dashboard
-                  </div>
-                </div>
-              )}
-
-              {/* Audio Mute/Unmute Button */}
-              <div className="relative group">
-                <Button
-                  onClick={toggleMute}
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
-                  title={isMuted ? "Unmute Sound" : "Mute Sound"}
-                >
-                  {isMuted ? 
-                    <VolumeX className="w-4 h-4 text-red-600" /> : 
-                    <Volume2 className="w-4 h-4 text-green-600" />
-                  }
-                </Button>
-                <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                  {isMuted ? "Unmute Sound" : "Mute Sound"}
-                </div>
-              </div>
-
-              {/* Help Button - Guide Access */}
-              <div className="relative group">
-                <Button
-                  onClick={() => startGuide('dashboard')}
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105 w-10 h-10 p-0"
-                  title={t('tooltip.guiding')}
-                  data-tooltip-target="help-guide"
-                >
-                  <HelpCircle className="w-4 h-4 text-blue-600" />
-                </Button>
-                <div className="absolute hidden group-hover:block -bottom-8 right-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                  {t('tooltip.guiding')}
-                </div>
-              </div>
-              
-              {/* User Profile Icon */}
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              
-              {/* Logout Button - Enhanced Design */}
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.href = '/api/logout'}
+      {/* App Header */}
+      <div className="rwg-header sticky top-0 z-50">
+        <div className="w-full px-3 md:px-6 h-14 flex items-center justify-between">
+          {/* Left - Welcome */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {activeTab !== "dashboard" && (
+              <Button
+                onClick={() => setActiveTab("dashboard")}
+                variant="ghost"
                 size="sm"
-                className="hidden md:flex bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105"
+                className="md:hidden flex items-center gap-1 text-white/60 hover:text-white hover:bg-white/10 p-1.5 rounded-lg"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                {t('dashboard.logout')}
+                <ArrowLeft className="h-4 w-4" />
+                <span className="text-xs font-medium">Back</span>
               </Button>
-              
-
-
-              {/* Mobile Logout - Enhanced Icon Only */}
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.href = '/api/logout'}
-                size="sm"
-                className="md:hidden p-3 bg-white/80 backdrop-blur-sm hover:bg-white/90 border-gray-200 shadow-md rounded-xl transition-all duration-300 hover:scale-105"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+            )}
+            <div>
+              <p className="text-xs md:text-sm font-semibold text-white/90 leading-tight">
+                {t('dashboard.welcome')}, {user?.firstName || 'User'}!
+              </p>
+              <p className="hidden md:block text-xs text-white/35">
+                {user?.role === 'admin' ? 'Administrator' : 'Member'}
+              </p>
             </div>
+          </div>
+
+          {/* Right - Controls */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="rounded-xl">
+              <LanguageSelector />
+            </div>
+
+            {user?.role === 'admin' && (
+              <Button
+                onClick={() => window.location.href = '/admin'}
+                variant="ghost"
+                size="sm"
+                title="Admin Dashboard"
+                className="w-9 h-9 p-0 rounded-xl text-violet-400 hover:text-violet-300 hover:bg-white/10 transition-all"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            )}
+
+            <Button
+              onClick={toggleMute}
+              variant="ghost"
+              size="sm"
+              title={isMuted ? "Unmute Sound" : "Mute Sound"}
+              className="w-9 h-9 p-0 rounded-xl hover:bg-white/10 transition-all"
+            >
+              {isMuted ?
+                <VolumeX className="w-4 h-4 text-red-400" /> :
+                <Volume2 className="w-4 h-4 text-emerald-400" />
+              }
+            </Button>
+
+            <Button
+              onClick={() => startGuide('dashboard')}
+              variant="ghost"
+              size="sm"
+              title={t('tooltip.guiding')}
+              data-tooltip-target="help-guide"
+              className="w-9 h-9 p-0 rounded-xl text-blue-400 hover:text-blue-300 hover:bg-white/10 transition-all"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
+
+            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-violet-900/40">
+              <User className="w-4 h-4 text-white" />
+            </div>
+
+            <Button
+              variant="ghost"
+              onClick={() => window.location.href = '/api/logout'}
+              size="sm"
+              className="hidden md:flex items-center gap-1.5 text-white/50 hover:text-white/80 hover:bg-white/10 rounded-xl text-xs transition-all px-3"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {t('dashboard.logout')}
+            </Button>
+
+            <Button
+              variant="ghost"
+              onClick={() => window.location.href = '/api/logout'}
+              size="sm"
+              className="md:hidden w-9 h-9 p-0 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Desktop Navigation Tabs - Modern App UI with Scrollable */}
-      <div className="bg-white/95 backdrop-blur-lg border-b border-gray-100 hidden md:block shadow-sm">
+      {/* Desktop Navigation Tabs */}
+      <div className="rwg-subnav hidden md:block">
         <div className="w-full px-4 lg:px-6">
           <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex gap-2 lg:gap-3 py-3 min-w-max">
+            <div className="flex gap-1 py-2 min-w-max">
             {[
-              { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600" },
-              { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600" },
-              { id: "purchase", label: t('purchase.verification'), icon: Camera, color: "from-indigo-500 to-indigo-600" },
-              { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600" },
-              { id: "kos", label: "KOS", icon: Crown, color: "from-pink-600 to-fuchsia-600" },
-              { id: "bookings", label: t('bookings.title'), icon: Calendar, color: "from-green-500 to-emerald-600" },
-              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag, color: "from-purple-500 to-purple-600" },
-              { id: "inventory", label: t('inventory.title'), icon: Package, color: "from-orange-500 to-orange-600" },
-              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings, color: "from-red-500 to-red-600" }] : []),
-              { id: "referrals", label: t('tabs.referrals'), icon: Users, color: "from-teal-500 to-teal-600" },
-              { id: "profile", label: t('tabs.profile'), icon: User, color: "from-gray-500 to-gray-600" }
+              { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
+              { id: "petcare", label: t('petcare.title'), icon: Heart },
+              { id: "purchase", label: t('purchase.verification'), icon: Camera },
+              { id: "loyalty", label: t('loyalty.title'), icon: Star },
+              { id: "kos", label: "KOS", icon: Crown },
+              { id: "bookings", label: t('bookings.title'), icon: Calendar },
+              { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
+              { id: "inventory", label: t('inventory.title'), icon: Package },
+              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
+              { id: "referrals", label: t('tabs.referrals'), icon: Users },
+              { id: "profile", label: t('tabs.profile'), icon: User }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -8278,39 +8245,10 @@ export default function CompleteApp() {
                   }
                   setActiveTab(tab.id);
                 }}
-                className={`relative flex items-center space-x-2 lg:space-x-3 py-3 lg:py-4 px-4 lg:px-5 rounded-2xl font-medium text-sm lg:text-base whitespace-nowrap transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-white to-gray-50 text-gray-900 shadow-lg border border-gray-200'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`rwg-nav-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}
               >
-                {/* Active indicator background */}
-                {activeTab === tab.id && (
-                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${tab.color} opacity-5`} />
-                )}
-                
-                {/* Icon with modern styling */}
-                <div className={`relative flex items-center justify-center w-5 h-5 lg:w-6 lg:h-6 rounded-lg transition-all duration-300 ${
-                  activeTab === tab.id
-                    ? `bg-gradient-to-br ${tab.color} text-white shadow-md`
-                    : ''
-                }`}>
-                  <tab.icon className={`w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0 transition-all duration-300 ${
-                    activeTab === tab.id ? 'text-white scale-110' : ''
-                  }`} />
-                </div>
-                
-                {/* Label with enhanced typography */}
-                <span className={`truncate transition-all duration-300 ${
-                  activeTab === tab.id ? 'font-semibold' : ''
-                }`}>
-                  {tab.label}
-                </span>
-                
-                {/* Active indicator bar */}
-                {activeTab === tab.id && (
-                  <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 rounded-full bg-gradient-to-r ${tab.color} shadow-lg`} />
-                )}
+                <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{tab.label}</span>
               </button>
             ))}
             </div>
@@ -8318,73 +8256,37 @@ export default function CompleteApp() {
         </div>
       </div>
 
-      {/* Enhanced Mobile Bottom Navigation - Modern App UI */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 md:hidden z-40 shadow-2xl">
+      {/* Mobile Bottom Navigation */}
+      <div className="rwg-mobile-nav fixed bottom-0 left-0 right-0 md:hidden z-40">
         <div className="safe-area-inset-bottom">
-          <div className="grid grid-cols-5 gap-1 px-3 py-2">
+          <div className="grid grid-cols-5 h-16">
             {[
-              { id: "dashboard", label: t('tabs.dashboard'), icon: Home, color: "from-blue-500 to-blue-600", bg: "bg-blue-500" },
-              { id: "petcare", label: t('petcare.title'), icon: Heart, color: "from-pink-500 to-rose-600", bg: "bg-pink-500" },
-              { id: "kos", label: "KOS", icon: Crown, color: "from-pink-600 to-fuchsia-600", bg: "bg-pink-600" },
-              { id: "loyalty", label: t('loyalty.title'), icon: Star, color: "from-yellow-500 to-amber-600", bg: "bg-yellow-500" },
-              { id: "profile", label: t('tabs.profile'), icon: User, color: "from-emerald-500 to-green-600", bg: "bg-emerald-500" }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  if (tab.id === "petcare") {
-                    playDoluruuSound(isMuted);
-                  }
-                  setActiveTab(tab.id);
-                }}
-                className={`relative flex flex-col items-center justify-center py-3 px-2 rounded-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 ${
-                  activeTab === tab.id
-                    ? 'scale-105'
-                    : ''
-                }`}
-                data-navigation-tab={tab.id}
-              >
-                {/* Animated background for active state */}
-                {activeTab === tab.id && (
-                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tab.color} opacity-10 animate-pulse`} />
-                )}
-                
-                {/* Icon container with modern design */}
-                <div className={`relative flex items-center justify-center w-10 h-10 rounded-2xl mb-1 transition-all duration-300 shadow-lg ${
-                  activeTab === tab.id
-                    ? `bg-gradient-to-br ${tab.color} text-white shadow-lg`
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}>
-                  <tab.icon className={`w-5 h-5 transition-all duration-300 ${
-                    activeTab === tab.id ? 'scale-110' : ''
-                  }`} />
-                  
-                  {/* Active state glow effect */}
-                  {activeTab === tab.id && (
-                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tab.color} opacity-20 blur-sm`} />
-                  )}
-                </div>
-                
-                {/* Label with enhanced typography */}
-                <span className={`text-xs font-medium transition-all duration-300 ${
-                  activeTab === tab.id
-                    ? 'text-gray-900 font-semibold'
-                    : 'text-gray-500'
-                }`}>
-                  {tab.label}
-                </span>
-                
-                {/* Active indicator - modern dot */}
-                {activeTab === tab.id && (
-                  <div className={`absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-gradient-to-r ${tab.color} shadow-lg animate-bounce`} />
-                )}
-                
-                {/* Ripple effect on tap */}
-                <div className="absolute inset-0 rounded-2xl overflow-hidden">
-                  <div className="absolute inset-0 rounded-2xl bg-black opacity-0 transition-opacity duration-150 active:opacity-10" />
-                </div>
-              </button>
-            ))}
+              { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
+              { id: "petcare", label: t('petcare.title'), icon: Heart },
+              { id: "kos", label: "KOS", icon: Crown },
+              { id: "loyalty", label: t('loyalty.title'), icon: Star },
+              { id: "profile", label: t('tabs.profile'), icon: User }
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    if (tab.id === "petcare") {
+                      playDoluruuSound(isMuted);
+                    }
+                    setActiveTab(tab.id);
+                  }}
+                  data-navigation-tab={tab.id}
+                  className={`relative flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${isActive ? 'rwg-mobile-nav-active' : 'rwg-mobile-nav-item'}`}
+                >
+                  <tab.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-violet-400' : 'text-white/35'}`} />
+                  <span className={`text-[10px] font-medium leading-none transition-colors ${isActive ? 'text-violet-400' : 'text-white/30'}`}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -8637,48 +8539,36 @@ export default function CompleteApp() {
         {/* Dynamic Role-Based Dashboard Tab */}
         {activeTab === "dashboard" && (
           <div className="space-y-4 md:space-y-8">
-            {/* Role-Based Welcome Section */}
-            <div className={`rounded-xl p-4 md:p-8 text-white ${
-              user?.role === 'admin' 
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-700' 
-                : 'bg-gradient-to-r from-blue-600 to-purple-600'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl md:text-3xl font-bold mb-2">
-                    {user?.role === 'admin' ? (
-                      <>
-                        {t('dashboard.welcome')}, Admin {user?.firstName || 'User'}!
-                        <div className="inline-flex items-center ml-3 px-3 py-1 bg-white/20 rounded-full">
-                          <Settings className="w-4 h-4 mr-1" />
-                          <span className="text-sm font-medium">Administrator</span>
-                        </div>
-                      </>
-                    ) : (
-                      `${t('dashboard.welcome')}, ${user?.firstName || 'User'}!`
+            {/* Welcome Banner */}
+            <div className="rwg-card p-5 md:p-7 text-white">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-2xl font-bold text-white mb-1 flex flex-wrap items-center gap-2">
+                    {t('dashboard.welcome')}, {user?.firstName || 'User'}!
+                    {user?.role === 'admin' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/25 border border-violet-400/30 text-violet-300">
+                        <Settings className="w-3 h-3" />
+                        Admin
+                      </span>
                     )}
                   </h2>
-                  <p className="text-blue-100 text-sm md:text-base">
+                  <p className="text-white/45 text-sm">
                     {user?.role === 'admin' ? (
-                      `System Administrator • ${loyaltyPoints} ${t('dashboard.points')} • RP ${formatRupiah(userCredits)}`
+                      `System Administrator · ${loyaltyPoints} ${t('dashboard.points')} · RP ${formatRupiah(userCredits)}`
                     ) : (
-                      `Level ${currentLoyaltyLevel.level} • ${loyaltyPoints} ${t('dashboard.points')} • RP ${formatRupiah(userCredits)}`
+                      `Level ${currentLoyaltyLevel.level} · ${loyaltyPoints} ${t('dashboard.points')} · RP ${formatRupiah(userCredits)}`
                     )}
                   </p>
                 </div>
-                
-                {/* Quick Admin Access */}
                 {user?.role === 'admin' && (
-                  <div className="hidden md:flex items-center space-x-3">
-                    <Button
-                      onClick={() => window.location.href = '/admin'}
-                      className="bg-white/20 hover:bg-white/30 text-white border-white/30 hover:border-white/50"
-                      size="sm"
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Admin Panel
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={() => window.location.href = '/admin'}
+                    size="sm"
+                    className="hidden md:flex items-center gap-1.5 bg-violet-600/40 hover:bg-violet-600/60 text-violet-200 border border-violet-500/30 rounded-xl transition-all flex-shrink-0"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    Admin Panel
+                  </Button>
                 )}
               </div>
             </div>

@@ -1,27 +1,26 @@
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { ChevronDown, Coins, Star, Settings, LogOut, Shield } from "lucide-react";
 import { cn, formatCurrency, generateAvatarUrl } from "@/lib/utils";
+import rwgLogo from "@assets/rwg-logo.png";
 
 export default function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
 
-  const navigation = [
-    { name: "Dashboard", href: "/", current: location === "/" },
-    { name: "Bookings", href: "/bookings", current: location === "/bookings" },
-    { name: "Marketplace", href: "/marketplace", current: location === "/marketplace" },
-    { name: "Collections", href: "/seasonal-collections", current: location === "/seasonal-collections" },
-    { name: "Loyalty", href: "/loyalty", current: location === "/loyalty" },
-    { name: "Referrals", href: "/referrals", current: location === "/referrals" },
+  const navItems = [
+    { name: "Dashboard", href: "/" },
+    { name: "Bookings", href: "/bookings" },
+    { name: "Marketplace", href: "/marketplace" },
+    { name: "Collections", href: "/seasonal-collections" },
+    { name: "Loyalty", href: "/loyalty-program" },
+    { name: "Referrals", href: "/referrals" },
   ];
 
-  if (user?.role === 'admin') {
-    navigation.push({ name: "Admin", href: "/admin", current: location === "/admin" });
+  if (user?.role === "admin") {
+    navItems.push({ name: "Admin", href: "/admin" });
   }
 
   const handleLogout = () => {
@@ -29,110 +28,99 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <div className="flex items-center gap-2 md:gap-8 flex-shrink-0 min-w-0">
-            <div className="hidden md:flex space-x-6">
-              {navigation.map((item) => (
-                <Link key={item.name} href={item.href}>
-                  <span
-                    className={cn(
-                      item.current
-                        ? "text-primary-600 font-medium border-b-2 border-primary-500 pb-4"
-                        : "text-slate-600 hover:text-primary-600 transition-colors pb-4",
-                      "cursor-pointer text-sm whitespace-nowrap"
-                    )}
-                  >
-                    {item.name}
-                  </span>
-                </Link>
-              ))}
+    <nav className="rwg-header sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link href="/">
+          <div className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer group">
+            <div className="w-7 h-7 rounded-lg overflow-hidden">
+              <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
             </div>
+            <span className="text-xs font-bold text-white/60 group-hover:text-white/80 transition-colors hidden lg:block">
+              RWG
+            </span>
           </div>
-          
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
-            {/* Credits */}
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full flex-shrink-0 text-sm">
-              <Coins className="h-4 w-4 text-amber-500 flex-shrink-0" />
-              <span className="font-medium whitespace-nowrap">
-                {formatCurrency(user?.credits || '0')}
-              </span>
-            </div>
-            
-            {/* Loyalty Points */}
-            <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full flex-shrink-0 text-sm">
-              <Star className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <span className="font-medium text-emerald-700 whitespace-nowrap">
-                {user?.loyaltyPoints?.toLocaleString() || 0} pts
-              </span>
-            </div>
-            
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0">
-                  <Avatar className="w-8 h-8 sm:w-9 sm:h-9">
-                    <AvatarImage 
-                      src={user?.profileImageUrl} 
-                      alt={`${user?.firstName} ${user?.lastName}`} 
-                    />
-                    <AvatarFallback>
-                      <img 
-                        src={generateAvatarUrl(`${user?.firstName} ${user?.lastName}`)} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                      />
-                    </AvatarFallback>
-                  </Avatar>
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="flex items-center space-x-2 p-2">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage 
-                      src={user?.profileImageUrl} 
-                      alt={`${user?.firstName} ${user?.lastName}`} 
-                    />
-                    <AvatarFallback>
-                      <img 
-                        src={generateAvatarUrl(`${user?.firstName} ${user?.lastName}`)} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                      />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <p className="text-sm font-medium">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <p className="text-xs text-slate-500">{user?.email}</p>
-                  </div>
+        </Link>
+
+        {/* Nav links */}
+        <div className="hidden md:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+          {navItems.map((item) => {
+            const isActive = location === item.href;
+            return (
+              <Link key={item.name} href={item.href}>
+                <span className={cn(
+                  "rwg-nav-tab cursor-pointer",
+                  isActive && "active"
+                )}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Credits pill */}
+          <div className="rwg-pill-gold hidden sm:flex">
+            <Coins className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>{formatCurrency(user?.credits || "0")}</span>
+          </div>
+
+          {/* Points pill */}
+          <div className="rwg-pill-green hidden sm:flex">
+            <Star className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>{(user?.loyaltyPoints || 0).toLocaleString()}</span>
+          </div>
+
+          {/* User dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="flex items-center gap-1.5 p-1.5 rounded-xl hover:bg-white/8 transition-colors cursor-pointer outline-none">
+                <Avatar className="w-7 h-7">
+                  <AvatarImage src={user?.profileImageUrl} alt={`${user?.firstName} ${user?.lastName}`} />
+                  <AvatarFallback className="bg-violet-600 text-white text-xs">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <ChevronDown className="h-3.5 w-3.5 text-white/40" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 bg-slate-900 border-white/10 text-white">
+              <div className="flex items-center gap-2.5 px-3 py-2.5">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user?.profileImageUrl} alt={`${user?.firstName} ${user?.lastName}`} />
+                  <AvatarFallback className="bg-violet-600 text-white text-xs">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-white/40 truncate">{user?.email}</p>
                 </div>
-                <DropdownMenuSeparator />
-                <Link href="/profile">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Profile Settings
+              </div>
+              <DropdownMenuSeparator className="bg-white/8" />
+              <Link href="/profile">
+                <DropdownMenuItem className="cursor-pointer text-white/70 hover:text-white hover:bg-white/8 focus:bg-white/8 focus:text-white">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Profile Settings
+                </DropdownMenuItem>
+              </Link>
+              {user?.role === "admin" && (
+                <Link href="/admin">
+                  <DropdownMenuItem className="cursor-pointer text-violet-400 hover:text-violet-300 hover:bg-white/8 focus:bg-white/8">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Admin Dashboard
                   </DropdownMenuItem>
                 </Link>
-                {user?.role === 'admin' && (
-                  <Link href="/admin">
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin Dashboard
-                    </DropdownMenuItem>
-                  </Link>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+              <DropdownMenuSeparator className="bg-white/8" />
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-400 hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-300">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </nav>

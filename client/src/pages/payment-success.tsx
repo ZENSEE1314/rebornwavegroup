@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
 export default function PaymentSuccess() {
@@ -13,93 +12,71 @@ export default function PaymentSuccess() {
     const paymentIntentClientSecret = urlParams.get('payment_intent_client_secret');
 
     if (paymentIntent && paymentIntentClientSecret) {
-      // Verify payment status with Stripe
-      fetch(`/api/verify-payment?payment_intent=${paymentIntent}`, {
-        credentials: 'include'
-      })
+      fetch(`/api/verify-payment?payment_intent=${paymentIntent}`, { credentials: 'include' })
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'succeeded') {
-            setPaymentStatus('succeeded');
-          } else {
-            setPaymentStatus('failed');
-          }
+          setPaymentStatus(data.status === 'succeeded' ? 'succeeded' : 'failed');
         })
-        .catch(() => {
-          setPaymentStatus('failed');
-        });
+        .catch(() => setPaymentStatus('failed'));
     } else {
       setPaymentStatus('failed');
     }
   }, []);
 
-  if (paymentStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-2xl mx-auto pt-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            {paymentStatus === 'succeeded' ? (
-              <CheckCircle className="w-16 h-16 text-green-500" />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                <span className="text-red-500 text-2xl">✕</span>
-              </div>
-            )}
-          </div>
-          
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {paymentStatus === 'succeeded' ? 'Payment Successful!' : 'Payment Failed'}
-          </h1>
-          
-          <p className="text-gray-600">
-            {paymentStatus === 'succeeded' 
-              ? 'Your payment has been processed successfully. Credits have been added to your account.'
-              : 'There was an issue processing your payment. Please try again or contact support.'
-            }
-          </p>
-        </div>
+    <div className="rwg-page-bg min-h-screen flex items-center justify-center p-4">
+      <div className="rwg-orb-1" />
+      <div className="rwg-orb-2" />
 
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle>
-              {paymentStatus === 'succeeded' ? 'Thank You!' : 'Payment Issue'}
-            </CardTitle>
-            <CardDescription>
-              {paymentStatus === 'succeeded' 
-                ? 'You can now use your credits to purchase toys and care for your pets.'
-                : 'No charges were made to your account.'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <Link href="/" className="w-full">
-              <Button className="w-full">
+      <div className="rwg-card p-10 max-w-md w-full text-center relative z-10">
+        {paymentStatus === 'loading' ? (
+          <>
+            <div className="w-16 h-16 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center mx-auto mb-6">
+              <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
+            </div>
+            <h1 className="text-xl font-bold text-white mb-2">Processing...</h1>
+            <p className="text-white/40 text-sm">Verifying your payment</p>
+          </>
+        ) : paymentStatus === 'succeeded' ? (
+          <>
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Payment Successful!</h1>
+            <p className="text-white/45 text-sm mb-8">
+              Your payment has been processed. Credits have been added to your account.
+            </p>
+            <Link href="/">
+              <Button className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold h-11">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Return to Dashboard
               </Button>
             </Link>
-            
-            {paymentStatus === 'failed' && (
-              <Link href="/checkout" className="w-full">
-                <Button variant="outline" className="w-full">
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/25 flex items-center justify-center mx-auto mb-6">
+              <XCircle className="w-8 h-8 text-red-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Payment Failed</h1>
+            <p className="text-white/45 text-sm mb-8">
+              There was an issue processing your payment. No charges were made.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link href="/checkout">
+                <Button className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold h-11">
                   Try Again
                 </Button>
               </Link>
-            )}
-          </CardContent>
-        </Card>
+              <Link href="/">
+                <Button variant="ghost" className="w-full text-white/50 hover:text-white/80 hover:bg-white/8 rounded-xl h-11">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Return to Dashboard
+                </Button>
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

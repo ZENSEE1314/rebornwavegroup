@@ -5,17 +5,14 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
-import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users } from "lucide-react";
-
+import { Mail, User, Lock, Eye, EyeOff, AlertCircle, Phone, Calendar, Users, Sparkles, ArrowLeft, CheckCircle } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { useSearch } from "wouter";
+import rwgLogo from "@assets/rwg-logo.png";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -55,65 +52,70 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
+// Reusable dark input wrapper
+function DarkInput({ children }: { children: React.ReactNode }) {
+  return <div className="relative">{children}</div>;
+}
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p className="text-xs text-red-400 flex items-center gap-1 mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      {msg}
+    </p>
+  );
+}
+
 export default function Login() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot" | "reset">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  const [resetToken, setResetToken] = useState("");
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
-  const searchParams = useSearch();
+
+  const inputCls = "h-11 bg-white/8 border-white/15 text-white placeholder:text-white/30 rounded-xl focus:border-violet-500/60 focus:ring-violet-500/20 focus:bg-white/10 transition-all duration-200";
+  const labelCls = "text-white/70 text-sm font-medium mb-1.5 block";
+  const iconCls = "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none";
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      email: "",
-      username: "",
-      password: "",
-      firstName: "",
-      lastName: "",
-      countryCode: "+1",
-      phoneNumber: "",
-      dateOfBirth: "",
-      gender: "male", // Set default gender instead of empty string
-      referralCode: "",
+      email: "", username: "", password: "",
+      firstName: "", lastName: "",
+      countryCode: "+62", phoneNumber: "",
+      dateOfBirth: "", gender: "male", referralCode: "",
     },
   });
 
-  // Check for referral code in URL parameters on component mount
+  const forgotPasswordForm = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
+
+  const resetPasswordForm = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { token: "", newPassword: "", confirmPassword: "" },
+  });
+
   useEffect(() => {
-    // Try multiple methods to get URL parameters
     const currentURL = window.location.href;
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    
-    let refCode = urlParams.get('ref');
-    
-    // If not found in search params, check hash params (for client-side routing)
-    if (!refCode) {
-      refCode = hashParams.get('ref');
-    }
-    
-    // Also try parsing from the full URL manually
+    let refCode = urlParams.get('ref') || hashParams.get('ref');
     if (!refCode) {
       const refMatch = currentURL.match(/[?&]ref=([^&]+)/);
-      if (refMatch) {
-        refCode = decodeURIComponent(refMatch[1]);
-      }
+      if (refMatch) refCode = decodeURIComponent(refMatch[1]);
     }
-    
     if (refCode) {
       setReferralCodeFromUrl(refCode);
       registerForm.setValue('referralCode', refCode);
@@ -121,768 +123,465 @@ export default function Login() {
     }
   }, [registerForm]);
 
-  const forgotPasswordForm = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      email: "",
-    },
-  });
-
-  const resetPasswordForm = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      token: "",
-      newPassword: "",
-      confirmPassword: "",
-    },
-  });
-
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      console.log('*** FRONTEND LOGIN: Attempting login for:', data.email);
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Include session cookies
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
-      
-      console.log('*** FRONTEND LOGIN: Response status:', response.status);
-      console.log('*** FRONTEND LOGIN: Response headers:', response.headers);
-      
       if (!response.ok) {
         const error = await response.json();
-        console.log('*** FRONTEND LOGIN: Error response:', error);
         throw new Error(error.message || "Login failed");
       }
-      
-      const result = await response.json();
-      console.log('*** FRONTEND LOGIN: Success response:', result);
-      return result;
+      return response.json();
     },
-    onSuccess: (data) => {
-      console.log('*** FRONTEND LOGIN: Login mutation successful, user data:', data);
-      
-      // Invalidate auth queries to refresh authentication state
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      
-      toast({
-        title: "Login successful!",
-        description: "Welcome back to your pet care journey.",
-      });
-      
-      // Wait longer for session to be established, then redirect
-      setTimeout(() => {
-        console.log('*** FRONTEND LOGIN: Redirecting to dashboard');
-        window.location.href = "/";
-      }, 500);
+      toast({ title: "Login successful!", description: "Welcome back to your pet care journey." });
+      setTimeout(() => { window.location.href = "/"; }, 500);
     },
-    onError: (error: any) => {
-      console.log('*** FRONTEND LOGIN: Login mutation failed:', error);
-      setError(error.message || "Login failed. Please try again.");
-    },
+    onError: (error: any) => setError(error.message || "Login failed. Please try again."),
   });
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
-      // Combine country code and phone number
       const fullPhoneNumber = `${data.countryCode}${data.phoneNumber}`;
-      const registrationData = {
-        ...data,
-        phoneNumber: fullPhoneNumber
-      };
-      delete (registrationData as any).countryCode; // Remove countryCode as it's now part of phoneNumber
-      
+      const registrationData = { ...data, phoneNumber: fullPhoneNumber };
+      delete (registrationData as any).countryCode;
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(registrationData),
       });
-      
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Registration failed");
       }
-      
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Registration successful!",
-        description: "Welcome to your new pet care adventure!",
-      });
+      toast({ title: "Registration successful!", description: "Welcome to your new pet care adventure!" });
       window.location.href = "/";
     },
-    onError: (error: any) => {
-      setError(error.message || "Registration failed. Please try again.");
-    },
+    onError: (error: any) => setError(error.message || "Registration failed. Please try again."),
   });
-
-  const onLogin = (data: LoginFormData) => {
-    setError("");
-    loginMutation.mutate(data);
-  };
-
-  const onRegister = (data: RegisterFormData) => {
-    setError("");
-    registerMutation.mutate(data);
-  };
 
   const forgotPasswordMutation = useMutation({
     mutationFn: async (data: ForgotPasswordFormData) => {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to send reset email");
       }
-      
       return response.json();
     },
     onSuccess: () => {
       setResetEmailSent(true);
-      toast({
-        title: "Reset email sent!",
-        description: "Check your email for password reset instructions.",
-      });
+      toast({ title: "Reset email sent!", description: "Check your email for password reset instructions." });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send reset email. Please try again.",
-        variant: "destructive",
-      });
-    },
+    onError: (error: any) => toast({ title: "Error", description: error.message || "Failed to send reset email.", variant: "destructive" }),
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: ResetPasswordFormData) => {
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to reset password");
       }
-      
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Password reset successful!",
-        description: "You can now login with your new password.",
-      });
+      toast({ title: "Password reset successful!", description: "You can now login with your new password." });
       setActiveTab("login");
       setResetEmailSent(false);
-      setResetToken("");
       resetPasswordForm.reset();
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to reset password. Please try again.",
-        variant: "destructive",
-      });
-    },
+    onError: (error: any) => toast({ title: "Error", description: error.message || "Failed to reset password.", variant: "destructive" }),
   });
 
-  const onForgotPassword = (data: ForgotPasswordFormData) => {
-    forgotPasswordMutation.mutate(data);
-  };
+  const onLogin = (data: LoginFormData) => { setError(""); loginMutation.mutate(data); };
+  const onRegister = (data: RegisterFormData) => { setError(""); registerMutation.mutate(data); };
+  const onForgotPassword = (data: ForgotPasswordFormData) => { forgotPasswordMutation.mutate(data); };
+  const onResetPassword = (data: ResetPasswordFormData) => { resetPasswordMutation.mutate(data); };
 
-  const onResetPassword = (data: ResetPasswordFormData) => {
-    resetPasswordMutation.mutate(data);
-  };
-
-
+  const selectCls = "flex h-11 w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 transition-all duration-200";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100 dark:from-purple-900 dark:via-pink-900 dark:to-indigo-900 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center relative">
-          <div className="absolute top-4 right-4">
-            <LanguageSelector />
-          </div>
-          <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">
-            {t('auth.title')}
-          </CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-300">
-            {t('auth.subtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${activeTab === "forgot-password" || activeTab === "reset-password" ? "grid-cols-3" : "grid-cols-2"}`}>
-              <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
-              <TabsTrigger value="register">{t('auth.signUp')}</TabsTrigger>
-              {(activeTab === "forgot-password" || activeTab === "reset-password") && (
-                <TabsTrigger value="forgot-password">{t('auth.reset')}</TabsTrigger>
-              )}
-            </TabsList>
-            
-            {activeTab === "register" && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
-                  <strong>{t('auth.haveReferralCode')}</strong> {t('auth.enterBeforeSignup')}
-                </p>
-              </div>
-            )}
+    <div className="rwg-page-bg min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="rwg-orb-1" />
+      <div className="rwg-orb-2" />
+      <div className="rwg-grid-overlay" />
 
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <TabsContent value="login" className="space-y-4">
-              <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">{t('auth.email')}</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="login-email"
-                      placeholder={t('auth.enterEmail')}
-                      className="pl-10"
-                      {...loginForm.register("email")}
-                    />
-                  </div>
-                  {loginForm.formState.errors.email && (
-                    <p className="text-sm text-red-500">
-                      {loginForm.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">{t('auth.password')}</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder={t('auth.enterPassword')}
-                      className="pl-10 pr-10"
-                      {...loginForm.register("password")}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-400" />
-                      )}
-                    </Button>
-                  </div>
-                  {loginForm.formState.errors.password && (
-                    <p className="text-sm text-red-500">
-                      {loginForm.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="remember-me"
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="remember-me" className="text-sm font-normal text-gray-700 dark:text-gray-300 cursor-pointer">
-                      {t('auth.rememberMe') || 'Remember me'}
-                    </Label>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800 ml-auto"
-                    onClick={() => setActiveTab("forgot-password")}
-                  >
-                    {t('auth.forgotPassword')}
-                  </Button>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loginMutation.isPending}
-                >
-                  {loginMutation.isPending ? t('auth.signingIn') : t('auth.signIn')}
-                </Button>
-              </form>
-
-
-            </TabsContent>
-
-            <TabsContent value="register" className="space-y-4">
-              <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">{t('auth.firstName')}</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="firstName"
-                        placeholder={t('auth.firstName')}
-                        className="pl-10"
-                        {...registerForm.register("firstName")}
-                      />
-                    </div>
-                    {registerForm.formState.errors.firstName && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.firstName.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">{t('auth.lastName')}</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="lastName"
-                        placeholder={t('auth.lastName')}
-                        className="pl-10"
-                        {...registerForm.register("lastName")}
-                      />
-                    </div>
-                    {registerForm.formState.errors.lastName && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.lastName.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">{t('auth.email')}</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="register-email"
-                      placeholder={t('auth.enterEmail')}
-                      className="pl-10"
-                      {...registerForm.register("email")}
-                    />
-                  </div>
-                  {registerForm.formState.errors.email && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="username"
-                      placeholder="Enter your display username"
-                      className="pl-10"
-                      {...registerForm.register("username")}
-                    />
-                  </div>
-                  {registerForm.formState.errors.username && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.username.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">{t('auth.password')}</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="register-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder={t('auth.enterPassword')}
-                      className="pl-10 pr-10"
-                      {...registerForm.register("password")}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-400" />
-                      )}
-                    </Button>
-                  </div>
-                  {registerForm.formState.errors.password && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">{t('auth.phoneNumber')}</Label>
-                  <div className="flex gap-2">
-                    <div className="relative w-56">
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        {...registerForm.register("countryCode")}
-                      >
-                        <option value="+1">United States (+1)</option>
-                        <option value="+44">United Kingdom (+44)</option>
-                        <option value="+86">China (+86)</option>
-                        <option value="+81">Japan (+81)</option>
-                        <option value="+82">South Korea (+82)</option>
-                        <option value="+65">Singapore (+65)</option>
-                        <option value="+60">Malaysia (+60)</option>
-                        <option value="+62">Indonesia (+62)</option>
-                        <option value="+63">Philippines (+63)</option>
-                        <option value="+66">Thailand (+66)</option>
-                        <option value="+84">Vietnam (+84)</option>
-                        <option value="+91">India (+91)</option>
-                        <option value="+61">Australia (+61)</option>
-                        <option value="+33">France (+33)</option>
-                        <option value="+49">Germany (+49)</option>
-                        <option value="+39">Italy (+39)</option>
-                        <option value="+34">Spain (+34)</option>
-                        <option value="+7">Russia (+7)</option>
-                        <option value="+55">Brazil (+55)</option>
-                        <option value="+52">Mexico (+52)</option>
-                        <option value="+27">South Africa (+27)</option>
-                        <option value="+20">Egypt (+20)</option>
-                        <option value="+971">United Arab Emirates (+971)</option>
-                        <option value="+966">Saudi Arabia (+966)</option>
-                        <option value="+1">Canada (+1)</option>
-                        <option value="+351">Portugal (+351)</option>
-                        <option value="+31">Netherlands (+31)</option>
-                        <option value="+46">Sweden (+46)</option>
-                        <option value="+47">Norway (+47)</option>
-                        <option value="+45">Denmark (+45)</option>
-                        <option value="+358">Finland (+358)</option>
-                        <option value="+41">Switzerland (+41)</option>
-                        <option value="+43">Austria (+43)</option>
-                        <option value="+32">Belgium (+32)</option>
-                        <option value="+353">Ireland (+353)</option>
-                        <option value="+48">Poland (+48)</option>
-                        <option value="+420">Czech Republic (+420)</option>
-                        <option value="+36">Hungary (+36)</option>
-                        <option value="+30">Greece (+30)</option>
-                        <option value="+90">Turkey (+90)</option>
-                        <option value="+972">Israel (+972)</option>
-                        <option value="+234">Nigeria (+234)</option>
-                        <option value="+254">Kenya (+254)</option>
-                        <option value="+56">Chile (+56)</option>
-                        <option value="+54">Argentina (+54)</option>
-                        <option value="+57">Colombia (+57)</option>
-                        <option value="+51">Peru (+51)</option>
-                        <option value="+58">Venezuela (+58)</option>
-                        <option value="+92">Pakistan (+92)</option>
-                        <option value="+880">Bangladesh (+880)</option>
-                        <option value="+94">Sri Lanka (+94)</option>
-                        <option value="+95">Myanmar (+95)</option>
-                        <option value="+977">Nepal (+977)</option>
-                      </select>
-                    </div>
-                    <div className="relative flex-1">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="phoneNumber"
-                        placeholder={t('auth.phoneNumber')}
-                        className="pl-10"
-                        {...registerForm.register("phoneNumber")}
-                      />
-                    </div>
-                  </div>
-                  {registerForm.formState.errors.phoneNumber && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.phoneNumber.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">{t('auth.dateOfBirth')}</Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        className="pl-10"
-                        {...registerForm.register("dateOfBirth")}
-                      />
-                    </div>
-                    {registerForm.formState.errors.dateOfBirth && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.dateOfBirth.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">{t('auth.gender')}</Label>
-                    <div className="relative">
-                      <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <select
-                        id="gender"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        {...registerForm.register("gender")}
-                      >
-                        <option value="">{t('auth.gender')}</option>
-                        <option value="male">{t('auth.male')}</option>
-                        <option value="female">{t('auth.female')}</option>
-                      </select>
-                    </div>
-                    {registerForm.formState.errors.gender && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.gender.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="referralCode" className="text-sm font-medium">
-                    {t('auth.referralCodeOptional')}
-                    {referralCodeFromUrl && <span className="text-green-600 text-xs ml-2">(Pre-filled from referral link)</span>}
-                  </Label>
-                  <Input
-                    id="referralCode"
-                    placeholder={t('auth.referralCodeOptional')}
-                    {...registerForm.register("referralCode")}
-                    readOnly={!!referralCodeFromUrl}
-                    className={referralCodeFromUrl ? "bg-gray-100 border-green-500 text-gray-700" : ""}
-                  />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {referralCodeFromUrl 
-                      ? "This referral code was automatically filled from your invitation link and cannot be changed."
-                      : t('auth.referralCodeInfo')
-                    }
-                  </p>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={registerMutation.isPending}
-                >
-                  {registerMutation.isPending ? t('auth.creatingAccount') : t('auth.createAccount')}
-                </Button>
-              </form>
-
-
-            </TabsContent>
-
-            <TabsContent value="forgot-password" className="space-y-4">
-              {!resetEmailSent ? (
-                <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPassword)} className="space-y-4">
-                  <div className="text-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                      Reset Your Password
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Enter your email address and we'll send you a reset link
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="forgot-email"
-                        placeholder="Enter your email"
-                        className="pl-10"
-                        {...forgotPasswordForm.register("email")}
-                      />
-                    </div>
-                    {forgotPasswordForm.formState.errors.email && (
-                      <p className="text-sm text-red-500">
-                        {forgotPasswordForm.formState.errors.email.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={forgotPasswordMutation.isPending}
-                  >
-                    {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Email"}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setActiveTab("login")}
-                  >
-                    Back to Login
-                  </Button>
-                </form>
-              ) : (
-                <div className="text-center space-y-4">
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                    <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
-                      Reset Email Sent!
-                    </h3>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      Check your email for password reset instructions. The link will expire in 1 hour.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      Have your reset token? Enter it below:
-                    </div>
-                    
-                    <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="reset-token">Reset Token</Label>
-                        <Input
-                          id="reset-token"
-                          placeholder="Enter reset token from email"
-                          {...resetPasswordForm.register("token")}
-                        />
-                        {resetPasswordForm.formState.errors.token && (
-                          <p className="text-sm text-red-500">
-                            {resetPasswordForm.formState.errors.token.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="new-password">New Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="new-password"
-                            type={showNewPassword ? "text" : "password"}
-                            placeholder="Enter new password"
-                            className="pl-10 pr-10"
-                            {...resetPasswordForm.register("newPassword")}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                          >
-                            {showNewPassword ? (
-                              <EyeOff className="h-4 w-4 text-gray-400" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-gray-400" />
-                            )}
-                          </Button>
-                        </div>
-                        {resetPasswordForm.formState.errors.newPassword && (
-                          <p className="text-sm text-red-500">
-                            {resetPasswordForm.formState.errors.newPassword.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="confirm-password">Confirm Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="confirm-password"
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Confirm new password"
-                            className="pl-10 pr-10"
-                            {...resetPasswordForm.register("confirmPassword")}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4 text-gray-400" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-gray-400" />
-                            )}
-                          </Button>
-                        </div>
-                        {resetPasswordForm.formState.errors.confirmPassword && (
-                          <p className="text-sm text-red-500">
-                            {resetPasswordForm.formState.errors.confirmPassword.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <Button
-                        type="submit"
-                        className="w-full"
-                        disabled={resetPasswordMutation.isPending}
-                      >
-                        {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
-                      </Button>
-                    </form>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        setResetEmailSent(false);
-                        setActiveTab("login");
-                        forgotPasswordForm.reset();
-                      }}
-                    >
-                      Back to Login
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// Enhanced container with improved background
-function LoginContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Enhanced Background Effects */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-cyan-900/30"></div>
-        <div className="absolute top-20 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/15 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
       <div className="relative z-10 w-full max-w-md">
-        {children}
+        {/* Logo + Language */}
+        <div className="flex items-center justify-between mb-8">
+          <a href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-xl overflow-hidden">
+              <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-sm font-bold text-white/70 group-hover:text-white/90 transition-colors">
+              Reborn Wave Group
+            </span>
+          </a>
+          <LanguageSelector />
+        </div>
+
+        {/* Card */}
+        <div className="rwg-card p-7">
+          {/* Header */}
+          <div className="text-center mb-7">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-violet-900/50">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            {activeTab === "login" && (
+              <>
+                <h1 className="text-2xl font-bold text-white">{t('auth.title')}</h1>
+                <p className="text-white/45 text-sm mt-1">{t('auth.subtitle')}</p>
+              </>
+            )}
+            {activeTab === "register" && (
+              <>
+                <h1 className="text-2xl font-bold text-white">{t('auth.signUp')}</h1>
+                <p className="text-white/45 text-sm mt-1">Create your account to get started</p>
+              </>
+            )}
+            {(activeTab === "forgot" || activeTab === "reset") && (
+              <>
+                <h1 className="text-2xl font-bold text-white">Reset Password</h1>
+                <p className="text-white/45 text-sm mt-1">We'll help you get back in</p>
+              </>
+            )}
+          </div>
+
+          {/* Tab switcher (login/register only) */}
+          {(activeTab === "login" || activeTab === "register") && (
+            <div className="rwg-tab-switcher">
+              <button
+                type="button"
+                onClick={() => { setActiveTab("login"); setError(""); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "login" ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white shadow" : "text-white/50 hover:text-white/80"}`}
+              >
+                {t('auth.login')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab("register"); setError(""); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "register" ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white shadow" : "text-white/50 hover:text-white/80"}`}
+              >
+                {t('auth.signUp')}
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="rwg-error-alert">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              {error}
+            </div>
+          )}
+
+          {/* ── LOGIN FORM ── */}
+          {activeTab === "login" && (
+            <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
+              <div>
+                <label className={labelCls}>{t('auth.email')}</label>
+                <DarkInput>
+                  <Mail className={iconCls} />
+                  <Input id="login-email" placeholder={t('auth.enterEmail')} className={`${inputCls} pl-10`} {...loginForm.register("email")} />
+                </DarkInput>
+                <FieldError msg={loginForm.formState.errors.email?.message} />
+              </div>
+
+              <div>
+                <label className={labelCls}>{t('auth.password')}</label>
+                <DarkInput>
+                  <Lock className={iconCls} />
+                  <Input id="login-password" type={showPassword ? "text" : "password"} placeholder={t('auth.enterPassword')} className={`${inputCls} pl-10 pr-10`} {...loginForm.register("password")} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </DarkInput>
+                <FieldError msg={loginForm.formState.errors.password?.message} />
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded border-white/20 accent-violet-500" />
+                  <span className="text-xs text-white/50">{t('auth.rememberMe') || 'Remember me'}</span>
+                </label>
+                <button type="button" onClick={() => { setActiveTab("forgot"); setError(""); }} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                  {t('auth.forgotPassword')}
+                </button>
+              </div>
+
+              <Button type="submit" disabled={loginMutation.isPending} className="w-full h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold shadow-lg shadow-violet-900/40 transition-all duration-200 hover:-translate-y-0.5 mt-2">
+                {loginMutation.isPending ? t('auth.signingIn') : t('auth.signIn')}
+              </Button>
+            </form>
+          )}
+
+          {/* ── REGISTER FORM ── */}
+          {activeTab === "register" && (
+            <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-3">
+              {referralCodeFromUrl && (
+                <div className="rwg-referral-banner">
+                  <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  Referral code applied from your invitation link
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>{t('auth.firstName')}</label>
+                  <DarkInput>
+                    <User className={iconCls} />
+                    <Input id="firstName" placeholder={t('auth.firstName')} className={`${inputCls} pl-10`} {...registerForm.register("firstName")} />
+                  </DarkInput>
+                  <FieldError msg={registerForm.formState.errors.firstName?.message} />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('auth.lastName')}</label>
+                  <DarkInput>
+                    <User className={iconCls} />
+                    <Input id="lastName" placeholder={t('auth.lastName')} className={`${inputCls} pl-10`} {...registerForm.register("lastName")} />
+                  </DarkInput>
+                  <FieldError msg={registerForm.formState.errors.lastName?.message} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>{t('auth.email')}</label>
+                <DarkInput>
+                  <Mail className={iconCls} />
+                  <Input id="register-email" placeholder={t('auth.enterEmail')} className={`${inputCls} pl-10`} {...registerForm.register("email")} />
+                </DarkInput>
+                <FieldError msg={registerForm.formState.errors.email?.message} />
+              </div>
+
+              <div>
+                <label className={labelCls}>Username</label>
+                <DarkInput>
+                  <User className={iconCls} />
+                  <Input id="username" placeholder="Choose a display username" className={`${inputCls} pl-10`} {...registerForm.register("username")} />
+                </DarkInput>
+                <FieldError msg={registerForm.formState.errors.username?.message} />
+              </div>
+
+              <div>
+                <label className={labelCls}>{t('auth.password')}</label>
+                <DarkInput>
+                  <Lock className={iconCls} />
+                  <Input id="register-password" type={showPassword ? "text" : "password"} placeholder={t('auth.enterPassword')} className={`${inputCls} pl-10 pr-10`} {...registerForm.register("password")} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </DarkInput>
+                <FieldError msg={registerForm.formState.errors.password?.message} />
+              </div>
+
+              <div>
+                <label className={labelCls}>{t('auth.phoneNumber')}</label>
+                <div className="flex gap-2">
+                  <select className={`${selectCls} w-40 flex-shrink-0`} {...registerForm.register("countryCode")}>
+                    <option value="+62">🇮🇩 +62</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+86">🇨🇳 +86</option>
+                    <option value="+81">🇯🇵 +81</option>
+                    <option value="+82">🇰🇷 +82</option>
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+60">🇲🇾 +60</option>
+                    <option value="+63">🇵🇭 +63</option>
+                    <option value="+66">🇹🇭 +66</option>
+                    <option value="+84">🇻🇳 +84</option>
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+61">🇦🇺 +61</option>
+                    <option value="+33">🇫🇷 +33</option>
+                    <option value="+49">🇩🇪 +49</option>
+                    <option value="+39">🇮🇹 +39</option>
+                    <option value="+34">🇪🇸 +34</option>
+                    <option value="+7">🇷🇺 +7</option>
+                    <option value="+55">🇧🇷 +55</option>
+                    <option value="+52">🇲🇽 +52</option>
+                    <option value="+27">🇿🇦 +27</option>
+                    <option value="+20">🇪🇬 +20</option>
+                    <option value="+971">🇦🇪 +971</option>
+                    <option value="+966">🇸🇦 +966</option>
+                    <option value="+351">🇵🇹 +351</option>
+                    <option value="+31">🇳🇱 +31</option>
+                    <option value="+46">🇸🇪 +46</option>
+                    <option value="+47">🇳🇴 +47</option>
+                    <option value="+45">🇩🇰 +45</option>
+                    <option value="+358">🇫🇮 +358</option>
+                    <option value="+41">🇨🇭 +41</option>
+                    <option value="+43">🇦🇹 +43</option>
+                    <option value="+32">🇧🇪 +32</option>
+                    <option value="+353">🇮🇪 +353</option>
+                    <option value="+48">🇵🇱 +48</option>
+                    <option value="+420">🇨🇿 +420</option>
+                    <option value="+36">🇭🇺 +36</option>
+                    <option value="+30">🇬🇷 +30</option>
+                    <option value="+90">🇹🇷 +90</option>
+                    <option value="+972">🇮🇱 +972</option>
+                    <option value="+234">🇳🇬 +234</option>
+                    <option value="+254">🇰🇪 +254</option>
+                    <option value="+56">🇨🇱 +56</option>
+                    <option value="+54">🇦🇷 +54</option>
+                    <option value="+57">🇨🇴 +57</option>
+                    <option value="+51">🇵🇪 +51</option>
+                    <option value="+58">🇻🇪 +58</option>
+                    <option value="+92">🇵🇰 +92</option>
+                    <option value="+880">🇧🇩 +880</option>
+                    <option value="+94">🇱🇰 +94</option>
+                    <option value="+95">🇲🇲 +95</option>
+                    <option value="+977">🇳🇵 +977</option>
+                  </select>
+                  <DarkInput>
+                    <Phone className={iconCls} />
+                    <Input id="phoneNumber" placeholder={t('auth.phoneNumber')} className={`${inputCls} pl-10`} {...registerForm.register("phoneNumber")} />
+                  </DarkInput>
+                </div>
+                <FieldError msg={registerForm.formState.errors.phoneNumber?.message} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>{t('auth.dateOfBirth')}</label>
+                  <DarkInput>
+                    <Calendar className={iconCls} />
+                    <Input id="dateOfBirth" type="date" className={`${inputCls} pl-10`} {...registerForm.register("dateOfBirth")} />
+                  </DarkInput>
+                  <FieldError msg={registerForm.formState.errors.dateOfBirth?.message} />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('auth.gender')}</label>
+                  <DarkInput>
+                    <Users className={iconCls} />
+                    <select id="gender" className={`${selectCls} pl-10`} {...registerForm.register("gender")}>
+                      <option value="">{t('auth.gender')}</option>
+                      <option value="male">{t('auth.male')}</option>
+                      <option value="female">{t('auth.female')}</option>
+                    </select>
+                  </DarkInput>
+                  <FieldError msg={registerForm.formState.errors.gender?.message} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>
+                  {t('auth.referralCodeOptional')}
+                  {referralCodeFromUrl && <span className="text-emerald-400 text-xs ml-2">(from link)</span>}
+                </label>
+                <Input
+                  id="referralCode"
+                  placeholder={t('auth.referralCodeOptional')}
+                  className={`${inputCls} ${referralCodeFromUrl ? "border-emerald-500/40 bg-emerald-500/8" : ""}`}
+                  {...registerForm.register("referralCode")}
+                  readOnly={!!referralCodeFromUrl}
+                />
+                {!referralCodeFromUrl && <p className="text-xs text-white/30 mt-1">{t('auth.referralCodeInfo')}</p>}
+              </div>
+
+              <Button type="submit" disabled={registerMutation.isPending} className="w-full h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold shadow-lg shadow-violet-900/40 transition-all duration-200 hover:-translate-y-0.5 mt-1">
+                {registerMutation.isPending ? t('auth.creatingAccount') : t('auth.createAccount')}
+              </Button>
+            </form>
+          )}
+
+          {/* ── FORGOT PASSWORD ── */}
+          {activeTab === "forgot" && !resetEmailSent && (
+            <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPassword)} className="space-y-4">
+              <div>
+                <label className={labelCls}>Email address</label>
+                <DarkInput>
+                  <Mail className={iconCls} />
+                  <Input id="forgot-email" placeholder="Enter your email" className={`${inputCls} pl-10`} {...forgotPasswordForm.register("email")} />
+                </DarkInput>
+                <FieldError msg={forgotPasswordForm.formState.errors.email?.message} />
+              </div>
+
+              <Button type="submit" disabled={forgotPasswordMutation.isPending} className="w-full h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold transition-all duration-200 hover:-translate-y-0.5">
+                {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Email"}
+              </Button>
+
+              <button type="button" onClick={() => setActiveTab("login")} className="w-full flex items-center justify-center gap-1.5 text-sm text-white/45 hover:text-white/70 transition-colors py-2">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to Login
+              </button>
+            </form>
+          )}
+
+          {/* ── RESET EMAIL SENT ── */}
+          {activeTab === "forgot" && resetEmailSent && (
+            <div className="space-y-5">
+              <div className="text-center py-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-7 h-7 text-emerald-400" />
+                </div>
+                <h3 className="font-semibold text-white mb-1">Reset Email Sent!</h3>
+                <p className="text-sm text-white/45">Check your inbox. The link expires in 1 hour.</p>
+              </div>
+
+              <div className="rwg-divider" />
+              <p className="text-xs text-white/40 text-center">Have your reset token? Enter it below:</p>
+
+              <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-3">
+                <div>
+                  <label className={labelCls}>Reset Token</label>
+                  <Input id="reset-token" placeholder="Paste token from email" className={inputCls} {...resetPasswordForm.register("token")} />
+                  <FieldError msg={resetPasswordForm.formState.errors.token?.message} />
+                </div>
+                <div>
+                  <label className={labelCls}>New Password</label>
+                  <DarkInput>
+                    <Lock className={iconCls} />
+                    <Input id="new-password" type={showNewPassword ? "text" : "password"} placeholder="Enter new password" className={`${inputCls} pl-10 pr-10`} {...resetPasswordForm.register("newPassword")} />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </DarkInput>
+                  <FieldError msg={resetPasswordForm.formState.errors.newPassword?.message} />
+                </div>
+                <div>
+                  <label className={labelCls}>Confirm Password</label>
+                  <DarkInput>
+                    <Lock className={iconCls} />
+                    <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} placeholder="Confirm new password" className={`${inputCls} pl-10 pr-10`} {...resetPasswordForm.register("confirmPassword")} />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </DarkInput>
+                  <FieldError msg={resetPasswordForm.formState.errors.confirmPassword?.message} />
+                </div>
+                <Button type="submit" disabled={resetPasswordMutation.isPending} className="w-full h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold transition-all duration-200">
+                  {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+                </Button>
+              </form>
+
+              <button type="button" onClick={() => { setResetEmailSent(false); setActiveTab("login"); forgotPasswordForm.reset(); }} className="w-full flex items-center justify-center gap-1.5 text-sm text-white/45 hover:text-white/70 transition-colors py-1">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to Login
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer note */}
+        <p className="text-center text-white/25 text-xs mt-6">
+          © 2025 Reborn Wave Group · All rights reserved
+        </p>
       </div>
     </div>
   );

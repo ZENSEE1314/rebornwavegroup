@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Plus, CheckCircle, XCircle } from "lucide-react";
@@ -64,27 +63,15 @@ export default function Bookings() {
       status: "pending",
       service: data.service
     };
-
     setAppointments([...appointments, newAppointment]);
-    
-    toast({
-      title: "Success!",
-      description: "Appointment booked successfully",
-    });
-    
+    toast({ title: "Success!", description: "Appointment booked successfully" });
     setIsDialogOpen(false);
     form.reset();
   };
 
   const cancelAppointment = (id: number) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === id ? { ...apt, status: "cancelled" } : apt
-    ));
-    
-    toast({
-      title: "Cancelled",
-      description: "Appointment has been cancelled",
-    });
+    setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status: "cancelled" } : apt));
+    toast({ title: "Cancelled", description: "Appointment has been cancelled" });
   };
 
   const getServiceIcon = (service: string) => {
@@ -96,174 +83,162 @@ export default function Bookings() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'confirmed': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      case 'pending': return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+      case 'cancelled': return 'bg-red-500/20 text-red-300 border border-red-500/30';
+      default: return 'bg-white/10 text-white/50 border border-white/20';
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Mobile Back Button */}
-      <MobileBackButton className="mb-4" />
-      
-      <div className="flex items-center justify-between mb-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">My Appointments</h1>
-          <p className="text-white mt-2">Manage your beauty, fun & entertainment bookings</p>
-        </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-5 h-5 mr-2" />
-              Book Appointment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Book New Appointment</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="service"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select service type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="beauty">💄 Beauty & Wellness</SelectItem>
-                          <SelectItem value="fun">🎵 Fun & Activities</SelectItem>
-                          <SelectItem value="entertainment">🎮 Entertainment & Gaming</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Premium Facial Treatment" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Brief description of the service..." {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="appointmentDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="appointmentTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Time</FormLabel>
-                        <FormControl>
-                          <Input type="time" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duration (minutes)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="60" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="cost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cost ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="flex justify-end space-x-3 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Book Appointment</Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <div className="rwg-page-bg min-h-screen pb-20 md:pb-0">
+      <div className="rwg-orb-1" />
+      <div className="rwg-orb-2" />
+      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
+        <MobileBackButton className="mb-4" />
 
-      <div className="grid grid-cols-1 gap-6">
-        {appointments.map((appointment) => (
-          <Card key={appointment.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="text-3xl">
-                    {getServiceIcon(appointment.service)}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">My Appointments</h1>
+            <p className="text-white/50 mt-1">Manage your beauty, fun & entertainment bookings</p>
+          </div>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
+                <Plus className="w-5 h-5 mr-2" />
+                Book Appointment
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md bg-[#14082e] border border-white/10 text-white">
+              <DialogHeader>
+                <DialogTitle className="text-white">Book New Appointment</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="service"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">Service Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="rwg-input">
+                              <SelectValue placeholder="Select service type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-[#14082e] border border-white/10 text-white">
+                            <SelectItem value="beauty">💄 Beauty & Wellness</SelectItem>
+                            <SelectItem value="fun">🎵 Fun & Activities</SelectItem>
+                            <SelectItem value="entertainment">🎮 Entertainment & Gaming</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">Service Title</FormLabel>
+                        <FormControl>
+                          <Input className="rwg-input" placeholder="e.g., Premium Facial Treatment" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/70">Description</FormLabel>
+                        <FormControl>
+                          <Textarea className="rwg-input" placeholder="Brief description of the service..." {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="appointmentDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/70">Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" className="rwg-input" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="appointmentTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/70">Time</FormLabel>
+                          <FormControl>
+                            <Input type="time" className="rwg-input" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-slate-900 mb-1">
-                      {appointment.title}
-                    </h3>
-                    <p className="text-slate-600 mb-2">{appointment.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-slate-500">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/70">Duration (min)</FormLabel>
+                          <FormControl>
+                            <Input type="number" className="rwg-input" placeholder="60" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/70">Cost ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" className="rwg-input" placeholder="0.00" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3 pt-2">
+                    <Button type="button" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl" onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
+                      Book Appointment
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5">
+          {appointments.map((appointment) => (
+            <div key={appointment.id} className="rwg-card p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4 flex-1">
+                  <div className="text-3xl mt-1">{getServiceIcon(appointment.service)}</div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-white mb-1">{appointment.title}</h3>
+                    <p className="text-white/50 text-sm mb-3">{appointment.description}</p>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-white/40">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4" />
                         <span>{appointment.appointmentDate}</span>
@@ -272,29 +247,26 @@ export default function Bookings() {
                         <Clock className="w-4 h-4" />
                         <span>{appointment.appointmentTime}</span>
                       </div>
-                      <span>•</span>
+                      <span className="text-white/30">·</span>
                       <span>{appointment.duration}</span>
                     </div>
                   </div>
                 </div>
-                
-                <div className="text-right space-y-2">
-                  <div className="text-2xl font-bold text-slate-900">
-                    ${appointment.cost.toFixed(2)}
-                  </div>
-                  <Badge className={getStatusColor(appointment.status)}>
+
+                <div className="text-right space-y-2 flex-shrink-0 ml-4">
+                  <div className="text-2xl font-bold text-white">${appointment.cost.toFixed(2)}</div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full inline-block ${getStatusStyle(appointment.status)}`}>
                     {appointment.status}
-                  </Badge>
+                  </span>
                   {appointment.status === 'pending' && (
-                    <div className="space-x-2">
-                      <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50">
+                    <div className="flex space-x-2 justify-end">
+                      <Button size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg">
                         <CheckCircle className="w-4 h-4 mr-1" />
                         Confirm
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-red-600 border-red-600 hover:bg-red-50"
+                      <Button
+                        size="sm"
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-lg"
                         onClick={() => cancelAppointment(appointment.id)}
                       >
                         <XCircle className="w-4 h-4 mr-1" />
@@ -304,24 +276,25 @@ export default function Bookings() {
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
 
-      {appointments.length === 0 && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Calendar className="w-16 h-16 mx-auto text-slate-400 mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No appointments yet</h3>
-            <p className="text-slate-600 mb-6">Book your first appointment to get started</p>
-            <Button onClick={() => setIsDialogOpen(true)}>
+        {appointments.length === 0 && (
+          <div className="rwg-card text-center py-16">
+            <Calendar className="w-16 h-16 mx-auto text-white/20 mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No appointments yet</h3>
+            <p className="text-white/50 mb-6">Book your first appointment to get started</p>
+            <Button
+              onClick={() => setIsDialogOpen(true)}
+              className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl"
+            >
               <Plus className="w-5 h-5 mr-2" />
               Book Appointment
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

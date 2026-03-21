@@ -1,300 +1,163 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Palette, Music, GamepadIcon, Calendar, Star, Users, Gift, Zap, ChevronRight, TrendingUp, Award, DollarSign, ArrowRight, Check, Globe, Shield, Rocket } from "lucide-react";
+import { Sparkles, Palette, GamepadIcon, Calendar, Star, Users, Gift, Zap, DollarSign, ArrowRight, Globe, MapPin } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
 
 export default function Landing() {
   const { t } = useTranslation();
-  
+
   const handleLogin = () => {
     window.location.href = "/login";
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden relative">
-      {/* Enhanced Animated Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-cyan-900/30"></div>
-        <div className="absolute top-20 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-500/15 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute top-10 right-10 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl animate-pulse delay-700"></div>
-        <div className="absolute bottom-10 left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl animate-pulse delay-300"></div>
-      </div>
+    <div className="rwg-page-bg">
+      <div className="rwg-orb-1" />
+      <div className="rwg-orb-2" />
+      <div className="rwg-orb-3" />
+      <div className="rwg-grid-overlay" />
 
-      {/* Floating particles */}
-      <div className="fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/3 w-2 h-2 bg-white/20 rounded-full animate-ping"></div>
-        <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-purple-400/30 rounded-full animate-ping delay-1000"></div>
-        <div className="absolute bottom-1/3 left-1/4 w-1.5 h-1.5 bg-cyan-400/25 rounded-full animate-ping delay-500"></div>
-      </div>
-
-      {/* Enhanced Header */}
-      <header className="relative z-10 bg-black/60 backdrop-blur-xl border-b border-white/20 shadow-2xl py-4">
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center gap-1">
-            <div className="flex items-center gap-1 hidden xl:flex">
-              <div style={{ width: '32px', height: '32px', minWidth: '32px', maxWidth: '32px', minHeight: '32px', maxHeight: '32px', flex: '0 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={rwgLogo} alt="Reborn Wave Group" style={{ width: '32px', height: '32px', objectFit: 'contain', display: 'block' }} />
-              </div>
-              <div className="hidden md:block">
-                <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent truncate">
-                  Reborn Wave Group
-                </span>
-              </div>
+      {/* ── HEADER ── */}
+      <header className="rwg-header sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
+              <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-center gap-0 sm:gap-2 flex-shrink-0">
-              <div className="hidden sm:block">
-                <LanguageSelector />
-              </div>
-              <Button 
-                onClick={handleLogin} 
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border-0 text-white px-1.5 sm:px-4 py-0.5 sm:py-2 rounded-full font-semibold text-xs shadow-lg hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-0.5 whitespace-nowrap"
-              >
-                <Zap className="w-2.5 h-2.5 sm:w-4 sm:h-4 sm:mr-1" />
-                <span className="hidden sm:inline">{t('landing.getStarted')}</span>
-                <span className="sm:hidden text-xs">{t('landing.login')}</span>
-              </Button>
-            </div>
+            <span className="font-bold text-sm bg-gradient-to-r from-violet-300 to-blue-300 bg-clip-text text-transparent hidden sm:block">
+              Reborn Wave Group
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSelector />
+            <Button
+              onClick={handleLogin}
+              size="sm"
+              className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl font-semibold shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <Zap className="w-3.5 h-3.5 mr-1.5" />
+              {t('landing.getStarted')}
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Enhanced Hero Section */}
-      <section className="relative z-10 py-20 sm:py-32 lg:py-40 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="mb-10">
-            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-400/40 rounded-full text-sm font-semibold backdrop-blur-md shadow-lg hover:shadow-purple-500/20 transition-all duration-300">
-              <Sparkles className="w-4 h-4 mr-2 text-purple-300" />
-              {t('landing.subtitle')}
-            </div>
+      {/* ── HERO ── */}
+      <section className="relative z-10 pt-24 pb-20 px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-5xl mx-auto">
+          <div className="rwg-hero-badge mb-8">
+            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+            <span>{t('landing.subtitle')}</span>
           </div>
-          
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-extrabold mb-8 leading-tight tracking-tight px-4">
-            <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
-              Reborn Wave Group
-            </span>
+
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight mb-6 leading-tight">
+            <span className="rwg-text-gradient">Reborn</span>
+            <br />
+            <span className="text-white/90">Wave Group</span>
           </h1>
-          
-          <p className="text-lg sm:text-xl lg:text-2xl text-white/80 mb-12 max-w-5xl mx-auto leading-relaxed font-light">
-            Care for virtual dragons, earn tokens, and build your collection in this immersive pet care experience.
+
+          <p className="text-base sm:text-lg text-white/55 max-w-2xl mx-auto mb-10 leading-relaxed">
+            {t('landing.visionText1')}
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
-            <Button 
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
               onClick={handleLogin}
-              size="lg" 
-              className="group bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+              size="lg"
+              className="group bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 px-8 py-6 rounded-2xl font-semibold text-base shadow-2xl transition-all duration-200 hover:-translate-y-0.5"
             >
-              <Rocket className="w-5 h-5 mr-2 group-hover:animate-pulse" />
               <span>{t('landing.enterFuture')}</span>
-              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="border-white/30 bg-white/10 hover:bg-white/20 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:shadow-xl"
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleLogin}
+              className="border-white/15 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-8 py-6 rounded-2xl font-semibold text-base backdrop-blur-sm transition-all duration-200"
             >
-              <Globe className="w-5 h-5 mr-2" />
+              <Globe className="w-4 h-4 mr-2" />
               {t('landing.exploreServices')}
             </Button>
           </div>
+        </div>
 
-          {/* About Us Overview */}
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <div className="mb-6">
-                <span className="px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-sm font-medium text-white">
-                  🌟 About Reborn Wave Group
-                </span>
+        {/* Stats bar */}
+        <div className="max-w-3xl mx-auto mt-16">
+          <div className="rwg-card grid grid-cols-3 divide-x divide-white/10">
+            {[
+              { label: "5-in-1 Concept", value: "#1" },
+              { label: "Cities", value: "Global" },
+              { label: "Referral", value: "10%" },
+            ].map((stat) => (
+              <div key={stat.label} className="py-4 px-6 text-center">
+                <div className="text-2xl font-bold text-white mb-0.5">{stat.value}</div>
+                <div className="text-xs text-white/40 font-medium">{stat.label}</div>
               </div>
-              <h3 className="text-3xl md:text-4xl font-bold mb-6">
-                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  The World's First 5-in-1 Business Concept
-                </span>
-              </h3>
-              <p className="text-xl text-white/70 max-w-4xl mx-auto mb-8">
-                Revolutionizing lifestyle experiences through innovative integration of beauty, entertainment, dining, and digital gaming.
-              </p>
-            </div>
-            
-            {/* Mobile Layout: Our Vision first, then 3 boxes */}
-            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:items-center">
-              {/* Our Vision - Shows first on mobile, left side on desktop */}
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
-                  <h4 className="text-2xl font-bold text-white mb-6">{t('landing.ourVision')}</h4>
-                  <p className="text-white/70 leading-relaxed mb-4">
-                    {t('landing.visionText1')}
-                  </p>
-                  <p className="text-white/70 leading-relaxed">
-                    {t('landing.visionText2')}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Features & Location - Shows second on mobile, right side on desktop */}
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 text-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                      <span className="text-2xl">🏢</span>
-                    </div>
-                    <h4 className="text-lg font-bold text-white mb-2">{t('landing.conceptTitle')}</h4>
-                    <p className="text-white/70 text-sm">{t('landing.conceptDescription')}</p>
-                  </div>
-                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 text-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center mb-4 mx-auto">
-                      <span className="text-2xl">🌏</span>
-                    </div>
-                    <h4 className="text-lg font-bold text-white mb-2">{t('landing.globalFirstTitle')}</h4>
-                    <p className="text-white/70 text-sm">{t('landing.globalFirstDescription')}</p>
-                  </div>
-                  <div className="bg-gradient-to-r from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-6 text-center">
-                    <h4 className="text-xl font-bold text-white mb-4">Visit Us</h4>
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-                        <span className="text-lg">📍</span>
-                      </div>
-                      <div>
-                        <h5 className="text-white font-semibold">Oceanic Bliss</h5>
-                        <p className="text-white/70 text-sm">Ruko Batamas, Jl. Pasir Putih No.49-51</p>
-                        <p className="text-white/70 text-sm">Sadai, Kec. Bengkong, Kota Batam</p>
-                        <p className="text-white/70 text-sm">Kepulauan Riau 29444, Indonesia</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Three Sectors */}
-      <section className="relative z-10 py-32 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                {t('landing.fourSectors')}
-              </span>
+      {/* ── ABOUT ── */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="rwg-section-title mb-3">About Us</div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              The World's First{" "}
+              <span className="rwg-text-gradient">5-in-1 Business</span>
             </h2>
-            <p className="text-xl text-white/70 max-w-3xl mx-auto">
-              {t('landing.sectorsDescription')}
+            <p className="text-white/50 max-w-2xl mx-auto text-sm leading-relaxed">
+              {t('landing.visionText2')}
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
-            {/* Beauty Sector */}
-            <div className="group relative bg-gradient-to-br from-pink-900/20 to-rose-900/20 backdrop-blur-sm border border-pink-500/20 rounded-3xl p-8 hover:border-pink-400/40 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-2xl flex items-center justify-center mb-6">
-                  <Palette className="w-8 h-8 text-white" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div className="rwg-card p-8">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <Star className="w-4 h-4 text-violet-400" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.beautyWellness')}</h3>
-                <p className="text-white/70 mb-6 leading-relaxed">
-                  {t('landing.beautyDescription')}
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>{t('landing.beautyFeature1')}</span>
+                {t('landing.ourVision')}
+              </h3>
+              <p className="text-white/55 text-sm leading-relaxed mb-4">{t('landing.visionText1')}</p>
+              <p className="text-white/55 text-sm leading-relaxed">{t('landing.visionText2')}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rwg-card p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl rwg-sector-icon-location flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>{t('landing.beautyFeature2')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
-                    <span>{t('landing.beautyFeature3')}</span>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">Oceanic Bliss — Batam, Indonesia</h4>
+                    <p className="text-white/45 text-xs leading-relaxed">
+                      Ruko Batamas, Jl. Pasir Putih No.49-51, Sadai, Kec. Bengkong, Kota Batam, Kepulauan Riau 29444
+                    </p>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Food & Beverage Sector */}
-            <div className="group relative bg-gradient-to-br from-purple-900/20 to-indigo-900/20 backdrop-blur-sm border border-purple-500/20 rounded-3xl p-8 hover:border-purple-400/40 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mb-6">
-                  <span className="text-3xl">🍽️</span>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.foodBeverage')}</h3>
-                <p className="text-white/70 mb-6 leading-relaxed">
-                  {t('landing.foodDescription')}
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>{t('landing.foodFeature1')}</span>
+              <div className="rwg-card p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl rwg-sector-icon-concept flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg">🏢</span>
                   </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>{t('landing.foodFeature2')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    <span>{t('landing.foodFeature3')}</span>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">{t('landing.conceptTitle')}</h4>
+                    <p className="text-white/45 text-xs leading-relaxed">{t('landing.conceptDescription')}</p>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Entertainment Sector */}
-            <div className="group relative bg-gradient-to-br from-cyan-900/20 to-blue-900/20 backdrop-blur-sm border border-cyan-500/20 rounded-3xl p-8 hover:border-cyan-400/40 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl flex items-center justify-center mb-6">
-                  <GamepadIcon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.entertainment')}</h3>
-                <p className="text-white/70 mb-6 leading-relaxed">
-                  {t('landing.entertainmentDescription')}
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>{t('landing.entertainmentFeature1')}</span>
+              <div className="rwg-card p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl rwg-sector-icon-global flex items-center justify-center flex-shrink-0">
+                    <Globe className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>{t('landing.entertainmentFeature2')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                    <span>{t('landing.entertainmentFeature3')}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Corporate Event Sector */}
-            <div className="group relative bg-gradient-to-br from-emerald-900/20 to-teal-900/20 backdrop-blur-sm border border-emerald-500/20 rounded-3xl p-8 hover:border-emerald-400/40 transition-all duration-500">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">{t('landing.corporateEvents')}</h3>
-                <p className="text-white/70 mb-6 leading-relaxed">
-                  {t('landing.corporateDescription')}
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>{t('landing.corporateFeature1')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>{t('landing.corporateFeature2')}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    <span>{t('landing.corporateFeature3')}</span>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">{t('landing.globalFirstTitle')}</h4>
+                    <p className="text-white/45 text-xs leading-relaxed">{t('landing.globalFirstDescription')}</p>
                   </div>
                 </div>
               </div>
@@ -303,152 +166,169 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Referral Rewards System */}
-      <section className="relative z-10 py-32 px-4 sm:px-6 lg:px-8">
+      {/* ── 4 SECTORS ── */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-20">
-            <div className="mb-6">
-              <span className="px-4 py-2 bg-gradient-to-r from-emerald-600/20 to-blue-600/20 border border-emerald-500/30 rounded-full text-sm font-medium text-white">
-                💎 {t('landing.inviteFriends')}
-              </span>
-            </div>
-            <h2 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                {t('landing.shareWithFriends')}
-              </span>
+          <div className="text-center mb-14">
+            <div className="rwg-section-title mb-3">{t('landing.fourSectors')}</div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              {t('landing.sectorsDescription')}
             </h2>
-            <p className="text-xl text-white/70 max-w-4xl mx-auto">
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                iconClass: "rwg-sector-icon-beauty",
+                icon: <Palette className="w-5 h-5 text-white" />,
+                title: t('landing.beautyWellness'),
+                desc: t('landing.beautyDescription'),
+                features: [t('landing.beautyFeature1'), t('landing.beautyFeature2'), t('landing.beautyFeature3')],
+                dotColor: "bg-pink-400",
+              },
+              {
+                iconClass: "rwg-sector-icon-food",
+                icon: <span className="text-xl">🍽️</span>,
+                title: t('landing.foodBeverage'),
+                desc: t('landing.foodDescription'),
+                features: [t('landing.foodFeature1'), t('landing.foodFeature2'), t('landing.foodFeature3')],
+                dotColor: "bg-purple-400",
+              },
+              {
+                iconClass: "rwg-sector-icon-entertainment",
+                icon: <GamepadIcon className="w-5 h-5 text-white" />,
+                title: t('landing.entertainment'),
+                desc: t('landing.entertainmentDescription'),
+                features: [t('landing.entertainmentFeature1'), t('landing.entertainmentFeature2'), t('landing.entertainmentFeature3')],
+                dotColor: "bg-cyan-400",
+              },
+              {
+                iconClass: "rwg-sector-icon-corporate",
+                icon: <Calendar className="w-5 h-5 text-white" />,
+                title: t('landing.corporateEvents'),
+                desc: t('landing.corporateDescription'),
+                features: [t('landing.corporateFeature1'), t('landing.corporateFeature2'), t('landing.corporateFeature3')],
+                dotColor: "bg-emerald-400",
+              },
+            ].map((sector) => (
+              <div key={sector.title} className="rwg-card p-6 flex flex-col gap-4">
+                <div className={`w-10 h-10 rounded-xl ${sector.iconClass} flex items-center justify-center flex-shrink-0 shadow-lg`}>
+                  {sector.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm mb-1.5">{sector.title}</h3>
+                  <p className="text-white/45 text-xs leading-relaxed">{sector.desc}</p>
+                </div>
+                <ul className="space-y-1.5 mt-auto">
+                  {sector.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sector.dotColor}`} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── REFERRAL ── */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="rwg-section-title mb-3">{t('landing.inviteFriends')}</div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              <span className="rwg-text-gradient">{t('landing.shareWithFriends')}</span>
+            </h2>
+            <p className="text-white/50 max-w-xl mx-auto text-sm leading-relaxed">
               {t('landing.referralDescription')}
             </p>
           </div>
-          
-          <div className="flex justify-center mb-16">
-            {/* Friend Referral Card */}
-            <div className="group relative bg-gradient-to-br from-emerald-900/30 to-blue-900/30 backdrop-blur-sm border border-emerald-500/30 rounded-3xl p-12 hover:border-emerald-400/50 transition-all duration-500 max-w-md">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative z-10 text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <Users className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-3xl font-bold text-white mb-3">{t('landing.inviteFriendsTitle')}</h3>
-                <div className="text-6xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-4">
-                  10%
-                </div>
-                <p className="text-white/70 mb-6 text-lg">
-                  {t('landing.commissionText')}
-                </p>
-                <div className="flex items-center justify-center space-x-2 text-emerald-400">
-                  <Gift className="w-5 h-5" />
-                  <span className="text-sm font-medium">{t('landing.lifetimeEarnings')}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Rewards Calculation */}
-          <div className="bg-gradient-to-r from-emerald-900/20 to-blue-900/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-white mb-4">{t('landing.simpleRewarding')}</h3>
-              <p className="text-white/70">
-                {t('landing.shareEarnText')}
-              </p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="rwg-card p-8 text-center flex flex-col items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl rwg-sector-icon-location flex items-center justify-center mb-4 shadow-lg">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="font-bold text-white text-lg mb-2">{t('landing.inviteFriendsTitle')}</h3>
+              <div className="text-5xl font-extrabold rwg-text-gradient mb-3">10%</div>
+              <p className="text-white/50 text-sm mb-4">{t('landing.commissionText')}</p>
+              <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+                <Gift className="w-3.5 h-3.5" />
+                {t('landing.lifetimeEarnings')}
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
-                <DollarSign className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">{t('landing.passiveIncome')}</h4>
-                <p className="text-white/70 text-sm">{t('landing.passiveIncomeDesc')}</p>
-              </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
-                <Gift className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">{t('landing.exclusiveBonuses')}</h4>
-                <p className="text-white/70 text-sm">{t('landing.exclusiveBonusesDesc')}</p>
-              </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6">
-                <Star className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-2">{t('landing.loyaltyPoints')}</h4>
-                <p className="text-white/70 text-sm">{t('landing.loyaltyPointsDesc')}</p>
-              </div>
+
+            <div className="lg:col-span-2 grid grid-cols-1 gap-4">
+              {[
+                { icon: <DollarSign className="w-4 h-4 text-emerald-400" />, title: t('landing.passiveIncome'), desc: t('landing.passiveIncomeDesc') },
+                { icon: <Gift className="w-4 h-4 text-blue-400" />, title: t('landing.exclusiveBonuses'), desc: t('landing.exclusiveBonusesDesc') },
+                { icon: <Star className="w-4 h-4 text-violet-400" />, title: t('landing.loyaltyPoints'), desc: t('landing.loyaltyPointsDesc') },
+              ].map((item) => (
+                <div key={item.title} className="rwg-card p-5 flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center flex-shrink-0">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white text-sm mb-1">{item.title}</h4>
+                    <p className="text-white/45 text-xs leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-
-
-      {/* CTA Section */}
-      <section className="relative z-10 py-32 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="relative bg-gradient-to-br from-purple-900/30 via-blue-900/30 to-cyan-900/30 backdrop-blur-sm border border-white/10 rounded-3xl p-12 overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 rounded-3xl"></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl"></div>
-            
-            <div className="relative z-10 text-center">
-              <div className="mb-8">
-                <span className="px-4 py-2 bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/40 rounded-full text-sm font-medium text-white">
-                  🚀 {t('landing.joinRevolution')}
-                </span>
-              </div>
-              
-              <h2 className="text-4xl md:text-6xl font-bold mb-6">
-                <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  {t('landing.readyTransform')}
-                </span>
-                <br />
-                <span className="text-white">
-                  {t('landing.yourExperience')}
-                </span>
-              </h2>
-              
-              <p className="text-xl text-white/70 mb-12 max-w-3xl mx-auto">
-                {t('landing.joinThousands')}
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                <Button 
-                  onClick={handleLogin}
-                  size="lg" 
-                  className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-12 py-6 text-lg rounded-full font-semibold shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
-                >
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  {t('landing.accessPlatform')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="border-white/30 bg-white/10 hover:bg-white/20 text-white px-12 py-6 text-lg rounded-full font-semibold backdrop-blur-sm transition-all duration-300"
-                >
-                  {t('landing.learnMore')}
-                </Button>
-              </div>
+      {/* ── CTA ── */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="rwg-card rwg-cta-card p-12">
+            <div className="rwg-cta-badge mb-6 mx-auto">
+              <Sparkles className="w-3 h-3" />
+              {t('landing.joinRevolution')}
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+              {t('landing.readyTransform')}{" "}
+              <span className="rwg-text-gradient">{t('landing.yourExperience')}</span>
+            </h2>
+            <p className="text-white/50 text-sm mb-8 max-w-lg mx-auto leading-relaxed">
+              {t('landing.joinThousands')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                onClick={handleLogin}
+                size="lg"
+                className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 px-8 py-6 rounded-2xl font-semibold shadow-2xl transition-all duration-200 hover:-translate-y-0.5"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                {t('landing.accessPlatform')}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-white/15 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white px-8 py-6 rounded-2xl font-semibold transition-all duration-200"
+              >
+                {t('landing.learnMore')}
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 bg-black/50 backdrop-blur-lg border-t border-white/10 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center space-x-3 mb-6 md:mb-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                Reborn Wave Group
-              </span>
+      {/* ── FOOTER ── */}
+      <footer className="relative z-10 rwg-footer py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg overflow-hidden">
+              <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
             </div>
-            
-            <div className="text-center md:text-right">
-              <p className="text-white/60 text-sm">
-                {t('landing.allRightsReserved')}
-              </p>
-              <p className="text-white/40 text-xs mt-1">
-                {t('landing.footerTagline')}
-              </p>
-            </div>
+            <span className="text-sm font-semibold text-white/60">Reborn Wave Group</span>
+          </div>
+          <div className="text-center sm:text-right">
+            <p className="text-white/30 text-xs">{t('landing.allRightsReserved')}</p>
+            <p className="text-white/20 text-xs mt-0.5">{t('landing.footerTagline')}</p>
           </div>
         </div>
       </footer>

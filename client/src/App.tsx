@@ -17,16 +17,12 @@ import MyReferral from "@/pages/my-referral";
 import LoyaltyProgram from "@/pages/loyalty-program";
 import Profile from "@/pages/profile";
 import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
-import SimpleAdminTest from "@/pages/simple-admin-test";
 import SimpleCollections from "@/pages/simple-collections";
 import Checkout from "@/pages/checkout";
 import PaymentSuccess from "@/pages/payment-success";
 import NotFound from "@/pages/not-found";
 import SimplePetCare from "@/pages/simple-pet-care";
 import PetCareWithEnergy from "@/pages/pet-care-with-energy";
-import TestPetCare from "@/pages/test-pet-care";
-import Navigation from "@/components/navigation";
-import MobileNav from "@/components/mobile-nav";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -70,10 +66,10 @@ function Router() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
+      <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-white/40 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -96,7 +92,6 @@ function Router() {
           <Route path="/app" component={CompleteApp} />
           <Route path="/pet-care" component={SimplePetCare} />
           <Route path="/energy-potion" component={PetCareWithEnergy} />
-          <Route path="/test" component={TestPetCare} />
           <Route path="/bookings" component={Bookings} />
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/referrals" component={Referrals} />
