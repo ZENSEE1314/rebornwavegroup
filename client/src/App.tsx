@@ -6,7 +6,26 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useEffect } from "react";
+import { useEffect, Component, type ReactNode } from "react";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      const err = this.state.error as Error;
+      return (
+        <div className="rwg-page-bg min-h-screen p-10 font-mono">
+          <h1 className="text-red-400 text-2xl font-bold mb-4">App Error</h1>
+          <pre className="text-red-300 text-sm whitespace-pre-wrap mb-4">{err.message}</pre>
+          <pre className="text-gray-400 text-xs whitespace-pre-wrap mb-6">{err.stack}</pre>
+          <button type="button" onClick={() => window.location.reload()} className="px-4 py-2 bg-violet-700 text-white rounded-lg cursor-pointer">Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import Landing from "@/pages/landing";
 import Login from "@/pages/Login";
 import CompleteApp from "@/pages/complete-app";
@@ -110,12 +129,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
