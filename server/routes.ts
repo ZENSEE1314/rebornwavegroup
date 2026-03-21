@@ -6700,19 +6700,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { seasonId } = req.params;
       const sectors = await db.select({
-        id: schema.collectionSectors.id,
-        seasonId: schema.collectionSectors.seasonId,
-        name: schema.collectionSectors.name,
-        displayName: schema.collectionSectors.displayName,
-        description: schema.collectionSectors.description,
-        iconSymbol: schema.collectionSectors.iconSymbol,
-        backgroundColor: schema.collectionSectors.backgroundColor,
-        unlockCondition: schema.collectionSectors.unlockCondition,
-        isUnlocked: schema.collectionSectors.isUnlocked,
-        displayOrder: schema.collectionSectors.displayOrder,
-      }).from(schema.collectionSectors)
-        .where(eq(schema.collectionSectors.seasonId, parseInt(seasonId)))
-        .orderBy(schema.collectionSectors.displayOrder);
+        id: schema.collectionSeries.id,
+        seasonId: schema.collectionSeries.seasonId,
+        name: schema.collectionSeries.name,
+        displayName: schema.collectionSeries.displayName,
+        description: schema.collectionSeries.description,
+        iconSymbol: schema.collectionSeries.iconSymbol,
+        backgroundColor: schema.collectionSeries.backgroundColor,
+        unlockCondition: schema.collectionSeries.unlockCondition,
+        isUnlocked: schema.collectionSeries.isUnlocked,
+        displayOrder: schema.collectionSeries.displayOrder,
+      }).from(schema.collectionSeries)
+        .where(eq(schema.collectionSeries.seasonId, parseInt(seasonId)))
+        .orderBy(schema.collectionSeries.displayOrder);
 
       res.json(sectors);
     } catch (error) {
@@ -6744,14 +6744,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           backgroundColor: schema.seasons.backgroundColor,
         },
         sector: {
-          id: schema.collectionSectors.id,
-          name: schema.collectionSectors.name,
-          displayName: schema.collectionSectors.displayName,
-          iconSymbol: schema.collectionSectors.iconSymbol,
+          id: schema.collectionSeries.id,
+          name: schema.collectionSeries.name,
+          displayName: schema.collectionSeries.displayName,
+          iconSymbol: schema.collectionSeries.iconSymbol,
         }
       }).from(schema.userCollectionProgress)
         .leftJoin(schema.seasons, eq(schema.userCollectionProgress.seasonId, schema.seasons.id))
-        .leftJoin(schema.collectionSectors, eq(schema.userCollectionProgress.sectorId, schema.collectionSectors.id))
+        .leftJoin(schema.collectionSeries, eq(schema.userCollectionProgress.sectorId, schema.collectionSeries.id))
         .where(eq(schema.userCollectionProgress.userId, userId));
 
       res.json(progress);
@@ -8427,7 +8427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Delete associated sectors first
-      await db.delete(schema.collectionSectors).where(eq(schema.collectionSectors.seasonId, parseInt(id)));
+      await db.delete(schema.collectionSeries).where(eq(schema.collectionSeries.seasonId, parseInt(id)));
       
       // Then delete the season
       await db.delete(schema.seasons).where(eq(schema.seasons.id, parseInt(id)));
@@ -8459,21 +8459,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/sectors', requireAuth, async (req: any, res) => {
     try {
       const sectors = await db.select({
-        id: schema.collectionSectors.id,
-        seasonId: schema.collectionSectors.seasonId,
-        name: schema.collectionSectors.name,
-        displayName: schema.collectionSectors.displayName,
-        description: schema.collectionSectors.description,
-        iconSymbol: schema.collectionSectors.iconSymbol,
-        backgroundColor: schema.collectionSectors.backgroundColor,
-        unlockCondition: schema.collectionSectors.unlockCondition,
-        isUnlocked: schema.collectionSectors.isUnlocked,
-        displayOrder: schema.collectionSectors.displayOrder,
+        id: schema.collectionSeries.id,
+        seasonId: schema.collectionSeries.seasonId,
+        name: schema.collectionSeries.name,
+        displayName: schema.collectionSeries.displayName,
+        description: schema.collectionSeries.description,
+        iconSymbol: schema.collectionSeries.iconSymbol,
+        backgroundColor: schema.collectionSeries.backgroundColor,
+        unlockCondition: schema.collectionSeries.unlockCondition,
+        isUnlocked: schema.collectionSeries.isUnlocked,
+        displayOrder: schema.collectionSeries.displayOrder,
         seasonName: schema.seasons.displayName
       })
-      .from(schema.collectionSectors)
-      .leftJoin(schema.seasons, eq(schema.collectionSectors.seasonId, schema.seasons.id))
-      .orderBy(schema.collectionSectors.seasonId, schema.collectionSectors.displayOrder);
+      .from(schema.collectionSeries)
+      .leftJoin(schema.seasons, eq(schema.collectionSeries.seasonId, schema.seasons.id))
+      .orderBy(schema.collectionSeries.seasonId, schema.collectionSeries.displayOrder);
       
       res.json(sectors);
     } catch (error) {
@@ -8490,7 +8490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Season ID, name and display name are required" });
       }
 
-      const [sector] = await db.insert(schema.collectionSectors).values({
+      const [sector] = await db.insert(schema.collectionSeries).values({
         seasonId: parseInt(seasonId),
         name,
         displayName,
@@ -8516,7 +8516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { seasonId, name, displayName, description, backgroundColor, iconSymbol, unlockCondition, isUnlocked } = req.body;
 
-      await db.update(schema.collectionSectors).set({
+      await db.update(schema.collectionSeries).set({
         seasonId: parseInt(seasonId),
         name,
         displayName,
@@ -8526,7 +8526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         unlockCondition,
         isUnlocked,
         updatedAt: new Date()
-      }).where(eq(schema.collectionSectors.id, parseInt(id)));
+      }).where(eq(schema.collectionSeries.id, parseInt(id)));
 
       res.json({ message: "Sector updated successfully" });
     } catch (error) {
@@ -8548,7 +8548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      await db.delete(schema.collectionSectors).where(eq(schema.collectionSectors.id, parseInt(id)));
+      await db.delete(schema.collectionSeries).where(eq(schema.collectionSeries.id, parseInt(id)));
 
       res.json({ message: "Sector deleted successfully" });
     } catch (error) {

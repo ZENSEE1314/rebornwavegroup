@@ -889,16 +889,6 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async purchaseToy(toyId: number, userId: string): Promise<void> {
-    await db
-      .update(toys)
-      .set({ 
-        purchasedBy: userId,
-        updatedAt: new Date() 
-      })
-      .where(eq(toys.id, toyId));
-  }
-
   async deleteToy(toyId: number): Promise<void> {
     // First check if toy has associated pets
     const associatedPets = await db
@@ -1352,17 +1342,6 @@ export class DatabaseStorage implements IStorage {
       .from(pendingPurchases)
       .where(eq(pendingPurchases.id, purchaseId));
     return purchase;
-  }
-
-  async forceCompletePurchase(purchaseId: number): Promise<void> {
-    // Simply mark the purchase as completed without full processing
-    await db
-      .update(pendingPurchases)
-      .set({ 
-        status: 'completed',
-        confirmedAt: new Date()
-      })
-      .where(eq(pendingPurchases.id, purchaseId));
   }
 
   async cancelPurchase(purchaseId: number): Promise<void> {
@@ -2610,13 +2589,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(topUpRequests.createdAt));
   }
 
-  async getAllTopUpRequests(): Promise<TopUpRequest[]> {
-    return await db
-      .select()
-      .from(topUpRequests)
-      .orderBy(desc(topUpRequests.createdAt));
-  }
-
   async updateTopUpRequestStatus(id: number, status: string, adminId: string, adminNotes?: string): Promise<void> {
     const updateData: any = {
       status,
@@ -2750,22 +2722,6 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return result;
-  }
-
-  async updateTopUpRequestStatus(id: number, status: string, adminNotes?: string) {
-    const updateData: any = { 
-      status,
-      updatedAt: new Date(),
-    };
-    
-    if (adminNotes) {
-      updateData.adminNotes = adminNotes;
-    }
-
-    await db
-      .update(topUpRequests)
-      .set(updateData)
-      .where(eq(topUpRequests.id, id));
   }
 
   async getUserTopUpHistory(userId: string) {
