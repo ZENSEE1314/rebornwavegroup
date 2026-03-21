@@ -13,13 +13,11 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
 
-// Initialize Stripe
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-06-30.basil",
-});
+// Initialize Stripe (optional — payment routes disabled if key not set)
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-06-30.basil" })
+  : null;
+if (!stripe) console.warn('STRIPE_SECRET_KEY not set — payment routes disabled');
 
 // Configure multer for file uploads
 const upload = multer({
