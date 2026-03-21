@@ -78,7 +78,7 @@ export default function Login() {
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
 
-  const inputCls = "h-11 bg-white/8 border-white/15 text-white placeholder:text-white/30 rounded-xl focus:border-violet-500/60 focus:ring-violet-500/20 focus:bg-white/10 transition-all duration-200";
+  const inputCls = "rwg-input h-11 bg-white/8 border-white/15 text-white placeholder:text-white/30 rounded-xl focus:border-violet-500/60 focus:ring-violet-500/20 focus:bg-white/10 transition-all duration-200";
   const labelCls = "text-white/70 text-sm font-medium mb-1.5 block";
   const iconCls = "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none";
 
@@ -215,7 +215,7 @@ export default function Login() {
   const onForgotPassword = (data: ForgotPasswordFormData) => { forgotPasswordMutation.mutate(data); };
   const onResetPassword = (data: ResetPasswordFormData) => { resetPasswordMutation.mutate(data); };
 
-  const selectCls = "flex h-11 w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 transition-all duration-200";
+  const selectCls = "rwg-select flex h-11 w-full rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 transition-all duration-200";
 
   return (
     <div className="rwg-page-bg min-h-screen flex items-center justify-center px-4 py-8">
@@ -393,8 +393,8 @@ export default function Login() {
 
               <div>
                 <label className={labelCls}>{t('auth.phoneNumber')}</label>
-                <div className="flex gap-2">
-                  <select className={`${selectCls} w-40 flex-shrink-0`} {...registerForm.register("countryCode")}>
+                <div className="flex gap-2 items-center">
+                  <select className={`${selectCls} w-32 flex-shrink-0`} {...registerForm.register("countryCode")}>
                     <option value="+62">🇮🇩 +62</option>
                     <option value="+1">🇺🇸 +1</option>
                     <option value="+44">🇬🇧 +44</option>
@@ -448,10 +448,10 @@ export default function Login() {
                     <option value="+95">🇲🇲 +95</option>
                     <option value="+977">🇳🇵 +977</option>
                   </select>
-                  <DarkInput>
+                  <div className="relative flex-1">
                     <Phone className={iconCls} />
                     <Input id="phoneNumber" placeholder={t('auth.phoneNumber')} className={`${inputCls} pl-10`} {...registerForm.register("phoneNumber")} />
-                  </DarkInput>
+                  </div>
                 </div>
                 <FieldError msg={registerForm.formState.errors.phoneNumber?.message} />
               </div>
