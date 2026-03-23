@@ -249,6 +249,166 @@ function AdminLogsSection() {
   );
 }
 
+// ── SEO Manager Component ────────────────────────────────────
+function SeoManager() {
+  const { toast } = useToast();
+  const [editingPage, setEditingPage] = useState<any>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [form, setForm] = useState({ path: "", title: "", description: "", keywords: "", ogTitle: "", ogDescription: "", ogImage: "" });
+
+  const { data: seoPages = [], refetch } = useQuery<any[]>({
+    queryKey: ["/api/admin/seo"],
+    queryFn: async () => {
+      const r = await fetch("/api/admin/seo", { credentials: "include" });
+      return r.json();
+    },
+  });
+
+  const upsertMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const r = await fetch("/api/admin/seo", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!r.ok) throw new Error((await r.json()).message);
+      return r.json();
+    },
+    onSuccess: () => { toast({ title: "SEO page saved" }); setShowDialog(false); refetch(); },
+    onError: (e: any) => toast({ title: "Failed to save", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`/api/admin/seo/${id}`, { method: "DELETE", credentials: "include" });
+    },
+    onSuccess: () => { toast({ title: "SEO entry deleted" }); refetch(); },
+  });
+
+  const openNew = () => {
+    setEditingPage(null);
+    setForm({ path: "", title: "", description: "", keywords: "", ogTitle: "", ogDescription: "", ogImage: "" });
+    setShowDialog(true);
+  };
+
+  const openEdit = (page: any) => {
+    setEditingPage(page);
+    setForm({ path: page.path, title: page.title, description: page.description, keywords: page.keywords || "", ogTitle: page.ogTitle || "", ogDescription: page.ogDescription || "", ogImage: page.ogImage || "" });
+    setShowDialog(true);
+  };
+
+  return (
+    <>
+      <Card className="bg-slate-800/60 border-slate-700/50">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-white flex items-center gap-2">
+              <Search className="h-5 w-5 text-emerald-400" />
+              SEO Manager
+              <Badge className="bg-emerald-600/30 text-emerald-300 border-emerald-500/40 text-xs ml-1">Telegram Bot Connected</Badge>
+            </CardTitle>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={openNew}>
+              <Plus className="h-4 w-4 mr-1" /> Add Page
+            </Button>
+          </div>
+          <p className="text-gray-400 text-sm">
+            Meta tags auto-injected server-side. Your Telegram bot posts to <code className="bg-slate-700 px-1.5 py-0.5 rounded text-emerald-300 text-xs">/api/seo/webhook</code> with <code className="bg-slate-700 px-1.5 py-0.5 rounded text-emerald-300 text-xs">SEO_WEBHOOK_API_KEY</code>.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            {(seoPages as any[]).map((page: any) => (
+              <div key={page.id} className="bg-slate-700/50 border border-slate-600/50 rounded-lg p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <code className="text-violet-300 text-sm font-mono bg-slate-800/60 px-2 py-0.5 rounded">{page.path}</code>
+                      {page.updatedBy === "telegram-bot" && <Badge className="bg-blue-600/30 text-blue-300 border-blue-500/40 text-xs">🤖 Bot</Badge>}
+                    </div>
+                    <p className="text-white font-semibold text-sm truncate">{page.title}</p>
+                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-2">{page.description}</p>
+                    {page.keywords && <p className="text-gray-500 text-xs mt-1">🔑 {page.keywords}</p>}
+                    <p className="text-gray-600 text-xs mt-1">Updated: {page.updatedAt ? new Date(page.updatedAt).toLocaleString() : "—"} by {page.updatedBy || "—"}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400" onClick={() => openEdit(page)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700"
+                      onClick={() => { if (confirm(`Delete SEO entry for "${page.path}"?`)) deleteMutation.mutate(page.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {seoPages.length === 0 && <p className="text-gray-500 text-center py-6">No SEO pages configured yet.</p>}
+          </div>
+
+          {/* Telegram bot instructions */}
+          <div className="mt-5 bg-slate-900/60 border border-slate-600/40 rounded-lg p-4">
+            <p className="text-gray-300 text-sm font-semibold mb-2">📬 Telegram Bot Payload Format</p>
+            <pre className="text-emerald-300 text-xs overflow-x-auto">{`POST /api/seo/webhook
+{
+  "apiKey": "YOUR_SEO_WEBHOOK_API_KEY",
+  "path": "/",
+  "title": "New Page Title",
+  "description": "New meta description",
+  "keywords": "keyword1, keyword2",
+  "ogTitle": "Open Graph Title",
+  "ogDescription": "OG description",
+  "ogImage": "https://..."
+}`}</pre>
+            <p className="text-gray-500 text-xs mt-2">Add <strong className="text-gray-400">SEO_WEBHOOK_API_KEY</strong> to your Render environment variables with a strong secret key, then use the same key in your Telegram bot.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SEO Edit Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">{editingPage ? `Edit SEO: ${editingPage.path}` : "Add SEO Page"}</DialogTitle>
+            <DialogDescription className="text-gray-400">Set the meta title, description, and Open Graph tags for this URL path.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-gray-300 text-xs">URL Path <span className="text-gray-500">(e.g. / or /marketplace)</span></Label>
+              <Input value={form.path} onChange={e => setForm({ ...form, path: e.target.value })} placeholder="/" className="bg-gray-800 border-gray-600 text-white" disabled={!!editingPage} />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">Page Title</Label>
+              <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="My Page - Reborn Wave Group" className="bg-gray-800 border-gray-600 text-white" />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">Meta Description</Label>
+              <Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Page description for search engines (150-160 chars ideal)" className="bg-gray-800 border-gray-600 text-white" rows={3} />
+            </div>
+            <div>
+              <Label className="text-gray-300 text-xs">Keywords <span className="text-gray-500">(comma-separated)</span></Label>
+              <Input value={form.keywords} onChange={e => setForm({ ...form, keywords: e.target.value })} placeholder="keyword1, keyword2, keyword3" className="bg-gray-800 border-gray-600 text-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-gray-300 text-xs">OG Title <span className="text-gray-500">(optional)</span></Label>
+                <Input value={form.ogTitle} onChange={e => setForm({ ...form, ogTitle: e.target.value })} placeholder="Same as title if blank" className="bg-gray-800 border-gray-600 text-white" />
+              </div>
+              <div>
+                <Label className="text-gray-300 text-xs">OG Image URL <span className="text-gray-500">(optional)</span></Label>
+                <Input value={form.ogImage} onChange={e => setForm({ ...form, ogImage: e.target.value })} placeholder="https://..." className="bg-gray-800 border-gray-600 text-white" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" className="border-slate-600 text-white hover:bg-slate-700" onClick={() => setShowDialog(false)}>Cancel</Button>
+              <Button type="button" className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={!form.path || !form.title || !form.description || upsertMutation.isPending}
+                onClick={() => upsertMutation.mutate(form)}>
+                {upsertMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -5987,6 +6147,9 @@ function EnhancedAdminDashboard() {
           {/* ── SETTINGS TAB ── */}
           <TabsContent value="settings">
             <div className="space-y-6">
+
+              {/* SEO Manager */}
+              <SeoManager />
 
               {/* Appointment Event Types */}
               <Card className="bg-slate-800/60 border-slate-700/50">

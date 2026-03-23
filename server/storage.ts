@@ -40,6 +40,9 @@ import {
   userLikes,
   starContributors,
   influencerRanks,
+  seoPages,
+  type SeoPage,
+  type InsertSeoPage,
   type User,
   type UpsertUser,
   type InsertAppointment,
@@ -356,6 +359,12 @@ export interface IStorage {
   getInfluencerRankByTier(tier: number): Promise<InfluencerRank[]>;
   getUserInfluencerRank(points: number, earnings: number): Promise<InfluencerRank | undefined>;
   updateUserInfluencerRank(userId: string): Promise<void>;
+
+  // SEO Pages
+  getAllSeoPages(): Promise<SeoPage[]>;
+  getSeoPageByPath(path: string): Promise<SeoPage | undefined>;
+  upsertSeoPage(data: InsertSeoPage): Promise<SeoPage>;
+  deleteSeoPage(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4200,6 +4209,41 @@ export class DatabaseStorage implements IStorage {
       console.error('Error getting user star contribution:', error);
       return 0;
     }
+  }
+
+  // ── SEO Pages ──────────────────────────────────────────────
+  async getAllSeoPages(): Promise<SeoPage[]> {
+    return db.select().from(seoPages).orderBy(seoPages.path);
+  }
+
+  async getSeoPageByPath(path: string): Promise<SeoPage | undefined> {
+    const [row] = await db.select().from(seoPages).where(eq(seoPages.path, path));
+    return row;
+  }
+
+  async upsertSeoPage(data: InsertSeoPage): Promise<SeoPage> {
+    const [row] = await db
+      .insert(seoPages)
+      .values({ ...data, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: seoPages.path,
+        set: {
+          title: data.title,
+          description: data.description,
+          keywords: data.keywords,
+          ogTitle: data.ogTitle,
+          ogDescription: data.ogDescription,
+          ogImage: data.ogImage,
+          updatedBy: data.updatedBy,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return row;
+  }
+
+  async deleteSeoPage(id: number): Promise<void> {
+    await db.delete(seoPages).where(eq(seoPages.id, id));
   }
 }
 

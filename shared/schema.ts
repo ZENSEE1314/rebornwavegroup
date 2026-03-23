@@ -1377,3 +1377,21 @@ export type InsertTournamentParticipant = z.infer<typeof insertTournamentPartici
 export type InsertUserLike = z.infer<typeof insertUserLikeSchema>;
 export type InsertStarContributor = z.infer<typeof insertStarContributorSchema>;
 export type InsertInfluencerRank = z.infer<typeof insertInfluencerRankSchema>;
+
+// ── SEO Pages ──────────────────────────────────────────────
+export const seoPages = pgTable("seo_pages", {
+  id: serial("id").primaryKey(),
+  path: varchar("path", { length: 255 }).notNull().unique(), // e.g. "/" or "/marketplace"
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  keywords: text("keywords"),
+  ogTitle: text("og_title"),
+  ogDescription: text("og_description"),
+  ogImage: text("og_image"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by", { length: 100 }), // "telegram-bot" or admin email
+});
+
+export const insertSeoPageSchema = createInsertSchema(seoPages).omit({ id: true, updatedAt: true });
+export type SeoPage = typeof seoPages.$inferSelect;
+export type InsertSeoPage = z.infer<typeof insertSeoPageSchema>;

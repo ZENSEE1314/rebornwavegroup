@@ -5,6 +5,7 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import { storage } from "./storage";
 
 const viteLogger = createLogger();
 
@@ -17,6 +18,44 @@ export function log(message: string, source = "express") {
   });
 
   console.log(`${formattedTime} [${source}] ${message}`);
+}
+
+/** Inject dynamic SEO meta tags into an HTML string based on the request path */
+async function injectSeoMeta(html: string, reqPath: string): Promise<string> {
+  try {
+    // Normalise: strip query + hash, collapse to known paths
+    const cleanPath = reqPath.split("?")[0].split("#")[0] || "/";
+    const seo = await storage.getSeoPageByPath(cleanPath);
+    if (!seo) return html;
+
+    const title = seo.title;
+    const description = seo.description;
+    const keywords = seo.keywords || "";
+    const ogTitle = seo.ogTitle || title;
+    const ogDesc = seo.ogDescription || description;
+    const ogImage = seo.ogImage || "";
+
+    const metaBlock = `
+    <title>${title}</title>
+    <meta name="description" content="${description}" />
+    ${keywords ? `<meta name="keywords" content="${keywords}" />` : ""}
+    <meta property="og:title" content="${ogTitle}" />
+    <meta property="og:description" content="${ogDesc}" />
+    <meta property="og:type" content="website" />
+    ${ogImage ? `<meta property="og:image" content="${ogImage}" />` : ""}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${ogTitle}" />
+    <meta name="twitter:description" content="${ogDesc}" />
+    ${ogImage ? `<meta name="twitter:image" content="${ogImage}" />` : ""}`;
+
+    // Replace existing <title> and any existing description meta
+    return html
+      .replace(/<title>[^<]*<\/title>/, "")
+      .replace(/<meta\s+name="description"[^>]*>/i, "")
+      .replace("</head>", `${metaBlock}\n  </head>`);
+  } catch {
+    return html; // never crash on SEO errors
+  }
 }
 
 export async function setupVite(app: Express, server: Server) {
@@ -58,6 +97,7 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
+      template = await injectSeoMeta(template, url);
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -86,18 +126,27 @@ export function serveStatic(app: Express) {
 
   if (!distPath) {
     console.error(`[static] Could not find build directory. Tried: ${candidatePaths.join(", ")}`);
-    // Serve a fallback message instead of crashing
     app.use("*", (_req, res) => {
       res.status(503).send("App is starting up — build files not found. Please try again shortly.");
     });
     return;
   }
 
+  // Read the built index.html once
+  const indexPath = path.resolve(distPath, "index.html");
+  const baseHtml = fs.existsSync(indexPath)
+    ? fs.readFileSync(indexPath, "utf-8")
+    : null;
+
   console.log(`[static] Serving static files from: ${distPath}`);
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath!, "index.html"));
+  // fall through to index.html, injecting live SEO meta tags
+  app.use("*", async (req, res) => {
+    if (!baseHtml) {
+      return res.sendFile(path.resolve(distPath!, "index.html"));
+    }
+    const html = await injectSeoMeta(baseHtml, req.originalUrl);
+    res.status(200).set({ "Content-Type": "text/html" }).end(html);
   });
 }

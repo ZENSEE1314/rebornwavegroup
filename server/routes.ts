@@ -9992,5 +9992,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({received: true});
   });
 
+  // ── SEO Pages API ──────────────────────────────────────────
+  // Public: fetch meta for a path (used by server-side injection)
+  app.get('/api/seo', async (req, res) => {
+    try {
+      const path = (req.query.path as string) || '/';
+      const page = await storage.getSeoPageByPath(path);
+      res.json(page || null);
+    } catch {
+      res.json(null);
+    }
+  });
+
+  // Admin: list all SEO pages
+  app.get('/api/admin/seo', requireAuth, async (_req, res) => {
+    try {
+      const pages = await storage.getAllSeoPages();
+      res.json(pages);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Admin: create or update an SEO page
+  app.post('/api/admin/seo', requireAuth, async (req: any, res) => {
+    try {
+      const { path, title, description, keywords, ogTitle, ogDescription, ogImage } = req.body;
+      if (!path || !title || !description) {
+        return res.status(400).json({ message: 'path, title, and description are required' });
+      }
+      const user = req.user;
+      const page = await storage.upsertSeoPage({
+        path,
+        title,
+        description,
+        keywords: keywords || null,
+        ogTitle: ogTitle || null,
+        ogDescription: ogDescription || null,
+        ogImage: ogImage || null,
+        updatedBy: user?.email || 'admin',
+      });
+      res.json(page);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Admin: delete an SEO page entry
+  app.delete('/api/admin/seo/:id', requireAuth, async (req, res) => {
+    try {
+      await storage.deleteSeoPage(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // ── Telegram Bot Webhook ─────────────────────────────────
+  // Your Telegram bot POSTs here with apiKey + page data to update meta tags
+  app.post('/api/seo/webhook', async (req, res) => {
+    try {
+      const { apiKey, path, title, description, keywords, ogTitle, ogDescription, ogImage } = req.body;
+      const expectedKey = process.env.SEO_WEBHOOK_API_KEY;
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ message: 'Invalid API key' });
+      }
+      if (!path || !title || !description) {
+        return res.status(400).json({ message: 'path, title, and description are required' });
+      }
+      const page = await storage.upsertSeoPage({
+        path,
+        title,
+        description,
+        keywords: keywords || null,
+        ogTitle: ogTitle || title,
+        ogDescription: ogDescription || description,
+        ogImage: ogImage || null,
+        updatedBy: 'telegram-bot',
+      });
+      console.log(`[SEO webhook] Updated meta for ${path}`);
+      res.json({ success: true, page });
+    } catch (e: any) {
+      console.error('[SEO webhook] Error:', e.message);
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   return httpServer;
 }
