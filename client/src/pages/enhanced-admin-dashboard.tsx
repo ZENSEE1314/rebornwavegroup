@@ -2507,6 +2507,9 @@ function EnhancedAdminDashboard() {
               <TabsTrigger value="emails" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
                 Emails
               </TabsTrigger>
+              <TabsTrigger value="settings" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white text-slate-300 hover:text-white hover:bg-slate-600/50 text-sm py-2 px-4 rounded-md transition-all whitespace-nowrap">
+                ⚙️ Settings
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -4340,13 +4343,11 @@ function EnhancedAdminDashboard() {
                           <TableCell>
                             {purchase.status === 'pending' && (
                               <div className="flex gap-2">
-                                <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
+                                <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700"
+                                  disabled={approvePurchaseMutation.isPending}
+                                  onClick={() => approvePurchaseMutation.mutate(purchase.id)}>
                                   <Check className="h-4 w-4 mr-1" />
-                                  Complete
-                                </Button>
-                                <Button variant="destructive" size="sm">
-                                  <X className="h-4 w-4 mr-1" />
-                                  Cancel
+                                  Approve
                                 </Button>
                               </div>
                             )}
@@ -5983,6 +5984,244 @@ function EnhancedAdminDashboard() {
             <AdminLogsSection />
           </TabsContent>
 
+          {/* ── SETTINGS TAB ── */}
+          <TabsContent value="settings">
+            <div className="space-y-6">
+
+              {/* Appointment Event Types */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-blue-400" />
+                      Appointment Event Types
+                    </CardTitle>
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        setEditingEvent(null);
+                        setEventForm({ title: "", description: "", category: "beauty", isActive: true });
+                        setUseCustomCategory(false);
+                        setCustomCategory("");
+                        setShowEventDialog(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Event Type
+                    </Button>
+                  </div>
+                  <p className="text-gray-400 text-sm">Manage booking/appointment categories available to users</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {Array.isArray(appointmentEvents) && appointmentEvents.length > 0 ? appointmentEvents.map((ev: any) => (
+                      <div key={ev.id} className="bg-slate-700/50 p-4 rounded-lg border border-slate-600/50 flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-semibold">{ev.title}</p>
+                          <p className="text-gray-400 text-sm">{ev.description}</p>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant="outline" className="text-blue-300 border-blue-500/40 text-xs">{ev.category}</Badge>
+                            <Badge variant={ev.isActive ? "default" : "secondary"} className="text-xs">{ev.isActive ? "Active" : "Inactive"}</Badge>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-black font-bold border-2 border-yellow-400"
+                            onClick={() => {
+                              setEditingEvent(ev);
+                              setEventForm({ title: ev.title, description: ev.description || "", category: ev.category, isActive: ev.isActive });
+                              setShowEventDialog(true);
+                            }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" className="bg-red-600 hover:bg-red-700"
+                            onClick={() => handleDeleteEvent(ev.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-gray-500 text-center py-6">No event types yet. Add one to get started.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Token Claims Full Management */}
+              <Card className="bg-slate-800/60 border-slate-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-orange-400" />
+                    Token Claims
+                    {tokenClaims.filter((c: any) => c.status === 'pending').length > 0 && (
+                      <Badge className="bg-orange-600 text-white ml-2">
+                        {tokenClaims.filter((c: any) => c.status === 'pending').length} pending
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <p className="text-gray-400 text-sm">Review and approve all user token claim requests</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-gray-300">User</TableHead>
+                          <TableHead className="text-gray-300">Type</TableHead>
+                          <TableHead className="text-gray-300">Amount</TableHead>
+                          <TableHead className="text-gray-300">Reason</TableHead>
+                          <TableHead className="text-gray-300">Status</TableHead>
+                          <TableHead className="text-gray-300">Date</TableHead>
+                          <TableHead className="text-gray-300">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tokenClaims.length > 0 ? tokenClaims.map((claim: any) => (
+                          <TableRow key={claim.id}>
+                            <TableCell className="text-white">
+                              {claim.userEmail || claim.user?.email || "—"}
+                            </TableCell>
+                            <TableCell className="text-gray-300">{claim.claimType}</TableCell>
+                            <TableCell className="text-yellow-300 font-semibold">{claim.quantity} tokens</TableCell>
+                            <TableCell className="text-gray-300 max-w-[200px] truncate">{claim.reason || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant={claim.status === 'approved' ? 'default' : claim.status === 'rejected' ? 'destructive' : 'secondary'}
+                                className={claim.status === 'approved' ? 'bg-green-600' : claim.status === 'pending' ? 'bg-orange-600' : ''}>
+                                {claim.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-400 text-sm">{formatDate(claim.createdAt)}</TableCell>
+                            <TableCell>
+                              {claim.status === 'pending' && (
+                                <div className="flex gap-1">
+                                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white h-7 px-2"
+                                    disabled={updateTokenClaimMutation.isPending}
+                                    onClick={() => updateTokenClaimMutation.mutate({ claimId: claim.id, status: 'approved', adminNotes: 'Approved' })}>
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="border-red-500 text-red-400 hover:bg-red-500/10 h-7 px-2"
+                                    disabled={updateTokenClaimMutation.isPending}
+                                    onClick={() => updateTokenClaimMutation.mutate({ claimId: claim.id, status: 'rejected', adminNotes: 'Rejected' })}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )) : (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-gray-500 py-6">No token claims found</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* System Tools */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                {/* Game Tools */}
+                <Card className="bg-slate-800/60 border-slate-700/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white flex items-center gap-2 text-base">
+                      <Trophy className="h-4 w-4 text-yellow-400" />
+                      Game Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-gray-400 text-xs">Reset all game scores and start fresh leaderboard rankings.</p>
+                    <Button
+                      variant="destructive"
+                      className="w-full bg-red-600/80 hover:bg-red-600"
+                      disabled={resetLeaderboardMutation.isPending}
+                      onClick={() => {
+                        if (confirm("Reset ALL game scores? This cannot be undone.")) {
+                          resetLeaderboardMutation.mutate();
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {resetLeaderboardMutation.isPending ? "Resetting..." : "Reset Leaderboard"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Marketplace Tools */}
+                <Card className="bg-slate-800/60 border-slate-700/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white flex items-center gap-2 text-base">
+                      <ShoppingBag className="h-4 w-4 text-green-400" />
+                      Marketplace Generation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-gray-400 text-xs">Auto-generate toy listings in the marketplace from unowned toys.</p>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={marketplaceListingCount}
+                        onChange={(e) => setMarketplaceListingCount(parseInt(e.target.value) || 10)}
+                        className="bg-white/10 border-white/20 text-white w-20"
+                        placeholder="10"
+                      />
+                      <span className="text-gray-400 text-xs">listings</span>
+                    </div>
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      disabled={generateMarketplaceListingsMutation.isPending}
+                      onClick={() => generateMarketplaceListingsMutation.mutate(marketplaceListingCount)}
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      {generateMarketplaceListingsMutation.isPending ? "Generating..." : "Generate Listings"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Manual Token Distribution */}
+                <Card className="bg-slate-800/60 border-slate-700/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white flex items-center gap-2 text-base">
+                      <Send className="h-4 w-4 text-violet-400" />
+                      Token Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-gray-400 text-xs">Manually distribute tokens to a specific user by their ID or email.</p>
+                    <div className="space-y-2">
+                      <Input id="tokenDistEmail" className="bg-white/10 border-white/20 text-white" placeholder="User email" />
+                      <Input id="tokenDistAmount" type="number" className="bg-white/10 border-white/20 text-white" placeholder="Token amount" />
+                      <Input id="tokenDistReason" className="bg-white/10 border-white/20 text-white" placeholder="Reason" />
+                    </div>
+                    <Button
+                      className="w-full bg-violet-600 hover:bg-violet-700"
+                      onClick={async () => {
+                        const email = (document.getElementById('tokenDistEmail') as HTMLInputElement)?.value;
+                        const amount = (document.getElementById('tokenDistAmount') as HTMLInputElement)?.value;
+                        const reason = (document.getElementById('tokenDistReason') as HTMLInputElement)?.value;
+                        if (!email || !amount) { toast({ title: "Email and amount required", variant: "destructive" }); return; }
+                        try {
+                          await apiRequest('POST', '/api/admin/manual-token-distribution', { email, amount: parseInt(amount), reason });
+                          toast({ title: "Tokens distributed successfully" });
+                          (document.getElementById('tokenDistEmail') as HTMLInputElement).value = '';
+                          (document.getElementById('tokenDistAmount') as HTMLInputElement).value = '';
+                          (document.getElementById('tokenDistReason') as HTMLInputElement).value = '';
+                        } catch {
+                          toast({ title: "Failed to distribute tokens", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <Send className="h-4 w-4 mr-2" /> Distribute Tokens
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+            </div>
+          </TabsContent>
+
         </Tabs>
       </div>
 
@@ -7020,6 +7259,107 @@ function EnhancedAdminDashboard() {
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {editingEmailTemplate ? "Update Template" : "Create Template"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Appointment Event Create/Edit Dialog */}
+      <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">
+              {editingEvent ? "Edit Event Type" : "Create Event Type"}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {editingEvent ? "Update the appointment event type details." : "Add a new appointment/booking category."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="evtTitle" className="text-gray-300">Title</Label>
+              <Input
+                id="evtTitle"
+                value={eventForm.title}
+                onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                placeholder="e.g., Pet Grooming, Vet Check-up"
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="evtDesc" className="text-gray-300">Description</Label>
+              <Input
+                id="evtDesc"
+                value={eventForm.description}
+                onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                placeholder="Short description of this event type"
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="evtCategory" className="text-gray-300">Category</Label>
+              {useCustomCategory ? (
+                <div className="flex gap-2">
+                  <Input
+                    id="evtCategory"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Custom category name"
+                    className="bg-gray-800 border-gray-600 text-white"
+                  />
+                  <Button type="button" size="sm" variant="outline" className="text-gray-400 border-gray-600"
+                    onClick={() => { setUseCustomCategory(false); setCustomCategory(""); }}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select
+                    title="Event category"
+                    value={eventForm.category}
+                    onChange={(e) => setEventForm({ ...eventForm, category: e.target.value })}
+                    className="flex-1 h-10 rounded-md border border-gray-600 bg-gray-800 text-white px-3 text-sm"
+                  >
+                    <option value="beauty">Beauty</option>
+                    <option value="health">Health</option>
+                    <option value="grooming">Grooming</option>
+                    <option value="training">Training</option>
+                    <option value="entertainment">Entertainment</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <Button type="button" size="sm" variant="outline" className="text-gray-400 border-gray-600"
+                    onClick={() => setUseCustomCategory(true)}>
+                    Custom
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="evtActive"
+                checked={eventForm.isActive}
+                onCheckedChange={(checked) => setEventForm({ ...eventForm, isActive: checked })}
+              />
+              <Label htmlFor="evtActive" className="text-gray-300">Active</Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" className="border-slate-600 text-white hover:bg-slate-700"
+                onClick={() => { setShowEventDialog(false); setEditingEvent(null); }}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!eventForm.title || createEventMutation.isPending}
+                onClick={() => {
+                  const data = useCustomCategory && customCategory
+                    ? { ...eventForm, category: customCategory }
+                    : eventForm;
+                  createEventMutation.mutate(data);
+                }}
+              >
+                {createEventMutation.isPending ? "Saving..." : editingEvent ? "Update" : "Create"}
               </Button>
             </div>
           </div>
