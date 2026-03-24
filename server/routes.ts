@@ -10078,5 +10078,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Sitemap ──────────────────────────────────────────────────────────────
+  app.get('/sitemap.xml', async (_req, res) => {
+    const base = 'https://rebornwave.group';
+    const staticUrls = [
+      { path: '/', priority: '1.0', changefreq: 'daily' },
+      { path: '/marketplace', priority: '0.8', changefreq: 'daily' },
+      { path: '/bookings', priority: '0.8', changefreq: 'weekly' },
+      { path: '/loyalty-program', priority: '0.7', changefreq: 'weekly' },
+      { path: '/seasonal-collections', priority: '0.7', changefreq: 'weekly' },
+      { path: '/referrals', priority: '0.6', changefreq: 'monthly' },
+    ];
+
+    // Also include any SEO-managed pages
+    let seoPages: any[] = [];
+    try {
+      seoPages = await storage.getAllSeoPages();
+    } catch { /* ignore */ }
+
+    const allPaths = new Set(staticUrls.map(u => u.path));
+    const extra = seoPages
+      .filter(p => !allPaths.has(p.path))
+      .map(p => ({ path: p.path, priority: '0.6', changefreq: 'weekly' }));
+
+    const urls = [...staticUrls, ...extra];
+    const now = new Date().toISOString().slice(0, 10);
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url>
+    <loc>${base}${u.path}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+    res.set('Content-Type', 'application/xml').send(xml);
+  });
+
   return httpServer;
 }

@@ -1,9 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+app.use(compression());
 
 // Force HTTPS redirect for custom domain
 app.use((req, res, next) => {
