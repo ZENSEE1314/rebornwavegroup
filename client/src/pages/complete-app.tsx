@@ -2347,7 +2347,7 @@ function POSTerminalSection({ user }: { user: any }) {
 
   const { data: myOrders = [] } = useQuery({
     queryKey: ['/api/pos/orders'],
-    queryFn: () => fetch('/api/pos/orders', { credentials: 'include' }).then(r => r.json()),
+    queryFn: () => fetch('/api/pos/orders', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
     refetchInterval: 15000,
   });
 
@@ -2359,6 +2359,8 @@ function POSTerminalSection({ user }: { user: any }) {
       setPayingOrderId(null);
     } catch { toast({ title: 'Payment failed', variant: 'destructive' }); }
   };
+
+  const safeOrders = Array.isArray(myOrders) ? myOrders : [];
 
   return (
     <div className="space-y-6">
@@ -2500,12 +2502,12 @@ function POSTerminalSection({ user }: { user: any }) {
 
       {viewTab === 'orders' && (
         <div className="space-y-3">
-          {(myOrders as any[]).length === 0 ? (
+          {safeOrders.length === 0 ? (
             <div className="text-center py-16 text-white/40">
               <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>No orders yet</p>
             </div>
-          ) : (myOrders as any[]).map((order: any) => (
+          ) : safeOrders.map((order: any) => (
             <div key={order.id} className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.18)' }}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div>
@@ -2552,13 +2554,13 @@ function ChatSection({ user }: { user: any }) {
 
   const { data: friends = [], refetch: refetchFriends } = useQuery({
     queryKey: ['/api/friends'],
-    queryFn: () => fetch('/api/friends', { credentials: 'include' }).then(r => r.json()),
+    queryFn: () => fetch('/api/friends', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
     refetchInterval: 10000,
   });
 
   const { data: messages = [], refetch: refetchMessages } = useQuery({
     queryKey: ['/api/chat/messages', activeFriendId],
-    queryFn: () => activeFriendId ? fetch(`/api/chat/${activeFriendId}/messages`, { credentials: 'include' }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => activeFriendId ? fetch(`/api/chat/${activeFriendId}/messages`, { credentials: 'include' }).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
     enabled: !!activeFriendId,
     refetchInterval: 3000,
   });
@@ -2597,8 +2599,10 @@ function ChatSection({ user }: { user: any }) {
 
   const openChat = (friendId: string, name: string) => { setActiveFriendId(friendId); setActiveFriendName(name); setView('chat'); };
 
-  const accepted = (friends as any[]).filter(f => f.status === 'accepted');
-  const pending = (friends as any[]).filter(f => f.status === 'pending' && f.addresseeId === user?.id);
+  const safeFriends = Array.isArray(friends) ? friends : [];
+  const safeMessages = Array.isArray(messages) ? messages : [];
+  const accepted = safeFriends.filter((f: any) => f.status === 'accepted');
+  const pending = safeFriends.filter((f: any) => f.status === 'pending' && f.addresseeId === user?.id);
 
   return (
     <div className="space-y-6">
@@ -2622,9 +2626,9 @@ function ChatSection({ user }: { user: any }) {
           </div>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {(messages as any[]).length === 0 ? (
+            {safeMessages.length === 0 ? (
               <div className="text-center text-white/30 text-sm py-12">Say hello! 👋</div>
-            ) : (messages as any[]).map((msg: any) => {
+            ) : safeMessages.map((msg: any) => {
               const isMine = msg.senderId === user?.id;
               return (
                 <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -2746,12 +2750,12 @@ function SupportSection({ user }: { user: any }) {
 
   const { data: tickets = [], refetch: refetchTickets } = useQuery({
     queryKey: ['/api/support/tickets'],
-    queryFn: () => fetch('/api/support/tickets', { credentials: 'include' }).then(r => r.json()),
+    queryFn: () => fetch('/api/support/tickets', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
   });
 
   const { data: ticketMessages = [], refetch: refetchMessages } = useQuery({
     queryKey: ['/api/support/messages', activeTicketId],
-    queryFn: () => activeTicketId ? fetch(`/api/support/tickets/${activeTicketId}/messages`, { credentials: 'include' }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => activeTicketId ? fetch(`/api/support/tickets/${activeTicketId}/messages`, { credentials: 'include' }).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
     enabled: !!activeTicketId,
     refetchInterval: 5000,
   });
@@ -2789,7 +2793,9 @@ function SupportSection({ user }: { user: any }) {
     refetchTickets(); setView('list'); setActiveTicketId(null);
   };
 
-  const activeTicket = (tickets as any[]).find(t => t.id === activeTicketId);
+  const safeTickets = Array.isArray(tickets) ? tickets : [];
+  const safeTicketMessages = Array.isArray(ticketMessages) ? ticketMessages : [];
+  const activeTicket = safeTickets.find((t: any) => t.id === activeTicketId);
   const statusColors: Record<string, string> = { open: 'bg-blue-500/20 text-blue-400', ai_replied: 'bg-amber-500/20 text-amber-400', escalated: 'bg-rose-500/20 text-rose-400', resolved: 'bg-green-500/20 text-green-400', closed: 'bg-gray-500/20 text-gray-400' };
   const categories = ['general', 'payment', 'membership', 'booking', 'toy', 'technical'];
 
@@ -2847,7 +2853,7 @@ function SupportSection({ user }: { user: any }) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {(ticketMessages as any[]).map((msg: any) => {
+            {safeTicketMessages.map((msg: any) => {
               const isUser = msg.senderType === 'user';
               const isAI = msg.senderType === 'ai';
               return (
@@ -2889,13 +2895,13 @@ function SupportSection({ user }: { user: any }) {
             + New Support Ticket
           </button>
           <div className="space-y-3">
-            {(tickets as any[]).length === 0 ? (
+            {safeTickets.length === 0 ? (
               <div className="text-center py-16">
                 <Headphones className="w-12 h-12 mx-auto mb-3 text-white/20" />
                 <p className="text-white/40 text-sm">No tickets yet</p>
                 <p className="text-white/25 text-xs mt-1">Submit a ticket above and get an instant AI reply!</p>
               </div>
-            ) : (tickets as any[]).map((ticket: any) => (
+            ) : safeTickets.map((ticket: any) => (
               <button key={ticket.id} onClick={() => { setActiveTicketId(ticket.id); setView('ticket'); }}
                 className="w-full text-left rwg-card p-4 rounded-xl hover:scale-[1.01] transition-all" style={{ border: '1px solid rgba(201,168,76,0.18)' }}>
                 <div className="flex items-start justify-between gap-2">
