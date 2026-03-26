@@ -8539,32 +8539,48 @@ export default function CompleteApp() {
         {/* Dynamic Role-Based Dashboard Tab */}
         {activeTab === "dashboard" && (
           <div className="space-y-4 md:space-y-8">
-            {/* Welcome Banner */}
-            <div className="rwg-card p-5 md:p-7 text-white">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-lg md:text-2xl font-bold text-white mb-1 flex flex-wrap items-center gap-2">
-                    {t('dashboard.welcome')}, {user?.firstName || 'User'}!
-                    {user?.role === 'admin' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/25 border border-violet-400/30 text-violet-300">
-                        <Settings className="w-3 h-3" />
-                        Admin
+            {/* Welcome Banner — Gold Brand Style */}
+            <div className="relative overflow-hidden rounded-2xl p-5 md:p-7 text-white"
+              style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(15,12,41,0.95) 50%, rgba(233,69,96,0.10) 100%)", border: "1px solid rgba(201,168,76,0.25)" }}>
+              {/* Glow accent */}
+              <div style={{ position:"absolute", top:"-40px", right:"-40px", width:"180px", height:"180px", borderRadius:"50%", background:"radial-gradient(circle, rgba(201,168,76,0.2) 0%, transparent 70%)", pointerEvents:"none" }} />
+              <div className="relative flex items-center justify-between gap-4">
+                <div className="min-w-0 flex items-center gap-4">
+                  {/* Avatar with gold ring */}
+                  <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-black font-bold text-lg shadow-lg"
+                    style={{ background: "linear-gradient(135deg, #C9A84C, #F5D87A)" }}>
+                    {user?.firstName?.[0]?.toUpperCase() || 'U'}{user?.lastName?.[0]?.toUpperCase() || ''}
+                  </div>
+                  <div>
+                    <h2 className="text-lg md:text-2xl font-bold text-white mb-0.5 flex flex-wrap items-center gap-2">
+                      {t('dashboard.welcome')}, {user?.firstName || 'User'}!
+                      {user?.role === 'admin' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500/25 border border-violet-400/30 text-violet-300">
+                          <Settings className="w-3 h-3" />
+                          Admin
+                        </span>
+                      )}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{ background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.3)", color: "#C9A84C" }}>
+                        <Crown className="w-3 h-3" />
+                        {user?.role === 'admin' ? 'Administrator' : currentLoyaltyLevel.name || 'Member'}
                       </span>
-                    )}
-                  </h2>
-                  <p className="text-white/45 text-sm">
-                    {user?.role === 'admin' ? (
-                      `System Administrator · ${loyaltyPoints} ${t('dashboard.points')} · RP ${formatRupiah(userCredits)}`
-                    ) : (
-                      `Level ${currentLoyaltyLevel.level} · ${loyaltyPoints} ${t('dashboard.points')} · RP ${formatRupiah(userCredits)}`
-                    )}
-                  </p>
+                      <span className="text-white/40 text-xs">
+                        {user?.role === 'admin'
+                          ? `${loyaltyPoints} pts · RP ${formatRupiah(userCredits)}`
+                          : `Level ${currentLoyaltyLevel.level} · ${loyaltyPoints} pts · RP ${formatRupiah(userCredits)}`}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 {user?.role === 'admin' && (
                   <Button
                     onClick={() => window.location.href = '/admin'}
                     size="sm"
-                    className="hidden md:flex items-center gap-1.5 bg-violet-600/40 hover:bg-violet-600/60 text-violet-200 border border-violet-500/30 rounded-xl transition-all flex-shrink-0"
+                    className="hidden md:flex items-center gap-1.5 text-black font-semibold border-0 rounded-xl transition-all flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #C9A84C, #F5D87A)" }}
                   >
                     <Settings className="w-3.5 h-3.5" />
                     Admin Panel
@@ -8697,100 +8713,100 @@ export default function CompleteApp() {
               {user?.role === 'admin' ? (
                 // Admin System Overview Stats
                 <div className="space-y-4">
-                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                  <div className="rwg-card overflow-hidden">
                     {/* System Users */}
-                    <div className="border-b border-gray-200" data-dashboard-element="system-users">
+                    <div className="border-b border-white/5" data-dashboard-element="system-users">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                             <Users className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">Total Users</span>
+                          <span className="text-white font-medium">Total Users</span>
                         </div>
-                        <span className="text-gray-900 font-bold">{dashboardStats?.totalUsers || 0}</span>
+                        <span className="text-amber-300 font-bold">{dashboardStats?.totalUsers || 0}</span>
                       </div>
                     </div>
 
                     {/* System Pets */}
-                    <div className="border-b border-gray-200" data-dashboard-element="system-pets">
+                    <div className="border-b border-white/5" data-dashboard-element="system-pets">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-pink-600 rounded-full flex items-center justify-center">
                             <Heart className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">Active Pets</span>
+                          <span className="text-white font-medium">Active Pets</span>
                         </div>
-                        <span className="text-gray-900 font-bold">{dashboardStats?.totalPets || 0}</span>
+                        <span className="text-amber-300 font-bold">{dashboardStats?.totalPets || 0}</span>
                       </div>
                     </div>
 
                     {/* System Revenue */}
-                    <div className="border-b border-gray-200" data-dashboard-element="system-revenue">
+                    <div className="border-b border-white/5" data-dashboard-element="system-revenue">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                             <TrendingUp className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">Total Revenue</span>
+                          <span className="text-white font-medium">Total Revenue</span>
                         </div>
-                        <span className="text-gray-900 font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
+                        <span className="text-amber-300 font-bold">RP {dashboardStats?.totalRevenue ? Number(dashboardStats.totalRevenue).toLocaleString('id-ID') : '0'}</span>
                       </div>
                     </div>
 
                     {/* Pending Approvals */}
-                    <div className="border-b border-gray-200" data-dashboard-element="pending-approvals">
+                    <div className="border-b border-white/5" data-dashboard-element="pending-approvals">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                             <Clock className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">Pending Approvals</span>
+                          <span className="text-white font-medium">Pending Approvals</span>
                         </div>
-                        <span className="text-gray-900 font-bold">0</span>
+                        <span className="text-amber-300 font-bold">0</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Admin Personal Stats */}
-                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                    <div className="p-4 bg-purple-50 border-b border-gray-200">
-                      <h3 className="text-sm font-semibold text-purple-900">Personal Account</h3>
+                  <div className="rwg-card overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-white/5">
+                      <h3 className="text-sm font-semibold text-amber-300">Personal Account</h3>
                     </div>
                     
                     {/* Admin Credits */}
-                    <div className="border-b border-gray-200" data-dashboard-element="admin-credits">
+                    <div className="border-b border-white/5" data-dashboard-element="admin-credits">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                             <DollarSign className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
+                          <span className="text-white font-medium">{t('dashboard.credits')}</span>
                         </div>
-                        <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                        <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                       </div>
                     </div>
 
                     {/* Admin Points */}
-                    <div className="border-b border-gray-200" data-dashboard-element="admin-points">
+                    <div className="border-b border-white/5" data-dashboard-element="admin-points">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                             <Gift className="w-4 h-4 text-white" />
                           </div>
-                          <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
+                          <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
                         </div>
-                        <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
+                        <span className="text-amber-300 font-bold">{loyaltyPoints}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
                 // Regular User Personal Stats
-                <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                <div className="rwg-card overflow-hidden">
                   {/* Credits */}
-                  <div className="border-b border-gray-200" data-dashboard-element="credits-card">
+                  <div className="border-b border-white/5" data-dashboard-element="credits-card">
                     <div 
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                       onClick={() => {
                         const buttonsDiv = document.getElementById('credits-buttons');
                         if (buttonsDiv) {
@@ -8802,25 +8818,25 @@ export default function CompleteApp() {
                         <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-gray-900 font-medium">{t('dashboard.credits')}</span>
+                        <span className="text-white font-medium">{t('dashboard.credits')}</span>
                       </div>
-                      <span className="text-gray-900 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                      <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                     </div>
                     <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                       <button 
                         onClick={() => setShowCreditTopUpModal(true)}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                        className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                       >
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                           <Plus className="w-4 h-4" />
                         </div>
                         <span className="text-xs">Top Up</span>
                       </button>
                       <button 
                         onClick={() => setShowCashOutModal(true)}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                        className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                       >
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                           <ArrowLeft className="w-4 h-4" />
                         </div>
                         <span className="text-xs">Cash Out</span>
@@ -8831,9 +8847,9 @@ export default function CompleteApp() {
                           setModalHistoryPage(1);
                           setShowHistoryModal(true);
                         }}
-                        className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                        className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                       >
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                           <Clock className="w-4 h-4" />
                         </div>
                         <span className="text-xs">History</span>
@@ -8842,9 +8858,9 @@ export default function CompleteApp() {
                   </div>
 
                 {/* Loyalty Points */}
-                <div className="border-b border-gray-200" data-dashboard-element="loyalty-card">
+                <div className="border-b border-white/5" data-dashboard-element="loyalty-card">
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('loyalty-buttons');
                       if (buttonsDiv) {
@@ -8856,16 +8872,16 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium">{t('dashboard.loyaltyPoints')}</span>
+                      <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold">{loyaltyPoints}</span>
+                    <span className="text-amber-300 font-bold">{loyaltyPoints}</span>
                   </div>
                   <div id="loyalty-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4" />
                       </div>
                       <span className="text-xs">Rewards</span>
@@ -8876,9 +8892,9 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Clock className="w-4 h-4" />
                       </div>
                       <span className="text-xs">History</span>
@@ -8887,9 +8903,9 @@ export default function CompleteApp() {
                 </div>
 
                 {/* Tokens */}
-                <div className="border-b border-gray-200" data-dashboard-element="tokens-card">
+                <div className="border-b border-white/5" data-dashboard-element="tokens-card">
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('tokens-buttons');
                       if (buttonsDiv) {
@@ -8901,16 +8917,16 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium">{t('dashboard.tokens')}</span>
+                      <span className="text-white font-medium">{t('dashboard.tokens')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold">{userTokens}</span>
+                    <span className="text-amber-300 font-bold">{userTokens}</span>
                   </div>
                   <div id="tokens-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Star className="w-4 h-4" />
                       </div>
                       <span className="text-xs">Claim</span>
@@ -8921,9 +8937,9 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Clock className="w-4 h-4" />
                       </div>
                       <span className="text-xs">History</span>
@@ -8934,7 +8950,7 @@ export default function CompleteApp() {
                 {/* Referrals */}
                 <div className="border-b border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('referrals-buttons');
                       if (buttonsDiv) {
@@ -8946,25 +8962,25 @@ export default function CompleteApp() {
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium">{t("navigation.referrals")}</span>
+                      <span className="text-white font-medium">{t("navigation.referrals")}</span>
                     </div>
-                    <span className="text-gray-900 font-bold">{userReferrals.length}</span>
+                    <span className="text-amber-300 font-bold">{userReferrals.length}</span>
                   </div>
                   <div id="referrals-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Users className="w-4 h-4" />
                       </div>
                       <span className="text-xs">View</span>
                     </button>
                     <button 
                       onClick={toggleAchievementRules}
-                      className="flex flex-col items-center space-y-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-1 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
                         <Trophy className="w-4 h-4" />
                       </div>
                       <span className="text-xs">Awards</span>
@@ -8979,9 +8995,9 @@ export default function CompleteApp() {
                         <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-gray-900 font-medium">{t('dashboard.referralEarnings')}</span>
+                        <span className="text-white font-medium">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-gray-900 font-bold">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-amber-300 font-bold">RP {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>
@@ -9103,11 +9119,11 @@ export default function CompleteApp() {
                 </div>
               ) : (
                 // Regular User Desktop Dashboard
-                <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                <div className="rwg-card overflow-hidden">
                   {/* Credits */}
                 <div className="border-b border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('desktop-credits-buttons');
                       if (buttonsDiv) {
@@ -9119,25 +9135,25 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
                         <DollarSign className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.credits')}</span>
+                      <span className="text-white font-medium text-lg">{t('dashboard.credits')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                    <span className="text-amber-300 font-bold text-xl">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
                   </div>
                   <div id="desktop-credits-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowCreditTopUpModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Plus className="w-5 h-5" />
                       </div>
                       <span className="text-sm">Top Up</span>
                     </button>
                     <button 
                       onClick={() => setShowCashOutModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <ArrowLeft className="w-5 h-5" />
                       </div>
                       <span className="text-sm">Cash Out</span>
@@ -9148,9 +9164,9 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
                       </div>
                       <span className="text-sm">History</span>
@@ -9161,7 +9177,7 @@ export default function CompleteApp() {
                 {/* Loyalty Points */}
                 <div className="border-b border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('desktop-loyalty-buttons');
                       if (buttonsDiv) {
@@ -9173,16 +9189,16 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
+                      <span className="text-white font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">{loyaltyPoints}</span>
+                    <span className="text-amber-300 font-bold text-xl">{loyaltyPoints}</span>
                   </div>
                   <div id="desktop-loyalty-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("loyalty")}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5" />
                       </div>
                       <span className="text-sm">Rewards</span>
@@ -9193,9 +9209,9 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
                       </div>
                       <span className="text-sm">History</span>
@@ -9206,7 +9222,7 @@ export default function CompleteApp() {
                 {/* Tokens */}
                 <div className="border-b border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('desktop-tokens-buttons');
                       if (buttonsDiv) {
@@ -9218,16 +9234,16 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
                         <Star className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium text-lg">{t('dashboard.tokens')}</span>
+                      <span className="text-white font-medium text-lg">{t('dashboard.tokens')}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">{userTokens}</span>
+                    <span className="text-amber-300 font-bold text-xl">{userTokens}</span>
                   </div>
                   <div id="desktop-tokens-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setShowTokenClaimModal(true)}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Star className="w-5 h-5" />
                       </div>
                       <span className="text-sm">Claim</span>
@@ -9238,9 +9254,9 @@ export default function CompleteApp() {
                         setModalHistoryPage(1);
                         setShowHistoryModal(true);
                       }}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Clock className="w-5 h-5" />
                       </div>
                       <span className="text-sm">History</span>
@@ -9251,7 +9267,7 @@ export default function CompleteApp() {
                 {/* Referrals */}
                 <div className="border-b border-gray-200">
                   <div 
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => {
                       const buttonsDiv = document.getElementById('desktop-referrals-buttons');
                       if (buttonsDiv) {
@@ -9263,25 +9279,25 @@ export default function CompleteApp() {
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5 text-white" />
                       </div>
-                      <span className="text-gray-900 font-medium text-lg">{t("navigation.referrals")}</span>
+                      <span className="text-white font-medium text-lg">{t("navigation.referrals")}</span>
                     </div>
-                    <span className="text-gray-900 font-bold text-xl">{userReferrals.length}</span>
+                    <span className="text-amber-300 font-bold text-xl">{userReferrals.length}</span>
                   </div>
                   <div id="desktop-referrals-buttons" className="justify-around pb-6 px-6" style={{ display: 'none' }}>
                     <button 
                       onClick={() => setActiveTab("referrals")}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5" />
                       </div>
                       <span className="text-sm">View</span>
                     </button>
                     <button 
                       onClick={toggleAchievementRules}
-                      className="flex flex-col items-center space-y-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="flex flex-col items-center space-y-2 text-white/50 hover:text-white transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
                         <Trophy className="w-5 h-5" />
                       </div>
                       <span className="text-sm">Awards</span>
@@ -9296,9 +9312,9 @@ export default function CompleteApp() {
                         <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
                           <DollarSign className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-gray-900 font-medium text-lg">{t('dashboard.referralEarnings')}</span>
+                        <span className="text-white font-medium text-lg">{t('dashboard.referralEarnings')}</span>
                       </div>
-                      <span className="text-gray-900 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
+                      <span className="text-amber-300 font-bold text-xl">RP {formatRupiah(referralEarnings)}</span>
                     </div>
                   </div>
                 </div>

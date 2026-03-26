@@ -287,7 +287,8 @@ export default function Profile() {
               <div className="space-y-3">
                 <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
+                    <Button className="w-full border-0 rounded-xl text-black font-bold hover:opacity-90 transition-opacity"
+                      style={{ background: "linear-gradient(135deg, #C9A84C, #F5D87A)" }}>
                       <CreditCard className="h-4 w-4 mr-2" />
                       Top Up Credits
                     </Button>
@@ -383,7 +384,12 @@ export default function Profile() {
                 <div className="flex items-center justify-between">
                   <span className="text-white/50">Member Since</span>
                   <span className="font-medium text-white">
-                    {user?.createdAt ? formatDateTime(user.createdAt).split(',')[0] : 'N/A'}
+                    {user?.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : user?.id
+                        ? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'N/A'
+                    }
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
