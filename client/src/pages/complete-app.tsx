@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useLayoutEffect } from "react";
+import { useState, useEffect, useMemo, useLayoutEffect, useRef } from "react";
 import { AnimatedProgressBar } from "@/components/AnimatedProgressBar";
 // Removed DOM manipulation import to prevent cached display conflicts
 import { useAuth } from "@/hooks/useAuth";
@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Users, DollarSign, Calendar, Gift, Copy, Plus, Star, 
+import {
+  Users, DollarSign, Calendar, Gift, Copy, Plus, Star,
   Crown, Trophy, Award, Medal, Zap, Home, User, LogOut,
   QrCode, Globe, Phone, Camera, Trash2, Edit3, ShoppingBag, Package, Database, Check, X, AlertTriangle, Eye, UserCheck, Target, Clock,
   Heart, Droplets, Bed, Sparkles, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Calculator, Coins, Settings, Loader2, ShoppingCart, HelpCircle, TrendingUp,
-  Volume2, VolumeX, Search, BarChart3, Info, Vote
+  Volume2, VolumeX, Search, BarChart3, Info, Vote,
+  MessageCircle, Send, UserPlus, Headphones, Bot, CheckCircle, Filter, Utensils, Music, Dumbbell, Gamepad2, Scissors, CreditCard, Receipt, RefreshCw, MinusCircle, PlusCircle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import toyImage from "@assets/Plush_Dinosaur_with_Colorful_Spikes-removebg-preview.png";
@@ -2234,6 +2235,683 @@ function KOSSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// POS TERMINAL SECTION
+// ═══════════════════════════════════════════════════════════
+function POSTerminalSection({ user }: { user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isAdmin = user?.role === 'admin';
+
+  // POS state
+  const [activeService, setActiveService] = useState<string>('restaurant');
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [tableOrRoom, setTableOrRoom] = useState('');
+  const [notes, setNotes] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [viewTab, setViewTab] = useState<'terminal' | 'orders'>('terminal');
+  const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
+
+  // Predefined menu items per service
+  const menuItems: Record<string, any[]> = {
+    restaurant: [
+      { name: 'Nasi Goreng Special', price: 45000 }, { name: 'Mie Goreng', price: 40000 },
+      { name: 'Ayam Bakar', price: 65000 }, { name: 'Ikan Bakar', price: 85000 },
+      { name: 'Es Teh Manis', price: 15000 }, { name: 'Jus Buah', price: 25000 },
+      { name: 'Air Mineral', price: 10000 }, { name: 'Dessert Plate', price: 35000 },
+    ],
+    ktv: [
+      { name: 'Room Small (1h)', price: 150000 }, { name: 'Room Medium (1h)', price: 250000 },
+      { name: 'Room Large (1h)', price: 400000 }, { name: 'Snack Package', price: 75000 },
+      { name: 'Drink Package', price: 100000 }, { name: 'Birthday Package', price: 350000 },
+    ],
+    dj: [
+      { name: 'Entry Ticket', price: 150000 }, { name: 'VIP Table', price: 1500000 },
+      { name: 'Bottle Service', price: 800000 }, { name: 'Event Package', price: 500000 },
+    ],
+    beauty: [
+      { name: 'Hair Wash & Blow', price: 85000 }, { name: 'Hair Treatment', price: 150000 },
+      { name: 'Facial Basic', price: 120000 }, { name: 'Facial Premium', price: 250000 },
+      { name: 'Nail Art', price: 75000 }, { name: 'Full Manicure', price: 120000 },
+      { name: 'Makeup Basic', price: 200000 }, { name: 'Makeup Glam', price: 400000 },
+    ],
+    gamehouse: [
+      { name: 'Claw Machine x5', price: 25000 }, { name: 'Arcade Credits 50', price: 50000 },
+      { name: 'Arcade Credits 100', price: 90000 }, { name: 'Game Pass 1h', price: 60000 },
+    ],
+  };
+
+  const services = [
+    { id: 'restaurant', label: 'Restaurant', icon: '🍽️' },
+    { id: 'ktv', label: 'KTV', icon: '🎤' },
+    { id: 'dj', label: 'DJ Event', icon: '🎵' },
+    { id: 'beauty', label: 'Beauty', icon: '💄' },
+    { id: 'gamehouse', label: 'Game House', icon: '🎮' },
+  ];
+
+  const subtotal = orderItems.reduce((s, i) => s + i.price * i.qty, 0);
+  const total = Math.max(0, subtotal - discount);
+
+  const addItem = (item: any) => {
+    setOrderItems(prev => {
+      const existing = prev.find(i => i.name === item.name);
+      if (existing) return prev.map(i => i.name === item.name ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...item, qty: 1, category: activeService }];
+    });
+  };
+
+  const removeItem = (name: string) => setOrderItems(prev => prev.filter(i => i.name !== name));
+  const changeQty = (name: string, delta: number) => setOrderItems(prev =>
+    prev.map(i => i.name === name ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
+  );
+
+  const searchCustomers = async (q: string) => {
+    if (q.length < 2) return setSearchResults([]);
+    const r = await fetch(`/api/pos/search-customer?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+    const data = await r.json();
+    setSearchResults(data);
+    setShowSearchResults(true);
+  };
+
+  const createOrder = async (paymentMethod: string) => {
+    if (!orderItems.length) return toast({ title: 'Add items first', variant: 'destructive' });
+    try {
+      const body = {
+        customerId: selectedCustomer?.id || null,
+        customerName: selectedCustomer ? `${selectedCustomer.firstName || ''} ${selectedCustomer.lastName || ''}`.trim() : null,
+        serviceType: activeService,
+        tableOrRoom, notes, discount,
+        items: orderItems.map(i => ({ itemName: i.name, itemCategory: i.category, quantity: i.qty, unitPrice: i.price })),
+      };
+      const r = await fetch('/api/pos/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
+      const order = await r.json();
+      if (paymentMethod !== 'qr_pending') {
+        await fetch(`/api/pos/orders/${order.id}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ paymentMethod }) });
+        toast({ title: '✅ Order completed!', description: `${order.orderNumber} paid via ${paymentMethod}` });
+      } else {
+        toast({ title: '📱 QR order created', description: `Customer can pay via app with their RWG Credits` });
+      }
+      setOrderItems([]); setSelectedCustomer(null); setTableOrRoom(''); setNotes(''); setDiscount(0);
+      queryClient.invalidateQueries({ queryKey: ['/api/pos/orders'] });
+    } catch { toast({ title: 'Error creating order', variant: 'destructive' }); }
+  };
+
+  const { data: myOrders = [] } = useQuery({
+    queryKey: ['/api/pos/orders'],
+    queryFn: () => fetch('/api/pos/orders', { credentials: 'include' }).then(r => r.json()),
+    refetchInterval: 15000,
+  });
+
+  const payOrder = async (orderId: number) => {
+    try {
+      await fetch(`/api/pos/orders/${orderId}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ paymentMethod: 'rwg_credits' }) });
+      toast({ title: '✅ Payment successful!' });
+      queryClient.invalidateQueries({ queryKey: ['/api/pos/orders'] });
+      setPayingOrderId(null);
+    } catch { toast({ title: 'Payment failed', variant: 'destructive' }); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white mb-1">🏪 POS Terminal</h2>
+        <p className="text-white/60 text-sm">Point of Sale — Restaurant · KTV · DJ · Beauty · Game House</p>
+      </div>
+
+      {/* View Tabs */}
+      <div className="flex gap-2 justify-center">
+        {[['terminal', '🖥️ New Order'], ['orders', '📋 Orders']].map(([v, l]) => (
+          <button key={v} onClick={() => setViewTab(v as any)}
+            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${viewTab === v ? 'text-black' : 'text-white/60 rwg-card hover:text-white'}`}
+            style={viewTab === v ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)' } : {}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {viewTab === 'terminal' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Menu */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Service selector */}
+            <div className="flex flex-wrap gap-2">
+              {services.map(s => (
+                <button key={s.id} onClick={() => setActiveService(s.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeService === s.id ? 'text-black' : 'rwg-card text-white/70 hover:text-white'}`}
+                  style={activeService === s.id ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)' } : {}}>
+                  <span>{s.icon}</span>{s.label}
+                </button>
+              ))}
+            </div>
+            {/* Menu grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(menuItems[activeService] || []).map(item => (
+                <button key={item.name} onClick={() => addItem(item)}
+                  className="rwg-card p-3 rounded-xl text-left hover:scale-[1.02] transition-all cursor-pointer"
+                  style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
+                  <div className="text-sm font-semibold text-white leading-tight mb-1">{item.name}</div>
+                  <div className="text-amber-400 font-bold text-sm">RP {item.price.toLocaleString('id-ID')}</div>
+                </button>
+              ))}
+            </div>
+            {/* Customer search */}
+            <div className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
+              <div className="text-white/70 text-xs mb-2 font-semibold">CUSTOMER (optional)</div>
+              <div className="relative">
+                <input value={customerSearch} onChange={e => { setCustomerSearch(e.target.value); searchCustomers(e.target.value); }}
+                  placeholder="Search by name, email or referral code..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl overflow-hidden" style={{ background: '#1a1535', border: '1px solid rgba(201,168,76,0.3)' }}>
+                    {searchResults.map(u => (
+                      <button key={u.id} onClick={() => { setSelectedCustomer(u); setCustomerSearch(`${u.firstName || ''} ${u.lastName || ''}`.trim()); setShowSearchResults(false); }}
+                        className="w-full text-left px-3 py-2 hover:bg-white/5 text-sm">
+                        <div className="text-white font-medium">{u.firstName} {u.lastName}</div>
+                        <div className="text-white/50 text-xs">{u.email} · {u.referralCode} · RP {parseFloat(u.credits||'0').toLocaleString('id-ID')}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedCustomer && (
+                <div className="mt-2 flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(201,168,76,0.1)' }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                    {(selectedCustomer.firstName?.[0] || '?').toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-medium">{selectedCustomer.firstName} {selectedCustomer.lastName}</div>
+                    <div className="text-amber-400 text-xs">RP {parseFloat(selectedCustomer.credits||'0').toLocaleString('id-ID')} · {selectedCustomer.loyaltyPoints||0} pts</div>
+                  </div>
+                  <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <input value={tableOrRoom} onChange={e => setTableOrRoom(e.target.value)} placeholder="Table / Room #"
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+                <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes..."
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Order summary */}
+          <div className="rwg-card p-5 rounded-2xl space-y-4" style={{ border: '1px solid rgba(201,168,76,0.25)' }}>
+            <h3 className="text-white font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-400" /> Order</h3>
+            {orderItems.length === 0 ? (
+              <p className="text-white/40 text-sm text-center py-8">Add items from the menu →</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {orderItems.map(item => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-xs font-medium truncate">{item.name}</div>
+                      <div className="text-amber-400 text-xs">RP {item.price.toLocaleString('id-ID')}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => changeQty(item.name, -1)} className="text-white/40 hover:text-white"><MinusCircle className="w-4 h-4" /></button>
+                      <span className="text-white text-sm w-5 text-center">{item.qty}</span>
+                      <button onClick={() => changeQty(item.name, 1)} className="text-white/40 hover:text-white"><PlusCircle className="w-4 h-4" /></button>
+                      <button onClick={() => removeItem(item.name)} className="text-red-400/60 hover:text-red-400 ml-1"><X className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="border-t border-white/10 pt-3 space-y-1">
+              <div className="flex justify-between text-white/60 text-sm"><span>Subtotal</span><span>RP {subtotal.toLocaleString('id-ID')}</span></div>
+              <div className="flex items-center gap-2">
+                <span className="text-white/60 text-sm">Discount</span>
+                <input type="number" value={discount || ''} onChange={e => setDiscount(parseFloat(e.target.value)||0)} placeholder="0"
+                  className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-amber-400 text-sm text-right focus:outline-none" />
+              </div>
+              <div className="flex justify-between text-white font-bold text-lg"><span>Total</span><span>RP {total.toLocaleString('id-ID')}</span></div>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => createOrder('cash')}
+                className="w-full py-2.5 rounded-xl font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                💵 Cash
+              </button>
+              <button onClick={() => createOrder('card')}
+                className="w-full py-2.5 rounded-xl font-bold text-white text-sm rwg-card" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
+                💳 Card
+              </button>
+              {selectedCustomer && (
+                <button onClick={() => createOrder('rwg_credits')}
+                  className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: 'linear-gradient(135deg,rgba(233,69,96,0.8),rgba(200,40,70,0.9))' }}>
+                  ⚡ RWG Credits
+                </button>
+              )}
+              <button onClick={() => createOrder('qr_pending')}
+                className="w-full py-2.5 rounded-xl font-semibold text-white/70 text-xs rwg-card" style={{ border: '1px solid rgba(0,245,255,0.2)' }}>
+                📱 Send QR to Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewTab === 'orders' && (
+        <div className="space-y-3">
+          {(myOrders as any[]).length === 0 ? (
+            <div className="text-center py-16 text-white/40">
+              <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>No orders yet</p>
+            </div>
+          ) : (myOrders as any[]).map((order: any) => (
+            <div key={order.id} className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.18)' }}>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <span className="text-amber-400 font-bold text-sm">{order.orderNumber}</span>
+                  <span className="text-white/50 text-xs ml-2">{order.serviceType} {order.tableOrRoom ? `· ${order.tableOrRoom}` : ''}</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${order.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                    {order.paymentStatus}
+                  </span>
+                  <span className="text-white font-bold text-sm">RP {parseFloat(order.total).toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+              {(order.items || []).slice(0,3).map((item: any) => (
+                <div key={item.id} className="text-xs text-white/50">{item.quantity}x {item.itemName} · RP {parseFloat(item.totalPrice).toLocaleString('id-ID')}</div>
+              ))}
+              {order.paymentStatus === 'pending' && (
+                <button onClick={() => payOrder(order.id)}
+                  className="mt-3 w-full py-2 rounded-lg font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                  ⚡ Pay with RWG Credits
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT + FRIENDS SECTION
+// ═══════════════════════════════════════════════════════════
+function ChatSection({ user }: { user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
+  const [activeFriendName, setActiveFriendName] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [view, setView] = useState<'friends' | 'chat'>('friends');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: friends = [], refetch: refetchFriends } = useQuery({
+    queryKey: ['/api/friends'],
+    queryFn: () => fetch('/api/friends', { credentials: 'include' }).then(r => r.json()),
+    refetchInterval: 10000,
+  });
+
+  const { data: messages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ['/api/chat/messages', activeFriendId],
+    queryFn: () => activeFriendId ? fetch(`/api/chat/${activeFriendId}/messages`, { credentials: 'include' }).then(r => r.json()) : Promise.resolve([]),
+    enabled: !!activeFriendId,
+    refetchInterval: 3000,
+  });
+
+  useEffect(() => {
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const searchUsers = async (q: string) => {
+    if (q.length < 2) return setSearchResults([]);
+    const r = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+    setSearchResults(await r.json());
+  };
+
+  const sendFriendRequest = async (addresseeId: string) => {
+    const r = await fetch('/api/friends/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ addresseeId }) });
+    if (r.ok) { toast({ title: '✅ Friend request sent!' }); refetchFriends(); }
+    else { const d = await r.json(); toast({ title: d.error || 'Already sent', variant: 'destructive' }); }
+  };
+
+  const respondToRequest = async (id: number, status: string) => {
+    await fetch(`/api/friends/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ status }) });
+    refetchFriends();
+  };
+
+  const removeFriend = async (id: number) => {
+    await fetch(`/api/friends/${id}`, { method: 'DELETE', credentials: 'include' });
+    refetchFriends(); setActiveFriendId(null); setView('friends');
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !activeFriendId) return;
+    await fetch(`/api/chat/${activeFriendId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ content: newMessage.trim() }) });
+    setNewMessage(''); refetchMessages();
+  };
+
+  const openChat = (friendId: string, name: string) => { setActiveFriendId(friendId); setActiveFriendName(name); setView('chat'); };
+
+  const accepted = (friends as any[]).filter(f => f.status === 'accepted');
+  const pending = (friends as any[]).filter(f => f.status === 'pending' && f.addresseeId === user?.id);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white mb-1">💬 Chat & Friends</h2>
+        <p className="text-white/60 text-sm">Connect with other RWG members</p>
+      </div>
+
+      {view === 'chat' && activeFriendId ? (
+        <div className="rwg-card rounded-2xl overflow-hidden flex flex-col" style={{ border: '1px solid rgba(201,168,76,0.25)', height: '520px' }}>
+          {/* Header */}
+          <div className="flex items-center gap-3 p-4 border-b border-white/10">
+            <button onClick={() => setView('friends')} className="text-white/60 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+              {activeFriendName[0]?.toUpperCase()}
+            </div>
+            <div>
+              <div className="text-white font-semibold text-sm">{activeFriendName}</div>
+              <div className="text-white/40 text-xs">RWG Member</div>
+            </div>
+          </div>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {(messages as any[]).length === 0 ? (
+              <div className="text-center text-white/30 text-sm py-12">Say hello! 👋</div>
+            ) : (messages as any[]).map((msg: any) => {
+              const isMine = msg.senderId === user?.id;
+              return (
+                <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${isMine ? 'text-black rounded-br-sm' : 'text-white rounded-bl-sm'}`}
+                    style={{ background: isMine ? 'linear-gradient(135deg,#C9A84C,#f0c060)' : 'rgba(255,255,255,0.08)' }}>
+                    {msg.content}
+                    <div className={`text-xs mt-1 ${isMine ? 'text-black/50' : 'text-white/40'}`}>
+                      {new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={chatEndRef} />
+          </div>
+          {/* Input */}
+          <div className="p-3 border-t border-white/10 flex gap-2">
+            <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              placeholder="Type a message..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+            <button onClick={sendMessage} className="p-2.5 rounded-xl text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
+            <div className="text-white/70 text-xs font-semibold mb-2">FIND MEMBERS</div>
+            <div className="flex gap-2">
+              <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value); }}
+                placeholder="Search by name or username..." className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+            </div>
+            {searchResults.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {searchResults.map(u => (
+                  <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black flex-shrink-0" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                      {(u.firstName?.[0] || '?').toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-sm font-medium">{u.firstName} {u.lastName}</div>
+                      {u.username && <div className="text-white/50 text-xs">@{u.username}</div>}
+                    </div>
+                    <button onClick={() => sendFriendRequest(u.id)} className="text-xs px-3 py-1.5 rounded-lg font-semibold text-black flex items-center gap-1" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                      <UserPlus className="w-3 h-3" /> Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pending requests */}
+          {pending.length > 0 && (
+            <div className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(233,69,96,0.25)' }}>
+              <div className="text-rose-400 text-xs font-semibold mb-2">FRIEND REQUESTS ({pending.length})</div>
+              {pending.map((f: any) => (
+                <div key={f.id} className="flex items-center gap-3 p-2 rounded-lg mb-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black flex-shrink-0" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                    {(f.friend?.firstName?.[0] || '?').toUpperCase()}
+                  </div>
+                  <div className="flex-1 text-white text-sm font-medium">{f.friend?.firstName} {f.friend?.lastName}</div>
+                  <button onClick={() => respondToRequest(f.id, 'accepted')} className="text-xs px-3 py-1.5 rounded-lg text-black font-semibold" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>Accept</button>
+                  <button onClick={() => respondToRequest(f.id, 'blocked')} className="text-xs px-2 py-1.5 rounded-lg text-white/60 rwg-card">Decline</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Friends list */}
+          <div className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
+            <div className="text-white/70 text-xs font-semibold mb-3">FRIENDS ({accepted.length})</div>
+            {accepted.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-6">No friends yet — search above to add some!</p>
+            ) : (
+              <div className="space-y-2">
+                {accepted.map((f: any) => {
+                  const friendName = `${f.friend?.firstName || ''} ${f.friend?.lastName || ''}`.trim() || f.friend?.username || 'Member';
+                  return (
+                    <div key={f.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-all">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-black flex-shrink-0" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                        {(friendName[0] || '?').toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-medium">{friendName}</div>
+                        {f.friend?.username && <div className="text-white/40 text-xs">@{f.friend.username}</div>}
+                      </div>
+                      <button onClick={() => openChat(f.friend?.id, friendName)} className="p-2 rounded-lg text-white/60 hover:text-white rwg-card transition-all">
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => removeFriend(f.id)} className="p-2 rounded-lg text-red-400/50 hover:text-red-400 transition-all">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// AI CUSTOMER SUPPORT SECTION
+// ═══════════════════════════════════════════════════════════
+function SupportSection({ user }: { user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<'list' | 'ticket' | 'new'>('list');
+  const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
+  const [newInput, setNewInput] = useState('');
+  const [newTicket, setNewTicket] = useState({ subject: '', category: 'general', message: '' });
+  const [sending, setSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: tickets = [], refetch: refetchTickets } = useQuery({
+    queryKey: ['/api/support/tickets'],
+    queryFn: () => fetch('/api/support/tickets', { credentials: 'include' }).then(r => r.json()),
+  });
+
+  const { data: ticketMessages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ['/api/support/messages', activeTicketId],
+    queryFn: () => activeTicketId ? fetch(`/api/support/tickets/${activeTicketId}/messages`, { credentials: 'include' }).then(r => r.json()) : Promise.resolve([]),
+    enabled: !!activeTicketId,
+    refetchInterval: 5000,
+  });
+
+  useEffect(() => {
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [ticketMessages]);
+
+  const createTicket = async () => {
+    if (!newTicket.subject || !newTicket.message) return toast({ title: 'Fill in all fields', variant: 'destructive' });
+    const r = await fetch('/api/support/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(newTicket) });
+    const ticket = await r.json();
+    refetchTickets();
+    setActiveTicketId(ticket.id);
+    setView('ticket');
+    setNewTicket({ subject: '', category: 'general', message: '' });
+  };
+
+  const sendMessage = async () => {
+    if (!newInput.trim() || !activeTicketId) return;
+    setSending(true);
+    await fetch(`/api/support/tickets/${activeTicketId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ content: newInput.trim() }) });
+    setNewInput(''); setSending(false); refetchMessages();
+  };
+
+  const escalate = async () => {
+    await fetch(`/api/support/tickets/${activeTicketId}/escalate`, { method: 'PUT', credentials: 'include' });
+    toast({ title: '📞 Escalated to human support' });
+    refetchMessages(); refetchTickets();
+  };
+
+  const closeTicket = async () => {
+    await fetch(`/api/support/tickets/${activeTicketId}/close`, { method: 'PUT', credentials: 'include' });
+    toast({ title: '✅ Ticket closed' });
+    refetchTickets(); setView('list'); setActiveTicketId(null);
+  };
+
+  const activeTicket = (tickets as any[]).find(t => t.id === activeTicketId);
+  const statusColors: Record<string, string> = { open: 'bg-blue-500/20 text-blue-400', ai_replied: 'bg-amber-500/20 text-amber-400', escalated: 'bg-rose-500/20 text-rose-400', resolved: 'bg-green-500/20 text-green-400', closed: 'bg-gray-500/20 text-gray-400' };
+  const categories = ['general', 'payment', 'membership', 'booking', 'toy', 'technical'];
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-white mb-1">🎧 Customer Support</h2>
+        <p className="text-white/60 text-sm">AI-powered support — instant replies 24/7</p>
+      </div>
+
+      {view === 'new' && (
+        <div className="rwg-card p-6 rounded-2xl space-y-4" style={{ border: '1px solid rgba(201,168,76,0.25)' }}>
+          <h3 className="text-white font-bold text-lg">New Support Ticket</h3>
+          <input value={newTicket.subject} onChange={e => setNewTicket(p => ({ ...p, subject: e.target.value }))}
+            placeholder="Subject (e.g. 'Cannot top up credits')"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+          <select value={newTicket.category} onChange={e => setNewTicket(p => ({ ...p, category: e.target.value }))}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-400/50"
+            style={{ background: '#1a1535', color: 'white' }}>
+            {categories.map(c => <option key={c} value={c} style={{ background: '#1a1535' }}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+          </select>
+          <textarea value={newTicket.message} onChange={e => setNewTicket(p => ({ ...p, message: e.target.value }))}
+            placeholder="Describe your issue in detail..."
+            rows={4} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-400/50 resize-none" />
+          <div className="flex gap-3">
+            <button onClick={() => setView('list')} className="px-5 py-2.5 rounded-xl rwg-card text-white/60 text-sm">Cancel</button>
+            <button onClick={createTicket} className="flex-1 py-2.5 rounded-xl font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+              🚀 Submit & Get AI Reply
+            </button>
+          </div>
+        </div>
+      )}
+
+      {view === 'ticket' && activeTicketId && (
+        <div className="rwg-card rounded-2xl overflow-hidden flex flex-col" style={{ border: '1px solid rgba(201,168,76,0.25)', height: '540px' }}>
+          <div className="flex items-center gap-3 p-4 border-b border-white/10">
+            <button onClick={() => setView('list')} className="text-white/60 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-semibold text-sm truncate">{activeTicket?.subject}</div>
+              <div className="flex gap-2 items-center mt-0.5">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusColors[activeTicket?.status || 'open']}`}>
+                  {activeTicket?.status?.replace('_', ' ')}
+                </span>
+                <span className="text-white/40 text-xs">{activeTicket?.category}</span>
+              </div>
+            </div>
+            {activeTicket?.status !== 'closed' && (
+              <div className="flex gap-1">
+                {activeTicket?.status !== 'escalated' && (
+                  <button onClick={escalate} className="text-xs px-2 py-1.5 rounded-lg text-rose-400 rwg-card" title="Escalate to human">👤</button>
+                )}
+                <button onClick={closeTicket} className="text-xs px-2 py-1.5 rounded-lg text-green-400 rwg-card">✓ Close</button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {(ticketMessages as any[]).map((msg: any) => {
+              const isUser = msg.senderType === 'user';
+              const isAI = msg.senderType === 'ai';
+              return (
+                <div key={msg.id} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                  {!isUser && (
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1" style={{ background: isAI ? 'linear-gradient(135deg,rgba(0,245,255,0.3),rgba(0,200,230,0.4))' : 'rgba(255,255,255,0.1)' }}>
+                      {isAI ? <Bot className="w-4 h-4 text-cyan-400" /> : <Headphones className="w-4 h-4 text-white/60" />}
+                    </div>
+                  )}
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isUser ? 'text-black rounded-br-sm' : 'text-white rounded-bl-sm'}`}
+                    style={{ background: isUser ? 'linear-gradient(135deg,#C9A84C,#f0c060)' : isAI ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.08)', border: isAI ? '1px solid rgba(0,245,255,0.15)' : 'none' }}>
+                    {!isUser && <div className={`text-xs font-semibold mb-1 ${isAI ? 'text-cyan-400' : 'text-white/60'}`}>{isAI ? '🤖 AI Assistant' : '👤 Support Staff'}</div>}
+                    {msg.content}
+                    <div className={`text-xs mt-1 ${isUser ? 'text-black/50' : 'text-white/30'}`}>
+                      {new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={chatEndRef} />
+          </div>
+
+          {activeTicket?.status !== 'closed' && (
+            <div className="p-3 border-t border-white/10 flex gap-2">
+              <input value={newInput} onChange={e => setNewInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !sending && sendMessage()}
+                placeholder="Reply to AI assistant..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+              <button onClick={sendMessage} disabled={sending} className="p-2.5 rounded-xl text-black disabled:opacity-50" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {view === 'list' && (
+        <div className="space-y-4">
+          <button onClick={() => setView('new')} className="w-full py-3 rounded-xl font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+            + New Support Ticket
+          </button>
+          <div className="space-y-3">
+            {(tickets as any[]).length === 0 ? (
+              <div className="text-center py-16">
+                <Headphones className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                <p className="text-white/40 text-sm">No tickets yet</p>
+                <p className="text-white/25 text-xs mt-1">Submit a ticket above and get an instant AI reply!</p>
+              </div>
+            ) : (tickets as any[]).map((ticket: any) => (
+              <button key={ticket.id} onClick={() => { setActiveTicketId(ticket.id); setView('ticket'); }}
+                className="w-full text-left rwg-card p-4 rounded-xl hover:scale-[1.01] transition-all" style={{ border: '1px solid rgba(201,168,76,0.18)' }}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-semibold text-sm truncate">{ticket.subject}</div>
+                    <div className="text-white/40 text-xs mt-0.5">{ticket.category} · {new Date(ticket.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${statusColors[ticket.status] || 'bg-gray-500/20 text-gray-400'}`}>
+                    {ticket.status?.replace('_', ' ')}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -8242,8 +8920,11 @@ export default function CompleteApp() {
               { id: "loyalty", label: t('loyalty.title'), icon: Star },
               { id: "kos", label: "KOS", icon: Crown },
               { id: "bookings", label: t('bookings.title'), icon: Calendar },
+              { id: "pos", label: "POS", icon: Receipt },
               { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
               { id: "inventory", label: t('inventory.title'), icon: Package },
+              { id: "chat", label: "Chat", icon: MessageCircle },
+              { id: "support", label: "Support", icon: Headphones },
               ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
               { id: "referrals", label: t('tabs.referrals'), icon: Users },
               { id: "profile", label: t('tabs.profile'), icon: User }
@@ -11398,6 +12079,21 @@ export default function CompleteApp() {
           <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} />
         )}
 
+        {/* POS Terminal Tab */}
+        {activeTab === "pos" && (
+          <POSTerminalSection user={user} />
+        )}
+
+        {/* Chat & Friends Tab */}
+        {activeTab === "chat" && (
+          <ChatSection user={user} />
+        )}
+
+        {/* Support Tab */}
+        {activeTab === "support" && (
+          <SupportSection user={user} />
+        )}
+
         {/* Profile Tab */}
         {activeTab === "profile" && (
           <div className="space-y-8">
@@ -12448,11 +13144,35 @@ export default function CompleteApp() {
         )}
 
       {/* Credit Top-Up Modal */}
-      <CreditTopUpModal 
+      <CreditTopUpModal
         isOpen={showCreditTopUpModal}
         onClose={() => setShowCreditTopUpModal(false)}
         currentCredits={userCredits.toString()}
       />
+
+      {/* Floating Support Button */}
+      {activeTab !== "support" && (
+        <button
+          onClick={() => setActiveTab("support")}
+          className="fixed bottom-24 md:bottom-8 right-5 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
+          style={{ background: "linear-gradient(135deg, #C9A84C, #f0c060)", boxShadow: "0 4px 20px rgba(201,168,76,0.5)" }}
+          title="Customer Support"
+        >
+          <Headphones className="w-5 h-5 text-black" />
+        </button>
+      )}
+
+      {/* Floating Chat Button */}
+      {activeTab !== "chat" && (
+        <button
+          onClick={() => setActiveTab("chat")}
+          className="fixed bottom-24 md:bottom-8 right-20 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
+          style={{ background: "linear-gradient(135deg, rgba(0,245,255,0.8), rgba(0,180,220,0.9))", boxShadow: "0 4px 20px rgba(0,245,255,0.4)" }}
+          title="Chat with Friends"
+        >
+          <MessageCircle className="w-5 h-5 text-black" />
+        </button>
+      )}
 
       {/* QR Camera Modal */}
       {showQRCamera && (

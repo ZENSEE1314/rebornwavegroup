@@ -1395,3 +1395,99 @@ export const seoPages = pgTable("seo_pages", {
 export const insertSeoPageSchema = createInsertSchema(seoPages).omit({ id: true, updatedAt: true });
 export type SeoPage = typeof seoPages.$inferSelect;
 export type InsertSeoPage = z.infer<typeof insertSeoPageSchema>;
+
+// ── POS System ────────────────────────────────────────────
+export const posOrders = pgTable("pos_orders", {
+  id: serial("id").primaryKey(),
+  orderNumber: varchar("order_number").notNull().unique(), // e.g. RWG-20260001
+  staffId: varchar("staff_id").notNull(), // Staff who created the order
+  customerId: varchar("customer_id"), // Optional: linked RWG member
+  customerName: varchar("customer_name"), // Walk-in name if no account
+  serviceType: varchar("service_type").notNull(), // 'restaurant' | 'ktv' | 'dj' | 'beauty' | 'gamehouse'
+  tableOrRoom: varchar("table_or_room"), // Table number / room name
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  discount: decimal("discount", { precision: 10, scale: 2 }).default("0.00"),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method"), // 'rwg_credits' | 'cash' | 'card' | 'qr_pending'
+  paymentStatus: varchar("payment_status").default("pending").notNull(), // 'pending' | 'paid' | 'cancelled'
+  status: varchar("status").default("open").notNull(), // 'open' | 'completed' | 'cancelled'
+  pointsAwarded: integer("points_awarded").default(0),
+  notes: text("notes"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const posOrderItems = pgTable("pos_order_items", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull(),
+  itemName: varchar("item_name").notNull(),
+  itemCategory: varchar("item_category").notNull(), // 'food' | 'drink' | 'service' | 'room' | 'package'
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPosOrderSchema = createInsertSchema(posOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPosOrderItemSchema = createInsertSchema(posOrderItems).omit({ id: true, createdAt: true });
+export type PosOrder = typeof posOrders.$inferSelect;
+export type PosOrderItem = typeof posOrderItems.$inferSelect;
+export type InsertPosOrder = z.infer<typeof insertPosOrderSchema>;
+export type InsertPosOrderItem = z.infer<typeof insertPosOrderItemSchema>;
+
+// ── Friends & Chat ────────────────────────────────────────
+export const friendships = pgTable("friendships", {
+  id: serial("id").primaryKey(),
+  requesterId: varchar("requester_id").notNull(),
+  addresseeId: varchar("addressee_id").notNull(),
+  status: varchar("status").default("pending").notNull(), // 'pending' | 'accepted' | 'blocked'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  senderId: varchar("sender_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFriendshipSchema = createInsertSchema(friendships).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export type Friendship = typeof friendships.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+
+// ── CS Support ────────────────────────────────────────────
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  subject: varchar("subject").notNull(),
+  category: varchar("category").notNull(), // 'general' | 'payment' | 'membership' | 'booking' | 'toy' | 'technical'
+  status: varchar("status").default("open").notNull(), // 'open' | 'ai_replied' | 'escalated' | 'resolved' | 'closed'
+  priority: varchar("priority").default("normal").notNull(), // 'low' | 'normal' | 'high' | 'urgent'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+export const supportMessages = pgTable("support_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull(),
+  senderType: varchar("sender_type").notNull(), // 'user' | 'ai' | 'staff'
+  senderId: varchar("sender_id"), // null for AI
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true, resolvedAt: true });
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;

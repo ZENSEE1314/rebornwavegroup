@@ -10117,5 +10117,461 @@ ${urls.map(u => `  <url>
     res.set('Content-Type', 'application/xml').send(xml);
   });
 
+  // ═══════════════════════════════════════════════════════
+  // POS SYSTEM ROUTES
+  // ═══════════════════════════════════════════════════════
+
+  // Generate order number
+  function generateOrderNumber() {
+    const date = new Date();
+    const ymd = `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}`;
+    const rand = Math.floor(Math.random() * 9000) + 1000;
+    return `RWG-${ymd}-${rand}`;
+  }
+
+  // Create a new POS order (staff)
+  app.post('/api/pos/orders', requireAuth, async (req: any, res) => {
+    try {
+      const staffId = getUserId(req);
+      const { customerId, customerName, serviceType, tableOrRoom, items, notes, discount } = req.body;
+      if (!serviceType || !items || !items.length) return res.status(400).json({ error: 'Missing required fields' });
+      const subtotal = items.reduce((s: number, i: any) => s + parseFloat(i.unitPrice) * i.quantity, 0);
+      const disc = parseFloat(discount || 0);
+      const total = Math.max(0, subtotal - disc);
+      const [order] = await db.insert(schema.posOrders).values({
+        orderNumber: generateOrderNumber(),
+        staffId,
+        customerId: customerId || null,
+        customerName: customerName || null,
+        serviceType,
+        tableOrRoom: tableOrRoom || null,
+        subtotal: subtotal.toFixed(2),
+        discount: disc.toFixed(2),
+        total: total.toFixed(2),
+        paymentMethod: null,
+        paymentStatus: 'pending',
+        status: 'open',
+        notes: notes || null,
+      }).returning();
+      for (const item of items) {
+        await db.insert(schema.posOrderItems).values({
+          orderId: order.id,
+          itemName: item.itemName,
+          itemCategory: item.itemCategory || 'service',
+          quantity: item.quantity || 1,
+          unitPrice: parseFloat(item.unitPrice).toFixed(2),
+          totalPrice: (parseFloat(item.unitPrice) * (item.quantity || 1)).toFixed(2),
+          notes: item.notes || null,
+        });
+      }
+      res.json(order);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get POS orders (staff sees all, users see their own pending QR orders)
+  app.get('/api/pos/orders', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { role } = req.user || {};
+      const userRole = (await db.select({ role: schema.users.role }).from(schema.users).where(eq(schema.users.id, userId)))[0]?.role;
+      let orders;
+      if (userRole === 'admin') {
+        orders = await db.select().from(schema.posOrders).orderBy(desc(schema.posOrders.createdAt)).limit(200);
+      } else {
+        orders = await db.select().from(schema.posOrders)
+          .where(eq(schema.posOrders.customerId, userId))
+          .orderBy(desc(schema.posOrders.createdAt)).limit(50);
+      }
+      // Attach items
+      const ordersWithItems = await Promise.all(orders.map(async (o) => {
+        const items = await db.select().from(schema.posOrderItems).where(eq(schema.posOrderItems.orderId, o.id));
+        return { ...o, items };
+      }));
+      res.json(ordersWithItems);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get single POS order (for customer QR pay page)
+  app.get('/api/pos/orders/:id', requireAuth, async (req: any, res) => {
+    try {
+      const [order] = await db.select().from(schema.posOrders).where(eq(schema.posOrders.id, parseInt(req.params.id)));
+      if (!order) return res.status(404).json({ error: 'Order not found' });
+      const items = await db.select().from(schema.posOrderItems).where(eq(schema.posOrderItems.orderId, order.id));
+      res.json({ ...order, items });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Pay a POS order with RWG Credits
+  app.post('/api/pos/orders/:id/pay', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const orderId = parseInt(req.params.id);
+      const { paymentMethod } = req.body; // 'rwg_credits' | 'cash' | 'card'
+      const [order] = await db.select().from(schema.posOrders).where(eq(schema.posOrders.id, orderId));
+      if (!order) return res.status(404).json({ error: 'Order not found' });
+      if (order.paymentStatus === 'paid') return res.status(400).json({ error: 'Already paid' });
+      if (paymentMethod === 'rwg_credits') {
+        const [customer] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+        const balance = parseFloat(customer?.credits || '0');
+        const amount = parseFloat(order.total);
+        if (balance < amount) return res.status(400).json({ error: 'Insufficient RWG credits' });
+        await db.update(schema.users).set({ credits: (balance - amount).toFixed(2) }).where(eq(schema.users.id, userId));
+        // Award loyalty points (1 point per RP 1000)
+        const pointsAwarded = Math.floor(amount / 1000);
+        if (pointsAwarded > 0) {
+          await db.update(schema.users).set({ loyaltyPoints: sql`${schema.users.loyaltyPoints} + ${pointsAwarded}` }).where(eq(schema.users.id, userId));
+        }
+        await db.update(schema.posOrders).set({
+          paymentMethod: 'rwg_credits',
+          paymentStatus: 'paid',
+          status: 'completed',
+          customerId: userId,
+          pointsAwarded,
+          paidAt: new Date(),
+        }).where(eq(schema.posOrders.id, orderId));
+        // Record transaction
+        await db.insert(schema.transactions).values({
+          userId,
+          type: 'pos_payment',
+          amount: (-amount).toFixed(2),
+          description: `POS payment #${order.orderNumber} - ${order.serviceType}`,
+          referenceId: order.orderNumber,
+          pointsEarned: pointsAwarded,
+          status: 'completed',
+        });
+      } else {
+        await db.update(schema.posOrders).set({
+          paymentMethod,
+          paymentStatus: 'paid',
+          status: 'completed',
+          paidAt: new Date(),
+        }).where(eq(schema.posOrders.id, orderId));
+      }
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Update POS order status
+  app.put('/api/pos/orders/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { status, paymentStatus } = req.body;
+      await db.update(schema.posOrders).set({ status, paymentStatus, updatedAt: new Date() }).where(eq(schema.posOrders.id, parseInt(req.params.id)));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Search users for POS (by name/email/referral code)
+  app.get('/api/pos/search-customer', requireAuth, async (req: any, res) => {
+    try {
+      const q = (req.query.q as string || '').toLowerCase();
+      if (!q || q.length < 2) return res.json([]);
+      const users = await db.select({
+        id: schema.users.id, firstName: schema.users.firstName, lastName: schema.users.lastName,
+        email: schema.users.email, username: schema.users.username, referralCode: schema.users.referralCode,
+        credits: schema.users.credits, loyaltyPoints: schema.users.loyaltyPoints,
+      }).from(schema.users).limit(10);
+      const filtered = users.filter(u =>
+        (u.firstName?.toLowerCase() || '').includes(q) ||
+        (u.lastName?.toLowerCase() || '').includes(q) ||
+        (u.email?.toLowerCase() || '').includes(q) ||
+        (u.username?.toLowerCase() || '').includes(q) ||
+        (u.referralCode?.toLowerCase() || '').includes(q)
+      );
+      res.json(filtered);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // FRIENDS & CHAT ROUTES
+  // ═══════════════════════════════════════════════════════
+
+  // Get my friends list
+  app.get('/api/friends', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const rows = await db.select().from(schema.friendships).where(
+        sql`(${schema.friendships.requesterId} = ${userId} OR ${schema.friendships.addresseeId} = ${userId})`
+      ).orderBy(desc(schema.friendships.updatedAt));
+      const friendIds = rows.map(r => r.requesterId === userId ? r.addresseeId : r.requesterId);
+      const friendUsers = friendIds.length ? await db.select({
+        id: schema.users.id, firstName: schema.users.firstName, lastName: schema.users.lastName,
+        username: schema.users.username, profileImageUrl: schema.users.profileImageUrl, email: schema.users.email,
+      }).from(schema.users).where(sql`${schema.users.id} = ANY(ARRAY[${sql.join(friendIds.map(id => sql`${id}`), sql`, `)}]::text[])`) : [];
+      const result = rows.map(r => {
+        const friendId = r.requesterId === userId ? r.addresseeId : r.requesterId;
+        const friendUser = friendUsers.find(u => u.id === friendId);
+        return { ...r, friend: friendUser };
+      });
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Send friend request
+  app.post('/api/friends/request', requireAuth, async (req: any, res) => {
+    try {
+      const requesterId = getUserId(req);
+      const { addresseeId } = req.body;
+      if (!addresseeId || requesterId === addresseeId) return res.status(400).json({ error: 'Invalid request' });
+      // Check if already exists
+      const existing = await db.select().from(schema.friendships).where(
+        sql`(${schema.friendships.requesterId} = ${requesterId} AND ${schema.friendships.addresseeId} = ${addresseeId}) OR
+            (${schema.friendships.requesterId} = ${addresseeId} AND ${schema.friendships.addresseeId} = ${requesterId})`
+      );
+      if (existing.length) return res.status(400).json({ error: 'Friend request already exists' });
+      const [row] = await db.insert(schema.friendships).values({ requesterId, addresseeId, status: 'pending' }).returning();
+      res.json(row);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Accept / decline friend request
+  app.put('/api/friends/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { status } = req.body; // 'accepted' | 'blocked'
+      const [row] = await db.select().from(schema.friendships).where(eq(schema.friendships.id, parseInt(req.params.id)));
+      if (!row || row.addresseeId !== userId) return res.status(403).json({ error: 'Not allowed' });
+      await db.update(schema.friendships).set({ status, updatedAt: new Date() }).where(eq(schema.friendships.id, row.id));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Remove friend
+  app.delete('/api/friends/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const [row] = await db.select().from(schema.friendships).where(eq(schema.friendships.id, parseInt(req.params.id)));
+      if (!row || (row.requesterId !== userId && row.addresseeId !== userId)) return res.status(403).json({ error: 'Not allowed' });
+      await db.delete(schema.friendships).where(eq(schema.friendships.id, row.id));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Search users to add as friend
+  app.get('/api/users/search', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const q = (req.query.q as string || '').toLowerCase();
+      if (!q || q.length < 2) return res.json([]);
+      const allUsers = await db.select({
+        id: schema.users.id, firstName: schema.users.firstName, lastName: schema.users.lastName,
+        username: schema.users.username, profileImageUrl: schema.users.profileImageUrl,
+      }).from(schema.users).limit(50);
+      const filtered = allUsers.filter(u =>
+        u.id !== userId && (
+          (u.firstName?.toLowerCase() || '').includes(q) ||
+          (u.lastName?.toLowerCase() || '').includes(q) ||
+          (u.username?.toLowerCase() || '').includes(q)
+        )
+      );
+      res.json(filtered.slice(0, 10));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get chat messages with a friend
+  app.get('/api/chat/:friendId/messages', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const friendId = req.params.friendId;
+      const msgs = await db.select().from(schema.chatMessages).where(
+        sql`(${schema.chatMessages.senderId} = ${userId} AND ${schema.chatMessages.receiverId} = ${friendId}) OR
+            (${schema.chatMessages.senderId} = ${friendId} AND ${schema.chatMessages.receiverId} = ${userId})`
+      ).orderBy(asc(schema.chatMessages.createdAt)).limit(100);
+      // Mark received messages as read
+      await db.update(schema.chatMessages).set({ isRead: true }).where(
+        and(eq(schema.chatMessages.receiverId, userId), eq(schema.chatMessages.senderId, friendId), eq(schema.chatMessages.isRead, false))
+      );
+      res.json(msgs);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Send a chat message
+  app.post('/api/chat/:friendId/messages', requireAuth, async (req: any, res) => {
+    try {
+      const senderId = getUserId(req);
+      const receiverId = req.params.friendId;
+      const { content } = req.body;
+      if (!content?.trim()) return res.status(400).json({ error: 'Empty message' });
+      const [msg] = await db.insert(schema.chatMessages).values({ senderId, receiverId, content: content.trim() }).returning();
+      res.json(msg);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get unread message count
+  app.get('/api/chat/unread-count', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const result = await db.select({ count: count() }).from(schema.chatMessages)
+        .where(and(eq(schema.chatMessages.receiverId, userId), eq(schema.chatMessages.isRead, false)));
+      res.json({ count: result[0]?.count || 0 });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // CS SUPPORT + AI ROUTES
+  // ═══════════════════════════════════════════════════════
+
+  // Create support ticket
+  app.post('/api/support/tickets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { subject, category, message } = req.body;
+      if (!subject || !message) return res.status(400).json({ error: 'Missing fields' });
+      const [ticket] = await db.insert(schema.supportTickets).values({
+        userId, subject, category: category || 'general', status: 'open', priority: 'normal',
+      }).returning();
+      await db.insert(schema.supportMessages).values({ ticketId: ticket.id, senderType: 'user', senderId: userId, content: message });
+      res.json(ticket);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get user's support tickets
+  app.get('/api/support/tickets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const userRole = (await db.select({ role: schema.users.role }).from(schema.users).where(eq(schema.users.id, userId)))[0]?.role;
+      const tickets = userRole === 'admin'
+        ? await db.select().from(schema.supportTickets).orderBy(desc(schema.supportTickets.createdAt)).limit(100)
+        : await db.select().from(schema.supportTickets).where(eq(schema.supportTickets.userId, userId)).orderBy(desc(schema.supportTickets.createdAt));
+      res.json(tickets);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get messages for a ticket
+  app.get('/api/support/tickets/:id/messages', requireAuth, async (req: any, res) => {
+    try {
+      const msgs = await db.select().from(schema.supportMessages)
+        .where(eq(schema.supportMessages.ticketId, parseInt(req.params.id)))
+        .orderBy(asc(schema.supportMessages.createdAt));
+      res.json(msgs);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Send message to a ticket + trigger AI reply
+  app.post('/api/support/tickets/:id/messages', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const ticketId = parseInt(req.params.id);
+      const { content } = req.body;
+      if (!content?.trim()) return res.status(400).json({ error: 'Empty message' });
+      // Save user message
+      await db.insert(schema.supportMessages).values({ ticketId, senderType: 'user', senderId: userId, content: content.trim() });
+      // Check ticket
+      const [ticket] = await db.select().from(schema.supportTickets).where(eq(schema.supportTickets.id, ticketId));
+      if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+      // If not escalated, generate AI reply
+      if (ticket.status !== 'escalated') {
+        const aiReply = await generateAIReply(content.trim(), ticket.category);
+        await db.insert(schema.supportMessages).values({ ticketId, senderType: 'ai', senderId: null, content: aiReply });
+        await db.update(schema.supportTickets).set({ status: 'ai_replied', updatedAt: new Date() }).where(eq(schema.supportTickets.id, ticketId));
+        res.json({ userMessage: content, aiReply });
+      } else {
+        res.json({ userMessage: content, aiReply: null });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Escalate ticket to human
+  app.put('/api/support/tickets/:id/escalate', requireAuth, async (req: any, res) => {
+    try {
+      await db.update(schema.supportTickets).set({ status: 'escalated', priority: 'high', updatedAt: new Date() })
+        .where(eq(schema.supportTickets.id, parseInt(req.params.id)));
+      await db.insert(schema.supportMessages).values({
+        ticketId: parseInt(req.params.id), senderType: 'ai', senderId: null,
+        content: "Your request has been escalated to our human support team. We'll respond within 24 hours. Thank you for your patience! 🙏",
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Close ticket
+  app.put('/api/support/tickets/:id/close', requireAuth, async (req: any, res) => {
+    try {
+      await db.update(schema.supportTickets).set({ status: 'closed', resolvedAt: new Date(), updatedAt: new Date() })
+        .where(eq(schema.supportTickets.id, parseInt(req.params.id)));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   return httpServer;
+}
+
+// ═══════════════════════════════════════════════════════
+// AI REPLY GENERATOR
+// ═══════════════════════════════════════════════════════
+async function generateAIReply(userMessage: string, category: string): Promise<string> {
+  const OPENAI_KEY = process.env.OPENAI_API_KEY;
+  const systemPrompt = `You are the friendly AI customer support assistant for Reborn Wave Group (RWG), a 5-in-1 entertainment club based in Batam, Indonesia, expanding to Singapore.
+
+RWG Services:
+- 💄 Beauty Services: Hair spa, facials, nails, makeup (starting RP 50,000)
+- 🎤 KTV Rooms: Private karaoke rooms, hourly rates
+- 🎵 DJ Events: Club nights, events, live DJ performances
+- 🍽️ Restaurant: Breakfast, lunch, dinner menus
+- 🎮 Game House: Claw machines, arcade, chill zone
+
+RWG Membership Tiers:
+- Founders VIP: RP 1,000,000 - top benefits, max cashback
+- Elite VIP: RP 100,000 - premium perks
+- Standard VIP: RP 10,000 - good benefits
+- Member: Free - basic access
+
+Doluruu Toys & Pet System:
+- Blind box collectible toys (common, rare, epic, legendary, secret rarities)
+- Buy from Season Packs or user marketplace
+- Activate toys as virtual pets, feed and care for them
+- Trade toys with other members
+
+KOS (Kings of Singers): Star-based talent voting system
+- Buy stars to support your favourite performers
+- 1 Star = RP 1,000, sell back at 70%
+- Leaderboard with tier rankings
+
+Credits & Referral:
+- RWG Credits (RP) used for all payments
+- Refer friends to earn 10% commission
+- Top up via bank transfer or cash deposit
+
+Contact: rebornwave.group | Batam · Singapore
+
+Always be warm, helpful, and concise. Use emojis appropriately. If you cannot answer, suggest the user escalate to human support.`;
+
+  if (OPENAI_KEY) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          max_tokens: 400,
+          temperature: 0.7,
+        }),
+      });
+      const data: any = await response.json();
+      if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
+    } catch (e) { console.error('OpenAI error:', e); }
+  }
+
+  // Fallback: rule-based FAQ responses
+  const msg = userMessage.toLowerCase();
+  if (msg.includes('ktv') || msg.includes('karaoke')) return "🎤 Our KTV rooms are available for private karaoke sessions! You can book a room via the **Bookings** tab in the app. Prices vary by room size and duration. Would you like me to help with anything specific?";
+  if (msg.includes('beauty') || msg.includes('hair') || msg.includes('facial') || msg.includes('nail')) return "💄 Our Beauty Services include hair spa, facials, nails, and makeup. Starting from RP 50,000. Book easily via the **Bookings** tab! Is there a specific service you're interested in?";
+  if (msg.includes('restaurant') || msg.includes('food') || msg.includes('eat') || msg.includes('dinner') || msg.includes('lunch')) return "🍽️ Our restaurant serves breakfast, lunch, and dinner with a variety of delicious options. You can book a table via the **Bookings** tab. What cuisine are you looking for?";
+  if (msg.includes('game') || msg.includes('claw') || msg.includes('arcade')) return "🎮 Our Game House features claw machines, arcade games, and a chill zone! Drop by anytime or book a special session. Can I help you with anything else?";
+  if (msg.includes('dj') || msg.includes('event') || msg.includes('club') || msg.includes('party')) return "🎵 We host regular DJ nights and special events! Check our **Bookings** section for upcoming events. Want to know about our next event?";
+  if (msg.includes('toy') || msg.includes('doluruu') || msg.includes('blind box') || msg.includes('collect')) return "🧸 Doluruu blind box toys are our exclusive collectibles! Buy from Season Packs in the Marketplace, activate them as virtual pets, and even trade with friends. Each toy has a unique rarity from Common to Secret!";
+  if (msg.includes('pet') || msg.includes('feed') || msg.includes('care')) return "🐾 Your Doluruu pets need daily care — feed them, bathe them, play with them, and let them sleep! Caring for pets earns you tokens. Head to the **Pet Care** tab to start!";
+  if (msg.includes('star') || msg.includes('kos') || msg.includes('singer') || msg.includes('vote')) return "⭐ KOS (Kings of Singers) is our live star-giving system! Buy stars to support performers, climb the voter tier rankings, and earn rewards. 1 Star = RP 1,000. Check out the **KOS** tab!";
+  if (msg.includes('credit') || msg.includes('topup') || msg.includes('top up') || msg.includes('balance') || msg.includes('rp')) return "💰 Your RWG Credits (RP) are used for all payments in the app. Top up via bank transfer or cash deposit in the **Profile** tab. Credits never expire!";
+  if (msg.includes('referral') || msg.includes('refer') || msg.includes('commission') || msg.includes('invite')) return "🎁 Share your referral code to earn 10% commission on every payment your referrals make! Find your referral code in the **Referrals** tab. The more friends you invite, the more you earn!";
+  if (msg.includes('membership') || msg.includes('vip') || msg.includes('tier') || msg.includes('upgrade')) return "👑 RWG has 4 membership tiers: **Member** (Free), **Standard VIP** (RP 10K), **Elite VIP** (RP 100K), and **Founders VIP** (RP 1M). Higher tiers get more cashback, priority booking, and exclusive perks!";
+  if (msg.includes('password') || msg.includes('login') || msg.includes('account') || msg.includes('email')) return "🔐 Having login issues? Try the 'Forgot Password' link on the login page. If you're still stuck, I'll escalate this to our human support team for you. Would you like me to do that?";
+  if (msg.includes('refund') || msg.includes('cancel') || msg.includes('payment') || msg.includes('charge')) return "💳 For refund or payment queries, I'll need to connect you with our finance team. Please click **Escalate to Human** below and our team will assist within 24 hours!";
+  if (msg.includes('location') || msg.includes('address') || msg.includes('batam') || msg.includes('singapore') || msg.includes('where')) return "📍 Reborn Wave Group is currently based in **Batam, Indonesia** and expanding to **Singapore**. More location details are available on our website at rebornwave.group!";
+  if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey') || msg.includes('halo')) return "Hello! 👋 Welcome to Reborn Wave Group support! I'm your AI assistant. How can I help you today? You can ask me about our services, membership, toys, bookings, or anything else!";
+  if (msg.includes('thank') || msg.includes('thanks') || msg.includes('terima kasih')) return "You're welcome! 😊 Is there anything else I can help you with today? Don't hesitate to ask!";
+  return "Thanks for reaching out! 😊 I'm not sure I fully understand your question. Could you give me more details? You can also click **Escalate to Human** below and our support team will personally assist you within 24 hours!";
 }
