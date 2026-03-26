@@ -942,17 +942,14 @@ function KOSSection({
 
       {/* User Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
-          <CardContent className="p-4 text-center">
-            <Star className="w-6 h-6 text-purple-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">{userStarsData?.totalStars || 0}</div>
-            <div className="text-xs text-gray-600">My Current Stars</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200">
-          <CardContent className="p-4 text-center">
-            <Star className="w-6 h-6 text-pink-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">
+        <div className="relative overflow-hidden rounded-xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(201,168,76,0.25)" }}>
+          <Star className="w-6 h-6 text-amber-400 mx-auto mb-1" />
+          <div className="text-xl font-bold text-amber-300">{userStarsData?.totalStars || 0}</div>
+          <div className="text-xs text-white/60">My Current Stars</div>
+        </div>
+        <div className="relative overflow-hidden rounded-xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(233,69,96,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(233,69,96,0.25)" }}>
+          <Star className="w-6 h-6 text-rose-400 mx-auto mb-1" />
+          <div className="text-xl font-bold text-amber-300">
               {(() => {
                 // Calculate mode-specific stars given by this user
                 const totalStarsGiven = userContributions
@@ -966,44 +963,39 @@ function KOSSection({
                 return totalStarsGiven.toLocaleString();
               })()}
             </div>
-            <div className="text-xs text-gray-600">Stars Given</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200">
-          <CardContent className="p-4 text-center">
-            <Star className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-gray-900">
-              {kosActiveTab === 'tournament' 
-                ? (userStarsData?.tournamentStars || 0)
-                : (userStarsData?.individualStars || 0)
-              }
-            </div>
-            <div className="text-xs text-gray-600">
-              {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200">
-          <CardContent className="p-4 text-center">
-            <TrendingUp className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-            <div className="text-xl font-bold text-black">{userStarsData?.influencerRank || 'Bronze I'}</div>
-            <div className="text-xs text-gray-600">Tier</div>
-          </CardContent>
-        </Card>
+            <div className="text-xs text-white/60">Stars Given</div>
+          </div>
+        <div className="relative overflow-hidden rounded-xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(201,168,76,0.30)" }}>
+          <Star className="w-6 h-6 text-amber-400 mx-auto mb-1" />
+          <div className="text-xl font-bold text-amber-300">
+            {kosActiveTab === 'tournament'
+              ? (userStarsData?.tournamentStars || 0)
+              : (userStarsData?.individualStars || 0)
+            }
+          </div>
+          <div className="text-xs text-white/60">
+            {kosActiveTab === 'tournament' ? 'Tournament Stars' : 'Individual Stars'}
+          </div>
+        </div>
+        <div className="relative overflow-hidden rounded-xl p-4 text-center" style={{ background: "linear-gradient(135deg, rgba(0,245,255,0.10) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(0,245,255,0.20)" }}>
+          <TrendingUp className="w-6 h-6 text-cyan-400 mx-auto mb-1" />
+          <div className="text-xl font-bold text-amber-300">{userStarsData?.influencerRank || 'Bronze I'}</div>
+          <div className="text-xs text-white/60">Tier</div>
+        </div>
       </div>
 
 
 
       {/* Stars Purchase Section */}
-      <Card className="border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50">
+      <Card className="rwg-card" style={{ border: "1px solid rgba(201,168,76,0.35)" }}>
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Star Trading</h3>
-              <p className="text-sm text-gray-600 mb-2">
+              <h3 className="text-lg font-semibold text-white mb-2">⭐ Star Trading</h3>
+              <p className="text-sm text-white/60 mb-2">
                 Buy Stars (1 Star = RP 1,000) • Sell Stars (70% return rate)
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-white/40">
                 Current Stars: {userStarsData?.totalStars || userStarsData?.stars || 0} • Current RP: {user?.credits ? parseInt(user.credits).toLocaleString() : '0'}
               </p>
             </div>
@@ -1019,9 +1011,9 @@ function KOSSection({
                 <span className="hidden sm:inline">Buy</span>
                 <span className="sm:hidden">Buy</span> Stars
               </Button>
-              <Button 
+              <Button
                 variant="outline"
-                className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs sm:text-sm py-2 sm:py-2"
+                className="border-amber-400/50 text-amber-300 hover:bg-amber-400/10 text-xs sm:text-sm py-2 sm:py-2"
                 onClick={() => {
                   setStarDialogType('sell');
                   setShowStarDialog(true);
@@ -4858,20 +4850,40 @@ function PetCareSection({ language, user, queryClient, userTokens, activateToyAs
           <h2 className="text-3xl font-bold text-white mb-2">
             {t('petCareSystem.title')}
           </h2>
-          <p className="text-white">
+          <p className="text-white/70">
             {t('petCareSystem.buyToys')}
           </p>
         </div>
-        <Card>
-          <CardContent className="text-center py-12">
-            <p className="text-gray-600 mb-4">
-              {t('toys.noToys')}
+        <div className="relative overflow-hidden rounded-2xl p-10 text-center"
+          style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.10) 0%, rgba(15,12,41,0.97) 60%, rgba(233,69,96,0.08) 100%)", border: "1px solid rgba(201,168,76,0.20)" }}>
+          {/* Decorative glow circles */}
+          <div className="absolute -top-8 -left-8 w-40 h-40 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #C9A84C, transparent)" }} />
+          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #E94560, transparent)" }} />
+          {/* Main visual */}
+          <div className="relative z-10">
+            <div className="text-7xl mb-4 select-none" style={{ filter: "drop-shadow(0 0 20px rgba(201,168,76,0.5))" }}>🧸</div>
+            <div className="flex justify-center gap-3 mb-6">
+              <span className="text-3xl">🐱</span>
+              <span className="text-3xl">🐶</span>
+              <span className="text-3xl">🐰</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-3">Your Pet Adventure Awaits!</h3>
+            <p className="text-white/60 mb-2 max-w-md mx-auto text-sm leading-relaxed">
+              Collect <span className="text-amber-400 font-semibold">Doluruu blind box toys</span> and bring them to life as virtual pets. Feed them, play with them, and watch them grow!
             </p>
-            <p className="text-sm text-gray-500">
-              {t('toys.visitMarketplace')}
-            </p>
-          </CardContent>
-        </Card>
+            <p className="text-white/40 text-xs mb-8">Buy a toy from the marketplace → Activate it → Your pet is born! 🎉</p>
+            <button
+              onClick={() => {
+                const marketplaceBtn = document.querySelector('[data-tab="marketplace"]') as HTMLElement;
+                if (marketplaceBtn) marketplaceBtn.click();
+              }}
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-black text-sm transition-all hover:scale-105 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #C9A84C, #f0c060)", boxShadow: "0 4px 20px rgba(201,168,76,0.4)" }}
+            >
+              🛒 Go to Toy Marketplace
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -9975,50 +9987,50 @@ export default function CompleteApp() {
 
             {/* Service Categories */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-pink-50 border-pink-200 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl mb-3">💄</div>
-                  <h3 className="text-lg font-semibold text-pink-800 mb-2">
-                    {serviceCategories?.beauty?.name || 'Beauty Services'}
-                  </h3>
-                  <p className="text-sm text-pink-600 mb-4">Hair Spa, Facials, Nails</p>
-                  <Badge className="bg-pink-100 text-pink-800">
-                    {t("common.startingFrom")} RP {serviceCategories?.beauty?.startingPrice || 0}
-                  </Badge>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
+                style={{ background: "linear-gradient(135deg, rgba(233,69,96,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(233,69,96,0.30)" }}>
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #E94560, transparent)" }} />
+                <div className="text-4xl mb-3">💄</div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {serviceCategories?.beauty?.name || 'Beauty Services'}
+                </h3>
+                <p className="text-sm text-white/50 mb-4">Hair Spa, Facials, Nails</p>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
+                  {t("common.startingFrom")} RP {serviceCategories?.beauty?.startingPrice || 0}
+                </span>
+              </div>
 
-              <Card className="bg-blue-50 border-blue-200 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl mb-3">🎮</div>
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    {serviceCategories?.entertainment?.name || 'Entertainment'}
-                  </h3>
-                  <p className="text-sm text-blue-600 mb-4">Claw Machine, KTV Rooms</p>
-                  <Badge className="bg-blue-100 text-blue-800">
-                    {t("common.startingFrom")} RP {serviceCategories?.entertainment?.startingPrice || 0}
-                  </Badge>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
+                style={{ background: "linear-gradient(135deg, rgba(0,245,255,0.10) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(0,245,255,0.25)" }}>
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #00F5FF, transparent)" }} />
+                <div className="text-4xl mb-3">🎮</div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {serviceCategories?.entertainment?.name || 'Entertainment'}
+                </h3>
+                <p className="text-sm text-white/50 mb-4">Claw Machine, KTV Rooms</p>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
+                  {t("common.startingFrom")} RP {serviceCategories?.entertainment?.startingPrice || 0}
+                </span>
+              </div>
 
-              <Card className="bg-green-50 border-green-200 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6 text-center">
-                  <div className="text-4xl mb-3">🍽️</div>
-                  <h3 className="text-lg font-semibold text-green-800 mb-2">
-                    {serviceCategories?.restaurant?.name || 'Restaurant'}
-                  </h3>
-                  <p className="text-sm text-green-600 mb-4">Breakfast, Lunch, Dinner</p>
-                  <Badge className="bg-green-100 text-green-800">
-                    {t("common.startingFrom")} RP {serviceCategories?.restaurant?.startingPrice || 0}
-                  </Badge>
-                </CardContent>
-              </Card>
+              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
+                style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(201,168,76,0.25)" }}>
+                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #C9A84C, transparent)" }} />
+                <div className="text-4xl mb-3">🍽️</div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {serviceCategories?.restaurant?.name || 'Restaurant'}
+                </h3>
+                <p className="text-sm text-white/50 mb-4">Breakfast, Lunch, Dinner</p>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
+                  {t("common.startingFrom")} RP {serviceCategories?.restaurant?.startingPrice || 0}
+                </span>
+              </div>
             </div>
 
             {/* New Booking Form */}
-            <Card>
+            <Card className="rwg-card">
               <CardHeader>
-                <CardTitle>{t('booking.createNewBooking')}</CardTitle>
+                <CardTitle className="text-white">{t('booking.createNewBooking')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -10355,10 +10367,10 @@ export default function CompleteApp() {
 
                 {/* Instructions for season purchases */}
                 <div className="text-center">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-2">Season Packs:</h3>
-                    <p className="text-blue-700">
-                      Select a season above to purchase a random collectible toy from that season's collection. 
+                  <div className="rounded-xl p-6" style={{ background: "linear-gradient(135deg, rgba(0,245,255,0.08) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(0,245,255,0.20)" }}>
+                    <h3 className="text-lg font-semibold text-white mb-2">🎁 Season Packs</h3>
+                    <p className="text-white/60 text-sm">
+                      Select a season above to purchase a random collectible toy from that season's collection.
                       Each purchase gives you a surprise toy with unique rarity and characteristics!
                     </p>
                   </div>
@@ -10373,7 +10385,8 @@ export default function CompleteApp() {
                 <div className="flex justify-center">
                   <Button
                     onClick={() => setShowCreateListingModal(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3"
+                    className="px-6 py-3 font-bold text-black"
+                    style={{ background: "linear-gradient(135deg, #C9A84C, #f0c060)", boxShadow: "0 4px 16px rgba(201,168,76,0.35)" }}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Sell Your Toy
@@ -10392,7 +10405,7 @@ export default function CompleteApp() {
                       const pendingPurchase = pendingPurchases?.find(p => p.toyId === listing.id);
                     
                     return (
-                      <Card key={listing.id} className="hover:shadow-lg transition-shadow">
+                      <Card key={listing.id} className="rwg-card hover:scale-[1.01] transition-all" style={{ border: "1px solid rgba(201,168,76,0.20)" }}>
                         <CardContent className="p-6">
                           <div className="relative mb-4">
                             <img 
@@ -10415,7 +10428,7 @@ export default function CompleteApp() {
                           
                           <div className="space-y-3">
                             <div>
-                              <h3 className="font-bold text-lg text-slate-900">{listing?.name || 'Item'}</h3>
+                              <h3 className="font-bold text-lg text-white">{listing?.name || 'Item'}</h3>
                               <div className="flex items-center space-x-2 mt-1">
                                 <Badge 
                                   variant="outline" 
@@ -10434,13 +10447,13 @@ export default function CompleteApp() {
                             </div>
                             
                             <div className="flex justify-between items-center">
-                              <span className="text-2xl font-bold text-green-600">
-                                Rp {(() => {
+                              <span className="text-2xl font-bold text-amber-400">
+                                RP {(() => {
                                   const price = listing.listingPrice || listing.price || listing.basePrice || '0';
                                   return parseInt(price.toString()).toLocaleString('id-ID');
                                 })()}
                               </span>
-                              <span className="text-sm text-slate-500">
+                              <span className="text-sm text-white/50">
                                 by {listing.sellerName || 'Unknown'}
                               </span>
                             </div>
@@ -10499,14 +10512,21 @@ export default function CompleteApp() {
                       </Card>
                     );
                   }) : (
-                    <div className="col-span-full text-center py-12 text-slate-500">
-                      <ShoppingBag className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                      <h3 className="text-lg font-medium mb-2">
+                    <div className="col-span-full text-center py-16">
+                      <div className="text-6xl mb-4" style={{ filter: "drop-shadow(0 0 16px rgba(201,168,76,0.4))" }}>🧸</div>
+                      <h3 className="text-lg font-semibold text-white mb-2">
                         {t('marketplace.noToysForSale')}
                       </h3>
-                      <p className="text-sm">
+                      <p className="text-sm text-white/50 mb-6">
                         {t('marketplace.beFirstToSell')}
                       </p>
+                      <button
+                        onClick={() => setShowCreateListingModal(true)}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-black text-sm transition-all hover:scale-105"
+                        style={{ background: "linear-gradient(135deg, #C9A84C, #f0c060)" }}
+                      >
+                        <Plus className="w-4 h-4" /> List Your First Toy
+                      </button>
                     </div>
                   );
                 })()}
@@ -10514,10 +10534,10 @@ export default function CompleteApp() {
 
                 {/* Instructions for user listings */}
                 <div className="text-center">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-green-900 mb-2">User Marketplace:</h3>
-                    <p className="text-green-700">
-                      Buy specific toys from other users or sell your own toys to earn credits. 
+                  <div className="rounded-xl p-6" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.08) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(201,168,76,0.20)" }}>
+                    <h3 className="text-lg font-semibold text-white mb-2">🏪 User Marketplace</h3>
+                    <p className="text-white/60 text-sm">
+                      Buy specific toys from other users or sell your own toys to earn credits.
                       Set your own prices and trade directly with the community!
                     </p>
                   </div>
