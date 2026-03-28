@@ -171,6 +171,12 @@ export default function Landing() {
         .swipe-dots span.active{background:#C9A84C;width:18px;border-radius:3px}
         @media(min-width:640px){.swipe-dots{display:none}}
 
+        /* Split grid — single column on mobile, two columns on desktop */
+        .rwg-split-grid{display:grid;grid-template-columns:1fr;gap:28px}
+        @media(min-width:1024px){
+          .rwg-split-grid{grid-template-columns:repeat(2,1fr);gap:64px;align-items:center}
+        }
+
         /* Mobile sticky bar */
         .mobile-cta-bar{display:none}
         @media(max-width:639px){
@@ -318,7 +324,7 @@ export default function Landing() {
       <section id="blindbox" style={{ padding: "48px 16px", position: "relative", zIndex: 10 }} className="sm:py-20">
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           {/* Mobile: stacked. Desktop: side by side */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="lg:grid-cols-2 lg:gap-16 lg:items-center">
+          <div className="rwg-split-grid">
             {/* Visual */}
             <div style={{ display: "flex", justifyContent: "center" }}>
               <div style={{ position: "relative", width: 200, height: 200 }}>
@@ -410,7 +416,7 @@ export default function Landing() {
             <div className="rwg-section-badge">Our Locations</div>
             <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff" }}>Where to Find Us</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }} className="lg:grid-cols-2 lg:gap-8">
+          <div className="rwg-split-grid" style={{ gap: 16 }}>
             {/* Flagship */}
             <div style={{ borderRadius: 20, padding: "24px 20px", border: "1px solid rgba(201,168,76,0.3)", background: "linear-gradient(145deg,rgba(201,168,76,0.05),rgba(201,168,76,0.01))" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "5px 13px", fontSize: 11, fontWeight: 600, color: "#C9A84C", marginBottom: 14 }}>🌊 OPEN NOW</div>
@@ -454,7 +460,7 @@ export default function Landing() {
       {/* ══ INVESTOR ══ */}
       <section id="investor" style={{ padding: "48px 16px", background: "rgba(18,18,42,0.6)", position: "relative", zIndex: 10 }} className="sm:py-20">
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="lg:grid-cols-2 lg:gap-16 lg:items-center">
+          <div className="rwg-split-grid">
             <div>
               <div style={{ textAlign: "center" }} className="lg:text-left">
                 <div className="rwg-section-badge">For Investors</div>
