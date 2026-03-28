@@ -1552,17 +1552,17 @@ button, .interactive {
 
 /* Premium glass card */
 .rwg-card {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   transition: all 0.3s ease;
 }
 .rwg-card:hover {
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-color: rgba(52, 211, 153, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(52, 211, 153, 0.1);
   transform: translateY(-2px);
 }
 
@@ -1585,16 +1585,16 @@ button, .interactive {
 /* Premium page background */
 .rwg-bg {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0b1e 0%, #14082e 30%, #1e0a3e 60%, #0d1540 100%);
+  background: linear-gradient(135deg, #020d14 0%, #061a20 30%, #082430 60%, #041520 100%);
   background-attachment: fixed;
 }
 
 /* Premium header */
 .rwg-header {
-  background: rgba(10, 11, 30, 0.8);
+  background: rgba(2, 13, 20, 0.85);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.1);
 }
 
 /* Glow effects */
@@ -1610,7 +1610,7 @@ button, .interactive {
 
 /* Premium gradient text */
 .rwg-text-gradient {
-  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%);
+  background: linear-gradient(135deg, #5eead4 0%, #34d399 50%, #6ee7b7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1638,10 +1638,10 @@ button, .interactive {
   background: rgba(255, 255, 255, 0.08);
 }
 .rwg-nav-tab.active {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(59, 130, 246, 0.3));
-  border-color: rgba(139, 92, 246, 0.5);
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.4), rgba(16, 185, 129, 0.3));
+  border-color: rgba(20, 184, 166, 0.5);
   color: white;
-  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.25);
+  box-shadow: 0 2px 12px rgba(20, 184, 166, 0.25);
 }
 
 /* Premium input */
@@ -1655,9 +1655,9 @@ button, .interactive {
 }
 .rwg-input:focus,
 .rwg-input:focus-visible {
-  border-color: rgba(139, 92, 246, 0.6) !important;
+  border-color: rgba(20, 184, 166, 0.6) !important;
   background: rgba(255, 255, 255, 0.10) !important;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15) !important;
   outline: none !important;
 }
 .rwg-input::placeholder {
@@ -1675,30 +1675,30 @@ button, .interactive {
   appearance: none !important;
 }
 .rwg-select:focus {
-  border-color: rgba(139, 92, 246, 0.6) !important;
+  border-color: rgba(20, 184, 166, 0.6) !important;
   background: rgba(255, 255, 255, 0.1) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15) !important;
 }
 .rwg-select option {
-  background: #1a1030 !important;
+  background: #061a20 !important;
   color: white !important;
 }
 
 /* Premium button */
 .rwg-btn {
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #0d9488, #059669);
   border: none;
   border-radius: 12px;
   color: white;
   font-weight: 600;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4);
 }
 .rwg-btn:hover {
-  background: linear-gradient(135deg, #6d28d9, #4338ca);
+  background: linear-gradient(135deg, #0f766e, #047857);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5);
 }
 .rwg-btn:active {
   transform: translateY(0);
@@ -1727,7 +1727,7 @@ button, .interactive {
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.1) 0%, transparent 70%);
   top: -200px;
   right: -200px;
   pointer-events: none;
@@ -1738,7 +1738,7 @@ button, .interactive {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.09) 0%, transparent 70%);
   bottom: -150px;
   left: -150px;
   pointer-events: none;
@@ -1749,7 +1749,7 @@ button, .interactive {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.07) 0%, transparent 70%);
   top: 40%;
   left: 50%;
   pointer-events: none;
@@ -1759,7 +1759,7 @@ button, .interactive {
 /* Page backgrounds */
 .rwg-page-bg {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0b1e 0%, #14082e 30%, #1e0a3e 60%, #0d1540 100%);
+  background: linear-gradient(135deg, #020d14 0%, #061a20 30%, #082430 60%, #041520 100%);
   color: white;
   overflow: hidden;
   position: relative;
@@ -1771,7 +1771,7 @@ button, .interactive {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(139, 92, 246, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(20, 184, 166, 0.07) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -1782,12 +1782,12 @@ button, .interactive {
   gap: 0.5rem;
   padding: 0.375rem 1rem;
   border-radius: 9999px;
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(20, 184, 166, 0.15);
+  border: 1px solid rgba(20, 184, 166, 0.35);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.025em;
-  color: #ddd6fe;
+  color: #99f6e4;
 }
 
 /* Sector icon backgrounds */
@@ -1815,8 +1815,8 @@ button, .interactive {
 
 /* CTA section card */
 .rwg-cta-card {
-  background: rgba(139, 92, 246, 0.08);
-  border-color: rgba(139, 92, 246, 0.25);
+  background: rgba(20, 184, 166, 0.08);
+  border-color: rgba(20, 184, 166, 0.25);
 }
 
 /* CTA inline badge */
@@ -1826,11 +1826,11 @@ button, .interactive {
   gap: 0.5rem;
   padding: 0.375rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(20, 184, 166, 0.15);
+  border: 1px solid rgba(20, 184, 166, 0.3);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #c4b5fd;
+  color: #5eead4;
 }
 
 /* Footer border */
@@ -1840,18 +1840,18 @@ button, .interactive {
 
 /* Desktop tab sub-nav */
 .rwg-subnav {
-  background: rgba(10, 11, 30, 0.8);
+  background: rgba(2, 13, 20, 0.85);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.08);
 }
 
 /* Mobile bottom nav */
 .rwg-mobile-nav {
-  background: rgba(10, 11, 30, 0.95);
+  background: rgba(4, 21, 20, 0.96);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(20, 184, 166, 0.12);
 }
 
 .rwg-mobile-nav-item {
@@ -1871,7 +1871,7 @@ button, .interactive {
   transform: translateX(-50%);
   width: 40px;
   height: 2px;
-  background: linear-gradient(90deg, #7c3aed, #4f46e5);
+  background: linear-gradient(90deg, #14b8a6, #10b981);
   border-radius: 0 0 4px 4px;
 }
 

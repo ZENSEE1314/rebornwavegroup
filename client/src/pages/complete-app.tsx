@@ -2245,7 +2245,7 @@ function KOSSection({
 function POSTerminalSection({ user }: { user: any }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === 'admin';
+  const isStaff = user?.role === 'admin' || user?.role === 'sales';
 
   // POS state
   const [activeService, setActiveService] = useState<string>('restaurant');
@@ -2257,11 +2257,10 @@ function POSTerminalSection({ user }: { user: any }) {
   const [discount, setDiscount] = useState(0);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [viewTab, setViewTab] = useState<'terminal' | 'orders'>('terminal');
-  const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
+  const [receiptData, setReceiptData] = useState<any>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
-  // Predefined menu items per service
   const menuItems: Record<string, any[]> = {
     restaurant: [
       { name: 'Nasi Goreng Special', price: 45000 }, { name: 'Mie Goreng', price: 40000 },
@@ -2274,8 +2273,8 @@ function POSTerminalSection({ user }: { user: any }) {
       { name: 'Room Large (1h)', price: 400000 }, { name: 'Snack Package', price: 75000 },
       { name: 'Drink Package', price: 100000 }, { name: 'Birthday Package', price: 350000 },
     ],
-    dj: [
-      { name: 'Entry Ticket', price: 150000 }, { name: 'VIP Table', price: 1500000 },
+    skybar: [
+      { name: 'Entry Ticket', price: 150000 }, { name: 'VIP Table (min)', price: 1500000 },
       { name: 'Bottle Service', price: 800000 }, { name: 'Event Package', price: 500000 },
     ],
     beauty: [
@@ -2291,15 +2290,16 @@ function POSTerminalSection({ user }: { user: any }) {
   };
 
   const services = [
-    { id: 'restaurant', label: 'Restaurant', icon: '🍽️' },
+    { id: 'restaurant', label: 'F&B', icon: '🍽️' },
     { id: 'ktv', label: 'KTV', icon: '🎤' },
-    { id: 'dj', label: 'DJ Event', icon: '🎵' },
+    { id: 'skybar', label: 'Sky Bar', icon: '🌅' },
     { id: 'beauty', label: 'Beauty', icon: '💄' },
-    { id: 'gamehouse', label: 'Game House', icon: '🎮' },
+    { id: 'gamehouse', label: 'Gaming', icon: '🎮' },
   ];
 
   const subtotal = orderItems.reduce((s, i) => s + i.price * i.qty, 0);
   const total = Math.max(0, subtotal - discount);
+  const pointsPreview = selectedCustomer ? Math.floor(total / 1000) : 0;
 
   const addItem = (item: any) => {
     setOrderItems(prev => {
@@ -2308,7 +2308,6 @@ function POSTerminalSection({ user }: { user: any }) {
       return [...prev, { ...item, qty: 1, category: activeService }];
     });
   };
-
   const removeItem = (name: string) => setOrderItems(prev => prev.filter(i => i.name !== name));
   const changeQty = (name: string, delta: number) => setOrderItems(prev =>
     prev.map(i => i.name === name ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
@@ -2318,7 +2317,7 @@ function POSTerminalSection({ user }: { user: any }) {
     if (q.length < 2) return setSearchResults([]);
     const r = await fetch(`/api/pos/search-customer?q=${encodeURIComponent(q)}`, { credentials: 'include' });
     const data = await r.json();
-    setSearchResults(data);
+    setSearchResults(Array.isArray(data) ? data : []);
     setShowSearchResults(true);
   };
 
@@ -2334,13 +2333,12 @@ function POSTerminalSection({ user }: { user: any }) {
       };
       const r = await fetch('/api/pos/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
       const order = await r.json();
-      if (paymentMethod !== 'qr_pending') {
-        await fetch(`/api/pos/orders/${order.id}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ paymentMethod }) });
-        toast({ title: '✅ Order completed!', description: `${order.orderNumber} paid via ${paymentMethod}` });
-      } else {
-        toast({ title: '📱 QR order created', description: `Customer can pay via app with their RWG Credits` });
-      }
-      setOrderItems([]); setSelectedCustomer(null); setTableOrRoom(''); setNotes(''); setDiscount(0);
+      const payRes = await fetch(`/api/pos/orders/${order.id}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ paymentMethod }) });
+      const payData = await payRes.json();
+      const pts = selectedCustomer ? Math.floor(parseFloat(order.total || '0') / 1000) : 0;
+      setReceiptData({ order: { ...order, ...payData.order }, items: orderItems, customer: selectedCustomer, paymentMethod, pointsAwarded: pts });
+      setShowReceipt(true);
+      setOrderItems([]); setSelectedCustomer(null); setTableOrRoom(''); setNotes(''); setDiscount(0); setCustomerSearch('');
       queryClient.invalidateQueries({ queryKey: ['/api/pos/orders'] });
     } catch { toast({ title: 'Error creating order', variant: 'destructive' }); }
   };
@@ -2348,190 +2346,291 @@ function POSTerminalSection({ user }: { user: any }) {
   const { data: myOrders = [] } = useQuery({
     queryKey: ['/api/pos/orders'],
     queryFn: () => fetch('/api/pos/orders', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
-    refetchInterval: 15000,
+    refetchInterval: 20000,
   });
-
-  const payOrder = async (orderId: number) => {
-    try {
-      await fetch(`/api/pos/orders/${orderId}/pay`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ paymentMethod: 'rwg_credits' }) });
-      toast({ title: '✅ Payment successful!' });
-      queryClient.invalidateQueries({ queryKey: ['/api/pos/orders'] });
-      setPayingOrderId(null);
-    } catch { toast({ title: 'Payment failed', variant: 'destructive' }); }
-  };
-
   const safeOrders = Array.isArray(myOrders) ? myOrders : [];
 
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-white mb-1">🏪 POS Terminal</h2>
-        <p className="text-white/60 text-sm">Point of Sale — Restaurant · KTV · DJ · Beauty · Game House</p>
+  // Not a staff member — show access denied
+  if (!isStaff) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="text-6xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold text-white mb-2">Staff Access Only</h2>
+        <p className="text-white/50 text-sm">The POS Terminal is available to sales staff and admin accounts.</p>
       </div>
+    );
+  }
 
-      {/* View Tabs */}
-      <div className="flex gap-2 justify-center">
-        {[['terminal', '🖥️ New Order'], ['orders', '📋 Orders']].map(([v, l]) => (
-          <button key={v} onClick={() => setViewTab(v as any)}
-            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${viewTab === v ? 'text-black' : 'text-white/60 rwg-card hover:text-white'}`}
-            style={viewTab === v ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)' } : {}}>
-            {l}
-          </button>
-        ))}
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(15,12,41,0.95))', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 20 }} className="p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Receipt className="w-6 h-6 text-amber-400" /> POS Terminal
+            </h2>
+            <p className="text-white/50 text-xs mt-0.5">Staff: {user?.firstName || user?.username} · {user?.role?.toUpperCase()}</p>
+          </div>
+          <div className="flex gap-2">
+            {[['terminal','🖥️ New Order'],['orders','📋 Orders']].map(([v,l]) => (
+              <button key={v} onClick={() => setViewTab(v as any)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={viewTab === v ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)', color: '#000' } : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {viewTab === 'terminal' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Menu */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* ── LEFT: Service + Menu + Customer ── */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Service selector */}
-            <div className="flex flex-wrap gap-2">
-              {services.map(s => (
-                <button key={s.id} onClick={() => setActiveService(s.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${activeService === s.id ? 'text-black' : 'rwg-card text-white/70 hover:text-white'}`}
-                  style={activeService === s.id ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)' } : {}}>
-                  <span>{s.icon}</span>{s.label}
-                </button>
-              ))}
-            </div>
-            {/* Menu grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {(menuItems[activeService] || []).map(item => (
-                <button key={item.name} onClick={() => addItem(item)}
-                  className="rwg-card p-3 rounded-xl text-left hover:scale-[1.02] transition-all cursor-pointer"
-                  style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
-                  <div className="text-sm font-semibold text-white leading-tight mb-1">{item.name}</div>
-                  <div className="text-amber-400 font-bold text-sm">RP {item.price.toLocaleString('id-ID')}</div>
-                </button>
-              ))}
-            </div>
-            {/* Customer search */}
-            <div className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.20)' }}>
-              <div className="text-white/70 text-xs mb-2 font-semibold">CUSTOMER (optional)</div>
+            {/* Customer lookup (required to earn points) */}
+            <div className="rwg-card p-4 rounded-2xl" style={{ border: '1px solid rgba(0,245,255,0.18)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <UserCheck className="w-4 h-4 text-cyan-400" />
+                <span className="text-white font-semibold text-sm">Customer Lookup</span>
+                <span className="ml-auto text-xs text-white/30 italic">Assigns loyalty points</span>
+              </div>
               <div className="relative">
-                <input value={customerSearch} onChange={e => { setCustomerSearch(e.target.value); searchCustomers(e.target.value); }}
-                  placeholder="Search by name, email or referral code..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input value={customerSearch}
+                  onChange={e => { setCustomerSearch(e.target.value); searchCustomers(e.target.value); }}
+                  placeholder="Search name, email or referral code…"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-400/40" />
                 {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl overflow-hidden" style={{ background: '#1a1535', border: '1px solid rgba(201,168,76,0.3)' }}>
+                  <div className="absolute top-full left-0 right-0 z-30 mt-1 rounded-xl overflow-hidden shadow-2xl" style={{ background: '#13102a', border: '1px solid rgba(201,168,76,0.3)' }}>
                     {searchResults.map(u => (
-                      <button key={u.id} onClick={() => { setSelectedCustomer(u); setCustomerSearch(`${u.firstName || ''} ${u.lastName || ''}`.trim()); setShowSearchResults(false); }}
-                        className="w-full text-left px-3 py-2 hover:bg-white/5 text-sm">
-                        <div className="text-white font-medium">{u.firstName} {u.lastName}</div>
-                        <div className="text-white/50 text-xs">{u.email} · {u.referralCode} · RP {parseFloat(u.credits||'0').toLocaleString('id-ID')}</div>
+                      <button key={u.id} onClick={() => { setSelectedCustomer(u); setCustomerSearch(`${u.firstName||''} ${u.lastName||''}`.trim()); setShowSearchResults(false); }}
+                        className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-0 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black flex-shrink-0" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                          {(u.firstName?.[0]||'?').toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-white text-sm font-medium">{u.firstName} {u.lastName}</div>
+                          <div className="text-white/40 text-xs">{u.email} · {u.loyaltyPoints||0} pts · RP {parseFloat(u.credits||'0').toLocaleString('id-ID')}</div>
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              {selectedCustomer && (
-                <div className="mt-2 flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(201,168,76,0.1)' }}>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
-                    {(selectedCustomer.firstName?.[0] || '?').toUpperCase()}
+              {selectedCustomer ? (
+                <div className="mt-3 flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                    {(selectedCustomer.firstName?.[0]||'?').toUpperCase()}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white text-sm font-medium">{selectedCustomer.firstName} {selectedCustomer.lastName}</div>
-                    <div className="text-amber-400 text-xs">RP {parseFloat(selectedCustomer.credits||'0').toLocaleString('id-ID')} · {selectedCustomer.loyaltyPoints||0} pts</div>
+                  <div className="flex-1">
+                    <div className="text-white font-semibold">{selectedCustomer.firstName} {selectedCustomer.lastName}</div>
+                    <div className="text-xs text-amber-400">{selectedCustomer.loyaltyPoints||0} pts · RP {parseFloat(selectedCustomer.credits||'0').toLocaleString('id-ID')}</div>
                   </div>
-                  <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                  {total > 0 && <div className="text-xs font-bold text-emerald-400">+{pointsPreview} pts</div>}
+                  <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }} className="text-white/30 hover:text-white/80 ml-1"><X className="w-4 h-4" /></button>
                 </div>
+              ) : (
+                <p className="text-white/30 text-xs mt-2 text-center">No customer selected — points won't be awarded</p>
               )}
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <input value={tableOrRoom} onChange={e => setTableOrRoom(e.target.value)} placeholder="Table / Room #"
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
-                <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes..."
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400/50" />
-              </div>
+            </div>
+
+            {/* Service selector */}
+            <div className="flex flex-wrap gap-2">
+              {services.map(s => (
+                <button key={s.id} onClick={() => setActiveService(s.id)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+                  style={activeService === s.id ? { background: 'linear-gradient(135deg,#C9A84C,#f0c060)', color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span>{s.icon}</span>{s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Menu grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {(menuItems[activeService] || []).map(item => {
+                const inCart = orderItems.find(i => i.name === item.name);
+                return (
+                  <button key={item.name} onClick={() => addItem(item)}
+                    className="p-3 rounded-xl text-left transition-all hover:scale-[1.02] relative"
+                    style={{ background: inCart ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.04)', border: inCart ? '1px solid rgba(201,168,76,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+                    {inCart && <span className="absolute top-2 right-2 bg-amber-400 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{inCart.qty}</span>}
+                    <div className="text-sm font-semibold text-white leading-tight mb-1">{item.name}</div>
+                    <div className="text-amber-400 font-bold text-xs">RP {item.price.toLocaleString('id-ID')}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Table / Notes */}
+            <div className="grid grid-cols-2 gap-3">
+              <input value={tableOrRoom} onChange={e => setTableOrRoom(e.target.value)} placeholder="Table / Room #"
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/40" />
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes…"
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/40" />
             </div>
           </div>
 
-          {/* Right: Order summary */}
-          <div className="rwg-card p-5 rounded-2xl space-y-4" style={{ border: '1px solid rgba(201,168,76,0.25)' }}>
-            <h3 className="text-white font-bold text-lg flex items-center gap-2"><Receipt className="w-5 h-5 text-amber-400" /> Order</h3>
+          {/* ── RIGHT: Order Summary ── */}
+          <div className="rwg-card p-5 rounded-2xl flex flex-col gap-4" style={{ border: '1px solid rgba(201,168,76,0.25)' }}>
+            <h3 className="text-white font-bold text-base flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-amber-400" /> Order Summary
+            </h3>
+
             {orderItems.length === 0 ? (
-              <p className="text-white/40 text-sm text-center py-8">Add items from the menu →</p>
+              <div className="flex-1 flex flex-col items-center justify-center py-10 text-white/25 text-sm gap-2">
+                <ShoppingCart className="w-10 h-10 opacity-20" />
+                <p>Select items from the menu</p>
+              </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {orderItems.map(item => (
-                  <div key={item.name} className="flex items-center gap-2">
+                  <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex-1 min-w-0">
                       <div className="text-white text-xs font-medium truncate">{item.name}</div>
-                      <div className="text-amber-400 text-xs">RP {item.price.toLocaleString('id-ID')}</div>
+                      <div className="text-amber-400 text-xs">RP {(item.price * item.qty).toLocaleString('id-ID')}</div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => changeQty(item.name, -1)} className="text-white/40 hover:text-white"><MinusCircle className="w-4 h-4" /></button>
-                      <span className="text-white text-sm w-5 text-center">{item.qty}</span>
-                      <button onClick={() => changeQty(item.name, 1)} className="text-white/40 hover:text-white"><PlusCircle className="w-4 h-4" /></button>
-                      <button onClick={() => removeItem(item.name)} className="text-red-400/60 hover:text-red-400 ml-1"><X className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => changeQty(item.name, -1)} className="text-white/30 hover:text-white transition-colors"><MinusCircle className="w-4 h-4" /></button>
+                      <span className="text-white text-sm w-5 text-center font-bold">{item.qty}</span>
+                      <button onClick={() => changeQty(item.name, 1)} className="text-white/30 hover:text-white transition-colors"><PlusCircle className="w-4 h-4" /></button>
+                      <button onClick={() => removeItem(item.name)} className="text-red-400/50 hover:text-red-400 ml-1 transition-colors"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-            <div className="border-t border-white/10 pt-3 space-y-1">
-              <div className="flex justify-between text-white/60 text-sm"><span>Subtotal</span><span>RP {subtotal.toLocaleString('id-ID')}</span></div>
+
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              <div className="flex justify-between text-white/50 text-sm"><span>Subtotal</span><span>RP {subtotal.toLocaleString('id-ID')}</span></div>
               <div className="flex items-center gap-2">
-                <span className="text-white/60 text-sm">Discount</span>
+                <span className="text-white/50 text-sm flex-shrink-0">Discount (RP)</span>
                 <input type="number" value={discount || ''} onChange={e => setDiscount(parseFloat(e.target.value)||0)} placeholder="0"
-                  className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-amber-400 text-sm text-right focus:outline-none" />
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-amber-400 text-sm text-right focus:outline-none min-w-0" />
               </div>
-              <div className="flex justify-between text-white font-bold text-lg"><span>Total</span><span>RP {total.toLocaleString('id-ID')}</span></div>
+              <div className="flex justify-between text-white font-bold text-xl pt-1"><span>Total</span><span>RP {total.toLocaleString('id-ID')}</span></div>
+              {selectedCustomer && total > 0 && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-1.5">
+                  <Star className="w-3 h-3" /><span>Customer earns <strong>{pointsPreview} pts</strong> on this order</span>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <button onClick={() => createOrder('cash')}
-                className="w-full py-2.5 rounded-xl font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
-                💵 Cash
+
+            <div className="space-y-2.5 mt-auto">
+              <button onClick={() => createOrder('cash')} disabled={!orderItems.length}
+                className="w-full py-3 rounded-xl font-bold text-black text-sm transition-all disabled:opacity-40" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                💵 Pay with Cash
               </button>
-              <button onClick={() => createOrder('card')}
-                className="w-full py-2.5 rounded-xl font-bold text-white text-sm rwg-card" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
-                💳 Card
+              <button onClick={() => createOrder('card')} disabled={!orderItems.length}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all disabled:opacity-40" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}>
+                💳 Pay with Card
               </button>
               {selectedCustomer && (
-                <button onClick={() => createOrder('rwg_credits')}
-                  className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: 'linear-gradient(135deg,rgba(233,69,96,0.8),rgba(200,40,70,0.9))' }}>
+                <button onClick={() => createOrder('rwg_credits')} disabled={!orderItems.length}
+                  className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all disabled:opacity-40" style={{ background: 'linear-gradient(135deg,rgba(139,92,246,0.9),rgba(109,40,217,0.9))' }}>
                   ⚡ RWG Credits
                 </button>
               )}
-              <button onClick={() => createOrder('qr_pending')}
-                className="w-full py-2.5 rounded-xl font-semibold text-white/70 text-xs rwg-card" style={{ border: '1px solid rgba(0,245,255,0.2)' }}>
-                📱 Send QR to Customer
-              </button>
             </div>
           </div>
         </div>
       )}
 
       {viewTab === 'orders' && (
-        <div className="space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-bold">Recent Orders ({safeOrders.length})</h3>
+            <button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/pos/orders'] })} className="text-white/40 hover:text-white"><RefreshCw className="w-4 h-4" /></button>
+          </div>
           {safeOrders.length === 0 ? (
-            <div className="text-center py-16 text-white/40">
-              <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No orders yet</p>
-            </div>
-          ) : safeOrders.map((order: any) => (
-            <div key={order.id} className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(201,168,76,0.18)' }}>
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <span className="text-amber-400 font-bold text-sm">{order.orderNumber}</span>
-                  <span className="text-white/50 text-xs ml-2">{order.serviceType} {order.tableOrRoom ? `· ${order.tableOrRoom}` : ''}</span>
+            <div className="text-center py-16 text-white/30"><Receipt className="w-12 h-12 mx-auto mb-3 opacity-20" /><p>No orders yet</p></div>
+          ) : (
+            <div className="space-y-3">
+              {safeOrders.map((order: any) => (
+                <div key={order.id} className="rwg-card p-4 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <span className="text-amber-400 font-bold text-sm">{order.orderNumber}</span>
+                      <span className="text-white/40 text-xs ml-2">{order.serviceType}{order.tableOrRoom ? ` · ${order.tableOrRoom}` : ''}</span>
+                      {order.customerName && <div className="text-white/60 text-xs mt-0.5">👤 {order.customerName}</div>}
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold block mb-1 ${order.paymentStatus === 'paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {order.paymentStatus}
+                      </span>
+                      <span className="text-white font-bold text-sm">RP {parseFloat(order.total).toLocaleString('id-ID')}</span>
+                      {order.pointsAwarded > 0 && <div className="text-emerald-400 text-[10px] mt-0.5">+{order.pointsAwarded} pts</div>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(order.items || []).map((item: any) => (
+                      <span key={item.id} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.45)' }}>
+                        {item.quantity}x {item.itemName}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${order.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                    {order.paymentStatus}
-                  </span>
-                  <span className="text-white font-bold text-sm">RP {parseFloat(order.total).toLocaleString('id-ID')}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {showReceipt && receiptData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: '#0e0c1e', border: '1px solid rgba(201,168,76,0.35)', maxHeight: '90vh', overflowY: 'auto' }}>
+            {/* Receipt header */}
+            <div className="p-6 text-center" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+              <CheckCircle className="w-12 h-12 text-black mx-auto mb-2" />
+              <h3 className="text-black font-bold text-xl">Payment Confirmed!</h3>
+              <p className="text-black/70 text-sm">{receiptData.order?.orderNumber}</p>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Customer */}
+              {receiptData.customer && (
+                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                    {(receiptData.customer.firstName?.[0]||'?').toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold text-sm">{receiptData.customer.firstName} {receiptData.customer.lastName}</div>
+                    <div className="text-white/40 text-xs">{receiptData.customer.email}</div>
+                  </div>
+                </div>
+              )}
+              {/* Items */}
+              <div className="space-y-1.5">
+                {receiptData.items.map((item: any) => (
+                  <div key={item.name} className="flex justify-between text-sm">
+                    <span className="text-white/70">{item.qty}x {item.name}</span>
+                    <span className="text-white">RP {(item.price * item.qty).toLocaleString('id-ID')}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-white/10 pt-3 space-y-1">
+                {receiptData.order?.discount > 0 && (
+                  <div className="flex justify-between text-sm text-white/50"><span>Discount</span><span>- RP {parseFloat(receiptData.order.discount).toLocaleString('id-ID')}</span></div>
+                )}
+                <div className="flex justify-between font-bold text-lg"><span className="text-white">Total</span><span className="text-amber-400">RP {parseFloat(receiptData.order?.total||'0').toLocaleString('id-ID')}</span></div>
+                <div className="flex justify-between text-sm text-white/50">
+                  <span>Payment</span><span className="capitalize">{receiptData.paymentMethod?.replace('_',' ')}</span>
                 </div>
               </div>
-              {(order.items || []).slice(0,3).map((item: any) => (
-                <div key={item.id} className="text-xs text-white/50">{item.quantity}x {item.itemName} · RP {parseFloat(item.totalPrice).toLocaleString('id-ID')}</div>
-              ))}
-              {order.paymentStatus === 'pending' && (
-                <button onClick={() => payOrder(order.id)}
-                  className="mt-3 w-full py-2 rounded-lg font-bold text-black text-sm" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
-                  ⚡ Pay with RWG Credits
-                </button>
+              {receiptData.pointsAwarded > 0 && (
+                <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                  <Star className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  <div>
+                    <div className="text-emerald-400 font-bold text-sm">+{receiptData.pointsAwarded} Loyalty Points</div>
+                    <div className="text-emerald-400/60 text-xs">Added to {receiptData.customer?.firstName}'s account</div>
+                  </div>
+                </div>
               )}
+              <button onClick={() => setShowReceipt(false)} className="w-full py-3 rounded-xl font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                New Order
+              </button>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -8888,7 +8987,7 @@ export default function CompleteApp() {
               <HelpCircle className="w-4 h-4" />
             </Button>
 
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-violet-900/40">
+            <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-teal-900/40">
               <User className="w-4 h-4 text-white" />
             </div>
 
@@ -8922,18 +9021,17 @@ export default function CompleteApp() {
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
               { id: "petcare", label: t('petcare.title'), icon: Heart },
-              { id: "purchase", label: t('purchase.verification'), icon: Camera },
               { id: "loyalty", label: t('loyalty.title'), icon: Star },
               { id: "kos", label: "KOS", icon: Crown },
               { id: "bookings", label: t('bookings.title'), icon: Calendar },
-              { id: "pos", label: "POS", icon: Receipt },
               { id: "marketplace", label: t('marketplace.title'), icon: ShoppingBag },
               { id: "inventory", label: t('inventory.title'), icon: Package },
               { id: "chat", label: "Chat", icon: MessageCircle },
               { id: "support", label: "Support", icon: Headphones },
-              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
               { id: "referrals", label: t('tabs.referrals'), icon: Users },
-              { id: "profile", label: t('tabs.profile'), icon: User }
+              { id: "profile", label: t('tabs.profile'), icon: User },
+              ...((user?.role === 'admin' || user?.role === 'sales') ? [{ id: "pos", label: "POS", icon: Receipt }] : []),
+              ...(user?.role === 'admin' ? [{ id: "admin", label: t('tabs.admin'), icon: Settings }] : []),
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -9027,8 +9125,8 @@ export default function CompleteApp() {
                 >
                   PayPal
                 </Button>
-                <Button 
-                  className="flex-1 bg-purple-600" 
+                <Button
+                  className="flex-1 bg-teal-600 hover:bg-teal-700"
                   onClick={() => processPayment(topUpAmount)}
                   disabled={!topUpAmount}
                 >
@@ -9339,11 +9437,12 @@ export default function CompleteApp() {
               // Admin Dashboard - Enhanced Management Controls (removed duplicate Admin Panel button)
               <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
                 <Button 
-                  onClick={() => setActiveTab("purchase")} 
-                  className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                  onClick={() => setActiveTab("pos")}
+                  className="w-full h-20 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                  style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)', color: '#000' }}
                 >
-                  <Eye className="w-6 h-6 mb-1" />
-                  <span className="text-xs font-medium">Payments</span>
+                  <Receipt className="w-6 h-6 mb-1 text-black" />
+                  <span className="text-xs font-medium text-black">POS Terminal</span>
                 </Button>
 
                 <Button 
@@ -9373,32 +9472,34 @@ export default function CompleteApp() {
             ) : (
               // Regular User Dashboard - Core Features
               <div className="grid md:hidden grid-cols-2 gap-3 mb-6 px-4 w-full max-w-sm mx-auto">
-                <Button 
-                  onClick={() => setActiveTab("purchase")} 
-                  className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                <Button
+                  onClick={() => setActiveTab("loyalty")}
+                  className="w-full h-20 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                  style={{ background: 'linear-gradient(135deg, #0d9488, #059669)' }}
                 >
-                  <Camera className="w-6 h-6 mb-1" />
-                  <span className="text-xs font-medium">{t('purchase.verification')}</span>
+                  <Gift className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">{t('dashboard.loyaltyPoints')}</span>
                 </Button>
 
-                <Button 
-                  onClick={() => setActiveTab("bookings")} 
-                  className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                <Button
+                  onClick={() => setActiveTab("bookings")}
+                  className="w-full h-20 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                  style={{ background: 'linear-gradient(135deg, #0891b2, #0284c7)' }}
                 >
                   <Calendar className="w-6 h-6 mb-1" />
                   <span className="text-xs font-medium">{t('booking.title')}</span>
                 </Button>
 
-                <Button 
-                  onClick={() => setActiveTab("inventory")} 
+                <Button
+                  onClick={() => setActiveTab("inventory")}
                   className="w-full h-20 bg-pink-600 hover:bg-pink-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
                 >
                   <Package className="w-6 h-6 mb-1" />
                   <span className="text-xs font-medium">{t('toys.myCollection')}</span>
                 </Button>
 
-                <Button 
-                  onClick={() => setActiveTab("referrals")} 
+                <Button
+                  onClick={() => setActiveTab("referrals")}
                   className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
                 >
                   <Users className="w-6 h-6 mb-1" />
@@ -9417,7 +9518,7 @@ export default function CompleteApp() {
                     <div className="border-b border-white/5" data-dashboard-element="system-users">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center">
                             <Users className="w-4 h-4 text-white" />
                           </div>
                           <span className="text-white font-medium">Total Users</span>
@@ -9489,7 +9590,7 @@ export default function CompleteApp() {
                     <div className="border-b border-white/5" data-dashboard-element="admin-points">
                       <div className="flex items-center justify-between p-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center">
                             <Gift className="w-4 h-4 text-white" />
                           </div>
                           <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
@@ -9568,7 +9669,7 @@ export default function CompleteApp() {
                     }}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center">
                         <Gift className="w-4 h-4 text-white" />
                       </div>
                       <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
@@ -9719,11 +9820,12 @@ export default function CompleteApp() {
                     </Button>
                     
                     <Button
-                      onClick={() => setActiveTab("purchase")}
-                      className="h-24 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex flex-col items-center justify-center"
+                      onClick={() => setActiveTab("pos")}
+                      className="h-24 text-black rounded-xl flex flex-col items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}
                     >
-                      <Eye className="w-8 h-8 mb-2" />
-                      <span className="text-sm font-medium">Payment Review</span>
+                      <Receipt className="w-8 h-8 mb-2" />
+                      <span className="text-sm font-medium">POS Terminal</span>
                     </Button>
                     
                     <Button
@@ -9750,7 +9852,7 @@ export default function CompleteApp() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center">
                               <Users className="w-5 h-5 text-white" />
                             </div>
                             <span className="text-gray-700">Total Users</span>
@@ -9885,7 +9987,7 @@ export default function CompleteApp() {
                     }}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center">
                         <Gift className="w-5 h-5 text-white" />
                       </div>
                       <span className="text-white font-medium text-lg">{t('dashboard.loyaltyPoints')}</span>
@@ -10660,293 +10762,252 @@ export default function CompleteApp() {
 
         {/* Bookings Tab */}
         {activeTab === "bookings" && (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <div className="text-center w-full">
-                <h2 className="text-3xl font-bold text-white">
-                  {t('booking.title')}
+          <div className="space-y-6">
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg,rgba(0,245,255,0.08),rgba(15,12,41,0.95))', border: '1px solid rgba(0,245,255,0.18)', borderRadius: 20 }} className="p-5 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Calendar className="w-6 h-6 text-cyan-400" /> {t('booking.title')}
                 </h2>
-                <p className="text-white">
-                  {t('booking.viewAppointments')}
+                <p className="text-white/45 text-xs mt-0.5">
+                  {(user?.role === 'admin' || user?.role === 'sales') ? 'Staff view — all bookings visible' : t('booking.viewAppointments')}
                 </p>
               </div>
+              {(user?.role === 'admin' || user?.role === 'sales') && (
+                <div className="flex gap-2 text-xs">
+                  {[
+                    { label: 'Pending', color: 'rgba(251,191,36,0.2)', text: '#fbbf24' },
+                    { label: 'Scheduled', color: 'rgba(59,130,246,0.2)', text: '#60a5fa' },
+                    { label: 'Completed', color: 'rgba(52,211,153,0.2)', text: '#34d399' },
+                    { label: 'Cancelled', color: 'rgba(248,113,113,0.2)', text: '#f87171' },
+                  ].map(({ label, color, text }) => (
+                    <span key={label} className="px-2 py-1 rounded-full font-semibold" style={{ background: color, color: text }}>{label}</span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Service Categories */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
-                style={{ background: "linear-gradient(135deg, rgba(233,69,96,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(233,69,96,0.30)" }}>
-                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #E94560, transparent)" }} />
-                <div className="text-4xl mb-3">💄</div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {serviceCategories?.beauty?.name || 'Beauty Services'}
-                </h3>
-                <p className="text-sm text-white/50 mb-4">Hair Spa, Facials, Nails</p>
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
-                  {t("common.startingFrom")} RP {serviceCategories?.beauty?.startingPrice || 0}
-                </span>
-              </div>
+            {/* ── STAFF CALENDAR OVERVIEW (admin/sales only) ── */}
+            {(user?.role === 'admin' || user?.role === 'sales') && (() => {
+              const allApts = filteredAppointments || [];
+              // Group by date
+              const grouped: Record<string, any[]> = {};
+              allApts.forEach((apt: any) => {
+                const d = new Date(apt.appointmentDate).toISOString().split('T')[0];
+                if (!grouped[d]) grouped[d] = [];
+                grouped[d].push(apt);
+              });
+              const sortedDates = Object.keys(grouped).sort();
+              const serviceIcon: Record<string, string> = { beauty: '💄', entertainment: '🎮', restaurant: '🍽️', ktv: '🎤', spa: '🛁', gaming: '🕹️' };
+              const statusStyle: Record<string, { bg: string; text: string }> = {
+                pending: { bg: 'rgba(251,191,36,0.15)', text: '#fbbf24' },
+                scheduled: { bg: 'rgba(59,130,246,0.15)', text: '#60a5fa' },
+                completed: { bg: 'rgba(52,211,153,0.15)', text: '#34d399' },
+                cancelled: { bg: 'rgba(248,113,113,0.15)', text: '#f87171' },
+              };
+              return (
+                <div className="rwg-card rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <h3 className="text-white font-bold flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-cyan-400" /> Booking Calendar
+                      <span className="text-white/40 text-xs font-normal">({allApts.length} total)</span>
+                    </h3>
+                    <div className="flex gap-2">
+                      <select value={appointmentsFilter} onChange={(e) => setAppointmentsFilter(e.target.value as any)}
+                        className="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white/70 focus:outline-none">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                  {sortedDates.length === 0 ? (
+                    <div className="py-12 text-center text-white/30">
+                      <Calendar className="w-10 h-10 mx-auto mb-2 opacity-25" /><p>No bookings yet</p>
+                    </div>
+                  ) : sortedDates.map(date => (
+                    <div key={date} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div className="px-5 py-2.5 flex items-center gap-2" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                        <div className="text-xs font-bold text-white/60 uppercase tracking-wider">
+                          {new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(201,168,76,0.1)', color: '#C9A84C' }}>{grouped[date].length}</span>
+                      </div>
+                      <div className="px-4 py-2 space-y-2">
+                        {grouped[date].map((apt: any) => {
+                          const ss = statusStyle[apt.status] || statusStyle['pending'];
+                          return (
+                            <div key={apt.id} className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.025)' }}>
+                              <div className="text-lg flex-shrink-0">{serviceIcon[apt.service] || '📅'}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white text-sm font-medium truncate">{apt.title}</div>
+                                <div className="text-white/40 text-xs">
+                                  {new Date(apt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {apt.duration ? ` · ${apt.duration}` : ''}
+                                  {apt.userName ? ` · ${apt.userName}` : ''}
+                                </div>
+                              </div>
+                              <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0" style={{ background: ss.bg, color: ss.text }}>{apt.status}</span>
+                              {apt.status !== 'cancelled' && apt.status !== 'completed' && (
+                                <button onClick={() => deleteAppointment(apt.id)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
-              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
-                style={{ background: "linear-gradient(135deg, rgba(0,245,255,0.10) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(0,245,255,0.25)" }}>
-                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #00F5FF, transparent)" }} />
-                <div className="text-4xl mb-3">🎮</div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {serviceCategories?.entertainment?.name || 'Entertainment'}
-                </h3>
-                <p className="text-sm text-white/50 mb-4">Claw Machine, KTV Rooms</p>
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
-                  {t("common.startingFrom")} RP {serviceCategories?.entertainment?.startingPrice || 0}
-                </span>
-              </div>
-
-              <div className="relative overflow-hidden rounded-2xl p-6 text-center transition-all hover:scale-[1.02] cursor-pointer"
-                style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(15,12,41,0.95) 100%)", border: "1px solid rgba(201,168,76,0.25)" }}>
-                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #C9A84C, transparent)" }} />
-                <div className="text-4xl mb-3">🍽️</div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {serviceCategories?.restaurant?.name || 'Restaurant'}
-                </h3>
-                <p className="text-sm text-white/50 mb-4">Breakfast, Lunch, Dinner</p>
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-black" style={{ background: "linear-gradient(90deg, #C9A84C, #f0c060)" }}>
-                  {t("common.startingFrom")} RP {serviceCategories?.restaurant?.startingPrice || 0}
-                </span>
-              </div>
+            {/* ── SERVICE CATEGORIES ── */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { emoji: '💄', label: 'Beauty', sub: 'Hair · Facials · Nails', key: 'beauty', grad: 'rgba(233,69,96,0.12)', border: 'rgba(233,69,96,0.25)' },
+                { emoji: '🎮', label: 'Entertainment', sub: 'KTV · Games', key: 'entertainment', grad: 'rgba(0,245,255,0.08)', border: 'rgba(0,245,255,0.2)' },
+                { emoji: '🍽️', label: 'Restaurant', sub: 'Dine-in · Events', key: 'restaurant', grad: 'rgba(201,168,76,0.1)', border: 'rgba(201,168,76,0.22)' },
+              ].map(s => (
+                <div key={s.key} onClick={() => setNewAppointment({ ...newAppointment, category: s.key, service: '' })}
+                  className="relative overflow-hidden rounded-xl p-4 text-center cursor-pointer transition-all hover:scale-[1.02]"
+                  style={{ background: `linear-gradient(135deg,${s.grad},rgba(15,12,41,0.95))`, border: `1px solid ${newAppointment.category === s.key ? '#C9A84C' : s.border}` }}>
+                  <div className="text-3xl mb-2">{s.emoji}</div>
+                  <div className="text-white font-semibold text-sm">{s.label}</div>
+                  <div className="text-white/40 text-xs mt-0.5">{s.sub}</div>
+                  {serviceCategories?.[s.key]?.startingPrice && (
+                    <span className="mt-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold text-black" style={{ background: 'linear-gradient(90deg,#C9A84C,#f0c060)' }}>
+                      from RP {serviceCategories[s.key].startingPrice}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {/* New Booking Form */}
-            <Card className="rwg-card">
-              <CardHeader>
-                <CardTitle className="text-white">{t('booking.createNewBooking')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Select onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('booking.selectCategory')} />
+            {/* ── BOOKING FORM ── */}
+            <div className="rwg-card p-5 rounded-2xl space-y-4" style={{ border: '1px solid rgba(201,168,76,0.2)' }}>
+              <h3 className="text-white font-bold flex items-center gap-2"><Plus className="w-4 h-4 text-amber-400" /> {t('booking.createNewBooking')}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select value={newAppointment.category} onValueChange={(value) => setNewAppointment({...newAppointment, category: value, service: ""})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectValue placeholder={t('booking.selectCategory')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(serviceCategories || {}).map(([key, category]: any) => (
+                      <SelectItem key={key} value={key}>{category?.name || key}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {newAppointment.category && (
+                  <Select onValueChange={(value) => setNewAppointment({...newAppointment, service: value})}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue placeholder={t("booking.selectService")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(serviceCategories || {}).map(([key, category]) => (
-                        <SelectItem key={key} value={key}>{category?.name || key}</SelectItem>
+                      {(serviceCategories?.[newAppointment.category]?.options || []).map((option: any) => (
+                        <SelectItem key={option?.value || ''} value={option?.value || ''}>{option?.label || 'Service'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input type="date" value={newAppointment.date} min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/40" />
+                <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectValue placeholder={t('booking.selectTime')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({length: 24}, (_, i) => i).flatMap(hour =>
+                      ['00','30'].map(min => {
+                        const v = `${hour.toString().padStart(2,'0')}:${min}`;
+                        return <SelectItem key={v} value={v}>{v}</SelectItem>;
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <button onClick={bookAppointment} className="w-full py-3 rounded-xl font-bold text-black flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
+                <Calendar className="w-4 h-4" /> {t('booking.bookAppointment')}
+              </button>
+            </div>
 
-                  {newAppointment.category && (
-                    <Select onValueChange={(value) => setNewAppointment({...newAppointment, service: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("booking.selectService")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(serviceCategories?.[newAppointment.category]?.options || []).map((option) => (
-                          <SelectItem key={option?.value || ''} value={option?.value || ''}>
-                            {option?.label || 'Service'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="date"
-                    value={newAppointment.date}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-
-                  <Select onValueChange={(value) => setNewAppointment({...newAppointment, time: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('booking.selectTime')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({length: 24}, (_, i) => i).map(hour => (
-                        ['00', '30'].map(minute => (
-                          <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
-                            {`${hour.toString().padStart(2, '0')}:${minute}`}
-                          </SelectItem>
-                        ))
-                      )).flat()}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button onClick={bookAppointment} className="w-full">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {t('booking.bookAppointment')}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Current Appointments */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('booking.yourAppointments')}</CardTitle>
-                <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                  <select
-                    value={appointmentsFilter}
-                    onChange={(e) => setAppointmentsFilter(e.target.value as 'all' | 'pending' | 'scheduled' | 'completed' | 'cancelled')}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="all">{t('filter.all')}</option>
-                    <option value="pending">{t('filter.pending')}</option>
-                    <option value="scheduled">{t('filter.scheduled')}</option>
-                    <option value="completed">{t('filter.completed')}</option>
-                    <option value="cancelled">{t('filter.cancelled')}</option>
-                  </select>
-                  <input
-                    type="date"
-                    value={appointmentsDateFilter}
-                    onChange={(e) => setAppointmentsDateFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder={t('filter.filterByDate')}
-                  />
+            {/* ── USER'S APPOINTMENTS LIST ── */}
+            <div className="rwg-card rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <h3 className="text-white font-bold">{user?.role === 'admin' || user?.role === 'sales' ? 'All Appointments' : t('booking.yourAppointments')}</h3>
+                <div className="flex gap-2 items-center">
+                  <input type="date" value={appointmentsDateFilter} onChange={(e) => setAppointmentsDateFilter(e.target.value)}
+                    className="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white/70 focus:outline-none" />
                   {(appointmentsFilter !== 'all' || appointmentsDateFilter) && (
-                    <button
-                      onClick={() => {
-                        setAppointmentsFilter('all');
-                        setAppointmentsDateFilter('');
-                      }}
-                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800"
-                    >
-                      {t('filter.clearFilters')}
-                    </button>
+                    <button onClick={() => { setAppointmentsFilter('all'); setAppointmentsDateFilter(''); }} className="text-white/40 hover:text-white text-xs">✕</button>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-4">
                 {(() => {
-                  const appointments = filteredAppointments || [];
-                  const itemsPerPage = 10;
-                  const startIndex = (appointmentsPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedAppointments = appointments.slice(startIndex, endIndex);
-                  const totalPages = Math.ceil(appointments.length / itemsPerPage);
-
-                  if (appointments.length === 0) {
-                    return (
-                      <div className="text-center py-8 text-gray-500">
-                        <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>{t('appointments.noAppointments')}</p>
-                        <p className="text-sm mt-2">{t('appointments.bookingsWillAppear')}</p>
-                      </div>
-                    );
-                  }
-
+                  const apts = filteredAppointments || [];
+                  if (apts.length === 0) return (
+                    <div className="py-10 text-center text-white/30">
+                      <Calendar className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">{t('appointments.noAppointments')}</p>
+                    </div>
+                  );
+                  const ipp = 10, si = (appointmentsPage-1)*ipp, ei = si+ipp;
+                  const paged = apts.slice(si, ei);
+                  const totalP = Math.ceil(apts.length / ipp);
+                  const statusColor: Record<string, string> = { scheduled: '#60a5fa', pending: '#fbbf24', cancelled: '#f87171', completed: '#34d399' };
+                  const statusBg: Record<string, string> = { scheduled: 'rgba(59,130,246,0.15)', pending: 'rgba(251,191,36,0.15)', cancelled: 'rgba(248,113,113,0.15)', completed: 'rgba(52,211,153,0.15)' };
                   return (
-                    <>
-                      <div className="space-y-4">
-                        {paginatedAppointments.map((apt) => (
-                          <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 space-y-3 sm:space-y-0">
-                            <div className="flex items-center space-x-3 sm:space-x-4">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{apt.title}</h4>
-                                <p className="text-xs sm:text-sm text-slate-600">{new Date(apt.appointmentDate).toLocaleDateString()} at {new Date(apt.appointmentDate).toLocaleTimeString()}</p>
-                                <p className="text-xs sm:text-sm text-slate-500">{apt.description}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between sm:justify-end space-x-2 sm:space-x-4">
-                              <Badge 
-                                className={
-                                  apt.status === 'scheduled' ? 'bg-blue-500 text-white hover:bg-blue-600' :
-                                  apt.status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
-                                  apt.status === 'cancelled' ? 'bg-red-500 text-white hover:bg-red-600' :
-                                  apt.status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
-                                  'bg-gray-500 text-white hover:bg-gray-600'
-                                }
-                              >
-                                {apt.status}
-                              </Badge>
+                    <div className="space-y-2.5">
+                      {paged.map((apt: any) => (
+                        <div key={apt.id} className="flex items-center gap-3 p-3 rounded-xl transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.2)' }}>
+                            <Calendar className="w-5 h-5 text-amber-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-medium text-sm truncate">{apt.title}</div>
+                            <div className="text-white/40 text-xs">{new Date(apt.appointmentDate).toLocaleDateString()} · {new Date(apt.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          </div>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0" style={{ background: statusBg[apt.status] || 'rgba(255,255,255,0.08)', color: statusColor[apt.status] || '#fff' }}>
+                            {apt.status}
+                          </span>
+                          {apt.status !== 'cancelled' && (
+                            <div className="flex gap-1.5 flex-shrink-0">
                               {editingAppointment === apt.id ? (
-                                <div className="flex space-x-2">
-                                  <input
-                                    type="date"
-                                    min={new Date().toISOString().split('T')[0]}
-                                    defaultValue={apt.date}
+                                <>
+                                  <input type="date" min={new Date().toISOString().split('T')[0]} defaultValue={apt.date}
                                     onChange={(e) => apt.newDate = e.target.value}
-                                    className="w-32 flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                  />
-                                  <Select onValueChange={(value) => apt.newTime = value} defaultValue={apt.time}>
-                                    <SelectTrigger className="w-24">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {Array.from({length: 24}, (_, i) => i).map(hour => (
-                                        ['00', '30'].map(minute => (
-                                          <SelectItem key={`${hour}:${minute}`} value={`${hour.toString().padStart(2, '0')}:${minute}`}>
-                                            {`${hour.toString().padStart(2, '0')}:${minute}`}
-                                          </SelectItem>
-                                        ))
-                                      )).flat()}
-                                    </SelectContent>
-                                  </Select>
-                                  <Button size="sm" onClick={() => rescheduleAppointment(apt.id, apt.newDate || apt.date, apt.newTime || apt.time)}>
-                                    {t("common.save")}
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={() => setEditingAppointment(null)}>
-                                    {t('common.cancel')}
-                                  </Button>
-                                </div>
+                                    className="w-28 text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white focus:outline-none" />
+                                  <button onClick={() => rescheduleAppointment(apt.id, apt.newDate||apt.date, apt.newTime||apt.time)}
+                                    className="text-xs px-2 py-1 rounded-lg font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>Save</button>
+                                  <button onClick={() => setEditingAppointment(null)} className="text-white/40 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                                </>
                               ) : (
-                                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                                  {apt.status !== 'cancelled' && (
-                                    <Button size="sm" variant="outline" onClick={() => setEditingAppointment(apt?.id)}>
-                                      <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                      <span className="hidden sm:inline ml-1">{t("appointment.reschedule")}</span>
-                                    </Button>
-                                  )}
-                                  {apt.status !== 'cancelled' && (
-                                    <Button size="sm" variant="destructive" onClick={() => deleteAppointment(apt.id)}>
-                                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                                      <span className="hidden sm:inline ml-1">{t('common.cancel')}</span>
-                                    </Button>
-                                  )}
-                                </div>
+                                <>
+                                  <button onClick={() => setEditingAppointment(apt.id)} className="text-white/25 hover:text-amber-400 transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => deleteAppointment(apt.id)} className="text-white/25 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                                </>
                               )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Pagination Controls - Always show to indicate 10-per-page structure */}
-                      <div className="flex justify-between items-center pt-4 border-t mt-6">
-                        <div className="text-sm text-gray-600">
-                          {t("pagination.showing")} {startIndex + 1}-{Math.min(endIndex, appointments.length)} {t("pagination.of")} {appointments.length} {t("pagination.items")} ({t("pagination.perPage")})
+                          )}
                         </div>
-                        {totalPages > 1 && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAppointmentsPage(Math.max(1, appointmentsPage - 1))}
-                              disabled={appointmentsPage === 1}
-                            >
-                              {t("pagination.previous")}
-                            </Button>
-                            <span className="px-3 py-1 text-sm bg-gray-100 rounded flex items-center">
-                              {appointmentsPage} / {totalPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setAppointmentsPage(Math.min(totalPages, appointmentsPage + 1))}
-                              disabled={appointmentsPage === totalPages}
-                            >
-                              {t("common.next")}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </>
+                      ))}
+                      {totalP > 1 && (
+                        <div className="flex justify-center gap-2 pt-2">
+                          <button onClick={() => setAppointmentsPage(p => Math.max(1, p-1))} disabled={appointmentsPage===1} className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.06)' }}>← Prev</button>
+                          <span className="text-xs px-3 py-1.5 text-white/50">{appointmentsPage}/{totalP}</span>
+                          <button onClick={() => setAppointmentsPage(p => Math.min(totalP, p+1))} disabled={appointmentsPage===totalP} className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-30" style={{ background: 'rgba(255,255,255,0.06)' }}>Next →</button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
