@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useEffect, Component, lazy, Suspense, type ReactNode } from "react";
 
+// ── Error boundary for the whole app ──────────────────────────────────────────
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
@@ -26,12 +27,34 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     return this.props.children;
   }
 }
-// Eagerly loaded — shown immediately on first paint
+
+// ── Error boundary that catches failed lazy-chunk loads ────────────────────────
+class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-white/60 text-sm mb-4">Failed to load page. Check your connection.</p>
+            <button type="button" onClick={() => window.location.reload()} className="px-4 py-2 bg-violet-700 text-white rounded-lg text-sm cursor-pointer">
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Eagerly loaded — critical first-paint pages ────────────────────────────────
 import Landing from "@/pages/landing";
 import Login from "@/pages/Login";
+import CompleteApp from "@/pages/complete-app";   // main app — must never hang
 
-// Lazy-loaded — each becomes its own chunk, loaded on demand
-const CompleteApp          = lazy(() => import("@/pages/complete-app"));
+// ── Lazy-loaded — secondary pages, each gets its own chunk ────────────────────
 const Bookings             = lazy(() => import("@/pages/bookings-working"));
 const Marketplace          = lazy(() => import("@/pages/marketplace-working"));
 const Referrals            = lazy(() => import("@/pages/referrals"));
@@ -110,6 +133,7 @@ function Router() {
   }
 
   return (
+    <ChunkErrorBoundary>
     <Suspense fallback={<PageLoader />}>
       <Switch>
         {/* Login route should always be accessible */}
@@ -141,6 +165,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </Suspense>
+    </ChunkErrorBoundary>
   );
 }
 
