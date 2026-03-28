@@ -7,6 +7,9 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 app.use(compression());
 
+// Health check — must be first, before any middleware, so Render can reach it immediately
+app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+
 // Force HTTPS redirect for custom domain
 app.use((req, res, next) => {
   if (
@@ -292,14 +295,7 @@ app.use((req, res, next) => {
 
   // Use PORT env var (required by Render/Railway) or fallback to 5000 for local dev
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  server.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();
