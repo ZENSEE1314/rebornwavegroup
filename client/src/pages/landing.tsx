@@ -102,9 +102,11 @@ export default function Landing() {
         .rwg-tier-card:hover{transform:translateY(-6px)}
         .rwg-tier-featured{border-color:rgba(201,168,76,0.45);background:linear-gradient(145deg,rgba(201,168,76,0.07),rgba(201,168,76,0.02));box-shadow:0 0 60px rgba(201,168,76,0.12)}
         .rwg-tier-featured:hover{box-shadow:0 20px 80px rgba(201,168,76,0.22)}
-        .rwg-exp-card{border-radius:18px;padding:28px 22px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:all 0.3s}
+        .rwg-exp-card{border-radius:16px;padding:18px 16px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:all 0.3s}
+        @media(min-width:640px){.rwg-exp-card{padding:28px 22px;border-radius:18px}}
         .rwg-exp-card:hover{transform:translateY(-4px);border-color:rgba(201,168,76,0.25)}
-        .rwg-reward-card{border-radius:18px;padding:28px 22px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);text-align:center;transition:all 0.3s}
+        .rwg-reward-card{border-radius:16px;padding:20px 18px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);text-align:center;transition:all 0.3s}
+        @media(min-width:640px){.rwg-reward-card{padding:28px 22px;border-radius:18px}}
         .rwg-reward-card:hover{transform:translateY(-4px);border-color:rgba(201,168,76,0.25)}
         .rwg-inv-metric{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px}
         .rwg-email-input{flex:1;padding:14px 18px;border-radius:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:15px;outline:none;transition:border-color 0.2s;font-family:inherit}
@@ -119,6 +121,15 @@ export default function Landing() {
         .rwg-booking-input::placeholder{color:rgba(255,255,255,0.35)}
         .rwg-booking-select{width:100%;padding:12px 15px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:14px;outline:none;font-family:inherit;margin-bottom:16px}
         .rwg-booking-select option{background:#1a0a3e}
+        .rwg-mobile-sticky{display:none}
+        @media(max-width:639px){
+          .rwg-mobile-sticky{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,8,30,0.96);backdrop-filter:blur(20px);padding:12px 16px;gap:10px;border-top:1px solid rgba(201,168,76,0.18)}
+          .rwg-tier-scroll{display:flex;overflow-x:auto;gap:14px;padding-bottom:8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+          .rwg-tier-scroll::-webkit-scrollbar{display:none}
+          .rwg-tier-scroll-item{min-width:80vw;scroll-snap-align:start;flex-shrink:0}
+        }
+        @media(min-width:640px){.rwg-tier-scroll{display:contents}}
+        @media(min-width:640px){.rwg-tier-scroll-item{min-width:unset;flex-shrink:unset}}
       `}</style>
 
       <div className="rwg-orb-1" /><div className="rwg-orb-2" /><div className="rwg-orb-3" />
@@ -126,8 +137,8 @@ export default function Landing() {
 
       {/* ══ NAV ══ */}
       <header className="rwg-header sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
               <img src={rwgLogo} alt="RWG" className="w-full h-full object-contain" />
             </div>
@@ -135,19 +146,28 @@ export default function Landing() {
               Reborn Wave Group
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Live FOMO counter in nav */}
-            <div className="rwg-fomo-pill hidden md:inline-flex">
+            <div className="rwg-fomo-pill hidden lg:inline-flex">
               <span className="rwg-live-dot" />
               <span><strong>{fmt(foundersLeft)}</strong> Founders VIPs left</span>
             </div>
-            <LanguageSelector />
+            <div className="hidden md:block"><LanguageSelector /></div>
+            {/* LOGIN BUTTON */}
+            <button
+              onClick={handleLogin}
+              style={{ padding: "8px 16px", fontSize: 13, borderRadius: 22, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
+              onMouseOut={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            >
+              Log In
+            </button>
             <button
               onClick={() => document.getElementById("membership")?.scrollIntoView({ behavior: "smooth" })}
               className="rwg-gold-btn"
-              style={{ padding: "9px 20px", fontSize: 13 }}
+              style={{ padding: "8px 16px", fontSize: 13, whiteSpace: "nowrap" }}
             >
-              Secure My Spot →
+              <span className="hidden sm:inline">Secure My Spot </span>→
             </button>
           </div>
         </div>
@@ -157,14 +177,14 @@ export default function Landing() {
       <Ticker />
 
       {/* ══ HERO ══ */}
-      <section className="relative z-10 pt-24 pb-20 px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative z-10 pt-14 sm:pt-24 pb-14 sm:pb-20 px-4 sm:px-6 lg:px-8 text-center">
         <div className="max-w-5xl mx-auto">
-          <div className="rwg-hero-badge mb-6">
+          <div className="rwg-hero-badge mb-4 sm:mb-6">
             <Sparkles className="w-3.5 h-3.5 text-violet-400" />
             <span>World's First 5-in-1 Lifestyle Empire</span>
           </div>
 
-          <h1 className="text-5xl sm:text-7xl xl:text-8xl font-extrabold tracking-tight mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-6xl xl:text-8xl font-extrabold tracking-tight mb-4 sm:mb-6 leading-tight">
             <span className="text-white/90">The Future of</span>
             <br />
             <span style={{ background: "linear-gradient(90deg,#C9A84C 0%,#F0D080 40%,#00F5FF 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
@@ -172,21 +192,21 @@ export default function Landing() {
             </span>
           </h1>
 
-          <p className="text-base sm:text-lg text-white/55 max-w-2xl mx-auto mb-5 leading-relaxed">
+          <p className="text-sm sm:text-lg text-white/55 max-w-2xl mx-auto mb-4 sm:mb-5 leading-relaxed px-2">
             Blind box collectibles. VIP club. Gamified rewards. Scarcity-driven memberships.<br className="hidden sm:block" />
             One extraordinary ecosystem — Singapore &amp; Batam.
           </p>
 
           {/* FOMO scarcity pill */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(233,69,96,0.09)", border: "1px solid rgba(233,69,96,0.22)", borderRadius: 10, padding: "10px 20px", marginBottom: 36, fontSize: 14, fontWeight: 600, color: "#E94560" }}>
-            🔥 Only <strong style={{ fontSize: 18, margin: "0 2px" }}>{fmt(foundersLeft)}</strong> Founders VIP memberships remain — forever.
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(233,69,96,0.09)", border: "1px solid rgba(233,69,96,0.22)", borderRadius: 10, padding: "8px 16px", marginBottom: 28, fontSize: 13, fontWeight: 600, color: "#E94560", flexWrap: "wrap", justifyContent: "center" }}>
+            🔥 Only <strong style={{ fontSize: 16, margin: "0 2px" }}>{fmt(foundersLeft)}</strong> Founders VIP memberships remain — forever.
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 sm:mb-16 px-4">
             <button
               onClick={() => document.getElementById("membership")?.scrollIntoView({ behavior: "smooth" })}
-              className="rwg-gold-btn"
-              style={{ padding: "16px 36px", fontSize: 16, display: "inline-flex", alignItems: "center", gap: 8 }}
+              className="rwg-gold-btn w-full sm:w-auto"
+              style={{ padding: "14px 32px", fontSize: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
               <Zap style={{ width: 16, height: 16 }} /> Secure Founders VIP
             </button>
@@ -194,7 +214,7 @@ export default function Landing() {
               variant="outline"
               size="lg"
               onClick={() => document.getElementById("experience")?.scrollIntoView({ behavior: "smooth" })}
-              className="border-white/15 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-8 py-6 rounded-2xl font-semibold text-base backdrop-blur-sm transition-all duration-200"
+              className="w-full sm:w-auto border-white/15 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-8 py-3 rounded-2xl font-semibold text-base backdrop-blur-sm transition-all duration-200"
             >
               🎬 Explore the World
             </Button>
@@ -202,16 +222,16 @@ export default function Landing() {
 
           {/* Stats bar */}
           <div className="max-w-4xl mx-auto">
-            <div className="rwg-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-white/10">
+            <div className="rwg-card grid grid-cols-2 sm:grid-cols-4">
               {[
                 { label: "Founders VIP — Never Restocked", value: "1,000" },
                 { label: "Club · KTV · Beauty · F&B · Gaming", value: "5-in-1" },
                 { label: "Lifetime Referral Commission", value: "10%" },
                 { label: "Active Members & Growing", value: fmt(members) },
-              ].map((s) => (
-                <div key={s.label} className="py-5 px-4 text-center">
-                  <div className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "#C9A84C" }}>{s.value}</div>
-                  <div className="text-xs text-white/40 font-medium">{s.label}</div>
+              ].map((s, i) => (
+                <div key={s.label} className="py-4 sm:py-5 px-3 sm:px-4 text-center" style={{ borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none", ...(i >= 2 ? {} : {}) }}>
+                  <div className="text-lg sm:text-2xl font-bold mb-1" style={{ color: "#C9A84C" }}>{s.value}</div>
+                  <div className="text-xs text-white/40 font-medium leading-tight">{s.label}</div>
                 </div>
               ))}
             </div>
@@ -220,43 +240,46 @@ export default function Landing() {
       </section>
 
       {/* ══ MEMBERSHIP / SCARCITY ══ */}
-      <section id="membership" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
+      <section id="membership" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-5">
             <div className="rwg-section-badge">Scarcity Economy</div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">
               One Chance. Four Tiers.<br />
               <span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>No Restock. Ever.</span>
             </h2>
-            <p className="text-white/50 max-w-xl mx-auto text-sm leading-relaxed mb-8">
+            <p className="text-white/50 max-w-xl mx-auto text-sm leading-relaxed mb-6">
               Once a tier sells out, it's gone permanently. Resale happens only in our internal marketplace — where the platform earns, and so do you.
             </p>
           </div>
 
           {/* Live pills */}
-          <div className="flex flex-wrap justify-center gap-3 mb-10">
-            <div className="rwg-fomo-pill"><span className="rwg-live-dot" /> LIVE — {fmt(foundersLeft)} Founders VIPs remaining</div>
-            <div className="rwg-fomo-pill"><span className="rwg-live-dot" /> {fmt(eliteLeft)} Elite VIPs remaining</div>
-            <div className="rwg-fomo-pill"><span className="rwg-live-dot" /> {fmt(standardLeft)} Standard VIPs remaining</div>
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <div className="rwg-fomo-pill" style={{ fontSize: 12, padding: "6px 12px" }}><span className="rwg-live-dot" /> LIVE — {fmt(foundersLeft)} Founders VIPs remaining</div>
+            <div className="rwg-fomo-pill" style={{ fontSize: 12, padding: "6px 12px" }}><span className="rwg-live-dot" /> {fmt(eliteLeft)} Elite VIPs remaining</div>
+            <div className="rwg-fomo-pill hidden sm:inline-flex" style={{ fontSize: 12, padding: "6px 12px" }}><span className="rwg-live-dot" /> {fmt(standardLeft)} Standard VIPs remaining</div>
           </div>
 
-          {/* Tier cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Swipe hint on mobile */}
+          <p className="text-center text-white/30 text-xs mb-3 sm:hidden">← Swipe to see all tiers →</p>
+
+          {/* Tier cards — horizontal scroll on mobile, grid on desktop */}
+          <div className="rwg-tier-scroll sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
 
             {/* FOUNDERS */}
-            <div className="rwg-tier-card rwg-tier-featured">
+            <div className="rwg-tier-scroll-item"><div className="rwg-tier-card rwg-tier-featured" style={{ height: "100%" }}>
               <div style={{ position: "absolute", top: 16, right: 16, background: "#C9A84C", color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: 1, padding: "4px 10px", borderRadius: 20, textTransform: "uppercase" }}>🔥 Hottest</div>
               <div style={{ fontSize: 30, marginBottom: 12 }}>👑</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Founders VIP</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, display: "flex", gap: 5 }}>
                 Supply: <span style={{ color: "#E94560", fontWeight: 700 }}>{fmt(foundersLeft)}</span> / 1,000
               </div>
-              <div style={{ fontSize: 34, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$9,999 <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$9,999 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "flex", justifyContent: "space-between", marginTop: 10 }}>
                 <span>Availability</span><span>{(foundersLeft / 10).toFixed(1)}%</span>
               </div>
               <SupplyBar pct={foundersLeft / 10} />
-              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "18px 0" }} />
+              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "16px 0" }} />
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 9, marginBottom: 20 }}>
                 {["Lifetime club access — all venues", "Revenue share from platform earnings", "NFT-style digital membership deed", "First access to all blind box drops", "Private VIP room + sky bar priority", "Resale rights in marketplace"].map(f => (
                   <li key={f} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -264,24 +287,24 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} className="rwg-gold-btn" style={{ width: "100%", padding: "12px", fontSize: 14, borderRadius: 12 }}>
+              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} className="rwg-gold-btn" style={{ width: "100%", padding: "13px", fontSize: 14, borderRadius: 12 }}>
                 Secure Founders VIP →
               </button>
-            </div>
+            </div></div>
 
             {/* ELITE */}
-            <div className="rwg-tier-card">
+            <div className="rwg-tier-scroll-item"><div className="rwg-tier-card" style={{ height: "100%" }}>
               <div style={{ fontSize: 30, marginBottom: 12 }}>💎</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Elite VIP</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, display: "flex", gap: 5 }}>
                 Supply: <span style={{ color: "#E94560", fontWeight: 700 }}>{fmt(eliteLeft)}</span> / 10,000
               </div>
-              <div style={{ fontSize: 34, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$1,999 <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$1,999 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "flex", justifyContent: "space-between", marginTop: 10 }}>
                 <span>Availability</span><span>{(eliteLeft / 100).toFixed(1)}%</span>
               </div>
               <SupplyBar pct={eliteLeft / 100} />
-              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "18px 0" }} />
+              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "16px 0" }} />
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 9, marginBottom: 20 }}>
                 {["Priority club booking + VIP rooms", "Monthly exclusive blind box drop", "Marketplace resale rights", "10% lifetime referral commission", "Gamification XP multiplier 2×", "Elite-only events & experiences"].map(f => (
                   <li key={f} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -289,24 +312,24 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} style={{ width: "100%", padding: "12px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer", transition: "background 0.2s" }}>
+              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} style={{ width: "100%", padding: "13px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer", transition: "background 0.2s" }}>
                 Claim Elite VIP →
               </button>
-            </div>
+            </div></div>
 
             {/* STANDARD */}
-            <div className="rwg-tier-card">
+            <div className="rwg-tier-scroll-item"><div className="rwg-tier-card" style={{ height: "100%" }}>
               <div style={{ fontSize: 30, marginBottom: 12 }}>⭐</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Standard VIP</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, display: "flex", gap: 5 }}>
                 Supply: <span style={{ color: "#E94560", fontWeight: 700 }}>{fmt(standardLeft)}</span> / 100,000
               </div>
-              <div style={{ fontSize: 34, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$299 <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$299 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ lifetime</span></div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "flex", justifyContent: "space-between", marginTop: 10 }}>
                 <span>Availability</span><span>{(standardLeft / 1000).toFixed(1)}%</span>
               </div>
               <SupplyBar pct={standardLeft / 1000} />
-              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "18px 0" }} />
+              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "16px 0" }} />
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 9, marginBottom: 20 }}>
                 {["Club entry + member pricing", "App rewards + points economy", "Blind box store access", "Resale rights in marketplace", "10% referral commission"].map(f => (
                   <li key={f} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -314,22 +337,22 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} style={{ width: "100%", padding: "12px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer", transition: "background 0.2s" }}>
+              <button onClick={() => document.getElementById("email-capture")?.scrollIntoView({ behavior: "smooth" })} style={{ width: "100%", padding: "13px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer", transition: "background 0.2s" }}>
                 Join Standard VIP →
               </button>
-            </div>
+            </div></div>
 
             {/* MEMBER */}
-            <div className="rwg-tier-card">
+            <div className="rwg-tier-scroll-item"><div className="rwg-tier-card" style={{ height: "100%" }}>
               <div style={{ fontSize: 30, marginBottom: 12 }}>🎟️</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Member</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14 }}>Supply: <span style={{ color: "rgba(255,255,255,0.6)" }}>1,000,000 max</span></div>
-              <div style={{ fontSize: 34, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$29 <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ year</span></div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 4 }}>$29 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ year</span></div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "flex", justifyContent: "space-between", marginTop: 10 }}>
                 <span>Open Tier</span><span>Entry Level</span>
               </div>
               <SupplyBar pct={2} />
-              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "18px 0" }} />
+              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "16px 0" }} />
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 9, marginBottom: 20 }}>
                 {["App access + gamification", "Early blind box notifications", "Basic loyalty points", "Community access", "Upgrade path to VIP tiers"].map(f => (
                   <li key={f} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -337,19 +360,19 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <button onClick={handleLogin} style={{ width: "100%", padding: "12px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+              <button onClick={handleLogin} style={{ width: "100%", padding: "13px", fontSize: 14, borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
                 Become a Member →
               </button>
-            </div>
+            </div></div>
 
           </div>
         </div>
       </section>
 
       {/* ══ BLIND BOX ══ */}
-      <section id="blindbox" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+      <section id="blindbox" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
 
             {/* Visual */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
@@ -399,7 +422,7 @@ export default function Landing() {
       </section>
 
       {/* ══ 5-IN-1 EXPERIENCE ══ */}
-      <section id="experience" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
+      <section id="experience" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div className="rwg-section-badge">The 5-in-1 Concept</div>
@@ -408,7 +431,7 @@ export default function Landing() {
               The world's first fully integrated luxury entertainment empire — beauty, food, KTV, gaming, and technology under one roof.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
               { num: "01", emoji: "🎤", title: "KTV & Private Rooms", desc: "Premium karaoke suites with mood lighting, VIP bottle service, and private party rooms up to 20 guests.", tags: ["Private Rooms","Premium Sound","VIP Service"] },
               { num: "02", emoji: "🌅", title: "Sky Bar", desc: "Panoramic sea views, DJ nights, craft cocktails, and Instagram-worthy sunsets. Most exclusive rooftop in Batam.", tags: ["Sea Views","DJ Nights","Cocktails"] },
@@ -431,7 +454,7 @@ export default function Landing() {
       </section>
 
       {/* ══ LOCATIONS ══ */}
-      <section id="locations" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+      <section id="locations" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-12">
             <div className="rwg-section-badge">Our Locations</div>
@@ -477,9 +500,9 @@ export default function Landing() {
       </section>
 
       {/* ══ INVESTOR ══ */}
-      <section id="investor" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
+      <section id="investor" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8" style={{ background: "rgba(18,18,42,0.6)" }}>
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             <div>
               <div className="rwg-section-badge">For Investors</div>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">This Is More Than a Club.<br /><span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>It's an Economy.</span></h2>
@@ -500,7 +523,7 @@ export default function Landing() {
             </div>
 
             {/* Booking form */}
-            <div style={{ borderRadius: 24, padding: 32, background: "linear-gradient(145deg,rgba(123,47,190,0.15),rgba(233,69,96,0.08))", border: "1px solid rgba(123,47,190,0.25)" }}>
+            <div style={{ borderRadius: 20, padding: "20px 18px", background: "linear-gradient(145deg,rgba(123,47,190,0.15),rgba(233,69,96,0.08))", border: "1px solid rgba(123,47,190,0.25)" }} className="sm:p-8">
               <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 24 }}>🏛️ Book an Investor Visit</h3>
               {[["✦","Physical walkthrough of the Batam venue"],["✦","Live revenue dashboard presentation"],["✦","Meet the founding team"],["✦","Priority Founders VIP allocation"]].map(([dot, text]) => (
                 <div key={text} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 12 }}>
@@ -528,7 +551,7 @@ export default function Landing() {
       </section>
 
       {/* ══ REWARDS / GAMIFICATION ══ */}
-      <section id="rewards" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+      <section id="rewards" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div className="rwg-section-badge">Gamification + Rewards</div>
@@ -556,7 +579,7 @@ export default function Landing() {
       </section>
 
       {/* ══ EMAIL CAPTURE ══ */}
-      <section id="email-capture" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8" style={{ background: "linear-gradient(135deg,rgba(123,47,190,0.3),rgba(233,69,96,0.2))", borderTop: "1px solid rgba(123,47,190,0.2)", borderBottom: "1px solid rgba(233,69,96,0.2)" }}>
+      <section id="email-capture" className="relative z-10 py-12 sm:py-20 px-4 sm:px-6 lg:px-8" style={{ background: "linear-gradient(135deg,rgba(123,47,190,0.3),rgba(233,69,96,0.2))", borderTop: "1px solid rgba(123,47,190,0.2)", borderBottom: "1px solid rgba(233,69,96,0.2)" }}>
         <div className="max-w-2xl mx-auto text-center">
           <div className="rwg-section-badge">Don't Miss Out</div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-3">
@@ -566,7 +589,7 @@ export default function Landing() {
             Get first access to Founders VIP, exclusive blind box drops, and early app beta.<br />
             Over <strong style={{ color: "#fff" }}>{fmt(members)}</strong> members already waiting.
           </p>
-          <div style={{ display: "flex", gap: 10, maxWidth: 500, margin: "0 auto 14px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 480, margin: "0 auto 14px" }}>
             <input
               className="rwg-email-input"
               type="email"
@@ -574,8 +597,9 @@ export default function Landing() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleEmail()}
+              style={{ width: "100%" }}
             />
-            <button onClick={handleEmail} className="rwg-gold-btn" style={{ padding: "14px 26px", fontSize: 15, borderRadius: 14, flexShrink: 0 }}>
+            <button onClick={handleEmail} className="rwg-gold-btn" style={{ padding: "14px 26px", fontSize: 15, borderRadius: 14, width: "100%" }}>
               {emailSent ? "✅ You're in!" : "Join Now →"}
             </button>
           </div>
@@ -583,8 +607,25 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ══ MOBILE STICKY BOTTOM BAR ══ */}
+      <div className="rwg-mobile-sticky">
+        <button
+          onClick={handleLogin}
+          style={{ flex: 1, padding: "12px", fontSize: 14, borderRadius: 14, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", fontWeight: 700, cursor: "pointer" }}
+        >
+          Log In
+        </button>
+        <button
+          onClick={() => document.getElementById("membership")?.scrollIntoView({ behavior: "smooth" })}
+          className="rwg-gold-btn"
+          style={{ flex: 2, padding: "12px", fontSize: 14, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          <Zap style={{ width: 14, height: 14 }} /> Secure My Spot
+        </button>
+      </div>
+
       {/* ══ FOOTER ══ */}
-      <footer className="relative z-10 rwg-footer py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="relative z-10 rwg-footer py-12 pb-28 sm:pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-10">
             {/* Brand */}
