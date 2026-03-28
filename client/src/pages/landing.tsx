@@ -108,6 +108,7 @@ export default function Landing() {
 
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [tierDot, setTierDot] = useState(0);
   const handleEmail = () => {
     if (!email.includes("@")) return;
     setEmailSent(true); setMembers(m => m + 1);
@@ -141,9 +142,9 @@ export default function Landing() {
         .rwg-select option{background:#1a0a3e}
 
         /* Tier swipe scroll on mobile */
-        .tier-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 12px;scrollbar-width:none}
+        .tier-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 16px;scrollbar-width:none}
         .tier-track::-webkit-scrollbar{display:none}
-        .tier-item{min-width:78vw;max-width:300px;scroll-snap-align:start;flex-shrink:0}
+        .tier-item{min-width:82vw;max-width:300px;scroll-snap-align:start;flex-shrink:0}
         @media(min-width:640px){
           .tier-track{display:grid;grid-template-columns:repeat(2,1fr);overflow-x:visible;scroll-snap-type:none}
           .tier-item{min-width:unset;max-width:unset;flex-shrink:unset}
@@ -152,10 +153,28 @@ export default function Landing() {
           .tier-track{grid-template-columns:repeat(4,1fr)}
         }
 
+        /* Experience swipe scroll on mobile */
+        .exp-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 16px;scrollbar-width:none}
+        .exp-track::-webkit-scrollbar{display:none}
+        .exp-item{min-width:52vw;max-width:200px;scroll-snap-align:start;flex-shrink:0}
+        @media(min-width:640px){
+          .exp-track{display:grid;grid-template-columns:repeat(3,1fr);overflow-x:visible;scroll-snap-type:none}
+          .exp-item{min-width:unset;max-width:unset;flex-shrink:unset}
+        }
+        @media(min-width:1024px){
+          .exp-track{grid-template-columns:repeat(5,1fr)}
+        }
+
+        /* Swipe dot indicators */
+        .swipe-dots{display:flex;justify-content:center;gap:6px;margin-top:4px}
+        .swipe-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.15);transition:background 0.3s}
+        .swipe-dots span.active{background:#C9A84C;width:18px;border-radius:3px}
+        @media(min-width:640px){.swipe-dots{display:none}}
+
         /* Mobile sticky bar */
         .mobile-cta-bar{display:none}
         @media(max-width:639px){
-          .mobile-cta-bar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:200;padding:10px 14px 16px;gap:10px;background:rgba(8,6,26,0.97);backdrop-filter:blur(24px);border-top:1px solid rgba(201,168,76,0.2)}
+          .mobile-cta-bar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:200;padding:10px 14px 20px;gap:10px;background:rgba(8,6,26,0.98);backdrop-filter:blur(24px);border-top:1px solid rgba(201,168,76,0.2)}
         }
       `}</style>
 
@@ -226,7 +245,7 @@ export default function Landing() {
           </div>
 
           {/* CTAs */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 340, margin: "0 auto 40px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 420, margin: "0 auto 40px" }}>
             <button onClick={() => scrollTo("membership")} className="rwg-gold-btn" style={{ padding: "15px", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14 }}>
               <Zap style={{ width: 16, height: 16 }} /> Secure Founders VIP
             </button>
@@ -243,9 +262,9 @@ export default function Landing() {
               { v: "10%", l: "Lifetime Referral\nCommission" },
               { v: fmt(members), l: "Active Members\n& Growing" },
             ].map((s, i) => (
-              <div key={i} style={{ padding: "16px 12px", textAlign: "center", borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.06)" : "none", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "#C9A84C", marginBottom: 4 }}>{s.v}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{s.l}</div>
+              <div key={i} style={{ padding: "18px 12px", textAlign: "center", borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.06)" : "none", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#C9A84C", marginBottom: 5 }}>{s.v}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{s.l}</div>
               </div>
             ))}
           </div>
@@ -277,12 +296,20 @@ export default function Landing() {
           </p>
 
           {/* Tier carousel */}
-          <div className="tier-track">
+          <div className="tier-track" onScroll={e => {
+            const el = e.currentTarget;
+            const idx = Math.round(el.scrollLeft / (el.scrollWidth / tiers.length));
+            setTierDot(Math.min(idx, tiers.length - 1));
+          }}>
             {tiers.map((tier) => (
               <div key={tier.name} className="tier-item">
                 <TierCard {...tier} onCta={tier.onCta || (() => scrollTo("email-capture"))} />
               </div>
             ))}
+          </div>
+          {/* Dot indicators — mobile only */}
+          <div className="swipe-dots" style={{ marginTop: 12 }}>
+            {tiers.map((_, i) => <span key={i} className={i === tierDot ? "active" : ""} />)}
           </div>
         </div>
       </section>
@@ -307,7 +334,7 @@ export default function Landing() {
             </div>
 
             {/* Content */}
-            <div>
+            <div style={{ textAlign: "center" }} className="lg:text-left">
               <div className="rwg-section-badge">Blind Box Collectibles</div>
               <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 14, lineHeight: 1.2 }}>
                 Dopamine in a Box.<br />Every. Single. Time.
@@ -317,7 +344,7 @@ export default function Landing() {
                   <span key={label} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: bg as string, color: color as string, border: `1px solid ${border}` }}>{label}</span>
                 ))}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28, textAlign: "left" }}>
                 {[
                   { icon: "🎲", title: "Every Box is a Surprise", desc: "Four rarity tiers. Ultra-rare 1-in-100 Legendary pulls." },
                   { icon: "🔄", title: "Trade on the Marketplace", desc: "Every item is tradeable. Rare figures appreciate in value." },
@@ -350,7 +377,11 @@ export default function Landing() {
               The world's first fully integrated luxury entertainment empire.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }} className="sm:grid-cols-3 lg:grid-cols-5 sm:gap-4">
+          {/* Swipe hint — mobile only */}
+          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 11, marginBottom: 10 }} className="sm:hidden">
+            ← Swipe to explore →
+          </p>
+          <div className="exp-track">
             {[
               { num: "01", emoji: "🎤", title: "KTV", sub: "Private Rooms", tags: ["Private Rooms","VIP Service"] },
               { num: "02", emoji: "🌅", title: "Sky Bar", sub: "Rooftop Views", tags: ["Sea Views","DJ Nights"] },
@@ -358,13 +389,13 @@ export default function Landing() {
               { num: "04", emoji: "🎮", title: "Gaming", sub: "Lounge", tags: ["Tournaments","Collectibles"] },
               { num: "05", emoji: "🍽️", title: "Premium", sub: "F&B", tags: ["Gourmet","Craft Bar"] },
             ].map(({ num, emoji, title, sub, tags }) => (
-              <div key={title} style={{ borderRadius: 14, padding: "16px 14px", border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)", transition: "all 0.3s" }}
-                className="hover:-translate-y-1 hover:border-amber-500/25">
+              <div key={title} className="exp-item" style={{ borderRadius: 16, padding: "18px 16px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", transition: "all 0.3s" }}>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>{num}</div>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{title}<br /><span style={{ fontWeight: 400, color: "rgba(255,255,255,0.5)", fontSize: 11 }}>{sub}</span></div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10 }}>
-                  {tags.map(tag => <span key={tag} style={{ fontSize: 9, padding: "3px 7px", borderRadius: 20, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}>{tag}</span>)}
+                <div style={{ fontSize: 30, marginBottom: 10 }}>{emoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 4 }}>{title}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>{sub}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {tags.map(tag => <span key={tag} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 20, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}>{tag}</span>)}
                 </div>
               </div>
             ))}
@@ -375,7 +406,7 @@ export default function Landing() {
       {/* ══ LOCATIONS ══ */}
       <section id="locations" style={{ padding: "48px 16px", position: "relative", zIndex: 10 }} className="sm:py-20">
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 24, textAlign: "center" }} className="lg:text-left">
             <div className="rwg-section-badge">Our Locations</div>
             <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff" }}>Where to Find Us</h2>
           </div>
@@ -425,12 +456,14 @@ export default function Landing() {
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32 }} className="lg:grid-cols-2 lg:gap-16 lg:items-center">
             <div>
-              <div className="rwg-section-badge">For Investors</div>
-              <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 12, lineHeight: 1.2 }}>
-                This Is More Than a Club.<br />
-                <span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>It's an Economy.</span>
-              </h2>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 24 }}>
+              <div style={{ textAlign: "center" }} className="lg:text-left">
+                <div className="rwg-section-badge">For Investors</div>
+                <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 12, lineHeight: 1.2 }}>
+                  This Is More Than a Club.<br />
+                  <span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>It's an Economy.</span>
+                </h2>
+              </div>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 24, textAlign: "left" }}>
                 RebornWave operates a closed-loop membership economy. Supply is permanently capped. Resales generate platform fees.
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
@@ -534,18 +567,18 @@ export default function Landing() {
       <footer style={{ padding: "40px 16px 32px", position: "relative", zIndex: 10 }} className="rwg-footer">
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           {/* Top row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 32, marginBottom: 32 }} className="sm:grid-cols-2 lg:grid-cols-4">
-            <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 24, marginBottom: 32 }} className="lg:grid-cols-4 lg:gap-8">
+            <div style={{ gridColumn: "1 / -1" }} className="lg:col-auto">
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <div style={{ width: 30, height: 30, borderRadius: 8, overflow: "hidden" }}><img src={rwgLogo} alt="RWG" style={{ width: "100%", objectFit: "contain" }} /></div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>Reborn Wave Group</span>
               </div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.7, marginBottom: 16 }}>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.7, marginBottom: 16, maxWidth: 320 }}>
                 The world's first 5-in-1 luxury entertainment empire. Scarcity-driven memberships. Singapore &amp; Batam.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 {["TikTok","IG","小红书","TG"].map(s => (
-                  <a key={s} href="#" style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700 }}>{s}</a>
+                  <a key={s} href="#" style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700 }}>{s}</a>
                 ))}
               </div>
             </div>
