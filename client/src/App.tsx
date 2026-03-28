@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useEffect, Component, type ReactNode } from "react";
+import { useEffect, Component, lazy, Suspense, type ReactNode } from "react";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -26,22 +26,37 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     return this.props.children;
   }
 }
+// Eagerly loaded — shown immediately on first paint
 import Landing from "@/pages/landing";
 import Login from "@/pages/Login";
-import CompleteApp from "@/pages/complete-app";
-import Bookings from "@/pages/bookings-working";
-import Marketplace from "@/pages/marketplace-working";
-import Referrals from "@/pages/referrals";
-import MyReferral from "@/pages/my-referral";
-import LoyaltyProgram from "@/pages/loyalty-program";
-import Profile from "@/pages/profile";
-import EnhancedAdminDashboard from "@/pages/enhanced-admin-dashboard";
-import SimpleCollections from "@/pages/simple-collections";
-import Checkout from "@/pages/checkout";
-import PaymentSuccess from "@/pages/payment-success";
-import NotFound from "@/pages/not-found";
-import SimplePetCare from "@/pages/simple-pet-care";
-import PetCareWithEnergy from "@/pages/pet-care-with-energy";
+
+// Lazy-loaded — each becomes its own chunk, loaded on demand
+const CompleteApp          = lazy(() => import("@/pages/complete-app"));
+const Bookings             = lazy(() => import("@/pages/bookings-working"));
+const Marketplace          = lazy(() => import("@/pages/marketplace-working"));
+const Referrals            = lazy(() => import("@/pages/referrals"));
+const MyReferral           = lazy(() => import("@/pages/my-referral"));
+const LoyaltyProgram       = lazy(() => import("@/pages/loyalty-program"));
+const Profile              = lazy(() => import("@/pages/profile"));
+const EnhancedAdminDashboard = lazy(() => import("@/pages/enhanced-admin-dashboard"));
+const SimpleCollections    = lazy(() => import("@/pages/simple-collections"));
+const Checkout             = lazy(() => import("@/pages/checkout"));
+const PaymentSuccess       = lazy(() => import("@/pages/payment-success"));
+const NotFound             = lazy(() => import("@/pages/not-found"));
+const SimplePetCare        = lazy(() => import("@/pages/simple-pet-care"));
+const PetCareWithEnergy    = lazy(() => import("@/pages/pet-care-with-energy"));
+
+// Shared loading fallback
+function PageLoader() {
+  return (
+    <div className="rwg-page-bg min-h-screen w-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent mx-auto mb-4" />
+        <p className="text-white/40 text-sm">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -95,35 +110,37 @@ function Router() {
   }
 
   return (
-    <Switch>
-      {/* Login route should always be accessible */}
-      <Route path="/login" component={Login} />
-      
-      {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          {/* Default route - both admin and regular users can access main app */}
-          <Route path="/" component={CompleteApp} />
-          <Route path="/complete-app" component={CompleteApp} />
-          <Route path="/admin" component={EnhancedAdminDashboard} />
-          <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
-          <Route path="/app" component={CompleteApp} />
-          <Route path="/pet-care" component={SimplePetCare} />
-          <Route path="/energy-potion" component={PetCareWithEnergy} />
-          <Route path="/bookings" component={Bookings} />
-          <Route path="/marketplace" component={Marketplace} />
-          <Route path="/referrals" component={Referrals} />
-          <Route path="/my-referral" component={MyReferral} />
-          <Route path="/loyalty-program" component={LoyaltyProgram} />
-          <Route path="/seasonal-collections" component={SimpleCollections} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/checkout" component={Checkout} />
-          <Route path="/payment-success" component={PaymentSuccess} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        {/* Login route should always be accessible */}
+        <Route path="/login" component={Login} />
+
+        {!isAuthenticated ? (
+          <Route path="/" component={Landing} />
+        ) : (
+          <>
+            {/* Default route - both admin and regular users can access main app */}
+            <Route path="/" component={CompleteApp} />
+            <Route path="/complete-app" component={CompleteApp} />
+            <Route path="/admin" component={EnhancedAdminDashboard} />
+            <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
+            <Route path="/app" component={CompleteApp} />
+            <Route path="/pet-care" component={SimplePetCare} />
+            <Route path="/energy-potion" component={PetCareWithEnergy} />
+            <Route path="/bookings" component={Bookings} />
+            <Route path="/marketplace" component={Marketplace} />
+            <Route path="/referrals" component={Referrals} />
+            <Route path="/my-referral" component={MyReferral} />
+            <Route path="/loyalty-program" component={LoyaltyProgram} />
+            <Route path="/seasonal-collections" component={SimpleCollections} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/checkout" component={Checkout} />
+            <Route path="/payment-success" component={PaymentSuccess} />
+          </>
+        )}
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
