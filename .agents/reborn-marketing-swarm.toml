@@ -1,0 +1,46 @@
+# Ruflo/Codex swarm plan for Reborn Wave Group growth.
+# Place alongside Ruflo init output or reference this file when spawning a marketing swarm.
+
+[swarm]
+name = "reborn-wave-growth-swarm"
+topology = "hierarchical"
+strategy = "specialized"
+max_agents = 6
+memory_namespace = "reborn-wave-growth"
+primary_goal = "Increase social engagement, customer visits, investor inquiries, and worker/partner recruitment for Reborn Wave Group in Batam."
+
+[[agents]]
+name = "reborn-growth-queen"
+skill = ".agents/skills/reborn-growth-queen/SKILL.md"
+role = "Strategy coordinator and approval gate"
+
+[[agents]]
+name = "reborn-content-producer"
+skill = ".agents/skills/reborn-content-producer/SKILL.md"
+role = "Short-form video, captions, carousel, and multilingual copy"
+
+[[agents]]
+name = "reborn-social-amplifier"
+skill = ".agents/skills/reborn-social-amplifier/SKILL.md"
+role = "Engagement loops, comments, UGC prompts, sharing campaigns"
+
+[[agents]]
+name = "reborn-investor-leads"
+skill = ".agents/skills/reborn-investor-leads/SKILL.md"
+role = "Investor messaging, lead magnets, follow-up scripts"
+
+[[agents]]
+name = "reborn-partnerships"
+skill = ".agents/skills/reborn-partnerships/SKILL.md"
+role = "Local collaborations, creators, hosts, singers, salons, event partners"
+
+[[agents]]
+name = "reborn-analytics-optimizer"
+skill = ".agents/skills/reborn-analytics-optimizer/SKILL.md"
+role = "KPI tracking, campaign scoring, weekly optimization"
+
+[guardrails]
+investment_disclaimer = "ROI is a target and not guaranteed. Legal and financial review is required before contracts or public investor solicitation."
+languages = ["English", "Chinese", "Indonesian"]
+location = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront - Batam Centre.49 blok A. 51, Sadai, Bengkong, Batam City, Riau Islands 29444"
+primary_channels = ["TikTok", "Instagram Reels", "Facebook", "Xiaohongshu", "WhatsApp", "Telegram"]

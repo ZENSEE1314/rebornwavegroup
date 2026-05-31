@@ -7,6 +7,7 @@ import {
   Gift,
   HeartHandshake,
   Landmark,
+  MapPin,
   Music2,
   PawPrint,
   Scissors,
@@ -60,6 +61,9 @@ const floorMeta: Floor[] = [
 
 const stepIcons = [WalletCards, BadgeDollarSign, Landmark, Users];
 const audienceIcons = [Sparkles, HeartHandshake, Building2];
+const clubAddress =
+  "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront - Batam Centre.49 blok A. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
+const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clubAddress)}`;
 
 const landingCopy: Record<Language, any> = {
   en: {
@@ -125,6 +129,10 @@ const landingCopy: Record<Language, any> = {
       ["3 pets = 3 daily tokens", "Feeding male, female, and baby pets gives 3 tokens per day for prize exchange."],
       ["Tokens drive repeat visits", "Tokens can be used for rewards, upgrades, prizes, and club spending campaigns."],
     ],
+    locationTitle: "Find us in Batam, Indonesia.",
+    locationIntro:
+      "The club sits near Harbourfront Batam Centre, giving visitors a clear destination for KTV, beauty, pet cafe, live house events, investor hosting, and member rewards.",
+    locationCta: "Open Google Maps",
     disclaimer:
       "This homepage draft explains the package in customer-friendly language. ROI references are targets, not guaranteed returns. Actual investor contracts, payout rules, profit calculation, referral deductions, compliance requirements, and risk disclosures should be reviewed by a qualified legal and financial professional before launch.",
     footerLeft: "Reborn Wave Group - Waterfront Lifestyle Club, Batam",
@@ -193,6 +201,10 @@ const landingCopy: Record<Language, any> = {
       ["3 只宠物 = 每天 3 个代币", "喂养公、母、宝宝三只宠物，每天可获得 3 个代币兑换奖品。"],
       ["代币带动复访", "代币可用于奖励、升级、奖品和俱乐部消费活动。"],
     ],
+    locationTitle: "欢迎来到印度尼西亚巴淡岛。",
+    locationIntro:
+      "俱乐部位于 Batam Centre Harbourfront 附近，方便顾客、会员、投资者和合作伙伴到店体验 KTV、美容、宠物咖啡厅、Live House 活动和盲盒奖励。",
+    locationCta: "打开 Google 地图",
     disclaimer:
       "此首页草稿以顾客容易理解的方式说明配套。ROI 为目标说明，并非保证收益。正式投资合约、派发规则、利润计算、推荐扣减、合规要求和风险披露，应在上线前交由合资格法律和财务专业人士审核。",
     footerLeft: "Reborn Wave Group - 巴淡海边生活娱乐俱乐部",
@@ -261,6 +273,10 @@ const landingCopy: Record<Language, any> = {
       ["3 pet = 3 token harian", "Memberi makan male, female, dan baby pet memberi 3 token per hari untuk tukar hadiah."],
       ["Token mendorong repeat visit", "Token dapat digunakan untuk reward, upgrade, hadiah, dan campaign spending klub."],
     ],
+    locationTitle: "Kunjungi kami di Batam, Indonesia.",
+    locationIntro:
+      "Klub berada dekat Harbourfront Batam Centre, menjadi destinasi jelas untuk KTV, beauty, pet cafe, live house, investor hosting, dan reward member.",
+    locationCta: "Buka Google Maps",
     disclaimer:
       "Draft homepage ini menjelaskan paket dengan bahasa yang mudah dipahami pelanggan. ROI adalah target, bukan jaminan return. Kontrak investor, aturan payout, perhitungan profit, potongan referral, compliance, dan disclosure risiko harus ditinjau oleh profesional hukum dan keuangan sebelum launching.",
     footerLeft: "Reborn Wave Group - Waterfront Lifestyle Club, Batam",
@@ -491,6 +507,17 @@ function Landing() {
         .rwg-eco-rule svg{width:26px;height:26px;color:#f8d477;margin-top:2px}
         .rwg-eco-rule strong{display:block;color:#fff;margin-bottom:4px}
         .rwg-eco-rule span{display:block;color:rgba(255,255,255,.62);font-size:13px;line-height:1.5}
+        .rwg-eco-location{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,420px);gap:18px;align-items:stretch}
+        .rwg-eco-address{min-height:220px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+        .rwg-eco-address-row{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start}
+        .rwg-eco-address-row svg{width:30px;height:30px;color:#f8d477;margin-top:3px}
+        .rwg-eco-address strong{display:block;color:#fff;font-size:18px;margin-bottom:8px}
+        .rwg-eco-address span{display:block;color:rgba(255,255,255,.66);line-height:1.6}
+        .rwg-eco-map-card{position:relative;min-height:220px;border-radius:22px;overflow:hidden;border:1px solid rgba(34,211,238,.18);background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(248,212,119,.1)),rgba(255,255,255,.055);box-shadow:0 24px 80px rgba(0,0,0,.28);display:grid;place-items:center;text-decoration:none;color:#fff}
+        .rwg-eco-map-card:before{content:"";position:absolute;inset:22px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px);background-size:38px 38px;mask-image:radial-gradient(circle at center,#000,transparent 74%)}
+        .rwg-eco-map-pin{position:relative;z-index:1;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:rgba(248,212,119,.16);border:1px solid rgba(248,212,119,.42);box-shadow:0 0 44px rgba(248,212,119,.22);animation:rwg-eco-pulse 2.8s ease-in-out infinite}
+        .rwg-eco-map-pin svg{width:44px;height:44px;color:#f8d477}
+        .rwg-eco-map-card span{position:absolute;left:18px;right:18px;bottom:18px;z-index:1;font-weight:900;color:#fff;text-align:center}
         .rwg-eco-disclaimer{max-width:1180px;margin:0 auto 42px;padding:18px;border-radius:18px;border:1px solid rgba(248,212,119,.25);background:rgba(248,212,119,.07);display:grid;grid-template-columns:32px 1fr;gap:12px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.55}
         .rwg-eco-disclaimer svg{width:26px;height:26px;color:#f8d477}
         .rwg-eco-footer{border-top:1px solid rgba(255,255,255,.08);padding:26px 18px 90px;color:rgba(255,255,255,.5)}
@@ -500,8 +527,9 @@ function Landing() {
         @keyframes rwg-eco-shine{0%,35%{transform:translateX(-120%)}65%,100%{transform:translateX(120%)}}
         @keyframes rwg-eco-spin{to{rotate:360deg}}
         @keyframes rwg-eco-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-eco-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-grid,.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid{grid-template-columns:1fr}.rwg-eco-card{min-height:auto}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @keyframes rwg-eco-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-eco-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-grid,.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-card{min-height:auto}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
@@ -700,6 +728,33 @@ function Landing() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="rwg-eco-section" id="location">
+        <div className="rwg-eco-section-head">
+          <h2>{copy.locationTitle}</h2>
+          <p>{copy.locationIntro}</p>
+        </div>
+        <div className="rwg-eco-location">
+          <div className="rwg-eco-panel rwg-eco-address">
+            <div className="rwg-eco-address-row">
+              <MapPin />
+              <div>
+                <strong>Ruko Oceanic Bliss</strong>
+                <span>{clubAddress}</span>
+              </div>
+            </div>
+            <a className="rwg-eco-primary" href={googleMapUrl} rel="noreferrer" target="_blank">
+              {copy.locationCta} <ArrowRight size={17} />
+            </a>
+          </div>
+          <a className="rwg-eco-map-card" href={googleMapUrl} rel="noreferrer" target="_blank">
+            <div className="rwg-eco-map-pin">
+              <MapPin />
+            </div>
+            <span>{copy.locationCta}</span>
+          </a>
         </div>
       </section>
 
