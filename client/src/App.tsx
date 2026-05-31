@@ -62,7 +62,6 @@ const MyReferral           = lazy(() => import("@/pages/my-referral"));
 const LoyaltyProgram       = lazy(() => import("@/pages/loyalty-program"));
 const Profile              = lazy(() => import("@/pages/profile"));
 const EnhancedAdminDashboard = lazy(() => import("@/pages/enhanced-admin-dashboard"));
-const SocialMediaCommandCenter = lazy(() => import("@/pages/social-media-command-center"));
 const SimpleCollections    = lazy(() => import("@/pages/simple-collections"));
 const Checkout             = lazy(() => import("@/pages/checkout"));
 const PaymentSuccess       = lazy(() => import("@/pages/payment-success"));
@@ -149,7 +148,6 @@ function Router() {
             <Route path="/complete-app" component={CompleteApp} />
             <Route path="/admin" component={EnhancedAdminDashboard} />
             <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
-            <Route path="/admin/social-media" component={SocialMediaCommandCenter} />
             <Route path="/app" component={CompleteApp} />
             <Route path="/pet-care" component={SimplePetCare} />
             <Route path="/energy-potion" component={PetCareWithEnergy} />
