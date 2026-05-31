@@ -21,7 +21,7 @@ import { useTranslation, type Language } from "@/lib/i18n";
 import rwgLogo from "@assets/rwg-logo.png";
 import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
 import doluruuBaby from "@assets/Doluruu Baby_1749663725243.png";
-import doluruuFemale from "@assets/doluruu-female.jpeg";
+import doluruuFemale from "@assets/doluruu-female-transparent.png";
 import doluruuBlindboxBox from "@assets/doluruu-blindbox-box.jpeg";
 
 type Floor = {
