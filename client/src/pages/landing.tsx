@@ -1,625 +1,566 @@
-import { useState, useEffect } from "react";
-import { Sparkles, Zap, MapPin, Star } from "lucide-react";
-import { useTranslation } from "@/lib/i18n";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  Building2,
+  Crown,
+  Gift,
+  HeartHandshake,
+  Landmark,
+  Music2,
+  PawPrint,
+  Scissors,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import rwgLogo from "@assets/rwg-logo.png";
+import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
+import doluruuAdult from "@assets/Doluruu Adult_1749664856445.png";
+import doluruuBaby from "@assets/Doluruu Baby_1749663725243.png";
 
-/* ─── live counter hook ─── */
-function useLiveCounter(initial: number, minFloor: number, intervalMs = 5000) {
-  const [count, setCount] = useState(initial);
-  useEffect(() => {
-    const t = setInterval(() => {
-      setCount(c => (c > minFloor && Math.random() < 0.4 ? c - 1 : c));
-    }, intervalMs);
-    return () => clearInterval(t);
-  }, [minFloor, intervalMs]);
-  return count;
-}
+type Floor = {
+  level: string;
+  title: string;
+  units: string;
+  detail: string;
+  icon: typeof Music2;
+  tone: string;
+};
 
-function fmt(n: number) { return n.toLocaleString(); }
-
-/* ─── Ticker ─── */
-const TICKER_ITEMS = [
-  "Founders VIP Selling Fast","Blind Box Series 1 — Limited","Sky Bar Now Open — Batam",
-  "10% Lifetime Referral","KTV Lounge — Private Rooms","Marketplace Launch Soon","Members Earn While They Sleep",
+const floors: Floor[] = [
+  {
+    level: "1F",
+    title: "KTV Lounge + Game House",
+    units: "2 units KTV lounges, 1 unit kids game house",
+    detail: "Open singing, competitions, family play, and daily customer traffic from morning to night.",
+    icon: Trophy,
+    tone: "#22d3ee",
+  },
+  {
+    level: "2F",
+    title: "Private KTV + Beauty Salon",
+    units: "2 units with 4 private KTV rooms, 1 unit beauty salon",
+    detail: "Private celebrations, customer hosting, beauty services, and repeat booking packages.",
+    icon: Scissors,
+    tone: "#f472b6",
+  },
+  {
+    level: "3F",
+    title: "VIP KTV + Beauty Salon",
+    units: "2 units with 2 VIP private rooms, 1 unit beauty salon",
+    detail: "Premium rooms for investor guests, birthday events, business hosting, and higher spend per visit.",
+    icon: Crown,
+    tone: "#facc15",
+  },
+  {
+    level: "4F",
+    title: "Pet Cafe",
+    units: "All 3 units connected as a pet cafe",
+    detail: "Food, drinks, pet-themed community, blindbox tie-ins, and content-friendly social traffic.",
+    icon: PawPrint,
+    tone: "#34d399",
+  },
+  {
+    level: "5F",
+    title: "Sea-View Live House",
+    units: "Live band, dance floor, and rooftop sea view",
+    detail: "Nightlife anchor with live music, special events, dance floor energy, and premium table sales.",
+    icon: Music2,
+    tone: "#a78bfa",
+  },
 ];
-function Ticker() {
-  const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
-  return (
-    <div style={{ background: "linear-gradient(90deg,#E94560,#7B2FBE)", padding: "8px 0", overflow: "hidden" }}>
-      <div style={{ display: "flex", gap: 48, whiteSpace: "nowrap", animation: "rwg-ticker 28s linear infinite", width: "max-content" }}>
-        {items.map((item, i) => (
-          <span key={i} style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", color: "#fff", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 }}>
-            {item} <span style={{ color: "rgba(255,255,255,0.4)" }}>★</span>
-          </span>
-        ))}
-      </div>
-      <style>{`@keyframes rwg-ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}`}</style>
-    </div>
-  );
-}
 
-function SupplyBar({ pct }: { pct: number }) {
-  return (
-    <div style={{ height: 4, background: "rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", marginTop: 6 }}>
-      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#C9A84C,#F0D080)", borderRadius: 10 }} />
-    </div>
-  );
-}
+const investorSteps = [
+  {
+    title: "Invest $5,000",
+    detail: "Investor receives $5,000 club spending credits for friends, customers, and private hosting.",
+    icon: WalletCards,
+  },
+  {
+    title: "$10,000 ROI Target",
+    detail: "Target return is paid across 24 months based on the official contract and payout rules.",
+    icon: BadgeDollarSign,
+  },
+  {
+    title: "20% Profit Pool",
+    detail: "Each month, 20% of business profit is allocated and divided among active investors.",
+    icon: Landmark,
+  },
+  {
+    title: "10% New Investor Pool",
+    detail: "10% of every new $5,000 investor package is shared with earlier active investors.",
+    icon: Users,
+  },
+];
 
-/* ─── Tier Card ─── */
-function TierCard({ emoji, name, price, period, supply, supplyMax, supplyPct, features, ctaLabel, featured, onCta }: any) {
-  return (
-    <div style={{
-      borderRadius: 20, padding: "24px 20px", position: "relative", overflow: "hidden",
-      border: featured ? "1px solid rgba(201,168,76,0.45)" : "1px solid rgba(255,255,255,0.08)",
-      background: featured ? "linear-gradient(145deg,rgba(201,168,76,0.08),rgba(201,168,76,0.02))" : "rgba(255,255,255,0.03)",
-      boxShadow: featured ? "0 0 48px rgba(201,168,76,0.12)" : "none",
-      display: "flex", flexDirection: "column", height: "100%",
-    }}>
-      {featured && (
-        <div style={{ position: "absolute", top: 14, right: 14, background: "#C9A84C", color: "#000", fontSize: 9, fontWeight: 800, letterSpacing: 1, padding: "4px 10px", borderRadius: 20, textTransform: "uppercase" }}>🔥 Hottest</div>
-      )}
-      <div style={{ fontSize: 28, marginBottom: 10 }}>{emoji}</div>
-      <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{name}</div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 10 }}>
-        Supply: <span style={{ color: "#E94560", fontWeight: 700 }}>{fmt(supply)}</span> / {fmt(supplyMax)}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 900, color: "#C9A84C", lineHeight: 1, marginBottom: 2 }}>
-        {price} <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ {period}</span>
-      </div>
-      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-        <span>Availability</span><span>{supplyPct}</span>
-      </div>
-      <SupplyBar pct={parseFloat(supplyPct)} />
-      <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)", margin: "16px 0" }} />
-      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 8, marginBottom: 20, flex: 1 }}>
-        {features.map((f: string) => (
-          <li key={f} style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "flex-start", gap: 6 }}>
-            <span style={{ color: "#C9A84C", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>✓</span> {f}
-          </li>
-        ))}
-      </ul>
-      <button onClick={onCta} style={{
-        width: "100%", padding: "13px", fontSize: 13, borderRadius: 12, fontWeight: 700, cursor: "pointer",
-        ...(featured
-          ? { background: "linear-gradient(135deg,#C9A84C,#E8B84B)", color: "#000", border: "none" }
-          : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff" })
-      }}>
-        {ctaLabel}
-      </button>
-    </div>
-  );
-}
+const audienceCards = [
+  {
+    title: "Customers",
+    text: "Spend credits across KTV, beauty, pet cafe, game house, events, and live house nights.",
+    icon: Sparkles,
+  },
+  {
+    title: "Investors",
+    text: "Enter with a clear $5,000 package, referral upside, capped allocation, and transparent monthly pool logic.",
+    icon: HeartHandshake,
+  },
+  {
+    title: "Workers",
+    text: "A multi-floor club creates roles for hosts, singers, stylists, pet cafe crew, event staff, and promoters.",
+    icon: Building2,
+  },
+];
 
-export default function Landing() {
-  const { t } = useTranslation();
-  const handleLogin = () => { window.location.href = "/login"; };
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+function useLiveNumber(base: number, maxLift: number) {
+  const [value, setValue] = useState(base);
 
-  const foundersLeft = useLiveCounter(847, 800, 4500);
-  const eliteLeft    = useLiveCounter(9214, 9000, 6000);
-  const standardLeft = useLiveCounter(97803, 97000, 8000);
-  const [members, setMembers] = useState(2341);
   useEffect(() => {
-    const t = setInterval(() => setMembers(m => m + Math.floor(Math.random() * 2)), 6000);
-    return () => clearInterval(t);
-  }, []);
+    const timer = window.setInterval(() => {
+      setValue(base + Math.floor(Math.random() * maxLift));
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [base, maxLift]);
 
-  const [email, setEmail] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
-  const [tierDot, setTierDot] = useState(0);
-  const handleEmail = () => {
-    if (!email.includes("@")) return;
-    setEmailSent(true); setMembers(m => m + 1);
-    setTimeout(() => setEmailSent(false), 5000); setEmail("");
+  return value;
+}
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function InvestorCalculator() {
+  const [invites, setInvites] = useState(3);
+  const referralBonus = invites * 1000;
+  const roiLeft = Math.max(10000 - referralBonus, 0);
+  const complete = invites >= 10;
+
+  return (
+    <div className="rwg-eco-calculator">
+      <div className="rwg-eco-panel-head">
+        <span>Referral deduction simulator</span>
+        <strong>{invites} friends</strong>
+      </div>
+      <input
+        aria-label="Friends invited"
+        className="rwg-eco-range"
+        max={10}
+        min={0}
+        onChange={(event) => setInvites(Number(event.target.value))}
+        type="range"
+        value={invites}
+      />
+      <div className="rwg-eco-calc-grid">
+        <div>
+          <small>Referral bonus paid</small>
+          <strong>${referralBonus.toLocaleString()}</strong>
+        </div>
+        <div>
+          <small>ROI balance target</small>
+          <strong>${roiLeft.toLocaleString()}</strong>
+        </div>
+      </div>
+      <p>
+        Each friend who invests $5,000 pays the inviter $1,000. That $1,000 is deducted from the inviter's
+        remaining ROI target. After 10 successful investor invites, the $10,000 ROI target is fully cleared
+        and the contract finishes unless the investor joins again.
+      </p>
+      {complete && <div className="rwg-eco-complete">Contract completed by referral bonuses.</div>}
+    </div>
+  );
+}
+
+function BuildingStack() {
+  return (
+    <div className="rwg-eco-stage" aria-label="Animated 3D five floor club model">
+      <div className="rwg-eco-orbit orbit-one" />
+      <div className="rwg-eco-orbit orbit-two" />
+      <div className="rwg-eco-building">
+        {floors
+          .slice()
+          .reverse()
+          .map((floor, index) => (
+            <div
+              className="rwg-eco-floor"
+              key={floor.level}
+              style={
+                {
+                  "--floor-tone": floor.tone,
+                  "--floor-index": index,
+                } as React.CSSProperties
+              }
+            >
+              <span>{floor.level}</span>
+              <strong>{floor.title}</strong>
+              <small>{floor.units}</small>
+            </div>
+          ))}
+      </div>
+      <img className="rwg-eco-pet rwg-eco-pet-boy" src={doluruuBoy} alt="Male blindbox pet" />
+      <img className="rwg-eco-pet rwg-eco-pet-baby" src={doluruuBaby} alt="Baby blindbox pet" />
+    </div>
+  );
+}
+
+function Landing() {
+  const members = useLiveNumber(2341, 28);
+  const raised = 65000;
+  const cap = 200000;
+  const capPct = useMemo(() => Math.round((raised / cap) * 100), [raised]);
+
+  const handleLogin = () => {
+    window.location.href = "/login";
   };
 
-  const tiers = [
-    { emoji: "👑", name: "Founders VIP", price: "$9,999", period: "lifetime", supply: foundersLeft, supplyMax: 1000, supplyPct: `${(foundersLeft / 10).toFixed(1)}%`, featured: true, ctaLabel: "Secure Founders VIP →", features: ["Lifetime club access — all venues","Revenue share from platform earnings","NFT-style digital membership deed","First access to all blind box drops","Private VIP room + sky bar priority","Resale rights in marketplace"] },
-    { emoji: "💎", name: "Elite VIP", price: "$1,999", period: "lifetime", supply: eliteLeft, supplyMax: 10000, supplyPct: `${(eliteLeft / 100).toFixed(1)}%`, featured: false, ctaLabel: "Claim Elite VIP →", features: ["Priority club booking + VIP rooms","Monthly exclusive blind box drop","Marketplace resale rights","10% lifetime referral commission","Gamification XP multiplier 2×","Elite-only events & experiences"] },
-    { emoji: "⭐", name: "Standard VIP", price: "$299", period: "lifetime", supply: standardLeft, supplyMax: 100000, supplyPct: `${(standardLeft / 1000).toFixed(1)}%`, featured: false, ctaLabel: "Join Standard VIP →", features: ["Club entry + member pricing","App rewards + points economy","Blind box store access","Resale rights in marketplace","10% referral commission"] },
-    { emoji: "🎟️", name: "Member", price: "$29", period: "year", supply: 1000000, supplyMax: 1000000, supplyPct: "2%", featured: false, ctaLabel: "Become a Member →", features: ["App access + gamification","Early blind box notifications","Basic loyalty points","Community access","Upgrade path to VIP tiers"], onCta: handleLogin },
-  ];
-
   return (
-    <div className="rwg-page-bg" style={{ fontFamily: "'Inter', sans-serif", paddingBottom: 80 }}>
+    <main className="rwg-eco-page">
       <style>{`
-        @keyframes rwg-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-        @keyframes rwg-glow{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:0.8;transform:scale(1.06)}}
-        @keyframes rwg-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
-        .rwg-live-dot{width:6px;height:6px;border-radius:50%;background:#E94560;animation:rwg-pulse 1s infinite;display:inline-block;flex-shrink:0}
-        .rwg-gold-btn{background:linear-gradient(135deg,#C9A84C,#E8B84B);color:#000;font-weight:800;border:none;cursor:pointer;border-radius:28px;transition:transform 0.2s,box-shadow 0.2s}
-        .rwg-gold-btn:active{transform:scale(0.97)}
-        .rwg-ghost-btn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.16);color:#fff;font-weight:700;cursor:pointer;border-radius:28px;transition:background 0.2s}
-        .rwg-ghost-btn:active{background:rgba(255,255,255,0.13)}
-        .rwg-section-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#C9A84C;margin-bottom:12px}
-        .rwg-fomo-pill{background:rgba(233,69,96,0.1);border:1px solid rgba(233,69,96,0.25);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:600;color:#E94560;display:inline-flex;align-items:center;gap:6px}
-        .rwg-input{width:100%;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:15px;outline:none;font-family:inherit;box-sizing:border-box}
-        .rwg-input:focus{border-color:#C9A84C}
-        .rwg-input::placeholder{color:rgba(255,255,255,0.35)}
-        .rwg-select{width:100%;padding:13px 15px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:14px;outline:none;font-family:inherit;margin-bottom:12px;appearance:none}
-        .rwg-select option{background:#1a0a3e}
-
-        /* Tier swipe scroll on mobile */
-        .tier-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 16px;scrollbar-width:none}
-        .tier-track::-webkit-scrollbar{display:none}
-        .tier-item{min-width:82vw;max-width:300px;scroll-snap-align:start;flex-shrink:0}
-        @media(min-width:640px){
-          .tier-track{display:grid;grid-template-columns:repeat(2,1fr);overflow-x:visible;scroll-snap-type:none}
-          .tier-item{min-width:unset;max-width:unset;flex-shrink:unset}
-        }
-        @media(min-width:1024px){
-          .tier-track{grid-template-columns:repeat(4,1fr)}
-        }
-
-        /* Experience swipe scroll on mobile */
-        .exp-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:4px 2px 16px;scrollbar-width:none}
-        .exp-track::-webkit-scrollbar{display:none}
-        .exp-item{min-width:52vw;max-width:200px;scroll-snap-align:start;flex-shrink:0}
-        @media(min-width:640px){
-          .exp-track{display:grid;grid-template-columns:repeat(3,1fr);overflow-x:visible;scroll-snap-type:none}
-          .exp-item{min-width:unset;max-width:unset;flex-shrink:unset}
-        }
-        @media(min-width:1024px){
-          .exp-track{grid-template-columns:repeat(5,1fr)}
-        }
-
-        /* Swipe dot indicators */
-        .swipe-dots{display:flex;justify-content:center;gap:6px;margin-top:4px}
-        .swipe-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.15);transition:background 0.3s}
-        .swipe-dots span.active{background:#C9A84C;width:18px;border-radius:3px}
-        @media(min-width:640px){.swipe-dots{display:none}}
-
-        /* Split grid — single column on mobile, two columns on desktop */
-        .rwg-split-grid{display:grid;grid-template-columns:1fr;gap:28px}
-        @media(min-width:1024px){
-          .rwg-split-grid{grid-template-columns:repeat(2,1fr);gap:64px;align-items:center}
-        }
-
-        /* Mobile sticky bar */
-        .mobile-cta-bar{display:none}
-        @media(max-width:639px){
-          .mobile-cta-bar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:200;padding:10px 14px 20px;gap:10px;background:rgba(8,6,26,0.98);backdrop-filter:blur(24px);border-top:1px solid rgba(201,168,76,0.2)}
-        }
+        .rwg-eco-page{min-height:100vh;width:100%;max-width:100vw;background:#03151a;color:#f8fafc;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;position:relative}
+        .rwg-eco-page *{box-sizing:border-box}
+        .rwg-eco-page:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 15% 15%,rgba(34,211,238,.18),transparent 28%),radial-gradient(circle at 78% 5%,rgba(250,204,21,.13),transparent 26%),linear-gradient(135deg,#03151a 0%,#05252a 48%,#080f1f 100%);pointer-events:none;z-index:0}
+        .rwg-eco-page:after{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 80%);pointer-events:none;z-index:0}
+        .rwg-eco-page>*{position:relative;z-index:1}
+        .rwg-eco-nav{position:sticky;top:0;z-index:40;background:rgba(3,21,26,.78);backdrop-filter:blur(22px);border-bottom:1px solid rgba(255,255,255,.09)}
+        .rwg-eco-nav-inner{max-width:1180px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+        .rwg-eco-brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:.02em}
+        .rwg-eco-brand img{width:38px;height:38px;object-fit:contain;border-radius:11px;background:rgba(255,255,255,.06)}
+        .rwg-eco-links{display:flex;align-items:center;gap:8px}
+        .rwg-eco-links button{border:0;background:transparent;color:rgba(255,255,255,.68);font-size:13px;font-weight:700;padding:9px 10px;border-radius:10px;cursor:pointer}
+        .rwg-eco-links button:hover{background:rgba(255,255,255,.08);color:#fff}
+        .rwg-eco-actions{display:flex;align-items:center;gap:10px}
+        .rwg-eco-primary,.rwg-eco-secondary{border-radius:14px;padding:12px 16px;font-weight:800;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s ease,box-shadow .2s ease,background .2s ease}
+        .rwg-eco-primary{border:0;color:#071316;background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 16px 36px rgba(245,158,11,.24)}
+        .rwg-eco-primary:hover,.rwg-eco-secondary:hover{transform:translateY(-2px)}
+        .rwg-eco-secondary{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff}
+        .rwg-eco-hero{max-width:1180px;margin:0 auto;padding:70px 18px 44px;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,520px);gap:44px;align-items:center}
+        .rwg-eco-hero>div{min-width:0}
+        .rwg-eco-hero h1{font-size:clamp(44px,7vw,86px);line-height:.94;margin:0 0 22px;font-weight:950;letter-spacing:0;color:#fff}
+        .rwg-eco-gold{color:#f8d477}
+        .rwg-eco-hero p{max-width:620px;color:rgba(255,255,255,.72);font-size:18px;line-height:1.7;margin:0 0 26px}
+        .rwg-eco-hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+        .rwg-eco-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:650px}
+        .rwg-eco-proof div,.rwg-eco-card,.rwg-eco-panel,.rwg-eco-calculator{background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.28);backdrop-filter:blur(20px)}
+        .rwg-eco-proof div{border-radius:16px;padding:16px}
+        .rwg-eco-proof strong{display:block;font-size:22px;color:#f8d477}
+        .rwg-eco-proof span{display:block;font-size:12px;line-height:1.45;color:rgba(255,255,255,.62);margin-top:4px}
+        .rwg-eco-stage{min-height:600px;position:relative;display:grid;place-items:center;perspective:1200px}
+        .rwg-eco-building{width:min(390px,82vw);transform:rotateX(58deg) rotateZ(-28deg);transform-style:preserve-3d;animation:rwg-eco-hover 7s ease-in-out infinite}
+        .rwg-eco-floor{height:78px;margin:-4px 0;border:1px solid color-mix(in srgb,var(--floor-tone),white 15%);border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 72%),rgba(255,255,255,.08));box-shadow:0 18px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 30px 55px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.18);display:flex;flex-direction:column;justify-content:center;padding:0 22px;transform:translateZ(calc(var(--floor-index) * 18px));position:relative;overflow:hidden}
+        .rwg-eco-floor:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:translateX(-120%);animation:rwg-eco-shine 4s ease-in-out infinite;animation-delay:calc(var(--floor-index) * .3s)}
+        .rwg-eco-floor span{font-size:24px;font-weight:950;color:var(--floor-tone);line-height:1}
+        .rwg-eco-floor strong{font-size:15px;line-height:1.1;color:#fff;margin-top:4px}
+        .rwg-eco-floor small{font-size:10px;color:rgba(255,255,255,.58);margin-top:4px}
+        .rwg-eco-orbit{position:absolute;border:1px solid rgba(34,211,238,.25);border-radius:50%;filter:drop-shadow(0 0 18px rgba(34,211,238,.25));animation:rwg-eco-spin 16s linear infinite}
+        .orbit-one{width:480px;height:160px;transform:rotate(-18deg)}
+        .orbit-two{width:330px;height:110px;transform:rotate(38deg);animation-duration:11s;border-color:rgba(250,204,21,.24)}
+        .rwg-eco-pet{position:absolute;object-fit:contain;filter:drop-shadow(0 24px 30px rgba(0,0,0,.45));animation:rwg-eco-bob 4.5s ease-in-out infinite}
+        .rwg-eco-pet-boy{width:145px;right:0;top:72px}
+        .rwg-eco-pet-baby{width:116px;left:8px;bottom:80px;animation-delay:1s}
+        .rwg-eco-section{max-width:1180px;margin:0 auto;padding:54px 18px}
+        .rwg-eco-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}
+        .rwg-eco-section h2{font-size:clamp(28px,4vw,48px);line-height:1.04;margin:0;color:#fff;letter-spacing:0}
+        .rwg-eco-section-head p{max-width:540px;color:rgba(255,255,255,.62);line-height:1.65;margin:0}
+        .rwg-eco-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+        .rwg-eco-card{border-radius:18px;padding:18px;min-height:220px;position:relative;overflow:hidden}
+        .rwg-eco-card:before{content:"";position:absolute;inset:auto -30px -50px auto;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 70%);opacity:.16}
+        .rwg-eco-card svg{width:28px;height:28px;color:var(--tone);margin-bottom:16px}
+        .rwg-eco-card b{display:block;color:var(--tone);font-size:24px;margin-bottom:6px}
+        .rwg-eco-card h3{font-size:16px;line-height:1.2;margin:0 0 10px;color:#fff}
+        .rwg-eco-card small{display:block;color:rgba(255,255,255,.58);font-weight:700;line-height:1.4;margin-bottom:14px}
+        .rwg-eco-card p{font-size:13px;line-height:1.55;color:rgba(255,255,255,.62);margin:0}
+        .rwg-eco-split{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch}
+        .rwg-eco-panel{border-radius:22px;padding:24px}
+        .rwg-eco-panel h3{font-size:24px;margin:0 0 12px;color:#fff}
+        .rwg-eco-panel p{color:rgba(255,255,255,.66);line-height:1.65;margin:0}
+        .rwg-eco-invest-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+        .rwg-eco-invest-step{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.055);border-radius:16px;padding:16px}
+        .rwg-eco-invest-step svg{color:#f8d477;width:24px;height:24px;margin-bottom:12px}
+        .rwg-eco-invest-step strong{display:block;color:#fff;font-size:15px;margin-bottom:7px}
+        .rwg-eco-invest-step span{display:block;color:rgba(255,255,255,.58);font-size:12px;line-height:1.5}
+        .rwg-eco-cap{margin-top:20px;padding:18px;border-radius:18px;background:rgba(3,21,26,.72);border:1px solid rgba(248,212,119,.18)}
+        .rwg-eco-cap-row{display:flex;justify-content:space-between;gap:12px;color:#fff;font-weight:800;margin-bottom:10px}
+        .rwg-eco-cap-track{height:12px;border-radius:20px;background:rgba(255,255,255,.09);overflow:hidden}
+        .rwg-eco-cap-fill{height:100%;width:var(--cap-pct);border-radius:20px;background:linear-gradient(90deg,#22d3ee,#f8d477);box-shadow:0 0 22px rgba(34,211,238,.35)}
+        .rwg-eco-calculator{border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:16px}
+        .rwg-eco-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:rgba(255,255,255,.66);font-size:13px}
+        .rwg-eco-panel-head strong{font-size:18px;color:#f8d477}
+        .rwg-eco-range{width:100%;accent-color:#f8d477}
+        .rwg-eco-calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .rwg-eco-calc-grid div{padding:15px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+        .rwg-eco-calc-grid small{display:block;color:rgba(255,255,255,.55);font-size:11px;margin-bottom:6px}
+        .rwg-eco-calc-grid strong{font-size:22px;color:#fff}
+        .rwg-eco-complete{padding:12px 14px;border-radius:14px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.32);color:#86efac;font-weight:800;font-size:13px}
+        .rwg-eco-audience{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+        .rwg-eco-audience .rwg-eco-panel svg{width:30px;height:30px;color:#22d3ee;margin-bottom:14px}
+        .rwg-eco-blindbox{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px;align-items:center}
+        .rwg-eco-pets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+        .rwg-eco-pet-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;text-align:center}
+        .rwg-eco-pet-card img{height:145px;width:100%;object-fit:contain;filter:drop-shadow(0 16px 20px rgba(0,0,0,.38));animation:rwg-eco-bob 4s ease-in-out infinite}
+        .rwg-eco-pet-card:nth-child(2) img{animation-delay:.7s}
+        .rwg-eco-pet-card:nth-child(3) img{animation-delay:1.2s}
+        .rwg-eco-pet-card strong{display:block;color:#fff;margin-top:8px}
+        .rwg-eco-pet-card span{display:block;color:#f8d477;font-size:12px;margin-top:5px;font-weight:800}
+        .rwg-eco-rules{display:grid;gap:10px}
+        .rwg-eco-rule{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px}
+        .rwg-eco-rule svg{width:26px;height:26px;color:#f8d477;margin-top:2px}
+        .rwg-eco-rule strong{display:block;color:#fff;margin-bottom:4px}
+        .rwg-eco-rule span{display:block;color:rgba(255,255,255,.62);font-size:13px;line-height:1.5}
+        .rwg-eco-disclaimer{max-width:1180px;margin:0 auto 42px;padding:18px;border-radius:18px;border:1px solid rgba(248,212,119,.25);background:rgba(248,212,119,.07);display:grid;grid-template-columns:32px 1fr;gap:12px;color:rgba(255,255,255,.72);font-size:12px;line-height:1.55}
+        .rwg-eco-disclaimer svg{width:26px;height:26px;color:#f8d477}
+        .rwg-eco-footer{border-top:1px solid rgba(255,255,255,.08);padding:26px 18px 90px;color:rgba(255,255,255,.5)}
+        .rwg-eco-footer-inner{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;font-size:12px}
+        .rwg-eco-mobile-bar{display:none}
+        @keyframes rwg-eco-hover{0%,100%{transform:rotateX(58deg) rotateZ(-28deg) translateY(0)}50%{transform:rotateX(58deg) rotateZ(-28deg) translateY(-12px)}}
+        @keyframes rwg-eco-shine{0%,35%{transform:translateX(-120%)}65%,100%{transform:translateX(120%)}}
+        @keyframes rwg-eco-spin{to{rotate:360deg}}
+        @keyframes rwg-eco-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-eco-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-grid,.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid{grid-template-columns:1fr}.rwg-eco-card{min-height:auto}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
-      <div className="rwg-orb-1" /><div className="rwg-orb-2" /><div className="rwg-orb-3" />
-      <div className="rwg-grid-overlay" />
-
-      {/* ══ NAV ══ */}
-      <header className="rwg-header sticky top-0 z-50">
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, overflow: "hidden", flexShrink: 0 }}>
-              <img src={rwgLogo} alt="RWG" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 13, background: "linear-gradient(90deg,#c4b5fd,#93c5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }} className="hidden sm:block">
-              Reborn Wave Group
-            </span>
+      <nav className="rwg-eco-nav">
+        <div className="rwg-eco-nav-inner">
+          <a className="rwg-eco-brand" href="/">
+            <img src={rwgLogo} alt="Reborn Wave Group logo" />
+            <span>Reborn Wave Group</span>
+          </a>
+          <div className="rwg-eco-links">
+            <button onClick={() => scrollTo("ecosystem")}>Ecosystem</button>
+            <button onClick={() => scrollTo("investor")}>Investors</button>
+            <button onClick={() => scrollTo("blindbox")}>Blindbox</button>
+            <button onClick={() => scrollTo("join")}>Join</button>
           </div>
-          {/* Nav actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div className="hidden lg:flex" style={{ alignItems: "center" }}>
-              <div className="rwg-fomo-pill" style={{ marginRight: 8 }}>
-                <span className="rwg-live-dot" />
-                <span><strong>{fmt(foundersLeft)}</strong> Founders VIPs left</span>
-              </div>
+          <div className="rwg-eco-actions">
+            <div className="rwg-language-wrap">
+              <LanguageSelector />
             </div>
-            <div className="hidden md:block"><LanguageSelector /></div>
-            <button onClick={handleLogin} className="rwg-ghost-btn" style={{ padding: "8px 18px", fontSize: 13, borderRadius: 22 }}>
+            <button className="rwg-eco-secondary" onClick={handleLogin}>
               Log In
             </button>
-            <button onClick={() => scrollTo("membership")} className="rwg-gold-btn" style={{ padding: "8px 16px", fontSize: 13 }}>
-              <span className="hidden sm:inline">Join Now</span><span className="sm:hidden">Join</span>
+            <button className="rwg-eco-primary" onClick={() => scrollTo("investor")}>
+              Investor Package
             </button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* ══ TICKER ══ */}
-      <Ticker />
-
-      {/* ══ HERO ══ */}
-      <section style={{ padding: "48px 16px 40px", textAlign: "center", position: "relative", zIndex: 10 }} className="sm:py-24">
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          {/* Badge */}
-          <div className="rwg-hero-badge" style={{ marginBottom: 16, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Sparkles style={{ width: 12, height: 12 }} className="text-violet-400" />
-            <span style={{ fontSize: 11 }}>World's First 5-in-1 Lifestyle Empire</span>
-          </div>
-
-          {/* Headline */}
-          <h1 style={{ fontSize: "clamp(36px, 10vw, 80px)", fontWeight: 900, lineHeight: 1.1, marginBottom: 16, letterSpacing: "-1px" }}>
-            <span style={{ color: "rgba(255,255,255,0.92)" }}>The Future of</span>
-            <br />
-            <span style={{ background: "linear-gradient(90deg,#C9A84C 0%,#F0D080 45%,#00F5FF 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Entertainment
-            </span>
+      <section className="rwg-eco-hero">
+        <div>
+          <h1>
+            Reborn Wave Group <span className="rwg-eco-gold">Club Economy</span>
           </h1>
-
-          {/* Subtext */}
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 480, margin: "0 auto 20px", lineHeight: 1.7 }}>
-            Blind box collectibles · VIP club · Gamified rewards<br />
-            Scarcity-driven memberships — Singapore &amp; Batam.
+          <p>
+            A 5-story, 3-unit waterfront club built to bring in customers, investors, sales partners, and
+            workers through one connected ecosystem: KTV, kids game house, beauty salons, pet cafe, live
+            band, dance floor, sea view, membership credits, and blindbox pet rewards.
           </p>
-
-          {/* FOMO pill */}
-          <div className="rwg-fomo-pill" style={{ display: "inline-flex", marginBottom: 28, fontSize: 13, padding: "8px 16px" }}>
-            🔥 Only <strong style={{ margin: "0 4px" }}>{fmt(foundersLeft)}</strong> Founders VIPs remain — forever
-          </div>
-
-          {/* CTAs */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 420, margin: "0 auto 40px" }}>
-            <button onClick={() => scrollTo("membership")} className="rwg-gold-btn" style={{ padding: "15px", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14 }}>
-              <Zap style={{ width: 16, height: 16 }} /> Secure Founders VIP
+          <div className="rwg-eco-hero-ctas">
+            <button className="rwg-eco-primary" onClick={() => scrollTo("ecosystem")}>
+              Explore Ecosystem <ArrowRight size={17} />
             </button>
-            <button onClick={() => scrollTo("experience")} className="rwg-ghost-btn" style={{ padding: "14px", fontSize: 14, borderRadius: 14 }}>
-              🎬 Explore the World
+            <button className="rwg-eco-secondary" onClick={() => scrollTo("blindbox")}>
+              See Blindbox Rewards <Gift size={17} />
             </button>
           </div>
-
-          {/* Stats grid */}
-          <div className="rwg-card" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", maxWidth: 600, margin: "0 auto" }}>
-            {[
-              { v: "1,000", l: "Founders VIP\nNever Restocked" },
-              { v: "5-in-1", l: "Club · KTV · Beauty\nF&B · Gaming" },
-              { v: "10%", l: "Lifetime Referral\nCommission" },
-              { v: fmt(members), l: "Active Members\n& Growing" },
-            ].map((s, i) => (
-              <div key={i} style={{ padding: "18px 12px", textAlign: "center", borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.06)" : "none", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: "#C9A84C", marginBottom: 5 }}>{s.v}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{s.l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ MEMBERSHIP ══ */}
-      <section id="membership" style={{ padding: "48px 16px", background: "rgba(18,18,42,0.6)", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <div className="rwg-section-badge">Scarcity Economy</div>
-            <h2 style={{ fontSize: "clamp(22px,6vw,36px)", fontWeight: 800, color: "#fff", marginBottom: 10, lineHeight: 1.2 }}>
-              One Chance. Four Tiers.<br />
-              <span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>No Restock. Ever.</span>
-            </h2>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, maxWidth: 480, margin: "0 auto 16px", lineHeight: 1.6 }}>
-              Once a tier sells out, it's gone permanently. Resale happens only in our internal marketplace.
-            </p>
-            {/* Live pills row */}
-            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-              <div className="rwg-fomo-pill"><span className="rwg-live-dot" /> {fmt(foundersLeft)} Founders VIPs left</div>
-              <div className="rwg-fomo-pill"><span className="rwg-live-dot" /> {fmt(eliteLeft)} Elite left</div>
-            </div>
-          </div>
-
-          {/* Swipe hint — mobile only */}
-          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 11, marginBottom: 12 }} className="sm:hidden">
-            ← Swipe to explore all tiers →
-          </p>
-
-          {/* Tier carousel */}
-          <div className="tier-track" onScroll={e => {
-            const el = e.currentTarget;
-            const idx = Math.round(el.scrollLeft / (el.scrollWidth / tiers.length));
-            setTierDot(Math.min(idx, tiers.length - 1));
-          }}>
-            {tiers.map((tier) => (
-              <div key={tier.name} className="tier-item">
-                <TierCard {...tier} onCta={tier.onCta || (() => scrollTo("email-capture"))} />
-              </div>
-            ))}
-          </div>
-          {/* Dot indicators — mobile only */}
-          <div className="swipe-dots" style={{ marginTop: 12 }}>
-            {tiers.map((_, i) => <span key={i} className={i === tierDot ? "active" : ""} />)}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ BLIND BOX ══ */}
-      <section id="blindbox" style={{ padding: "48px 16px", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          {/* Mobile: stacked. Desktop: side by side */}
-          <div className="rwg-split-grid">
-            {/* Visual */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <div style={{ position: "relative", width: 200, height: 200 }}>
-                <div style={{ position: "absolute", inset: -24, borderRadius: "50%", background: "radial-gradient(circle,rgba(201,168,76,0.18),transparent 70%)", animation: "rwg-glow 3s ease-in-out infinite" }} />
-                <div style={{ width: "100%", height: "100%", borderRadius: 20, background: "linear-gradient(145deg,#2a1a5e,#1a0a3e)", border: "2px solid rgba(201,168,76,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 64, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", animation: "rwg-float 4s ease-in-out infinite", position: "relative" }}>
-                  🎁
-                  <div style={{ position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", background: "#C9A84C", color: "#000", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap" }}>Series 1 — LIVE</div>
-                </div>
-                {["🐉","✨","💫","🌟"].map((e, i) => (
-                  <span key={i} style={{ position: "absolute", fontSize: 18, filter: "drop-shadow(0 0 6px rgba(201,168,76,0.5))", animation: `rwg-float ${5+i}s ease-in-out infinite`, animationDelay: `${-i*1.2}s`, ...[{top:"2%",left:"0%"},{top:"2%",right:"0%"},{bottom:"2%",left:"4%"},{bottom:"2%",right:"4%"}][i] as React.CSSProperties }}>{e}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Content */}
-            <div style={{ textAlign: "center" }} className="lg:text-left">
-              <div className="rwg-section-badge">Blind Box Collectibles</div>
-              <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 14, lineHeight: 1.2 }}>
-                Dopamine in a Box.<br />Every. Single. Time.
-              </h2>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-                {[["Common","rgba(100,200,100,0.12)","#80e880","rgba(100,200,100,0.2)"],["Rare","rgba(100,150,255,0.12)","#80b0ff","rgba(100,150,255,0.2)"],["Epic","rgba(180,80,255,0.12)","#c880ff","rgba(180,80,255,0.2)"],["Legendary ✦","rgba(255,200,50,0.12)","#C9A84C","rgba(255,200,50,0.2)"]].map(([label,bg,color,border]) => (
-                  <span key={label} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: bg as string, color: color as string, border: `1px solid ${border}` }}>{label}</span>
-                ))}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28, textAlign: "left" }}>
-                {[
-                  { icon: "🎲", title: "Every Box is a Surprise", desc: "Four rarity tiers. Ultra-rare 1-in-100 Legendary pulls." },
-                  { icon: "🔄", title: "Trade on the Marketplace", desc: "Every item is tradeable. Rare figures appreciate in value." },
-                  { icon: "🏆", title: "Complete Sets for Bonuses", desc: "Unlock exclusive club perks, XP boosts, and secret items." },
-                ].map(({ icon, title, desc }) => (
-                  <div key={title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)" }}>{icon}</div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{title}</div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => scrollTo("email-capture")} className="rwg-gold-btn" style={{ padding: "14px 28px", fontSize: 14, width: "100%" }}>
-                🛍️ Get Early Access to Series 1
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 5-IN-1 EXPERIENCE ══ */}
-      <section id="experience" style={{ padding: "48px 16px", background: "rgba(18,18,42,0.6)", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div className="rwg-section-badge">The 5-in-1 Concept</div>
-            <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 8 }}>Five Worlds. One Destination.</h2>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
-              The world's first fully integrated luxury entertainment empire.
-            </p>
-          </div>
-          {/* Swipe hint — mobile only */}
-          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 11, marginBottom: 10 }} className="sm:hidden">
-            ← Swipe to explore →
-          </p>
-          <div className="exp-track">
-            {[
-              { num: "01", emoji: "🎤", title: "KTV", sub: "Private Rooms", tags: ["Private Rooms","VIP Service"] },
-              { num: "02", emoji: "🌅", title: "Sky Bar", sub: "Rooftop Views", tags: ["Sea Views","DJ Nights"] },
-              { num: "03", emoji: "💆", title: "Beauty", sub: "& Wellness", tags: ["Luxury Spa","Skincare"] },
-              { num: "04", emoji: "🎮", title: "Gaming", sub: "Lounge", tags: ["Tournaments","Collectibles"] },
-              { num: "05", emoji: "🍽️", title: "Premium", sub: "F&B", tags: ["Gourmet","Craft Bar"] },
-            ].map(({ num, emoji, title, sub, tags }) => (
-              <div key={title} className="exp-item" style={{ borderRadius: 16, padding: "18px 16px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", transition: "all 0.3s" }}>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>{num}</div>
-                <div style={{ fontSize: 30, marginBottom: 10 }}>{emoji}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 4 }}>{title}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>{sub}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {tags.map(tag => <span key={tag} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 20, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}>{tag}</span>)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ LOCATIONS ══ */}
-      <section id="locations" style={{ padding: "48px 16px", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ marginBottom: 24, textAlign: "center" }} className="lg:text-left">
-            <div className="rwg-section-badge">Our Locations</div>
-            <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff" }}>Where to Find Us</h2>
-          </div>
-          <div className="rwg-split-grid" style={{ gap: 16 }}>
-            {/* Flagship */}
-            <div style={{ borderRadius: 20, padding: "24px 20px", border: "1px solid rgba(201,168,76,0.3)", background: "linear-gradient(145deg,rgba(201,168,76,0.05),rgba(201,168,76,0.01))" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "5px 13px", fontSize: 11, fontWeight: 600, color: "#C9A84C", marginBottom: 14 }}>🌊 OPEN NOW</div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Oceanic Bliss</h3>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, marginBottom: 16 }}>
-                Our flagship venue on the waterfront of Batam — sky bar, premium KTV suites, gaming &amp; beauty.
-              </p>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>📍</span>
-                <div>
-                  <strong style={{ display: "block", color: "#fff", fontSize: 13, marginBottom: 3 }}>Batam, Indonesia</strong>
-                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 1.5, display: "block" }}>Ruko Batamas, Jl. Pasir Putih No.49-51, Sadai, Bengkong, Batam 29444</span>
-                </div>
-              </div>
-              <button onClick={() => scrollTo("investor")} className="rwg-gold-btn" style={{ padding: "13px", fontSize: 14, width: "100%", borderRadius: 12 }}>
-                Book a Visit →
-              </button>
-            </div>
-            {/* Upcoming */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ borderRadius: 16, padding: "18px 16px", border: "1px solid rgba(123,47,190,0.25)", background: "rgba(123,47,190,0.06)" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(123,47,190,0.1)", border: "1px solid rgba(123,47,190,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 600, color: "#a78bfa", marginBottom: 10 }}>🇸🇬 HEADQUARTERS</div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Singapore HQ</h3>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>Operational HQ — digital operations and investor relations.</p>
-              </div>
-              <div style={{ borderRadius: 16, padding: "18px 16px", border: "1px solid rgba(0,245,255,0.2)", background: "rgba(0,245,255,0.04)" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,245,255,0.08)", border: "1px solid rgba(0,245,255,0.2)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 600, color: "#00F5FF", marginBottom: 10 }}>🌏 EXPANDING</div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 10 }}>Next Locations</h3>
-                {[["2026","Kuala Lumpur, Malaysia"],["2026","Bangkok, Thailand"],["2027","Hong Kong & Seoul"]].map(([year, city]) => (
-                  <div key={city} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "9px 12px", marginBottom: 8 }}>
-                    <span style={{ background: "rgba(0,245,255,0.1)", color: "#00F5FF", border: "1px solid rgba(0,245,255,0.2)", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, flexShrink: 0 }}>{year}</span>
-                    {city}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ INVESTOR ══ */}
-      <section id="investor" style={{ padding: "48px 16px", background: "rgba(18,18,42,0.6)", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div className="rwg-split-grid">
+          <div className="rwg-eco-proof">
             <div>
-              <div style={{ textAlign: "center" }} className="lg:text-left">
-                <div className="rwg-section-badge">For Investors</div>
-                <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 12, lineHeight: 1.2 }}>
-                  This Is More Than a Club.<br />
-                  <span style={{ background: "linear-gradient(90deg,#C9A84C,#F0D080)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>It's an Economy.</span>
-                </h2>
-              </div>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 24, textAlign: "left" }}>
-                RebornWave operates a closed-loop membership economy. Supply is permanently capped. Resales generate platform fees.
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
-                {[["$89M+","Total Revenue Potential"],["1.11M","Hard Cap — Total Members"],["5%","Marketplace Fee"],["10%","Lifetime Referral"]].map(([val, label]) => (
-                  <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "16px 14px" }}>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: "#C9A84C" }}>{val}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.4 }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => scrollTo("email-capture")} className="rwg-gold-btn" style={{ padding: "14px 28px", fontSize: 14, width: "100%", borderRadius: 14 }}>
-                📊 Request Investor Brief
-              </button>
+              <strong>5 floors</strong>
+              <span>Each floor has a different reason for people to visit and spend.</span>
             </div>
-            {/* Booking form */}
-            <div style={{ borderRadius: 20, padding: "24px 20px", background: "linear-gradient(145deg,rgba(123,47,190,0.15),rgba(233,69,96,0.08))", border: "1px solid rgba(123,47,190,0.25)" }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 18 }}>🏛️ Book an Investor Visit</h3>
-              {[["✦","Physical walkthrough of Batam venue"],["✦","Live revenue dashboard presentation"],["✦","Meet the founding team"],["✦","Priority Founders VIP allocation"]].map(([dot, text]) => (
-                <div key={text} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.65)", marginBottom: 10 }}>
-                  <span style={{ color: "#C9A84C" }}>{dot}</span> {text}
-                </div>
-              ))}
-              <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                <input className="rwg-input" type="text" placeholder="Full Name *" />
-                <input className="rwg-input" type="email" placeholder="Email Address *" />
-                <input className="rwg-input" type="text" placeholder="Company / Organisation" />
-                <select className="rwg-select rwg-input">
-                  <option value="" disabled>Investment Interest Level</option>
-                  <option>Exploring ($10K–$50K)</option>
-                  <option>Serious ($50K–$250K)</option>
-                  <option>Strategic ($250K+)</option>
-                  <option>Founders VIP Purchase</option>
-                </select>
-                <button className="rwg-gold-btn" style={{ padding: 14, fontSize: 15, borderRadius: 12 }}>
-                  Request Investor Meeting →
-                </button>
-              </div>
+            <div>
+              <strong>$200K cap</strong>
+              <span>Total investor allocation is capped for this package plan.</span>
+            </div>
+            <div>
+              <strong>{members.toLocaleString()}</strong>
+              <span>Live member interest counter for waitlist and launch campaigns.</span>
             </div>
           </div>
         </div>
+        <BuildingStack />
       </section>
 
-      {/* ══ REWARDS ══ */}
-      <section id="rewards" style={{ padding: "48px 16px", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div className="rwg-section-badge">Gamification + Rewards</div>
-            <h2 style={{ fontSize: "clamp(22px,6vw,34px)", fontWeight: 800, color: "#fff", marginBottom: 8 }}>Earn. Level Up. Get Addicted.</h2>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>Every transaction, visit, and referral earns you rewards.</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }} className="sm:grid-cols-3 sm:gap-5">
-            {[
-              { emoji: "🐾", title: "Digital Pets", desc: "Earn a unique companion. Feed it with XP. Evolve to unlock rare items.", highlight: "Level up → unlock rares" },
-              { emoji: "👥", title: "10% Referral For Life", desc: "Invite friends. Earn 10% commission on everything they spend — forever.", highlight: "Lifetime passive earnings" },
-              { emoji: "⚡", title: "XP & Loyalty Points", desc: "Every dollar spent earns XP. Level up to unlock VIP upgrades.", highlight: "Spend → Earn → Unlock" },
-              { emoji: "🏪", title: "Marketplace", desc: "Trade memberships and blind box items. Rare items appreciate.", highlight: "Your membership = asset" },
-              { emoji: "🎰", title: "Daily Spin", desc: "Log in daily for free spins, bonus XP, and surprise rewards.", highlight: "Free daily rewards" },
-              { emoji: "🏆", title: "Leaderboards", desc: "Top 10 monthly earners win VIP upgrades, blind box sets, cashback.", highlight: "Monthly prizes" },
-            ].map(({ emoji, title, desc, highlight }) => (
-              <div key={title} style={{ borderRadius: 16, padding: "18px 16px", border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)", textAlign: "center", transition: "all 0.3s" }}
-                className="sm:p-6 hover:-translate-y-1 hover:border-amber-500/25">
-                <div style={{ fontSize: 32, marginBottom: 10 }}>{emoji}</div>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 6 }}>{title}</h3>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 10 }}>{desc}</p>
-                <div style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 8, padding: "7px 10px", fontSize: 11, fontWeight: 700, color: "#C9A84C" }}>{highlight}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ EMAIL CAPTURE ══ */}
-      <section id="email-capture" style={{ padding: "48px 16px", background: "linear-gradient(135deg,rgba(123,47,190,0.3),rgba(233,69,96,0.2))", borderTop: "1px solid rgba(123,47,190,0.2)", borderBottom: "1px solid rgba(233,69,96,0.2)", position: "relative", zIndex: 10 }} className="sm:py-20">
-        <div style={{ maxWidth: 500, margin: "0 auto", textAlign: "center" }}>
-          <div className="rwg-section-badge">Don't Miss Out</div>
-          <h2 style={{ fontSize: "clamp(24px,7vw,38px)", fontWeight: 900, color: "#fff", marginBottom: 10, lineHeight: 1.2 }}>
-            Join the Waitlist.<br />Before It's Too Late.
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-            Get first access to Founders VIP, blind box drops, and early app beta.<br />
-            <strong style={{ color: "#fff" }}>{fmt(members)}</strong> members already waiting.
+      <section className="rwg-eco-section" id="ecosystem">
+        <div className="rwg-eco-section-head">
+          <h2>Five floors that feed one another.</h2>
+          <p>
+            The club is designed like a loop: daytime families, beauty customers, private KTV groups, pet
+            lovers, nightlife guests, and investor-hosted visitors all create traffic for each other.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
-            <input
-              className="rwg-input"
-              type="email"
-              placeholder="Enter your email address..."
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleEmail()}
-            />
-            <button onClick={handleEmail} className="rwg-gold-btn" style={{ padding: 15, fontSize: 15, borderRadius: 14 }}>
-              {emailSent ? "✅ You're in!" : "Join Now →"}
-            </button>
-          </div>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>🔒 No spam. Unsubscribe anytime.</p>
+        </div>
+        <div className="rwg-eco-grid">
+          {floors.map((floor) => {
+            const Icon = floor.icon;
+            return (
+              <article
+                className="rwg-eco-card"
+                key={floor.level}
+                style={{ "--tone": floor.tone } as React.CSSProperties}
+              >
+                <Icon />
+                <b>{floor.level}</b>
+                <h3>{floor.title}</h3>
+                <small>{floor.units}</small>
+                <p>{floor.detail}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      {/* ══ FOOTER ══ */}
-      <footer style={{ padding: "40px 16px 32px", position: "relative", zIndex: 10 }} className="rwg-footer">
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          {/* Top row */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 24, marginBottom: 32 }} className="lg:grid-cols-4 lg:gap-8">
-            <div style={{ gridColumn: "1 / -1" }} className="lg:col-auto">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 30, height: 30, borderRadius: 8, overflow: "hidden" }}><img src={rwgLogo} alt="RWG" style={{ width: "100%", objectFit: "contain" }} /></div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>Reborn Wave Group</span>
+      <section className="rwg-eco-section" id="investor">
+        <div className="rwg-eco-section-head">
+          <h2>Investor package made simple.</h2>
+          <p>
+            The message is direct: invest $5,000, receive $5,000 club credits, target $10,000 ROI over 2
+            years, and earn referral bonuses that reduce the remaining ROI balance.
+          </p>
+        </div>
+        <div className="rwg-eco-split">
+          <div className="rwg-eco-panel">
+            <h3>$5,000 package flow</h3>
+            <p>
+              Investor credits can be used to bring friends, customers, and potential business partners into
+              the club. Monthly payouts come from business performance and new investor package allocation.
+            </p>
+            <div className="rwg-eco-invest-grid">
+              {investorSteps.map((step) => {
+                const Icon = step.icon;
+                return (
+                  <div className="rwg-eco-invest-step" key={step.title}>
+                    <Icon />
+                    <strong>{step.title}</strong>
+                    <span>{step.detail}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="rwg-eco-cap">
+              <div className="rwg-eco-cap-row">
+                <span>Investment cap progress</span>
+                <span>${raised.toLocaleString()} / ${cap.toLocaleString()}</span>
               </div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.7, marginBottom: 16, maxWidth: 320 }}>
-                The world's first 5-in-1 luxury entertainment empire. Scarcity-driven memberships. Singapore &amp; Batam.
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                {["TikTok","IG","小红书","TG"].map(s => (
-                  <a key={s} href="#" style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", color: "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700 }}>{s}</a>
-                ))}
+              <div className="rwg-eco-cap-track">
+                <div className="rwg-eco-cap-fill" style={{ "--cap-pct": `${capPct}%` } as React.CSSProperties} />
               </div>
             </div>
-            {[
-              { title: "Membership", links: ["Founders VIP","Elite VIP","Standard VIP","Become a Member","Marketplace"] },
-              { title: "Experience", links: ["KTV & Private Rooms","Sky Bar","Beauty & Wellness","Gaming Lounge","Blind Box Store"] },
-              { title: "Company", links: ["Locations","Investor Relations","Rewards Program","Press & Media","Contact Us"] },
-            ].map(({ title, links }) => (
-              <div key={title}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 14 }}>{title}</h4>
-                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
-                  {links.map(l => <li key={l}><a href="#" style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", textDecoration: "none" }}>{l}</a></li>)}
-                </ul>
+          </div>
+          <InvestorCalculator />
+        </div>
+      </section>
+
+      <section className="rwg-eco-section" id="join">
+        <div className="rwg-eco-section-head">
+          <h2>One ecosystem for sales, customers, and workers.</h2>
+          <p>
+            The club needs more than investors. It needs customers who return, promoters who bring people,
+            and workers who can grow inside the business.
+          </p>
+        </div>
+        <div className="rwg-eco-audience">
+          {audienceCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <article className="rwg-eco-panel" key={card.title}>
+                <Icon />
+                <h3>{card.title}</h3>
+                <p>{card.text}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rwg-eco-section" id="blindbox">
+        <div className="rwg-eco-section-head">
+          <h2>Blindbox pets turn members into daily users.</h2>
+          <p>
+            The blindbox is not just a doll. It is a digital pet companion that members feed daily to earn
+            tokens, exchange prizes, and come back to the Reborn Wave ecosystem.
+          </p>
+        </div>
+        <div className="rwg-eco-blindbox">
+          <div className="rwg-eco-pets">
+            <div className="rwg-eco-pet-card">
+              <img src={doluruuBoy} alt="Male blindbox pet" />
+              <strong>Male pet</strong>
+              <span>1 token daily</span>
+            </div>
+            <div className="rwg-eco-pet-card">
+              <img src={doluruuAdult} alt="Female blindbox pet" />
+              <strong>Female pet</strong>
+              <span>1 token daily</span>
+            </div>
+            <div className="rwg-eco-pet-card">
+              <img src={doluruuBaby} alt="Baby blindbox pet" />
+              <strong>Baby pet</strong>
+              <span>1 token daily</span>
+            </div>
+          </div>
+          <div className="rwg-eco-rules">
+            <div className="rwg-eco-rule">
+              <Gift />
+              <div>
+                <strong>Investor bonus</strong>
+                <span>Every investor receives 1 blindbox free as part of the $5,000 package.</span>
               </div>
-            ))}
+            </div>
+            <div className="rwg-eco-rule">
+              <HeartHandshake />
+              <div>
+                <strong>Male + female = baby</strong>
+                <span>If a user owns both male and female pets, they receive 1 baby pet free.</span>
+              </div>
+            </div>
+            <div className="rwg-eco-rule">
+              <PawPrint />
+              <div>
+                <strong>3 pets = 3 daily tokens</strong>
+                <span>Feeding male, female, and baby pets gives 3 tokens per day for prize exchange.</span>
+              </div>
+            </div>
+            <div className="rwg-eco-rule">
+              <Trophy />
+              <div>
+                <strong>Tokens drive repeat visits</strong>
+                <span>Tokens can be used for rewards, upgrades, prizes, and club spending campaigns.</span>
+              </div>
+            </div>
           </div>
-          {/* Bottom */}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 18, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>© 2026 Reborn Wave Group. All rights reserved.</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-              <a href="#" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Privacy</a> · <a href="#" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Terms</a> · <a href="#" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Membership Rules</a>
-            </p>
-          </div>
+        </div>
+      </section>
+
+      <div className="rwg-eco-disclaimer">
+        <ShieldCheck />
+        <div>
+          This homepage draft explains the package in customer-friendly language. ROI references are targets,
+          not guaranteed returns. Actual investor contracts, payout rules, profit calculation, referral
+          deductions, compliance requirements, and risk disclosures should be reviewed by a qualified legal
+          and financial professional before launch.
+        </div>
+      </div>
+
+      <footer className="rwg-eco-footer">
+        <div className="rwg-eco-footer-inner">
+          <span>Reborn Wave Group - Waterfront Lifestyle Club, Batam</span>
+          <span>KTV - Game House - Beauty - Pet Cafe - Live House - Blindbox Rewards</span>
         </div>
       </footer>
 
-      {/* ══ MOBILE STICKY CTA BAR ══ */}
-      <div className="mobile-cta-bar">
-        <button onClick={handleLogin} className="rwg-ghost-btn" style={{ flex: 1, padding: "13px", fontSize: 14, borderRadius: 14 }}>
+      <div className="rwg-eco-mobile-bar">
+        <button className="rwg-eco-secondary" onClick={handleLogin}>
           Log In
         </button>
-        <button onClick={() => scrollTo("membership")} className="rwg-gold-btn" style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <Zap style={{ width: 14, height: 14 }} /> Secure My Spot
+        <button className="rwg-eco-primary" onClick={() => scrollTo("investor")}>
+          Investor Package
         </button>
       </div>
-    </div>
+    </main>
   );
 }
+
+export default Landing;
