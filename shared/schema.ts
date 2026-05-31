@@ -1396,6 +1396,42 @@ export const insertSeoPageSchema = createInsertSchema(seoPages).omit({ id: true,
 export type SeoPage = typeof seoPages.$inferSelect;
 export type InsertSeoPage = z.infer<typeof insertSeoPageSchema>;
 
+// Social media automation queue
+export const socialPosts = pgTable("social_posts", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  campaignType: varchar("campaign_type", { length: 80 }).default("general").notNull(),
+  language: varchar("language", { length: 20 }).default("en").notNull(),
+  channels: jsonb("channels").$type<string[]>().default([]).notNull(),
+  content: text("content").notNull(),
+  hashtags: text("hashtags"),
+  mediaUrl: text("media_url"),
+  mediaType: varchar("media_type", { length: 40 }).default("none").notNull(),
+  cta: text("cta"),
+  status: varchar("status", { length: 40 }).default("draft").notNull(),
+  approvalRequired: boolean("approval_required").default(true).notNull(),
+  scheduledAt: timestamp("scheduled_at"),
+  publishedAt: timestamp("published_at"),
+  externalPostId: text("external_post_id"),
+  lastError: text("last_error"),
+  metrics: jsonb("metrics").$type<Record<string, unknown>>().default({}).notNull(),
+  createdBy: varchar("created_by", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true,
+  externalPostId: true,
+  lastError: true,
+  metrics: true,
+});
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+
 // ── POS System ────────────────────────────────────────────
 export const posOrders = pgTable("pos_orders", {
   id: serial("id").primaryKey(),

@@ -7,11 +7,12 @@ import multer from "multer";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, count, isNull, isNotNull, ne } from "drizzle-orm";
+import { eq, and, desc, asc, sql, count, isNull, isNotNull, ne, lte } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
+import { generateSocialPlan, getSocialConnectionStatus, publishSocialPost } from "./socialAutomation";
 
 // Initialize Stripe (optional — payment routes disabled if key not set)
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -59,6 +60,47 @@ function broadcastAdminLogUpdate(logData: any) {
       }
     });
   }
+}
+
+async function requireAdminUser(req: any, res: any) {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return null;
+  }
+  const user = await storage.getUser(userId);
+  if (!user || user.role !== "admin") {
+    res.status(403).json({ message: "Admin access required" });
+    return null;
+  }
+  return user;
+}
+
+async function ensureSocialAutomationTables() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS social_posts (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      campaign_type VARCHAR(80) NOT NULL DEFAULT 'general',
+      language VARCHAR(20) NOT NULL DEFAULT 'en',
+      channels JSONB NOT NULL DEFAULT '[]'::jsonb,
+      content TEXT NOT NULL,
+      hashtags TEXT,
+      media_url TEXT,
+      media_type VARCHAR(40) NOT NULL DEFAULT 'none',
+      cta TEXT,
+      status VARCHAR(40) NOT NULL DEFAULT 'draft',
+      approval_required BOOLEAN NOT NULL DEFAULT true,
+      scheduled_at TIMESTAMP,
+      published_at TIMESTAMP,
+      external_post_id TEXT,
+      last_error TEXT,
+      metrics JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_by VARCHAR(100),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 }
 
 function startSleepEnergyTimer(petId: number) {
@@ -240,6 +282,7 @@ const multerStorage = multer.diskStorage({
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await ensureSocialAutomationTables();
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   // Initialize real-time energy timers for currently sleeping pets
@@ -10050,6 +10093,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Telegram Bot Webhook ─────────────────────────────────
   // Your Telegram bot POSTs here with apiKey + page data to update meta tags
+  app.get('/api/admin/social/status', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    res.json(getSocialConnectionStatus());
+  });
+
+  app.get('/api/admin/social/posts', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const status = req.query.status as string | undefined;
+    const posts = status
+      ? await db
+        .select()
+        .from(schema.socialPosts)
+        .where(eq(schema.socialPosts.status, status))
+        .orderBy(desc(schema.socialPosts.createdAt))
+        .limit(100)
+      : await db
+        .select()
+        .from(schema.socialPosts)
+        .orderBy(desc(schema.socialPosts.createdAt))
+        .limit(100);
+    res.json(posts);
+  });
+
+  app.post('/api/admin/social/generate', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const drafts = generateSocialPlan(admin.email || admin.id);
+    const created = await db.insert(schema.socialPosts).values(drafts as any).returning();
+    res.json({ success: true, created });
+  });
+
+  app.post('/api/admin/social/posts', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const { title, content, channels, hashtags, mediaUrl, mediaType, campaignType, language, cta, scheduledAt, status } = req.body;
+    if (!title || !content || !Array.isArray(channels) || channels.length === 0) {
+      return res.status(400).json({ message: "title, content, and channels are required" });
+    }
+    const [post] = await db.insert(schema.socialPosts).values({
+      title,
+      content,
+      channels,
+      hashtags: hashtags || null,
+      mediaUrl: mediaUrl || null,
+      mediaType: mediaType || "none",
+      campaignType: campaignType || "general",
+      language: language || "en",
+      cta: cta || null,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      status: status || "draft",
+      createdBy: admin.email || admin.id,
+    }).returning();
+    res.json(post);
+  });
+
+  app.patch('/api/admin/social/posts/:id', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const updates: any = { ...req.body, updatedAt: new Date() };
+    if (updates.scheduledAt) updates.scheduledAt = new Date(updates.scheduledAt);
+    const [post] = await db.update(schema.socialPosts)
+      .set(updates)
+      .where(eq(schema.socialPosts.id, parseInt(req.params.id)))
+      .returning();
+    res.json(post);
+  });
+
+  app.post('/api/admin/social/posts/:id/approve', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const [post] = await db.update(schema.socialPosts)
+      .set({
+        status: "approved",
+        scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : new Date(),
+        lastError: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.socialPosts.id, parseInt(req.params.id)))
+      .returning();
+    res.json(post);
+  });
+
+  app.post('/api/admin/social/posts/:id/publish', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    const id = parseInt(req.params.id);
+    const [post] = await db.select().from(schema.socialPosts).where(eq(schema.socialPosts.id, id)).limit(1);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    await db.update(schema.socialPosts).set({ status: "publishing", updatedAt: new Date() }).where(eq(schema.socialPosts.id, id));
+    const result = await publishSocialPost(post);
+    const [updated] = await db.update(schema.socialPosts)
+      .set({
+        status: result.ok ? "published" : "needs_connection",
+        publishedAt: result.ok ? new Date() : null,
+        externalPostId: result.externalPostId || null,
+        lastError: result.error || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.socialPosts.id, id))
+      .returning();
+    res.json({ post: updated, publish: result });
+  });
+
+  app.delete('/api/admin/social/posts/:id', requireAuth, async (req: any, res) => {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+    await db.delete(schema.socialPosts).where(eq(schema.socialPosts.id, parseInt(req.params.id)));
+    res.json({ success: true });
+  });
+
   app.post('/api/seo/webhook', async (req, res) => {
     try {
       const { apiKey, path, title, description, keywords, ogTitle, ogDescription, ogImage } = req.body;
@@ -10491,6 +10647,53 @@ ${urls.map(u => `  <url>
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
+
+  async function processDueSocialPosts() {
+    if (process.env.SOCIAL_AUTOMATION_ENABLED === "false") return;
+    const duePosts = await db
+      .select()
+      .from(schema.socialPosts)
+      .where(and(
+        eq(schema.socialPosts.status, "approved"),
+        lte(schema.socialPosts.scheduledAt, new Date()),
+      ))
+      .orderBy(asc(schema.socialPosts.scheduledAt))
+      .limit(5);
+
+    for (const post of duePosts) {
+      try {
+        await db.update(schema.socialPosts)
+          .set({ status: "publishing", updatedAt: new Date() })
+          .where(eq(schema.socialPosts.id, post.id));
+        const result = await publishSocialPost(post);
+        await db.update(schema.socialPosts)
+          .set({
+            status: result.ok ? "published" : "needs_connection",
+            publishedAt: result.ok ? new Date() : null,
+            externalPostId: result.externalPostId || null,
+            lastError: result.error || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.socialPosts.id, post.id));
+      } catch (error: any) {
+        await db.update(schema.socialPosts)
+          .set({ status: "failed", lastError: error.message, updatedAt: new Date() })
+          .where(eq(schema.socialPosts.id, post.id));
+      }
+    }
+  }
+
+  if (process.env.SOCIAL_AUTOMATION_ENABLED !== "false") {
+    setInterval(() => {
+      processDueSocialPosts().catch((error) => {
+        console.error("[social automation] scheduler error:", error);
+      });
+    }, 10 * 60 * 1000);
+    processDueSocialPosts().catch((error) => {
+      console.error("[social automation] initial run error:", error);
+    });
+    console.log("[social automation] scheduler started - checks every 10 minutes");
+  }
 
   return httpServer;
 }

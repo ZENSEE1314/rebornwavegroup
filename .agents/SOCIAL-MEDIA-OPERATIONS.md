@@ -10,6 +10,8 @@ Use this runbook to let agents help with TikTok and Instagram without exposing y
 - Prepare reply templates for comments and DMs.
 - Score which videos are getting likes, shares, saves, and investor leads.
 - Produce investor follow-up scripts and WhatsApp lead questions.
+- Generate drafts inside `/admin/social-media`.
+- Automatically publish approved scheduled posts every 10 minutes when official tokens are configured.
 
 ## What needs account connection
 
@@ -32,15 +34,19 @@ TIKTOK_CLIENT_KEY=
 TIKTOK_CLIENT_SECRET=
 TIKTOK_ACCESS_TOKEN=
 SOCIAL_APPROVAL_MODE=draft_first
+SOCIAL_AUTOMATION_ENABLED=true
+TIKTOK_ENABLE_DIRECT_POST=true
 ```
 
 ## Safe workflow
 
 1. Agents create post ideas, scripts, captions, hashtags, and thumbnails.
-2. A human approves the final post.
-3. Posting agent schedules or publishes through the official API.
-4. Analytics agent collects results every day.
-5. Growth Queen updates the next content plan based on winning hooks.
+2. Admin opens `/admin/social-media` and clicks `Generate Agent Plan`.
+3. A human reviews/approves each final post.
+4. The server scheduler checks approved posts every 10 minutes.
+5. Posting agent publishes through the official API when the tokens are connected.
+6. Analytics agent collects results every day.
+7. Growth Queen updates the next content plan based on winning hooks.
 
 ## Guardrails
 
