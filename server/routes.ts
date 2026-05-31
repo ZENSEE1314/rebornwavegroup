@@ -282,7 +282,9 @@ const multerStorage = multer.diskStorage({
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  await ensureSocialAutomationTables();
+  ensureSocialAutomationTables().catch((error) => {
+    console.error("[social automation] table setup failed:", error);
+  });
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   // Initialize real-time energy timers for currently sleeping pets
