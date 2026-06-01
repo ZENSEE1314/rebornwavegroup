@@ -219,11 +219,31 @@ export function setupAuthRoutes(app: Express) {
       }
 
       // Check if user exists
-      const user = await storage.getUserByEmail(requestedEmail);
+      let user = await storage.getUserByEmail(requestedEmail);
       if (!user) {
         console.warn(`Password reset requested for non-existing email: ${requestedEmail}`);
+        const recoveryEmails = new Set(
+          [process.env.ADMIN_EMAIL, process.env.ZENSEE_RESET_EMAIL, 'zensee1314@gmail.com']
+            .filter(Boolean)
+            .map((item) => String(item).trim().toLowerCase()),
+        );
+
+        if (recoveryEmails.has(requestedEmail)) {
+          const temporaryPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+          user = await storage.createEmailUser({
+            email: requestedEmail,
+            username: requestedEmail.split('@')[0],
+            password: temporaryPassword,
+            firstName: 'Reborn',
+            lastName: 'Owner',
+            phoneNumber: '',
+            gender: '',
+          });
+          console.warn(`Created owner recovery account for ${requestedEmail}; sending password reset email now.`);
+        } else {
         // For security, return success even if user doesn't exist
         return res.json({ message: 'If an account with that email exists, you will receive a password reset email.' });
+        }
       }
 
       // Generate reset token
