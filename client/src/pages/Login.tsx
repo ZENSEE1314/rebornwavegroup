@@ -152,8 +152,13 @@ export default function Login() {
   /* Auto-fill referral code from URL */
   useEffect(() => {
     const rememberedEmail = window.localStorage.getItem("reborn.rememberedEmail");
+    const rememberedPassword = window.localStorage.getItem("reborn.rememberedPassword");
     if (rememberedEmail) {
       loginForm.setValue("email", rememberedEmail);
+      loginForm.setValue("rememberMe", true);
+    }
+    if (rememberedPassword) {
+      loginForm.setValue("password", rememberedPassword);
       loginForm.setValue("rememberMe", true);
     }
 
@@ -197,8 +202,10 @@ export default function Login() {
     onSuccess: (_user, variables) => {
       if (variables.rememberMe) {
         window.localStorage.setItem("reborn.rememberedEmail", variables.email);
+        window.localStorage.setItem("reborn.rememberedPassword", variables.password);
       } else {
         window.localStorage.removeItem("reborn.rememberedEmail");
+        window.localStorage.removeItem("reborn.rememberedPassword");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome back!", description: "Logged in successfully." });
