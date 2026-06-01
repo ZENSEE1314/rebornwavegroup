@@ -862,17 +862,47 @@ function RenovatedFloorPlanShowcase({
   };
 
   return (
-    <div className="rwg-renovated-plan" style={{ "--tone": activeFloor?.tone } as React.CSSProperties}>
+    <div
+      className="rwg-renovated-plan"
+      style={
+        {
+          "--tone": activeFloor?.tone,
+          "--active-floor": activeIndex,
+        } as React.CSSProperties
+      }
+    >
       <div className="rwg-renovated-plan-head">
         <span>{activeFloor?.level}</span>
         <strong>{activeFloor?.title}</strong>
       </div>
-      <div className={`rwg-renovated-plan-body scene-${activeFloor?.scene}`}>
+      <div className="rwg-plan-level-stack" aria-hidden="true">
+        {floors.map((floor, index) => (
+          <i
+            key={`ghost-${floor.level}`}
+            className={index === activeIndex ? "is-active" : ""}
+            style={
+              {
+                "--stack-tone": floor.tone,
+                "--stack-index": index,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+      <div key={activeFloor?.level} className={`rwg-renovated-plan-body scene-${activeFloor?.scene}`}>
+        <div className="rwg-plan-wall wall-top" />
+        <div className="rwg-plan-wall wall-bottom" />
+        <div className="rwg-plan-wall wall-left" />
+        <div className="rwg-plan-wall wall-right" />
         <div className="rwg-plan-core lift">Lift</div>
         <div className="rwg-plan-core stair stair-a">Stairs</div>
         <div className="rwg-plan-core stair stair-b">Stairs</div>
-        {(roomSets[activeFloor?.scene || "ktv"] || []).map((room) => (
-          <div className={`rwg-plan-room ${room.className}`} key={`${activeFloor?.level}-${room.label}`}>
+        {(roomSets[activeFloor?.scene || "ktv"] || []).map((room, roomIndex) => (
+          <div
+            className={`rwg-plan-room ${room.className}`}
+            key={`${activeFloor?.level}-${room.label}`}
+            style={{ "--room-index": roomIndex } as React.CSSProperties}
+          >
             <span>{room.label}</span>
           </div>
         ))}
@@ -1074,16 +1104,22 @@ function Landing() {
         .rwg-renovated-plan-head span{width:52px;aspect-ratio:1;border-radius:16px;display:grid;place-items:center;background:var(--tone);color:#061316;font-weight:950;box-shadow:0 16px 36px color-mix(in srgb,var(--tone),transparent 62%)}
         .rwg-renovated-plan-head strong{font-size:clamp(18px,2vw,24px);line-height:1.1;color:#fff;text-align:right}
         .rwg-renovated-plan-foot{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.48);font-weight:900}
-        .rwg-renovated-plan-body{position:relative;z-index:1;margin:18px 0;border-radius:18px;border:2px solid rgba(199,249,210,.62);background:linear-gradient(145deg,rgba(8,47,56,.64),rgba(3,21,26,.38));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transform:perspective(900px) rotateX(55deg) rotateZ(-34deg) translateY(20px);transform-origin:center;animation:rwg-plan-breathe 7s ease-in-out infinite}
+        .rwg-plan-level-stack{position:absolute;right:22px;top:78px;width:92px;height:92px;z-index:3;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-34deg);pointer-events:none}
+        .rwg-plan-level-stack i{position:absolute;inset:0;border-radius:14px;border:1px solid color-mix(in srgb,var(--stack-tone),white 18%);background:linear-gradient(135deg,color-mix(in srgb,var(--stack-tone),#03151a 62%),rgba(255,255,255,.08));box-shadow:0 8px 0 color-mix(in srgb,var(--stack-tone),#020617 70%),0 18px 28px rgba(0,0,0,.22);opacity:.35;transform:translateZ(calc(var(--stack-index) * 16px));transition:opacity .35s ease,filter .35s ease,transform .35s ease}
+        .rwg-plan-level-stack i.is-active{opacity:1;filter:saturate(1.35) brightness(1.25);transform:translateZ(calc(var(--stack-index) * 16px + 18px))}
+        .rwg-renovated-plan-body{position:relative;z-index:1;margin:18px 0;border-radius:18px;border:0;background:linear-gradient(145deg,rgba(8,47,56,.64),rgba(3,21,26,.38));box-shadow:0 28px 0 rgba(2,8,12,.58),0 42px 72px rgba(0,0,0,.34),inset 0 0 0 1px rgba(255,255,255,.08);transform:perspective(900px) rotateX(56deg) rotateZ(-34deg) translateY(18px);transform-origin:center;animation:rwg-plan-enter .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe 7s ease-in-out infinite .65s;transform-style:preserve-3d}
         .rwg-renovated-plan-body:before,.rwg-renovated-plan-body:after{content:"";position:absolute;background:rgba(199,249,210,.72);box-shadow:0 0 18px rgba(74,222,128,.26)}
         .rwg-renovated-plan-body:before{left:8%;right:8%;top:34%;height:3px}
         .rwg-renovated-plan-body:after{top:10%;bottom:10%;left:52%;width:3px}
-        .rwg-plan-room{position:absolute;border:1px solid color-mix(in srgb,var(--tone),white 18%);border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 14px 28px rgba(0,0,0,.22);display:grid;place-items:center;padding:8px;text-align:center;color:#061316;font-weight:950;font-size:11px;line-height:1.2;overflow:hidden}
+        .rwg-plan-wall{position:absolute;z-index:2;background:linear-gradient(135deg,#c7f9d2,#4ade80);box-shadow:0 10px 0 rgba(16,185,129,.42),0 18px 28px rgba(0,0,0,.22);border-radius:4px;transform:translateZ(18px)}
+        .rwg-plan-wall.wall-top{left:0;right:0;top:0;height:8px}.rwg-plan-wall.wall-bottom{left:0;right:0;bottom:0;height:8px}.rwg-plan-wall.wall-left{left:0;top:0;bottom:0;width:8px}.rwg-plan-wall.wall-right{right:0;top:0;bottom:0;width:8px}
+        .rwg-plan-room{position:absolute;border:1px solid color-mix(in srgb,var(--tone),white 18%);border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));box-shadow:0 12px 0 rgba(0,0,0,.24),0 24px 34px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.22);display:grid;place-items:center;padding:8px;text-align:center;color:#061316;font-weight:950;font-size:11px;line-height:1.2;overflow:hidden;transform:translateZ(24px);animation:rwg-room-rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--room-index) * .08s)}
+        .rwg-plan-room:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;background:rgba(0,0,0,.26);transform:skewX(-28deg);transform-origin:top}
         .rwg-plan-room span{position:relative;z-index:1}
         .rwg-plan-room.cyan{background:linear-gradient(135deg,#22d3ee,#0e7490);color:#031316}.rwg-plan-room.gold{background:linear-gradient(135deg,#f8d477,#b7791f);color:#1b1300}.rwg-plan-room.pink{background:linear-gradient(135deg,#f472b6,#be185d);color:#190310}.rwg-plan-room.green{background:linear-gradient(135deg,#34d399,#047857);color:#03170e}.rwg-plan-room.violet{background:linear-gradient(135deg,#a78bfa,#6d28d9);color:#100522}
         .rwg-plan-room.large{width:42%;height:44%}.rwg-plan-room.medium{width:30%;height:32%}.rwg-plan-room.small{width:20%;height:22%}.rwg-plan-room.wide{width:58%;height:22%}
         .rwg-plan-room.left{left:8%;top:12%}.rwg-plan-room.mid{left:31%;top:12%}.rwg-plan-room.upper{right:9%;top:10%}.rwg-plan-room.right{right:8%;top:18%}.rwg-plan-room.bottom{left:20%;bottom:9%}
-        .rwg-plan-core{position:absolute;z-index:2;border:1px solid rgba(255,255,255,.22);background:rgba(3,21,26,.86);color:#f8d477;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:950;text-transform:uppercase;box-shadow:0 12px 24px rgba(0,0,0,.28)}
+        .rwg-plan-core{position:absolute;z-index:3;border:1px solid rgba(255,255,255,.22);background:rgba(3,21,26,.86);color:#f8d477;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:950;text-transform:uppercase;box-shadow:0 12px 0 rgba(0,0,0,.32),0 24px 30px rgba(0,0,0,.28);transform:translateZ(32px);animation:rwg-room-rise .55s cubic-bezier(.2,.8,.2,1) both .12s}
         .rwg-plan-core.lift{width:13%;height:13%;left:44%;top:43%}.rwg-plan-core.stair{width:15%;height:28%;right:7%;top:46%;background:repeating-linear-gradient(0deg,rgba(248,212,119,.92) 0 3px,rgba(3,21,26,.88) 3px 9px)}.rwg-plan-core.stair-b{left:8%;right:auto;top:62%;height:24%}
         .rwg-floor-tower{position:relative;z-index:3;width:min(300px,70vw);justify-self:center;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
         .rwg-floor-slab{height:46px;margin:-2px 0;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 12px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 22px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 16px));display:flex;align-items:center;padding:0 18px;position:relative;overflow:hidden;opacity:.52;transition:opacity .35s ease,filter .35s ease}
@@ -1165,7 +1201,9 @@ function Landing() {
         @keyframes rwg-eco-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         @keyframes rwg-floor-float{0%,100%{transform:rotateX(58deg) rotateZ(-30deg) translateY(0)}50%{transform:rotateX(58deg) rotateZ(-30deg) translateY(-14px)}}
         @keyframes rwg-floor-rise{0%{opacity:.35;transform:translateY(48px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
-        @keyframes rwg-plan-breathe{0%,100%{transform:perspective(900px) rotateX(55deg) rotateZ(-34deg) translateY(20px)}50%{transform:perspective(900px) rotateX(57deg) rotateZ(-31deg) translateY(8px)}}
+        @keyframes rwg-plan-enter{0%{opacity:.15;transform:perspective(900px) rotateX(68deg) rotateZ(-44deg) translateY(84px) scale(.84)}100%{opacity:1;transform:perspective(900px) rotateX(56deg) rotateZ(-34deg) translateY(18px) scale(1)}}
+        @keyframes rwg-room-rise{0%{opacity:0;transform:translateZ(0) translateY(24px) scale(.88)}100%{opacity:1;transform:translateZ(24px) translateY(0) scale(1)}}
+        @keyframes rwg-plan-breathe{0%,100%{transform:perspective(900px) rotateX(56deg) rotateZ(-34deg) translateY(18px)}50%{transform:perspective(900px) rotateX(58deg) rotateZ(-31deg) translateY(6px)}}
         @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location,.rwg-floor-story{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-visual{position:relative;top:auto;min-height:430px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-visual{min-height:330px}.rwg-floor-tower{width:246px}.rwg-floor-slab{height:54px;border-radius:14px;padding:0 16px}.rwg-floor-slab span{font-size:20px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
