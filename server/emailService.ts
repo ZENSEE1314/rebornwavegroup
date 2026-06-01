@@ -6,7 +6,7 @@ const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY);
 if (process.env.SENDGRID_API_KEY) sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 if (!resend) console.warn('RESEND_API_KEY not set — appointment emails disabled');
 
-const FROM = process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>';
+const FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>';
 const ADMIN = process.env.ADMIN_EMAIL || 'admin@rebornwave.group';
 
 interface EmailParams {

@@ -194,7 +194,11 @@ export function setupAuthRoutes(app: Express) {
 
           return res.status(500).json({ message: 'Login failed' });
         }
-        
+
+        const rememberMe = req.body?.rememberMe === true;
+        req.session.cookie.maxAge = rememberMe
+          ? 30 * 24 * 60 * 60 * 1000
+          : 8 * 60 * 60 * 1000;
 
         
         res.json({
@@ -273,7 +277,7 @@ export function setupAuthRoutes(app: Express) {
       
       const emailSent = await sendEmail({
         to: requestedEmail,
-        from: process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>',
+        from: process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>',
         subject: 'Password Reset Request - Reborn Wave Pet Care',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -932,69 +932,69 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
   const storyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const updateActiveFloor = () => {
-      const story = storyRef.current;
-      if (!story) return;
-      const rect = story.getBoundingClientRect();
-      const scrollable = Math.max(1, rect.height - window.innerHeight);
-      const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
-      const nextIndex = Math.min(floors.length - 1, Math.max(0, Math.floor(progress * floors.length)));
-      setActiveIndex(nextIndex);
-    };
+    const story = storyRef.current;
+    if (!story) return;
 
-    updateActiveFloor();
-    window.addEventListener("scroll", updateActiveFloor, { passive: true });
-    window.addEventListener("resize", updateActiveFloor);
+    const sections = Array.from(story.querySelectorAll<HTMLElement>(".rwg-floor-level"));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const centered = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const nextIndex = centered?.target.getAttribute("data-floor-index");
+        if (nextIndex) setActiveIndex(Number(nextIndex));
+      },
+      { threshold: [0.35, 0.55, 0.75], rootMargin: "-18% 0px -18% 0px" },
+    );
 
-    return () => {
-      window.removeEventListener("scroll", updateActiveFloor);
-      window.removeEventListener("resize", updateActiveFloor);
-    };
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
   }, [floors]);
 
   return (
-      <div className="rwg-floor-story" ref={storyRef}>
-      <div className="rwg-floor-visual" aria-label="Scroll activated renovated 3D floor plan">
-        <RenovatedFloorPlanShowcase floors={floors} activeIndex={activeIndex} />
-        <div className="rwg-floor-tower">
-          {floors
-            .slice()
-            .reverse()
-            .map((floor, index) => {
-              const originalIndex = floors.length - 1 - index;
-              return (
-              <div
-                className={`rwg-floor-slab ${activeIndex === originalIndex ? "is-active" : ""}`}
-                key={floor.level}
-                style={
-                  {
-                    "--floor-tone": floor.tone,
-                    "--floor-index": index,
-                  } as React.CSSProperties
-                }
-              >
-                <span>{floor.level}</span>
+    <div className="rwg-floor-story" ref={storyRef}>
+      {floors.map((floor, index) => {
+        const Icon = floor.icon;
+        return (
+          <section
+            className={`rwg-floor-level ${activeIndex === index ? "is-active" : ""}`}
+            data-floor-index={index}
+            id={`floor-${floor.level}`}
+            key={floor.level}
+            style={
+              {
+                "--tone": floor.tone,
+                "--floor-step": index,
+              } as React.CSSProperties
+            }
+          >
+            <div className="rwg-floor-visual" aria-label={`${floor.level} renovated 3D floor plan`}>
+              <RenovatedFloorPlanShowcase floors={floors} activeIndex={index} />
+              <div className="rwg-floor-tower">
+                {floors
+                  .slice()
+                  .reverse()
+                  .map((towerFloor, towerIndex) => {
+                    const originalIndex = floors.length - 1 - towerIndex;
+                    return (
+                      <div
+                        className={`rwg-floor-slab ${index === originalIndex ? "is-active" : ""}`}
+                        key={towerFloor.level}
+                        style={
+                          {
+                            "--floor-tone": towerFloor.tone,
+                            "--floor-index": towerIndex,
+                          } as React.CSSProperties
+                        }
+                      >
+                        <span>{towerFloor.level}</span>
+                      </div>
+                    );
+                  })}
               </div>
-              );
-            })}
-        </div>
-        <div className="rwg-floor-glow" />
-      </div>
-      <div className="rwg-floor-copy">
-        {floors.map((floor, index) => {
-          const Icon = floor.icon;
-          return (
-            <article
-              className={`rwg-floor-step ${activeIndex === index ? "is-active" : ""}`}
-              key={floor.level}
-              data-floor-index={index}
-              style={
-                {
-                  "--tone": floor.tone,
-                  "--step-index": index,
-                } as React.CSSProperties
-              }
-            >
+              <div className="rwg-floor-glow" />
+            </div>
+            <article className="rwg-floor-step">
               <div className="rwg-floor-step-number">{floor.level}</div>
               <div>
                 <Icon />
@@ -1003,25 +1003,28 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
                 <p>{floor.detail}</p>
               </div>
             </article>
-          );
-        })}
-      </div>
-      <div className="rwg-floor-active-copy" style={{ "--tone": (floors[activeIndex] || floors[0])?.tone } as React.CSSProperties}>
-        {(() => {
-          const floor = floors[activeIndex] || floors[0];
+          </section>
+        );
+      })}
+      <div className="rwg-floor-rail" aria-hidden="true">
+        {floors.map((floor, index) => {
           const Icon = floor.icon;
           return (
-            <>
-              <div className="rwg-floor-step-number">{floor.level}</div>
-              <div>
-                <Icon />
-                <h3>{floor.title}</h3>
-                <small>{floor.units}</small>
-                <p>{floor.detail}</p>
-              </div>
-            </>
+            <a
+              className={activeIndex === index ? "is-active" : ""}
+              href={`#floor-${floor.level}`}
+              key={floor.level}
+              style={
+                {
+                  "--tone": floor.tone
+                } as React.CSSProperties
+              }
+            >
+              <Icon />
+              <span>{floor.level}</span>
+            </a>
           );
-        })()}
+        })}
       </div>
     </div>
   );
@@ -1116,8 +1119,14 @@ function Landing() {
         .rwg-eco-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}
         .rwg-eco-section h2{font-size:clamp(28px,4vw,48px);line-height:1.04;margin:0;color:#fff;letter-spacing:0}
         .rwg-eco-section-head p{max-width:540px;color:rgba(255,255,255,.62);line-height:1.65;margin:0}
-        .rwg-floor-story{position:relative;min-height:520vh;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
-        .rwg-floor-visual{position:sticky;top:0;min-height:100vh;border-radius:0;display:grid;grid-template-rows:minmax(0,1fr);gap:18px;padding:clamp(18px,4vw,54px);overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:0;box-shadow:0 24px 80px rgba(0,0,0,.28);perspective:1200px}
+        .rwg-floor-story{position:relative;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);background:linear-gradient(180deg,rgba(3,21,26,.28),rgba(2,8,23,.82));scroll-snap-type:y proximity}
+        .rwg-floor-level{position:relative;min-height:112vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,440px);gap:clamp(16px,3vw,42px);align-items:center;padding:clamp(28px,5vw,72px);overflow:hidden;scroll-snap-align:start}
+        .rwg-floor-level:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--tone),transparent 78%),transparent 34%),linear-gradient(180deg,rgba(255,255,255,.035),transparent 42%);opacity:.48;pointer-events:none}
+        .rwg-floor-level:nth-child(even){grid-template-columns:minmax(300px,440px) minmax(0,1fr)}
+        .rwg-floor-level:nth-child(even) .rwg-floor-visual{order:2}
+        .rwg-floor-level:nth-child(even) .rwg-floor-step{order:1}
+        .rwg-floor-visual{position:relative;min-height:min(76vh,760px);border-radius:30px;display:grid;grid-template-rows:minmax(0,1fr);gap:18px;padding:clamp(18px,3vw,40px);overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:1px solid color-mix(in srgb,var(--tone),rgba(255,255,255,.14) 34%);box-shadow:0 28px 90px rgba(0,0,0,.34);perspective:1200px;transform:translateY(54px) scale(.96);opacity:.42;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .7s ease,border-color .45s ease}
+        .rwg-floor-level.is-active .rwg-floor-visual{transform:translateY(0) scale(1);opacity:1}
         .rwg-floor-visual:before{content:"";position:absolute;inset:28px;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(circle at center,#000,transparent 76%)}
         .rwg-floor-showcase-scene{position:relative;z-index:2;min-height:430px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 34% 24%,rgba(34,211,238,.16),transparent 34%),linear-gradient(145deg,rgba(3,21,26,.82),rgba(10,54,64,.42));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 26px 70px rgba(0,0,0,.32)}
         .rwg-floor-showcase-scene:before{content:"";position:absolute;inset:16px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px);background-size:30px 30px;opacity:.62;pointer-events:none}
@@ -1165,21 +1174,19 @@ function Landing() {
         .rwg-floor-slab:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-130%);animation:rwg-eco-shine 4.5s ease-in-out infinite;animation-delay:calc(var(--floor-index) * .35s)}
         .rwg-floor-slab span{font-size:28px;font-weight:950;color:var(--floor-tone);text-shadow:0 0 20px color-mix(in srgb,var(--floor-tone),transparent 55%)}
         .rwg-floor-glow{position:absolute;inset:auto 12% 8%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.24),transparent 65%);filter:blur(18px);animation:rwg-eco-pulse 4s ease-in-out infinite}
-        .rwg-floor-copy{position:absolute;inset:0;display:grid;grid-template-rows:repeat(5,100vh);pointer-events:none;opacity:0}
-        .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%;transition:border-color .35s ease,box-shadow .35s ease,transform .35s ease}
-        .rwg-floor-step.is-active{border-color:color-mix(in srgb,var(--tone),white 18%);box-shadow:0 28px 90px color-mix(in srgb,var(--tone),transparent 78%),0 24px 80px rgba(0,0,0,.24)}
+        .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(3,21,26,.82),rgba(255,255,255,.055));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;z-index:3;transform:translateY(70px);opacity:.25;transition:border-color .45s ease,box-shadow .45s ease,transform .7s cubic-bezier(.2,.8,.2,1),opacity .7s ease}
+        .rwg-floor-level.is-active .rwg-floor-step{border-color:color-mix(in srgb,var(--tone),white 18%);box-shadow:0 28px 90px color-mix(in srgb,var(--tone),transparent 78%),0 24px 80px rgba(0,0,0,.24);transform:translateY(0);opacity:1}
         .rwg-floor-step:before{content:"";position:absolute;inset:auto -60px -90px auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 68%);opacity:.2}
         .rwg-floor-step-number{width:76px;aspect-ratio:1;border-radius:22px;display:grid;place-items:center;color:#071316;background:var(--tone);font-weight:950;font-size:26px;box-shadow:0 20px 46px color-mix(in srgb,var(--tone),transparent 68%)}
         .rwg-floor-step svg{width:38px;height:38px;color:var(--tone);margin-bottom:18px}
         .rwg-floor-step h3{font-size:clamp(26px,3vw,38px);line-height:1.05;margin:0 0 12px;color:#fff;letter-spacing:0}
         .rwg-floor-step small{display:block;color:#f8d477;font-size:14px;line-height:1.5;font-weight:900;margin-bottom:14px}
         .rwg-floor-step p{font-size:17px;line-height:1.65;color:rgba(255,255,255,.68);margin:0;max-width:620px}
-        .rwg-floor-active-copy{position:sticky;top:0;z-index:6;min-height:100vh;margin-top:-520vh;padding:clamp(92px,12vh,150px) clamp(18px,6vw,86px);display:grid;grid-template-columns:78px minmax(0,540px);gap:22px;align-content:center;align-items:start;width:min(680px,92vw);pointer-events:none;animation:rwg-active-copy-in .45s ease both}
-        .rwg-floor-active-copy:before{content:"";position:absolute;left:clamp(18px,6vw,86px);right:0;top:50%;height:42%;transform:translateY(-42%);border-radius:28px;background:linear-gradient(135deg,rgba(3,21,26,.82),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.12);box-shadow:0 26px 80px rgba(0,0,0,.3);backdrop-filter:blur(18px);z-index:-1}
-        .rwg-floor-active-copy svg{width:42px;height:42px;color:var(--tone);margin-bottom:18px}
-        .rwg-floor-active-copy h3{font-size:clamp(34px,5vw,62px);line-height:.98;margin:0 0 14px;color:#fff;letter-spacing:0}
-        .rwg-floor-active-copy small{display:block;color:#f8d477;font-size:15px;line-height:1.5;font-weight:950;margin-bottom:14px}
-        .rwg-floor-active-copy p{font-size:18px;line-height:1.65;color:rgba(255,255,255,.72);margin:0;max-width:520px}
+        .rwg-floor-rail{position:sticky;left:18px;bottom:26px;z-index:10;display:flex;gap:8px;width:max-content;margin:-74px 0 0 clamp(16px,4vw,54px);padding:10px;border-radius:18px;background:rgba(3,21,26,.78);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(18px);box-shadow:0 18px 48px rgba(0,0,0,.3)}
+        .rwg-floor-rail a{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;text-decoration:none;color:rgba(255,255,255,.45);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);transition:transform .3s ease,background .3s ease,color .3s ease}
+        .rwg-floor-rail a svg{width:16px;height:16px}
+        .rwg-floor-rail a span{display:none}
+        .rwg-floor-rail a.is-active{background:var(--tone);color:#061316;transform:translateY(-4px);box-shadow:0 14px 30px color-mix(in srgb,var(--tone),transparent 62%)}
         .rwg-floor-mini-scene{position:relative;z-index:1;grid-column:1 / -1;min-height:300px;aspect-ratio:1.75;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 35% 25%,color-mix(in srgb,var(--tone),transparent 62%),transparent 35%),linear-gradient(145deg,rgba(4,21,27,.72),rgba(8,47,56,.46));border:1px solid color-mix(in srgb,var(--tone),rgba(255,255,255,.12) 36%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 24px 64px rgba(0,0,0,.28)}
         .rwg-floor-mini-scene:before{content:"";position:absolute;inset:12px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:28px 28px;opacity:.55;pointer-events:none}
         .rwg-floor-mini-scene:after{content:"";position:absolute;inset:auto 14% 10%;height:22%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--tone),transparent 38%),transparent 68%);filter:blur(18px);opacity:.7;pointer-events:none}
@@ -1259,8 +1266,8 @@ function Landing() {
         @keyframes rwg-plan-breathe-live{0%,100%{transform:perspective(900px) rotateX(52deg) rotateZ(-14deg) translateY(18px)}50%{transform:perspective(900px) rotateX(54deg) rotateZ(-10deg) translateY(6px)}}
         @keyframes rwg-yash-ring{0%{transform:translate(-50%,-50%) translateZ(2px) rotate(0)}100%{transform:translate(-50%,-50%) translateZ(2px) rotate(360deg)}}
         @keyframes rwg-yash-glow{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
-        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-story{min-height:520vh}.rwg-floor-visual{top:0;min-height:100vh}.rwg-renovated-plan-body{width:min(760px,86vw);min-height:46vh}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-active-copy{width:min(620px,92vw);grid-template-columns:76px minmax(0,1fr);padding-top:clamp(80px,10vh,130px)}.rwg-floor-tower{width:220px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-renovated-plan{border-radius:0;min-height:100vh;padding:14px}.rwg-renovated-plan-head strong{font-size:16px;max-width:220px}.rwg-renovated-plan-foot{font-size:9px}.rwg-renovated-plan-body{width:108vw;min-height:42vh;margin-top:16vh;transform:perspective(780px) rotateX(58deg) rotateZ(-32deg) translate(-8vw,18px);}.rwg-floor-tower{width:150px;right:14px;bottom:92px}.rwg-floor-slab{height:38px;border-radius:12px;padding:0 12px}.rwg-floor-slab span{font-size:18px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-active-copy{grid-template-columns:1fr;width:100%;padding:70px 14px 0}.rwg-floor-active-copy:before{left:10px;right:10px;height:48%;top:40%}.rwg-floor-active-copy h3{font-size:clamp(30px,11vw,42px)}.rwg-floor-active-copy p{font-size:14px;max-width:320px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-level,.rwg-floor-level:nth-child(even){grid-template-columns:1fr;min-height:auto;padding:44px 18px 84px}.rwg-floor-level:nth-child(even) .rwg-floor-visual,.rwg-floor-level:nth-child(even) .rwg-floor-step{order:initial}.rwg-floor-visual{min-height:70vh}.rwg-renovated-plan-body{width:min(760px,86vw);min-height:46vh}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-tower{width:220px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-level{padding:32px 12px 82px;gap:14px}.rwg-floor-visual{min-height:72vh;border-radius:0;margin-left:-12px;margin-right:-12px}.rwg-renovated-plan{border-radius:0;min-height:72vh;padding:14px}.rwg-renovated-plan-head strong{font-size:16px;max-width:220px}.rwg-renovated-plan-foot{font-size:9px}.rwg-renovated-plan-body{width:108vw;min-height:42vh;margin-top:10vh;transform:perspective(780px) rotateX(58deg) rotateZ(-32deg) translate(-8vw,18px);}.rwg-floor-tower{width:150px;right:14px;bottom:92px}.rwg-floor-slab{height:38px;border-radius:12px;padding:0 12px}.rwg-floor-slab span{font-size:18px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 

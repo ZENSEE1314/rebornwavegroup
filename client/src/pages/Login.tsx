@@ -16,6 +16,7 @@ import rwgLogo from "@assets/rwg-logo.png";
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  rememberMe: z.boolean().optional(),
 });
 
 const registerSchema = z.object({
@@ -124,7 +125,7 @@ export default function Login() {
   /* ─── Forms ─── */
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", rememberMe: false },
   });
 
   const registerForm = useForm<RegisterFormData>({
@@ -149,6 +150,12 @@ export default function Login() {
 
   /* Auto-fill referral code from URL */
   useEffect(() => {
+    const rememberedEmail = window.localStorage.getItem("reborn.rememberedEmail");
+    if (rememberedEmail) {
+      loginForm.setValue("email", rememberedEmail);
+      loginForm.setValue("rememberMe", true);
+    }
+
     const currentURL = window.location.href;
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -169,7 +176,7 @@ export default function Login() {
       registerForm.setValue("referralCode", refCode);
       setActiveTab("register");
     }
-  }, [registerForm, resetPasswordForm]);
+  }, [loginForm, registerForm, resetPasswordForm]);
 
   /* ─── Mutations ─── */
   const loginMutation = useMutation({
@@ -186,7 +193,12 @@ export default function Login() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_user, variables) => {
+      if (variables.rememberMe) {
+        window.localStorage.setItem("reborn.rememberedEmail", variables.email);
+      } else {
+        window.localStorage.removeItem("reborn.rememberedEmail");
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome back!", description: "Logged in successfully." });
       setTimeout(() => { window.location.href = "/"; }, 500);
@@ -513,7 +525,11 @@ export default function Login() {
 
                 <div className="flex items-center justify-between pt-0.5">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 accent-amber-500" />
+                    <input
+                      type="checkbox"
+                      className="w-3.5 h-3.5 rounded border-white/20 accent-amber-500"
+                      {...loginForm.register("rememberMe")}
+                    />
                     <span className="text-xs text-white/40">Remember me</span>
                   </label>
                   <button
