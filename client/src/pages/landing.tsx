@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeDollarSign,
@@ -29,6 +29,7 @@ type Floor = {
   level: string;
   icon: typeof Music2;
   tone: string;
+  scene: "ktv" | "private" | "vip" | "pet" | "live";
 };
 
 const floorMeta: Floor[] = [
@@ -36,26 +37,31 @@ const floorMeta: Floor[] = [
     level: "1F",
     icon: Trophy,
     tone: "#22d3ee",
+    scene: "ktv",
   },
   {
     level: "2F",
     icon: Scissors,
     tone: "#f472b6",
+    scene: "private",
   },
   {
     level: "3F",
     icon: Crown,
     tone: "#facc15",
+    scene: "vip",
   },
   {
     level: "4F",
     icon: PawPrint,
     tone: "#34d399",
+    scene: "pet",
   },
   {
     level: "5F",
     icon: Music2,
     tone: "#a78bfa",
+    scene: "live",
   },
 ];
 
@@ -373,6 +379,212 @@ function BuildingStack({ floors }: { floors: Array<Floor & { title: string; unit
   );
 }
 
+function FloorMiniScene({
+  floor,
+  index,
+}: {
+  floor: Floor & { title: string; units: string; detail: string };
+  index: number;
+}) {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    let animationFrame = 0;
+    let renderer: any;
+    let resizeObserver: ResizeObserver | undefined;
+
+    async function createScene() {
+      const THREE = await import("three");
+      const mount = mountRef.current;
+      if (!mount || !isMounted) return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+      camera.position.set(4.8, 3.8, 6.2);
+      camera.lookAt(0, 0.2, 0);
+
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+      renderer.shadowMap.enabled = true;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      mount.appendChild(renderer.domElement);
+
+      const accent = new THREE.Color(floor.tone);
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const mat = (color: string | number, roughness = 0.55, metalness = 0.1) =>
+        new THREE.MeshStandardMaterial({ color, roughness, metalness });
+      const accentMat = new THREE.MeshStandardMaterial({
+        color: accent,
+        roughness: 0.38,
+        metalness: 0.18,
+        emissive: accent.clone().multiplyScalar(0.18),
+      });
+      const glassMat = new THREE.MeshStandardMaterial({
+        color: "#7dd3fc",
+        transparent: true,
+        opacity: 0.34,
+        roughness: 0.2,
+        metalness: 0.05,
+      });
+
+      const addBox = (
+        size: [number, number, number],
+        pos: [number, number, number],
+        material: any,
+        rotation: [number, number, number] = [0, 0, 0],
+      ) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+        mesh.position.set(...pos);
+        mesh.rotation.set(...rotation);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+
+      const addCylinder = (
+        radius: number,
+        depth: number,
+        pos: [number, number, number],
+        material: any,
+        rotation: [number, number, number] = [0, 0, 0],
+      ) => {
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, depth, 32), material);
+        mesh.position.set(...pos);
+        mesh.rotation.set(...rotation);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+
+      const addSphere = (radius: number, pos: [number, number, number], material: any) => {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 18), material);
+        mesh.position.set(...pos);
+        mesh.castShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+
+      addBox([5.3, 0.18, 3.7], [0, -0.1, 0], mat("#0e2a31", 0.72, 0.05));
+      addBox([5.3, 2.4, 0.14], [0, 1.04, -1.85], mat("#122f37", 0.68, 0.05));
+      addBox([0.14, 2.4, 3.7], [-2.65, 1.04, 0], mat("#10252d", 0.72, 0.05));
+      addBox([5.4, 0.035, 3.8], [0, 0.01, 0], accentMat);
+
+      if (floor.scene === "ktv") {
+        addBox([2.2, 0.28, 0.78], [-0.9, 0.08, -1.1], accentMat);
+        addBox([1.24, 0.72, 0.08], [-0.9, 0.75, -1.76], mat("#101827"));
+        addCylinder(0.06, 0.9, [0.7, 0.48, -0.72], mat("#f8fafc"), [0.2, 0, 0]);
+        addSphere(0.15, [0.79, 0.97, -0.62], mat("#fbbf24", 0.35, 0.22));
+        for (let i = 0; i < 4; i += 1) addBox([0.34, 0.34, 0.34], [0.2 + i * 0.42, 0.16, 0.95], mat(i % 2 ? "#fb7185" : "#38bdf8"));
+        addCylinder(0.42, 0.14, [-1.85, 0.05, 0.86], mat("#f59e0b", 0.48, 0.15));
+      }
+
+      if (floor.scene === "private") {
+        for (let i = 0; i < 4; i += 1) {
+          addBox([0.72, 0.9, 0.68], [-1.65 + i * 0.86, 0.39, -0.9], mat("#172d3a"));
+          addBox([0.44, 0.48, 0.05], [-1.65 + i * 0.86, 0.52, -1.26], accentMat);
+        }
+        addCylinder(0.55, 0.08, [1.42, 0.58, 0.64], glassMat, [Math.PI / 2, 0, 0]);
+        addBox([0.9, 0.18, 0.36], [1.42, 0.18, 0.78], mat("#f9a8d4", 0.42, 0.1));
+        addCylinder(0.2, 0.5, [1.42, 0.18, 1.24], accentMat);
+      }
+
+      if (floor.scene === "vip") {
+        addBox([1.4, 0.7, 1], [-1.05, 0.27, -0.68], mat("#2b1f0b", 0.42, 0.22));
+        addBox([1.4, 0.7, 1], [1.05, 0.27, -0.68], mat("#2b1f0b", 0.42, 0.22));
+        addBox([2.8, 0.28, 0.68], [0, 0.09, 0.72], accentMat);
+        addCylinder(0.28, 0.18, [0, 0.16, 0.1], mat("#fef3c7", 0.36, 0.18));
+        addCylinder(0.08, 0.72, [-1.92, 0.72, -1.15], accentMat);
+        addCylinder(0.08, 0.72, [1.92, 0.72, -1.15], accentMat);
+      }
+
+      if (floor.scene === "pet") {
+        addBox([1.7, 0.46, 0.54], [-1.25, 0.14, -0.86], mat("#164e63", 0.48, 0.12));
+        for (let i = 0; i < 3; i += 1) {
+          addCylinder(0.28, 0.12, [-1.2 + i * 1.1, 0.08, 0.56], mat("#fde68a", 0.55, 0.08));
+          addSphere(0.18, [-1.2 + i * 1.1, 0.34, 0.56], mat(i === 1 ? "#111827" : "#f8fafc"));
+        }
+        addBox([0.66, 0.66, 0.66], [1.52, 0.28, -0.72], accentMat, [0, 0.45, 0]);
+        addCylinder(0.08, 0.72, [2.05, 0.34, 0.85], mat("#22c55e"));
+        addSphere(0.34, [2.05, 0.78, 0.85], mat("#16a34a"));
+      }
+
+      if (floor.scene === "live") {
+        addBox([2.8, 0.34, 0.92], [0, 0.08, -1.12], accentMat);
+        addBox([2.2, 1.08, 0.06], [0, 0.9, -1.82], glassMat);
+        for (let i = 0; i < 5; i += 1) addBox([0.36, 0.04, 1.08], [-1.1 + i * 0.55, 0.03, 0.88], mat(i % 2 ? "#f8fafc" : "#111827"));
+        addCylinder(0.13, 0.78, [-0.72, 0.52, -0.86], mat("#d1d5db"), [0.1, 0, 0]);
+        addCylinder(0.18, 0.18, [0.04, 0.38, -0.82], mat("#f43f5e"));
+        addCylinder(0.13, 0.82, [0.78, 0.55, -0.88], mat("#d1d5db"), [-0.1, 0, 0]);
+      }
+
+      scene.add(new THREE.AmbientLight("#bfefff", 1.15));
+      const keyLight = new THREE.DirectionalLight("#ffffff", 2.1);
+      keyLight.position.set(4, 6, 4);
+      keyLight.castShadow = true;
+      scene.add(keyLight);
+      const rimLight = new THREE.PointLight(floor.tone, 18, 9);
+      rimLight.position.set(-2.2, 2.2, 2.8);
+      scene.add(rimLight);
+
+      const resize = () => {
+        const { width, height } = mount.getBoundingClientRect();
+        const nextWidth = Math.max(240, width);
+        const nextHeight = Math.max(230, height);
+        camera.aspect = nextWidth / nextHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nextWidth, nextHeight, false);
+      };
+
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(mount);
+      resize();
+
+      const animate = (time: number) => {
+        group.rotation.y = Math.sin(time * 0.00035 + index) * 0.16 - 0.42;
+        group.rotation.x = Math.sin(time * 0.00024 + index) * 0.035;
+        group.position.y = Math.sin(time * 0.001 + index) * 0.06;
+        rimLight.intensity = 14 + Math.sin(time * 0.002 + index) * 5;
+        renderer.render(scene, camera);
+        animationFrame = requestAnimationFrame(animate);
+      };
+      animate(0);
+
+      return () => {
+        cancelAnimationFrame(animationFrame);
+        resizeObserver?.disconnect();
+        scene.traverse((object: any) => {
+          object.geometry?.dispose?.();
+          if (Array.isArray(object.material)) object.material.forEach((item: any) => item.dispose?.());
+          else object.material?.dispose?.();
+        });
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    }
+
+    let cleanup: (() => void) | undefined;
+    createScene().then((dispose) => {
+      cleanup = dispose;
+    });
+
+    return () => {
+      isMounted = false;
+      cleanup?.();
+    };
+  }, [floor.level, floor.scene, floor.tone, index]);
+
+  return (
+    <div className="rwg-floor-mini-scene" ref={mountRef} aria-label={`${floor.level} animated 3D ${floor.title} scene`}>
+      <span>{floor.level}</span>
+    </div>
+  );
+}
+
 function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
   return (
     <div className="rwg-floor-story">
@@ -419,6 +631,7 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
                 <small>{floor.units}</small>
                 <p>{floor.detail}</p>
               </div>
+              <FloorMiniScene floor={floor} index={index} />
             </article>
           );
         })}
@@ -525,13 +738,18 @@ function Landing() {
         .rwg-floor-slab span{font-size:28px;font-weight:950;color:var(--floor-tone);text-shadow:0 0 20px color-mix(in srgb,var(--floor-tone),transparent 55%)}
         .rwg-floor-glow{position:absolute;inset:auto 12% 8%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.24),transparent 65%);filter:blur(18px);animation:rwg-eco-pulse 4s ease-in-out infinite}
         .rwg-floor-copy{display:grid;gap:24px}
-        .rwg-floor-step{min-height:380px;border-radius:24px;padding:28px;display:grid;grid-template-columns:86px 1fr;gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%}
+        .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%}
         .rwg-floor-step:before{content:"";position:absolute;inset:auto -60px -90px auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 68%);opacity:.2}
         .rwg-floor-step-number{width:76px;aspect-ratio:1;border-radius:22px;display:grid;place-items:center;color:#071316;background:var(--tone);font-weight:950;font-size:26px;box-shadow:0 20px 46px color-mix(in srgb,var(--tone),transparent 68%)}
         .rwg-floor-step svg{width:38px;height:38px;color:var(--tone);margin-bottom:18px}
-        .rwg-floor-step h3{font-size:clamp(26px,4vw,44px);line-height:1;margin:0 0 12px;color:#fff;letter-spacing:0}
+        .rwg-floor-step h3{font-size:clamp(26px,3vw,38px);line-height:1.05;margin:0 0 12px;color:#fff;letter-spacing:0}
         .rwg-floor-step small{display:block;color:#f8d477;font-size:14px;line-height:1.5;font-weight:900;margin-bottom:14px}
         .rwg-floor-step p{font-size:17px;line-height:1.65;color:rgba(255,255,255,.68);margin:0;max-width:620px}
+        .rwg-floor-mini-scene{position:relative;z-index:1;grid-column:1 / -1;min-height:300px;aspect-ratio:1.75;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 35% 25%,color-mix(in srgb,var(--tone),transparent 62%),transparent 35%),linear-gradient(145deg,rgba(4,21,27,.72),rgba(8,47,56,.46));border:1px solid color-mix(in srgb,var(--tone),rgba(255,255,255,.12) 36%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 24px 64px rgba(0,0,0,.28)}
+        .rwg-floor-mini-scene:before{content:"";position:absolute;inset:12px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:28px 28px;opacity:.55;pointer-events:none}
+        .rwg-floor-mini-scene:after{content:"";position:absolute;inset:auto 14% 10%;height:22%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--tone),transparent 38%),transparent 68%);filter:blur(18px);opacity:.7;pointer-events:none}
+        .rwg-floor-mini-scene canvas{position:relative;z-index:1;width:100%;height:100%;display:block}
+        .rwg-floor-mini-scene span{position:absolute;left:16px;top:14px;z-index:2;width:44px;aspect-ratio:1;border-radius:15px;display:grid;place-items:center;background:var(--tone);color:#061316;font-size:14px;font-weight:950;box-shadow:0 14px 34px color-mix(in srgb,var(--tone),transparent 58%)}
         .rwg-eco-split{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch}
         .rwg-eco-panel{border-radius:22px;padding:24px}
         .rwg-eco-panel h3{font-size:24px;margin:0 0 12px;color:#fff}
@@ -592,8 +810,8 @@ function Landing() {
         @keyframes rwg-eco-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         @keyframes rwg-floor-float{0%,100%{transform:rotateX(58deg) rotateZ(-30deg) translateY(0)}50%{transform:rotateX(58deg) rotateZ(-30deg) translateY(-14px)}}
         @keyframes rwg-floor-rise{0%{opacity:.35;transform:translateY(48px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
-        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location,.rwg-floor-story{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-visual{position:relative;top:auto;min-height:430px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-visual{min-height:330px}.rwg-floor-tower{width:246px}.rwg-floor-slab{height:54px;border-radius:14px;padding:0 16px}.rwg-floor-slab span{font-size:20px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location,.rwg-floor-story{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-visual{position:relative;top:auto;min-height:430px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-visual{min-height:330px}.rwg-floor-tower{width:246px}.rwg-floor-slab{height:54px;border-radius:14px;padding:0 16px}.rwg-floor-slab span{font-size:20px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
