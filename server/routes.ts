@@ -116,6 +116,37 @@ async function ensureUserAuthColumns() {
   `);
 }
 
+async function applyOneTimePasswordResetFromEnv() {
+  const email = process.env.ZENSEE_RESET_EMAIL;
+  const password = process.env.ZENSEE_RESET_PASSWORD;
+
+  if (!email || !password) return;
+
+  if (password.length < 6) {
+    console.error("[startup] ZENSEE_RESET_PASSWORD must be at least 6 characters");
+    return;
+  }
+
+  const bcrypt = await import("bcryptjs");
+  const hashedPassword = await bcrypt.default.hash(password, 12);
+
+  const result = await db.execute(sql`
+    UPDATE users
+    SET password = ${hashedPassword},
+        auth_provider = COALESCE(auth_provider, 'email'),
+        updated_at = NOW()
+    WHERE lower(email) = lower(${email})
+    RETURNING id
+  `);
+
+  const rows = Array.isArray(result) ? result : (result as any).rows || [];
+  if (rows.length > 0) {
+    console.log(`[startup] Password reset applied for ${email}. Remove ZENSEE_RESET_PASSWORD from Railway variables now.`);
+  } else {
+    console.warn(`[startup] ZENSEE_RESET_EMAIL did not match any user: ${email}`);
+  }
+}
+
 function startSleepEnergyTimer(petId: number) {
   // Clear existing timer if any
   if (sleepTimers.has(petId)) {
@@ -297,8 +328,9 @@ const multerStorage = multer.diskStorage({
 export async function registerRoutes(app: Express): Promise<Server> {
   try {
     await ensureUserAuthColumns();
+    await applyOneTimePasswordResetFromEnv();
   } catch (error) {
-    console.error("[startup] user auth column setup failed:", error);
+    console.error("[startup] user auth setup failed:", error);
   }
 
   // Serve uploaded images statically
