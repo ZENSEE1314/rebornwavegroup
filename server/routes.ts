@@ -7,6 +7,7 @@ import multer from "multer";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { db } from "./db";
+import { pool } from "./db";
 import { eq, and, desc, asc, sql, count, isNull, isNotNull, ne } from "drizzle-orm";
 import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -300,6 +301,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (error) {
     console.error("[startup] user auth column setup failed:", error);
   }
+
+  app.get('/api/debug/auth-schema-check', async (_req, res) => {
+    try {
+      await pool.query('SELECT id, email, password FROM users LIMIT 0');
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ ok: false, message: error?.message || String(error) });
+    }
+  });
 
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
