@@ -830,34 +830,43 @@ function RenovatedFloorPlanShowcase({
   activeIndex: number;
 }) {
   const activeFloor = floors[activeIndex] || floors[0];
-  const roomSets: Record<Floor["scene"], Array<{ label: string; className: string }>> = {
-    ktv: [
-      { label: "KTV Lounge", className: "large cyan left" },
-      { label: "Competition Stage", className: "wide gold bottom" },
-      { label: "Kids Game House", className: "medium pink right" },
+  const planKey = (activeFloor?.level || "1F").toLowerCase();
+  const floorPlanRooms: Record<string, Array<{ label: string; className: string }>> = {
+    "1f": [
+      { label: "KTV Lounge", className: "cyan l1-main-left" },
+      { label: "KTV Competition", className: "gold l1-main-right" },
+      { label: "Kids Game House", className: "pink l1-front-left" },
+      { label: "Reception", className: "green l1-front-right" },
+      { label: "Toilets", className: "service l1-toilets" },
+      { label: "Store", className: "service l1-store" },
     ],
-    private: [
-      { label: "Private Room 1", className: "small cyan left" },
-      { label: "Private Room 2", className: "small cyan mid" },
-      { label: "Private Room 3", className: "small cyan upper" },
-      { label: "Private Room 4", className: "small cyan right" },
-      { label: "Beauty Salon", className: "wide pink bottom" },
+    "2f": [
+      { label: "Private KTV 1", className: "cyan l2-room-a" },
+      { label: "Private KTV 2", className: "cyan l2-room-b" },
+      { label: "Private KTV 3", className: "cyan l2-room-c" },
+      { label: "Private KTV 4", className: "cyan l2-room-d" },
+      { label: "Beauty Salon", className: "pink l2-salon" },
+      { label: "Wash / WC", className: "service l2-toilets" },
     ],
-    vip: [
-      { label: "VIP KTV Suite", className: "large gold left" },
-      { label: "VIP KTV Suite", className: "large violet right" },
-      { label: "Beauty Lounge", className: "wide pink bottom" },
+    "3f": [
+      { label: "VIP KTV Suite", className: "gold l3-vip-a" },
+      { label: "VIP KTV Suite", className: "violet l3-vip-b" },
+      { label: "Beauty Salon", className: "pink l3-salon" },
+      { label: "Wash / WC", className: "service l3-toilets" },
+      { label: "Makeup Bar", className: "green l3-makeup" },
     ],
-    pet: [
-      { label: "Pet Cafe Hall", className: "large green left" },
-      { label: "Dining", className: "medium gold right" },
-      { label: "Blindbox Corner", className: "small pink upper" },
-      { label: "Pet Play Area", className: "wide cyan bottom" },
+    "4f": [
+      { label: "Pet Cafe Hall", className: "green l4-cafe" },
+      { label: "Pet Play Zone", className: "cyan l4-play" },
+      { label: "Kitchen", className: "gold l4-kitchen" },
+      { label: "Blindbox Corner", className: "pink l4-blindbox" },
+      { label: "Wash / WC", className: "service l4-toilets" },
     ],
-    live: [
-      { label: "Live Stage", className: "wide violet upper" },
-      { label: "Dance Floor", className: "large gold left" },
-      { label: "Sea View Lounge", className: "wide cyan bottom" },
+    "5f": [
+      { label: "Live Band Stage", className: "violet l5-stage" },
+      { label: "Audience Seating", className: "cyan l5-audience" },
+      { label: "Dance Floor", className: "gold l5-dance" },
+      { label: "Sea View Bar", className: "green l5-seaview" },
     ],
   };
 
@@ -899,9 +908,11 @@ function RenovatedFloorPlanShowcase({
           />
         ))}
       </div>
-      <div key={activeFloor?.level} className={`rwg-renovated-plan-body scene-${activeFloor?.scene}`}>
+      <div key={activeFloor?.level} className={`rwg-renovated-plan-body scene-${activeFloor?.scene} plan-${planKey}`}>
         <div className="rwg-yash-camera-ring ring-one" />
         <div className="rwg-yash-camera-ring ring-two" />
+        <div className="rwg-plan-outline-cut cut-a" />
+        <div className="rwg-plan-outline-cut cut-b" />
         <div className="rwg-plan-wall wall-top" />
         <div className="rwg-plan-wall wall-bottom" />
         <div className="rwg-plan-wall wall-left" />
@@ -909,7 +920,7 @@ function RenovatedFloorPlanShowcase({
         <div className="rwg-plan-core lift">Lift</div>
         <div className="rwg-plan-core stair stair-a">Stairs</div>
         <div className="rwg-plan-core stair stair-b">Stairs</div>
-        {(roomSets[activeFloor?.scene || "ktv"] || []).map((room, roomIndex) => (
+        {(floorPlanRooms[planKey] || floorPlanRooms["1f"]).map((room, roomIndex) => (
           <div
             className={`rwg-plan-room ${room.className}`}
             key={`${activeFloor?.level}-${room.label}`}
@@ -918,6 +929,13 @@ function RenovatedFloorPlanShowcase({
             <span>{room.label}</span>
           </div>
         ))}
+        {planKey === "5f" && (
+          <div className="rwg-live-audience-dots" aria-hidden="true">
+            {Array.from({ length: 28 }).map((_, index) => (
+              <i key={`audience-${index}`} style={{ "--audience-index": index } as React.CSSProperties} />
+            ))}
+          </div>
+        )}
       </div>
       <div className="rwg-renovated-plan-foot">
         <span>15.2m frontage concept</span>
@@ -1155,19 +1173,37 @@ function Landing() {
         .rwg-renovated-plan-body.scene-live{animation:rwg-plan-enter-live .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe-live 7s ease-in-out infinite .65s}
         .rwg-yash-camera-ring{position:absolute;z-index:0;left:50%;top:50%;border:1px solid color-mix(in srgb,var(--tone),transparent 48%);border-radius:50%;transform:translate(-50%,-50%) translateZ(2px);pointer-events:none;opacity:.55}
         .rwg-yash-camera-ring.ring-one{width:120%;height:76%;animation:rwg-yash-ring 11s linear infinite}.rwg-yash-camera-ring.ring-two{width:86%;height:54%;animation:rwg-yash-ring 8s linear infinite reverse;opacity:.35}
-        .rwg-renovated-plan-body:before,.rwg-renovated-plan-body:after{content:"";position:absolute;background:rgba(199,249,210,.72);box-shadow:0 0 18px rgba(74,222,128,.26)}
-        .rwg-renovated-plan-body:before{left:8%;right:8%;top:34%;height:3px}
-        .rwg-renovated-plan-body:after{top:10%;bottom:10%;left:52%;width:3px}
+        .rwg-renovated-plan-body:before,.rwg-renovated-plan-body:after,.rwg-plan-outline-cut{content:"";position:absolute;z-index:2;background:rgba(199,249,210,.72);box-shadow:0 0 18px rgba(74,222,128,.26);transform:translateZ(17px);border-radius:4px}
+        .rwg-renovated-plan-body:before{left:7%;right:7%;top:31%;height:3px}
+        .rwg-renovated-plan-body:after{top:8%;bottom:9%;left:52%;width:3px}
+        .rwg-plan-outline-cut.cut-a{left:28%;top:31%;width:3px;height:46%}
+        .rwg-plan-outline-cut.cut-b{left:28%;bottom:23%;width:26%;height:3px}
+        .rwg-renovated-plan-body.plan-5f:before{left:32%;right:8%;top:68%}
+        .rwg-renovated-plan-body.plan-5f:after{left:36%;top:43%;bottom:0}
+        .rwg-renovated-plan-body.plan-5f .cut-a{left:36%;top:43%;height:3px;width:34%}
+        .rwg-renovated-plan-body.plan-5f .cut-b{left:70%;top:43%;width:3px;height:25%}
+        .rwg-renovated-plan-body.plan-1f:before{left:8%;right:8%;top:22%}.rwg-renovated-plan-body.plan-1f:after{left:43%;top:8%;bottom:22%}.rwg-renovated-plan-body.plan-1f .cut-a{left:8%;top:66%;width:44%;height:3px}.rwg-renovated-plan-body.plan-1f .cut-b{left:72%;top:8%;width:3px;height:28%}
+        .rwg-renovated-plan-body.plan-2f:before,.rwg-renovated-plan-body.plan-3f:before{left:8%;right:8%;top:31%}.rwg-renovated-plan-body.plan-2f:after,.rwg-renovated-plan-body.plan-3f:after{left:35%;top:8%;bottom:8%}.rwg-renovated-plan-body.plan-2f .cut-a,.rwg-renovated-plan-body.plan-3f .cut-a{left:58%;top:8%;width:3px;height:28%}.rwg-renovated-plan-body.plan-2f .cut-b,.rwg-renovated-plan-body.plan-3f .cut-b{left:35%;top:58%;width:46%;height:3px}
+        .rwg-renovated-plan-body.plan-4f:before{left:8%;right:8%;top:34%}.rwg-renovated-plan-body.plan-4f:after{left:57%;top:8%;bottom:20%}.rwg-renovated-plan-body.plan-4f .cut-a{left:72%;top:8%;width:3px;height:28%}.rwg-renovated-plan-body.plan-4f .cut-b{left:8%;top:66%;width:41%;height:3px}
         .rwg-plan-wall{position:absolute;z-index:2;background:linear-gradient(135deg,#c7f9d2,#4ade80);box-shadow:0 10px 0 rgba(16,185,129,.42),0 18px 28px rgba(0,0,0,.22);border-radius:4px;transform:translateZ(18px)}
         .rwg-plan-wall.wall-top{left:0;right:0;top:0;height:8px}.rwg-plan-wall.wall-bottom{left:0;right:0;bottom:0;height:8px}.rwg-plan-wall.wall-left{left:0;top:0;bottom:0;width:8px}.rwg-plan-wall.wall-right{right:0;top:0;bottom:0;width:8px}
         .rwg-plan-room{position:absolute;border:1px solid color-mix(in srgb,var(--tone),white 18%);border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));box-shadow:0 12px 0 rgba(0,0,0,.24),0 24px 34px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.22);display:grid;place-items:center;padding:8px;text-align:center;color:#061316;font-weight:950;font-size:11px;line-height:1.2;overflow:hidden;transform:translateZ(24px);animation:rwg-room-rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--room-index) * .08s)}
         .rwg-plan-room:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;background:rgba(0,0,0,.26);transform:skewX(-28deg);transform-origin:top}
         .rwg-plan-room span{position:relative;z-index:1}
-        .rwg-plan-room.cyan{background:linear-gradient(135deg,#22d3ee,#0e7490);color:#031316}.rwg-plan-room.gold{background:linear-gradient(135deg,#f8d477,#b7791f);color:#1b1300}.rwg-plan-room.pink{background:linear-gradient(135deg,#f472b6,#be185d);color:#190310}.rwg-plan-room.green{background:linear-gradient(135deg,#34d399,#047857);color:#03170e}.rwg-plan-room.violet{background:linear-gradient(135deg,#a78bfa,#6d28d9);color:#100522}
-        .rwg-plan-room.large{width:42%;height:44%}.rwg-plan-room.medium{width:30%;height:32%}.rwg-plan-room.small{width:20%;height:22%}.rwg-plan-room.wide{width:58%;height:22%}
-        .rwg-plan-room.left{left:8%;top:12%}.rwg-plan-room.mid{left:31%;top:12%}.rwg-plan-room.upper{right:9%;top:10%}.rwg-plan-room.right{right:8%;top:18%}.rwg-plan-room.bottom{left:20%;bottom:9%}
+        .rwg-plan-room.cyan{background:linear-gradient(135deg,#22d3ee,#0e7490);color:#031316}.rwg-plan-room.gold{background:linear-gradient(135deg,#f8d477,#b7791f);color:#1b1300}.rwg-plan-room.pink{background:linear-gradient(135deg,#f472b6,#be185d);color:#190310}.rwg-plan-room.green{background:linear-gradient(135deg,#34d399,#047857);color:#03170e}.rwg-plan-room.violet{background:linear-gradient(135deg,#a78bfa,#6d28d9);color:#100522}.rwg-plan-room.service{background:linear-gradient(135deg,#e5e7eb,#94a3b8);color:#0f172a}
+        .rwg-plan-room.l1-main-left{left:9%;top:8%;width:32%;height:54%}.rwg-plan-room.l1-main-right{left:46%;top:8%;width:24%;height:54%}.rwg-plan-room.l1-front-left{left:9%;top:69%;width:27%;height:23%}.rwg-plan-room.l1-front-right{left:40%;top:69%;width:25%;height:23%}.rwg-plan-room.l1-toilets{right:7%;top:9%;width:18%;height:16%}.rwg-plan-room.l1-store{right:7%;top:28%;width:18%;height:20%}
+        .rwg-plan-room.l2-room-a{left:9%;top:8%;width:23%;height:23%}.rwg-plan-room.l2-room-b{left:36%;top:8%;width:19%;height:23%}.rwg-plan-room.l2-room-c{left:61%;top:8%;width:18%;height:23%}.rwg-plan-room.l2-room-d{left:62%;top:38%;width:18%;height:22%}.rwg-plan-room.l2-salon{left:9%;bottom:8%;width:42%;height:31%}.rwg-plan-room.l2-toilets{right:7%;top:8%;width:15%;height:21%}
+        .rwg-plan-room.l3-vip-a{left:9%;top:8%;width:28%;height:42%}.rwg-plan-room.l3-vip-b{left:41%;top:8%;width:29%;height:42%}.rwg-plan-room.l3-salon{left:9%;bottom:8%;width:33%;height:28%}.rwg-plan-room.l3-toilets{right:7%;top:8%;width:18%;height:22%}.rwg-plan-room.l3-makeup{right:7%;top:36%;width:18%;height:20%}
+        .rwg-plan-room.l4-cafe{left:9%;top:8%;width:33%;height:56%}.rwg-plan-room.l4-play{left:46%;top:8%;width:23%;height:56%}.rwg-plan-room.l4-kitchen{right:7%;top:8%;width:18%;height:20%}.rwg-plan-room.l4-blindbox{left:9%;bottom:8%;width:38%;height:25%}.rwg-plan-room.l4-toilets{right:7%;top:32%;width:18%;height:18%}
+        .rwg-plan-room.l5-stage{left:9%;top:8%;width:38%;height:28%}.rwg-plan-room.l5-audience{left:9%;top:42%;width:38%;height:42%}.rwg-plan-room.l5-dance{left:52%;top:42%;width:28%;height:42%}.rwg-plan-room.l5-seaview{left:52%;top:8%;width:28%;height:28%}
+        .rwg-live-audience-dots{position:absolute;left:13%;top:49%;width:30%;height:28%;z-index:4;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;transform:translateZ(38px);pointer-events:none}
+        .rwg-live-audience-dots i{width:10px;height:10px;border-radius:50%;background:#f8fafc;box-shadow:0 8px 0 rgba(15,23,42,.45),0 0 14px rgba(248,250,252,.36);animation:rwg-audience-bop 2.4s ease-in-out infinite;animation-delay:calc(var(--audience-index,0) * .04s)}
+        .rwg-live-audience-dots i:nth-child(3n){background:#f8d477}.rwg-live-audience-dots i:nth-child(4n){background:#22d3ee}.rwg-live-audience-dots i:nth-child(5n){background:#f472b6}
         .rwg-plan-core{position:absolute;z-index:3;border:1px solid rgba(255,255,255,.22);background:rgba(3,21,26,.86);color:#f8d477;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:950;text-transform:uppercase;box-shadow:0 12px 0 rgba(0,0,0,.32),0 24px 30px rgba(0,0,0,.28);transform:translateZ(32px);animation:rwg-room-rise .55s cubic-bezier(.2,.8,.2,1) both .12s}
-        .rwg-plan-core.lift{width:13%;height:13%;left:44%;top:43%}.rwg-plan-core.stair{width:15%;height:28%;right:7%;top:46%;background:repeating-linear-gradient(0deg,rgba(248,212,119,.92) 0 3px,rgba(3,21,26,.88) 3px 9px)}.rwg-plan-core.stair-b{left:8%;right:auto;top:62%;height:24%}
+        .rwg-plan-core.lift{width:12%;height:12%;left:44%;top:45%}.rwg-plan-core.stair{width:15%;height:28%;right:7%;top:48%;background:repeating-linear-gradient(0deg,rgba(248,212,119,.92) 0 3px,rgba(3,21,26,.88) 3px 9px)}.rwg-plan-core.stair-b{left:8%;right:auto;top:66%;height:22%}
+        .plan-5f .rwg-plan-core.lift{display:none}.plan-5f .rwg-plan-core.stair-a{left:43%;right:auto;top:55%;width:17%;height:29%}.plan-5f .rwg-plan-core.stair-b{display:none}
+        .plan-1f .rwg-plan-core.lift{left:45%;top:43%}.plan-1f .rwg-plan-core.stair-a{right:7%;top:50%}.plan-1f .rwg-plan-core.stair-b{left:8%;top:65%}
+        .plan-2f .rwg-plan-core.lift,.plan-3f .rwg-plan-core.lift,.plan-4f .rwg-plan-core.lift{left:43%;top:45%}.plan-2f .rwg-plan-core.stair-a,.plan-3f .rwg-plan-core.stair-a,.plan-4f .rwg-plan-core.stair-a{right:7%;top:12%}.plan-2f .rwg-plan-core.stair-b,.plan-3f .rwg-plan-core.stair-b,.plan-4f .rwg-plan-core.stair-b{left:25%;top:68%}
         .rwg-floor-tower{position:absolute;right:clamp(22px,5vw,76px);bottom:clamp(22px,5vw,72px);z-index:3;width:min(300px,32vw);justify-self:center;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
         .rwg-floor-slab{height:46px;margin:-2px 0;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 12px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 22px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 16px));display:flex;align-items:center;padding:0 18px;position:relative;overflow:hidden;opacity:.52;transition:opacity .35s ease,filter .35s ease}
         .rwg-floor-slab.is-active{opacity:1;filter:saturate(1.3) brightness(1.18)}
@@ -1266,6 +1302,7 @@ function Landing() {
         @keyframes rwg-plan-breathe-live{0%,100%{transform:perspective(900px) rotateX(52deg) rotateZ(-14deg) translateY(18px)}50%{transform:perspective(900px) rotateX(54deg) rotateZ(-10deg) translateY(6px)}}
         @keyframes rwg-yash-ring{0%{transform:translate(-50%,-50%) translateZ(2px) rotate(0)}100%{transform:translate(-50%,-50%) translateZ(2px) rotate(360deg)}}
         @keyframes rwg-yash-glow{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
+        @keyframes rwg-audience-bop{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
         @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-level,.rwg-floor-level:nth-child(even){grid-template-columns:1fr;min-height:auto;padding:44px 18px 84px}.rwg-floor-level:nth-child(even) .rwg-floor-visual,.rwg-floor-level:nth-child(even) .rwg-floor-step{order:initial}.rwg-floor-visual{min-height:70vh}.rwg-renovated-plan-body{width:min(760px,86vw);min-height:46vh}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-tower{width:220px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-level{padding:32px 12px 82px;gap:14px}.rwg-floor-visual{min-height:72vh;border-radius:0;margin-left:-12px;margin-right:-12px}.rwg-renovated-plan{border-radius:0;min-height:72vh;padding:14px}.rwg-renovated-plan-head strong{font-size:16px;max-width:220px}.rwg-renovated-plan-foot{font-size:9px}.rwg-renovated-plan-body{width:108vw;min-height:42vh;margin-top:10vh;transform:perspective(780px) rotateX(58deg) rotateZ(-32deg) translate(-8vw,18px);}.rwg-floor-tower{width:150px;right:14px;bottom:92px}.rwg-floor-slab{height:38px;border-radius:12px;padding:0 12px}.rwg-floor-slab span{font-size:18px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
