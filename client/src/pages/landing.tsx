@@ -929,30 +929,31 @@ function RenovatedFloorPlanShowcase({
 
 function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const stepRefs = useRef<Array<HTMLElement | null>>([]);
+  const storyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const nextIndex = Number((visible.target as HTMLElement).dataset.floorIndex || 0);
-        setActiveIndex(nextIndex);
-      },
-      { root: null, threshold: [0.35, 0.55, 0.75], rootMargin: "-18% 0px -34% 0px" },
-    );
+    const updateActiveFloor = () => {
+      const story = storyRef.current;
+      if (!story) return;
+      const rect = story.getBoundingClientRect();
+      const scrollable = Math.max(1, rect.height - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
+      const nextIndex = Math.min(floors.length - 1, Math.max(0, Math.floor(progress * floors.length)));
+      setActiveIndex(nextIndex);
+    };
 
-    stepRefs.current.forEach((item) => {
-      if (item) observer.observe(item);
-    });
+    updateActiveFloor();
+    window.addEventListener("scroll", updateActiveFloor, { passive: true });
+    window.addEventListener("resize", updateActiveFloor);
 
-    return () => observer.disconnect();
+    return () => {
+      window.removeEventListener("scroll", updateActiveFloor);
+      window.removeEventListener("resize", updateActiveFloor);
+    };
   }, [floors]);
 
   return (
-      <div className="rwg-floor-story">
+      <div className="rwg-floor-story" ref={storyRef}>
       <div className="rwg-floor-visual" aria-label="Scroll activated renovated 3D floor plan">
         <RenovatedFloorPlanShowcase floors={floors} activeIndex={activeIndex} />
         <div className="rwg-floor-tower">
@@ -987,9 +988,6 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
               className={`rwg-floor-step ${activeIndex === index ? "is-active" : ""}`}
               key={floor.level}
               data-floor-index={index}
-              ref={(node) => {
-                stepRefs.current[index] = node;
-              }}
               style={
                 {
                   "--tone": floor.tone,
@@ -1167,7 +1165,7 @@ function Landing() {
         .rwg-floor-slab:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-130%);animation:rwg-eco-shine 4.5s ease-in-out infinite;animation-delay:calc(var(--floor-index) * .35s)}
         .rwg-floor-slab span{font-size:28px;font-weight:950;color:var(--floor-tone);text-shadow:0 0 20px color-mix(in srgb,var(--floor-tone),transparent 55%)}
         .rwg-floor-glow{position:absolute;inset:auto 12% 8%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.24),transparent 65%);filter:blur(18px);animation:rwg-eco-pulse 4s ease-in-out infinite}
-        .rwg-floor-copy{position:absolute;inset:0;display:grid;grid-template-rows:repeat(5,1fr);pointer-events:none;opacity:0}
+        .rwg-floor-copy{position:absolute;inset:0;display:grid;grid-template-rows:repeat(5,100vh);pointer-events:none;opacity:0}
         .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%;transition:border-color .35s ease,box-shadow .35s ease,transform .35s ease}
         .rwg-floor-step.is-active{border-color:color-mix(in srgb,var(--tone),white 18%);box-shadow:0 28px 90px color-mix(in srgb,var(--tone),transparent 78%),0 24px 80px rgba(0,0,0,.24)}
         .rwg-floor-step:before{content:"";position:absolute;inset:auto -60px -90px auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 68%);opacity:.2}
