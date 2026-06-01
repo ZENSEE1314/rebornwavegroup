@@ -212,14 +212,16 @@ export function setupAuthRoutes(app: Express) {
   app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
+      const requestedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
-      if (!email) {
+      if (!requestedEmail) {
         return res.status(400).json({ message: 'Email is required' });
       }
 
       // Check if user exists
-      const user = await storage.getUserByEmail(email);
+      const user = await storage.getUserByEmail(requestedEmail);
       if (!user) {
+        console.warn(`Password reset requested for non-existing email: ${requestedEmail}`);
         // For security, return success even if user doesn't exist
         return res.json({ message: 'If an account with that email exists, you will receive a password reset email.' });
       }
@@ -235,11 +237,11 @@ export function setupAuthRoutes(app: Express) {
       const appUrl = process.env.PUBLIC_APP_URL || `${req.get('x-forwarded-proto') || req.protocol || 'https'}://${req.get('host')}`;
       const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
       
-      console.log(`Attempting to send password reset email to: ${email}`);
-      console.log(`Reset token generated: ${resetToken}`);
+      console.log(`Attempting to send password reset email to: ${requestedEmail}`);
+      console.log(`Reset token generated for ${requestedEmail}: ${resetToken}`);
       
       const emailSent = await sendEmail({
-        to: email,
+        to: requestedEmail,
         from: process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>',
         subject: 'Password Reset Request - Reborn Wave Pet Care',
         html: `
@@ -276,11 +278,11 @@ If you didn't request this password reset, please ignore this email.
       });
 
       if (!emailSent) {
-        console.error(`Failed to send password reset email to: ${email}`);
+        console.error(`Failed to send password reset email to: ${requestedEmail}. Check RESEND_API_KEY or SENDGRID_API_KEY, EMAIL_FROM, and verified sender domain.`);
         return res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
       }
 
-      console.log(`Password reset email sent successfully to: ${email}`);
+      console.log(`Password reset email sent successfully to: ${requestedEmail}`);
       res.json({ message: 'Password reset email sent successfully' });
     } catch (error) {
       console.error('Forgot password error:', error);
