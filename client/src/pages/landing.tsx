@@ -585,17 +585,280 @@ function FloorMiniScene({
   );
 }
 
+function FloorShowcaseScene({
+  floors,
+  activeIndex,
+}: {
+  floors: Array<Floor & { title: string; units: string; detail: string }>;
+  activeIndex: number;
+}) {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const activeFloor = floors[activeIndex] || floors[0];
+
+  useEffect(() => {
+    let isMounted = true;
+    let frame = 0;
+    let renderer: any;
+    let resizeObserver: ResizeObserver | undefined;
+
+    async function createScene() {
+      const THREE = await import("three");
+      const mount = mountRef.current;
+      if (!mount || !isMounted || !activeFloor) return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+      camera.position.set(6.8, 6.1, 7.8);
+      camera.lookAt(0, 0.15, 0);
+
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+      renderer.shadowMap.enabled = true;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      mount.appendChild(renderer.domElement);
+
+      const accent = new THREE.Color(activeFloor.tone);
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const mat = (color: string | number, roughness = 0.55, metalness = 0.08) =>
+        new THREE.MeshStandardMaterial({ color, roughness, metalness });
+      const zoneMat = (color: string) =>
+        new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.42,
+          metalness: 0.12,
+          emissive: new THREE.Color(color).multiplyScalar(0.1),
+        });
+      const wallMat = mat("#c7f9d2", 0.5, 0.08);
+      const floorMat = mat("#0e2d35", 0.7, 0.04);
+      const accentMat = zoneMat(activeFloor.tone);
+      const glassMat = new THREE.MeshStandardMaterial({ color: "#93c5fd", transparent: true, opacity: 0.32, roughness: 0.18 });
+      const goldMat = zoneMat("#f8c84c");
+      const pinkMat = zoneMat("#f472b6");
+      const cyanMat = zoneMat("#22d3ee");
+      const greenMat = zoneMat("#34d399");
+      const violetMat = zoneMat("#a78bfa");
+
+      const addBox = (
+        size: [number, number, number],
+        pos: [number, number, number],
+        material: any,
+        rotation: [number, number, number] = [0, 0, 0],
+      ) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+        mesh.position.set(...pos);
+        mesh.rotation.set(...rotation);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+      const addCyl = (radius: number, depth: number, pos: [number, number, number], material: any, rot: [number, number, number] = [0, 0, 0]) => {
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, depth, 36), material);
+        mesh.position.set(...pos);
+        mesh.rotation.set(...rot);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+
+      const addWall = (x: number, z: number, w: number, d: number) => addBox([w, 0.42, d], [x, 0.36, z], wallMat);
+      const addZone = (x: number, z: number, w: number, d: number, material: any) => addBox([w, 0.08, d], [x, 0.03, z], material);
+      const addLabelBlock = (x: number, z: number, material: any) => {
+        addBox([0.48, 0.28, 0.48], [x, 0.21, z], material);
+        addBox([0.34, 0.54, 0.08], [x, 0.57, z - 0.24], material);
+      };
+      const addStairs = (x: number, z: number, material: any) => {
+        for (let i = 0; i < 9; i += 1) addBox([0.9, 0.05 + i * 0.018, 0.12], [x, 0.08 + i * 0.018, z + i * 0.14], material);
+      };
+      const addSofa = (x: number, z: number, material: any) => {
+        addBox([0.95, 0.24, 0.32], [x, 0.18, z], material);
+        addBox([0.95, 0.38, 0.12], [x, 0.32, z - 0.2], material);
+      };
+      const addVanity = (x: number, z: number) => {
+        addBox([0.8, 0.16, 0.3], [x, 0.16, z], pinkMat);
+        addCyl(0.22, 0.06, [x, 0.48, z - 0.17], glassMat, [Math.PI / 2, 0, 0]);
+        addCyl(0.14, 0.28, [x, 0.18, z + 0.35], pinkMat);
+      };
+      const addPetTable = (x: number, z: number) => {
+        addCyl(0.28, 0.12, [x, 0.13, z], goldMat);
+        addCyl(0.1, 0.28, [x - 0.28, 0.28, z + 0.25], greenMat);
+        addCyl(0.1, 0.28, [x + 0.28, 0.28, z + 0.25], greenMat);
+      };
+
+      addBox([6.3, 0.1, 5.5], [0, -0.03, 0], floorMat);
+      addWall(0, -2.75, 6.25, 0.08);
+      addWall(0, 2.75, 6.25, 0.08);
+      addWall(-3.12, 0, 0.08, 5.5);
+      addWall(3.12, 0, 0.08, 5.5);
+      addBox([0.72, 0.24, 0.72], [-0.45, 0.12, 0.55], mat("#1f2937", 0.5, 0.12));
+      addStairs(2.35, -1.85, accentMat);
+
+      if (activeFloor.scene === "ktv") {
+        addZone(-1.7, -0.35, 2.65, 4.25, cyanMat);
+        addZone(1.35, -0.5, 2.1, 3.5, goldMat);
+        addWall(-0.1, -0.3, 0.08, 4.25);
+        addWall(1.35, 1.25, 2.1, 0.08);
+        addBox([1.5, 0.34, 0.65], [-1.7, 0.18, -1.92], cyanMat);
+        addBox([0.95, 0.64, 0.08], [-1.7, 0.68, -2.26], mat("#0f172a"));
+        addLabelBlock(1.1, -0.4, goldMat);
+        addLabelBlock(1.75, 0.2, goldMat);
+        addCyl(0.08, 0.85, [-0.65, 0.52, -1.55], mat("#f8fafc"), [0.15, 0, 0]);
+      }
+
+      if (activeFloor.scene === "private") {
+        addZone(-1.85, -1.02, 2.35, 2.92, cyanMat);
+        addZone(1.16, -1.02, 2.75, 2.92, pinkMat);
+        addZone(0.1, 1.6, 5.6, 1.65, mat("#12323a"));
+        for (let i = 0; i < 4; i += 1) {
+          const x = -1.9 + i * 0.9;
+          addWall(x + 0.44, -1.02, 0.06, 2.5);
+          addSofa(x, -1.65, cyanMat);
+        }
+        addVanity(1.1, -1.55);
+        addVanity(1.95, -0.65);
+        addWall(0, 0.38, 5.6, 0.08);
+      }
+
+      if (activeFloor.scene === "vip") {
+        addZone(-1.55, -0.95, 2.9, 2.95, goldMat);
+        addZone(1.58, -0.95, 2.6, 2.95, violetMat);
+        addZone(0.08, 1.58, 5.6, 1.62, pinkMat);
+        addWall(0.05, -0.95, 0.08, 2.86);
+        addWall(0.08, 0.55, 5.6, 0.08);
+        addSofa(-1.55, -1.55, goldMat);
+        addSofa(1.55, -1.55, violetMat);
+        addCyl(0.3, 0.18, [-1.55, 0.18, -0.75], mat("#fef3c7"));
+        addCyl(0.3, 0.18, [1.55, 0.18, -0.75], mat("#fef3c7"));
+        addVanity(-2.25, 1.55);
+        addVanity(-1.35, 1.55);
+      }
+
+      if (activeFloor.scene === "pet") {
+        addZone(0, -0.8, 5.8, 3.25, greenMat);
+        addZone(-1.85, 1.55, 2.3, 1.75, goldMat);
+        addZone(1.55, 1.55, 2.75, 1.75, cyanMat);
+        addWall(0, 0.85, 5.8, 0.08);
+        addWall(0.12, 1.55, 0.08, 1.75);
+        for (let i = 0; i < 6; i += 1) addPetTable(-2.1 + i * 0.85, -0.75 + (i % 2) * 0.95);
+        addBox([0.7, 0.7, 0.7], [2.15, 0.36, 1.48], pinkMat, [0, 0.55, 0]);
+      }
+
+      if (activeFloor.scene === "live") {
+        addZone(0, -0.82, 5.7, 3.28, violetMat);
+        addZone(0, 1.62, 5.8, 1.55, glassMat);
+        addWall(0, 0.75, 5.7, 0.08);
+        addBox([2.45, 0.34, 0.9], [0, 0.2, -2.02], violetMat);
+        for (let i = 0; i < 6; i += 1) addBox([0.48, 0.04, 0.48], [-1.25 + (i % 3) * 1.25, 0.08, -0.38 + Math.floor(i / 3) * 0.65], i % 2 ? mat("#f8fafc") : mat("#111827"));
+        addCyl(0.1, 0.82, [-0.75, 0.55, -1.88], mat("#e5e7eb"), [0.12, 0, 0]);
+        addCyl(0.18, 0.2, [0, 0.42, -1.78], mat("#fb7185"));
+        addCyl(0.1, 0.82, [0.75, 0.55, -1.88], mat("#e5e7eb"), [-0.12, 0, 0]);
+      }
+
+      scene.add(new THREE.AmbientLight("#c7f9ff", 1.25));
+      const key = new THREE.DirectionalLight("#ffffff", 2.25);
+      key.position.set(4, 7, 5);
+      key.castShadow = true;
+      scene.add(key);
+      const glow = new THREE.PointLight(activeFloor.tone, 18, 9);
+      glow.position.set(-2.3, 2.2, 2.5);
+      scene.add(glow);
+
+      const resize = () => {
+        const { width, height } = mount.getBoundingClientRect();
+        const nextWidth = Math.max(280, width);
+        const nextHeight = Math.max(320, height);
+        camera.aspect = nextWidth / nextHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nextWidth, nextHeight, false);
+      };
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(mount);
+      resize();
+
+      const animate = (time: number) => {
+        group.rotation.y = -0.72 + Math.sin(time * 0.00035) * 0.08;
+        group.rotation.x = 0.12 + Math.sin(time * 0.00025) * 0.025;
+        group.position.y = Math.sin(time * 0.0011) * 0.05;
+        glow.intensity = 14 + Math.sin(time * 0.002) * 4;
+        renderer.render(scene, camera);
+        frame = requestAnimationFrame(animate);
+      };
+      animate(0);
+
+      return () => {
+        cancelAnimationFrame(frame);
+        resizeObserver?.disconnect();
+        scene.traverse((object: any) => {
+          object.geometry?.dispose?.();
+          if (Array.isArray(object.material)) object.material.forEach((item: any) => item.dispose?.());
+          else object.material?.dispose?.();
+        });
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    }
+
+    let cleanup: (() => void) | undefined;
+    createScene().then((dispose) => {
+      cleanup = dispose;
+    });
+
+    return () => {
+      isMounted = false;
+      cleanup?.();
+    };
+  }, [activeFloor, activeIndex]);
+
+  return (
+    <div className="rwg-floor-showcase-scene" ref={mountRef}>
+      <div className="rwg-floor-showcase-label">
+        <span>{activeFloor?.level}</span>
+        <strong>{activeFloor?.title}</strong>
+      </div>
+    </div>
+  );
+}
+
 function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const stepRefs = useRef<Array<HTMLElement | null>>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const nextIndex = Number((visible.target as HTMLElement).dataset.floorIndex || 0);
+        setActiveIndex(nextIndex);
+      },
+      { root: null, threshold: [0.35, 0.55, 0.75], rootMargin: "-18% 0px -34% 0px" },
+    );
+
+    stepRefs.current.forEach((item) => {
+      if (item) observer.observe(item);
+    });
+
+    return () => observer.disconnect();
+  }, [floors]);
+
   return (
     <div className="rwg-floor-story">
-      <div className="rwg-floor-visual" aria-hidden="true">
+      <div className="rwg-floor-visual" aria-label="Scroll activated renovated 3D floor plan">
+        <FloorShowcaseScene floors={floors} activeIndex={activeIndex} />
         <div className="rwg-floor-tower">
           {floors
             .slice()
             .reverse()
-            .map((floor, index) => (
+            .map((floor, index) => {
+              const originalIndex = floors.length - 1 - index;
+              return (
               <div
-                className="rwg-floor-slab"
+                className={`rwg-floor-slab ${activeIndex === originalIndex ? "is-active" : ""}`}
                 key={floor.level}
                 style={
                   {
@@ -606,7 +869,8 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
               >
                 <span>{floor.level}</span>
               </div>
-            ))}
+              );
+            })}
         </div>
         <div className="rwg-floor-glow" />
       </div>
@@ -615,8 +879,12 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
           const Icon = floor.icon;
           return (
             <article
-              className="rwg-floor-step"
+              className={`rwg-floor-step ${activeIndex === index ? "is-active" : ""}`}
               key={floor.level}
+              data-floor-index={index}
+              ref={(node) => {
+                stepRefs.current[index] = node;
+              }}
               style={
                 {
                   "--tone": floor.tone,
@@ -631,7 +899,6 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
                 <small>{floor.units}</small>
                 <p>{floor.detail}</p>
               </div>
-              <FloorMiniScene floor={floor} index={index} />
             </article>
           );
         })}
@@ -730,15 +997,23 @@ function Landing() {
         .rwg-eco-section h2{font-size:clamp(28px,4vw,48px);line-height:1.04;margin:0;color:#fff;letter-spacing:0}
         .rwg-eco-section-head p{max-width:540px;color:rgba(255,255,255,.62);line-height:1.65;margin:0}
         .rwg-floor-story{display:grid;grid-template-columns:minmax(320px,460px) minmax(0,1fr);gap:34px;align-items:start}
-        .rwg-floor-visual{position:sticky;top:92px;min-height:620px;border-radius:24px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.28);perspective:1200px}
+        .rwg-floor-visual{position:sticky;top:92px;min-height:620px;border-radius:24px;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:18px;padding:20px;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.28);perspective:1200px}
         .rwg-floor-visual:before{content:"";position:absolute;inset:28px;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(circle at center,#000,transparent 76%)}
-        .rwg-floor-tower{position:relative;z-index:1;width:min(340px,78vw);transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
-        .rwg-floor-slab{height:70px;margin:-2px 0;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 18px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 28px 52px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 20px));display:flex;align-items:center;padding:0 24px;position:relative;overflow:hidden}
+        .rwg-floor-showcase-scene{position:relative;z-index:2;min-height:430px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 34% 24%,rgba(34,211,238,.16),transparent 34%),linear-gradient(145deg,rgba(3,21,26,.82),rgba(10,54,64,.42));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 26px 70px rgba(0,0,0,.32)}
+        .rwg-floor-showcase-scene:before{content:"";position:absolute;inset:16px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px);background-size:30px 30px;opacity:.62;pointer-events:none}
+        .rwg-floor-showcase-scene canvas{position:relative;z-index:1;width:100%;height:100%;display:block}
+        .rwg-floor-showcase-label{position:absolute;left:18px;right:18px;top:18px;z-index:3;display:flex;align-items:center;gap:12px;pointer-events:none}
+        .rwg-floor-showcase-label span{width:52px;aspect-ratio:1;border-radius:16px;display:grid;place-items:center;background:#f8d477;color:#061316;font-weight:950;box-shadow:0 16px 36px rgba(248,212,119,.28)}
+        .rwg-floor-showcase-label strong{font-size:clamp(18px,2vw,24px);line-height:1.1;color:#fff;text-shadow:0 12px 30px rgba(0,0,0,.38)}
+        .rwg-floor-tower{position:relative;z-index:3;width:min(300px,70vw);justify-self:center;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
+        .rwg-floor-slab{height:46px;margin:-2px 0;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 12px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 22px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 16px));display:flex;align-items:center;padding:0 18px;position:relative;overflow:hidden;opacity:.52;transition:opacity .35s ease,filter .35s ease}
+        .rwg-floor-slab.is-active{opacity:1;filter:saturate(1.3) brightness(1.18)}
         .rwg-floor-slab:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-130%);animation:rwg-eco-shine 4.5s ease-in-out infinite;animation-delay:calc(var(--floor-index) * .35s)}
         .rwg-floor-slab span{font-size:28px;font-weight:950;color:var(--floor-tone);text-shadow:0 0 20px color-mix(in srgb,var(--floor-tone),transparent 55%)}
         .rwg-floor-glow{position:absolute;inset:auto 12% 8%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.24),transparent 65%);filter:blur(18px);animation:rwg-eco-pulse 4s ease-in-out infinite}
         .rwg-floor-copy{display:grid;gap:24px}
-        .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%}
+        .rwg-floor-step{min-height:420px;border-radius:24px;padding:28px;display:grid;grid-template-columns:78px minmax(0,1fr);gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%;transition:border-color .35s ease,box-shadow .35s ease,transform .35s ease}
+        .rwg-floor-step.is-active{border-color:color-mix(in srgb,var(--tone),white 18%);box-shadow:0 28px 90px color-mix(in srgb,var(--tone),transparent 78%),0 24px 80px rgba(0,0,0,.24)}
         .rwg-floor-step:before{content:"";position:absolute;inset:auto -60px -90px auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 68%);opacity:.2}
         .rwg-floor-step-number{width:76px;aspect-ratio:1;border-radius:22px;display:grid;place-items:center;color:#071316;background:var(--tone);font-weight:950;font-size:26px;box-shadow:0 20px 46px color-mix(in srgb,var(--tone),transparent 68%)}
         .rwg-floor-step svg{width:38px;height:38px;color:var(--tone);margin-bottom:18px}

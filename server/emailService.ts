@@ -1,6 +1,9 @@
 import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY);
+if (process.env.SENDGRID_API_KEY) sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 if (!resend) console.warn('RESEND_API_KEY not set — appointment emails disabled');
 
 const FROM = process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>';
@@ -14,25 +17,49 @@ interface EmailParams {
   html?: string;
 }
 
+function normalizeSendGridFrom(from: string) {
+  const match = from.match(/^(.*?)\s*<([^>]+)>$/);
+  return match ? { email: match[2], name: match[1].trim() || undefined } : from;
+}
+
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!resend) {
-    console.error('Email not sent: RESEND_API_KEY is not set');
+  if (!resend && !hasSendGrid) {
+    console.error('Email not sent: set RESEND_API_KEY or SENDGRID_API_KEY');
     return false;
   }
-  try {
-    const { error } = await resend.emails.send({
-      from: params.from || FROM,
-      to: params.to,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
-    });
-    if (error) { console.error('Resend error:', error); return false; }
-    return true;
-  } catch (error: any) {
-    console.error('Email error:', error?.message || error);
-    return false;
+
+  if (resend) {
+    try {
+      const { error } = await resend.emails.send({
+        from: params.from || FROM,
+        to: params.to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      });
+      if (error) { console.error('Resend error:', error); return false; }
+      return true;
+    } catch (error: any) {
+      console.error('Resend email error:', error?.message || error);
+    }
   }
+
+  if (hasSendGrid) {
+    try {
+      await sgMail.send({
+        from: normalizeSendGridFrom(params.from || FROM),
+        to: params.to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      });
+      return true;
+    } catch (error: any) {
+      console.error('SendGrid email error:', error?.response?.body || error?.message || error);
+    }
+  }
+
+  return false;
 }
 
 export async function sendAppointmentConfirmationEmail(
