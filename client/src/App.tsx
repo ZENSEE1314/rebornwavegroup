@@ -138,6 +138,7 @@ function Router() {
       <Switch>
         {/* Login route should always be accessible */}
         <Route path="/login" component={Login} />
+        <Route path="/reset-password" component={Login} />
 
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />

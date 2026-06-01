@@ -231,9 +231,9 @@ export function setupAuthRoutes(app: Express) {
       // Store reset token
       await storage.setPasswordResetToken(user.id, resetToken, resetTokenExpiry);
 
-      // Send reset email (import emailService)
       const { sendEmail } = await import('./emailService');
-      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+      const resetUrl = `${protocol}://${req.get('host')}/reset-password?token=${encodeURIComponent(resetToken)}`;
       
       console.log(`Attempting to send password reset email to: ${email}`);
       console.log(`Reset token generated: ${resetToken}`);
@@ -250,7 +250,8 @@ export function setupAuthRoutes(app: Express) {
               <p><strong>Your reset token is:</strong></p>
               <h3 style="color: #007bff; font-family: monospace; letter-spacing: 2px;">${resetToken}</h3>
             </div>
-            <p>Copy and paste this token into the password reset form on our website.</p>
+            <p><a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#111827;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold;">Reset password now</a></p>
+            <p>If the button does not work, copy and paste this token into the password reset form on our website.</p>
             <p><strong>This token will expire in 1 hour.</strong></p>
             <p>If you didn't request this password reset, please ignore this email.</p>
             <hr style="margin: 30px 0;">
@@ -264,7 +265,9 @@ You requested a password reset for your Reborn Wave Pet Care account.
 
 Your reset token is: ${resetToken}
 
-Copy and paste this token into the password reset form on our website.
+Reset link: ${resetUrl}
+
+If the link does not work, copy and paste this token into the password reset form on our website.
 
 This token will expire in 1 hour.
 

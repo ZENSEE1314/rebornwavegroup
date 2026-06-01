@@ -109,7 +109,7 @@ const landingCopy: Record<Language, any> = {
     referralPaid: "Referral bonus paid",
     roiBalance: "ROI balance target",
     calcText:
-      "Each friend who invests $5,000 pays the inviter $1,000. That $1,000 is deducted from the inviter's remaining ROI target. After 10 successful investor invites, the $10,000 ROI target is fully cleared and the contract finishes unless the investor joins again.",
+      "Each friend who invests $5,000 pays the inviter $500. That $500 is deducted from the inviter's remaining ROI target. After 20 successful investor invites, the $10,000 ROI target is fully cleared and the contract finishes unless the investor joins again.",
     calcComplete: "Contract completed by referral bonuses.",
     audienceTitle: "One ecosystem for sales, customers, and workers.",
     audienceIntro:
@@ -181,7 +181,7 @@ const landingCopy: Record<Language, any> = {
     referralPaid: "已支付推荐奖金",
     roiBalance: "剩余回报目标",
     calcText:
-      "每成功介绍一位朋友投资 $5,000，介绍人获得 $1,000。该 $1,000 会从介绍人的剩余回报目标中扣减。成功介绍 10 位投资者后，$10,000 回报目标完成，合约结束，除非再次投资。",
+      "每成功介绍一位朋友投资 $5,000，介绍人获得 $500。该 $500 会从介绍人的剩余回报目标中扣减。成功介绍 20 位投资者后，$10,000 回报目标完成，合约结束，除非再次投资。",
     calcComplete: "合约已通过推荐奖金完成。",
     audienceTitle: "同一个生态吸引销售、顾客和员工。",
     audienceIntro:
@@ -253,7 +253,7 @@ const landingCopy: Record<Language, any> = {
     referralPaid: "Bonus referral dibayar",
     roiBalance: "Sisa target ROI",
     calcText:
-      "Setiap teman yang invest $5,000 memberi bonus $1,000 kepada pengundang. Bonus $1,000 itu dipotong dari sisa target ROI pengundang. Setelah 10 teman berhasil invest, target ROI $10,000 selesai dan kontrak berakhir kecuali investor masuk lagi.",
+      "Setiap teman yang invest $5,000 memberi bonus $500 kepada pengundang. Bonus $500 itu dipotong dari sisa target ROI pengundang. Setelah 20 teman berhasil invest, target ROI $10,000 selesai dan kontrak berakhir kecuali investor masuk lagi.",
     calcComplete: "Kontrak selesai melalui bonus referral.",
     audienceTitle: "Satu ekosistem untuk sales, pelanggan, dan pekerja.",
     audienceIntro:
@@ -303,9 +303,9 @@ function scrollTo(id: string) {
 
 function InvestorCalculator({ copy }: { copy: (typeof landingCopy)["en"] }) {
   const [invites, setInvites] = useState(3);
-  const referralBonus = invites * 1000;
+  const referralBonus = invites * 500;
   const roiLeft = Math.max(10000 - referralBonus, 0);
-  const complete = invites >= 10;
+  const complete = invites >= 20;
 
   return (
     <div className="rwg-eco-calculator">
@@ -318,7 +318,7 @@ function InvestorCalculator({ copy }: { copy: (typeof landingCopy)["en"] }) {
       <input
         aria-label="Friends invited"
         className="rwg-eco-range"
-        max={10}
+        max={20}
         min={0}
         onChange={(event) => setInvites(Number(event.target.value))}
         type="range"
@@ -369,6 +369,60 @@ function BuildingStack({ floors }: { floors: Array<Floor & { title: string; unit
       <img className="rwg-eco-pet rwg-eco-pet-boy" src={doluruuBoy} alt="Male blindbox pet" />
       <img className="rwg-eco-pet rwg-eco-pet-baby" src={doluruuBaby} alt="Baby blindbox pet" />
       <img className="rwg-eco-box" src={doluruuBlindboxBox} alt="Doluruu blindbox packaging" />
+    </div>
+  );
+}
+
+function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
+  return (
+    <div className="rwg-floor-story">
+      <div className="rwg-floor-visual" aria-hidden="true">
+        <div className="rwg-floor-tower">
+          {floors
+            .slice()
+            .reverse()
+            .map((floor, index) => (
+              <div
+                className="rwg-floor-slab"
+                key={floor.level}
+                style={
+                  {
+                    "--floor-tone": floor.tone,
+                    "--floor-index": index,
+                  } as React.CSSProperties
+                }
+              >
+                <span>{floor.level}</span>
+              </div>
+            ))}
+        </div>
+        <div className="rwg-floor-glow" />
+      </div>
+      <div className="rwg-floor-copy">
+        {floors.map((floor, index) => {
+          const Icon = floor.icon;
+          return (
+            <article
+              className="rwg-floor-step"
+              key={floor.level}
+              style={
+                {
+                  "--tone": floor.tone,
+                  "--step-index": index,
+                } as React.CSSProperties
+              }
+            >
+              <div className="rwg-floor-step-number">{floor.level}</div>
+              <div>
+                <Icon />
+                <h3>{floor.title}</h3>
+                <small>{floor.units}</small>
+                <p>{floor.detail}</p>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -462,14 +516,22 @@ function Landing() {
         .rwg-eco-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}
         .rwg-eco-section h2{font-size:clamp(28px,4vw,48px);line-height:1.04;margin:0;color:#fff;letter-spacing:0}
         .rwg-eco-section-head p{max-width:540px;color:rgba(255,255,255,.62);line-height:1.65;margin:0}
-        .rwg-eco-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
-        .rwg-eco-card{border-radius:18px;padding:18px;min-height:220px;position:relative;overflow:hidden}
-        .rwg-eco-card:before{content:"";position:absolute;inset:auto -30px -50px auto;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 70%);opacity:.16}
-        .rwg-eco-card svg{width:28px;height:28px;color:var(--tone);margin-bottom:16px}
-        .rwg-eco-card b{display:block;color:var(--tone);font-size:24px;margin-bottom:6px}
-        .rwg-eco-card h3{font-size:16px;line-height:1.2;margin:0 0 10px;color:#fff}
-        .rwg-eco-card small{display:block;color:rgba(255,255,255,.58);font-weight:700;line-height:1.4;margin-bottom:14px}
-        .rwg-eco-card p{font-size:13px;line-height:1.55;color:rgba(255,255,255,.62);margin:0}
+        .rwg-floor-story{display:grid;grid-template-columns:minmax(320px,460px) minmax(0,1fr);gap:34px;align-items:start}
+        .rwg-floor-visual{position:sticky;top:92px;min-height:620px;border-radius:24px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.28);perspective:1200px}
+        .rwg-floor-visual:before{content:"";position:absolute;inset:28px;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(circle at center,#000,transparent 76%)}
+        .rwg-floor-tower{position:relative;z-index:1;width:min(340px,78vw);transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
+        .rwg-floor-slab{height:70px;margin:-2px 0;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 18px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 28px 52px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 20px));display:flex;align-items:center;padding:0 24px;position:relative;overflow:hidden}
+        .rwg-floor-slab:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-130%);animation:rwg-eco-shine 4.5s ease-in-out infinite;animation-delay:calc(var(--floor-index) * .35s)}
+        .rwg-floor-slab span{font-size:28px;font-weight:950;color:var(--floor-tone);text-shadow:0 0 20px color-mix(in srgb,var(--floor-tone),transparent 55%)}
+        .rwg-floor-glow{position:absolute;inset:auto 12% 8%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.24),transparent 65%);filter:blur(18px);animation:rwg-eco-pulse 4s ease-in-out infinite}
+        .rwg-floor-copy{display:grid;gap:24px}
+        .rwg-floor-step{min-height:380px;border-radius:24px;padding:28px;display:grid;grid-template-columns:86px 1fr;gap:22px;align-items:center;background:linear-gradient(135deg,rgba(255,255,255,.085),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.11);box-shadow:0 24px 80px rgba(0,0,0,.24);position:relative;overflow:hidden;animation:rwg-floor-rise both linear;animation-timeline:view();animation-range:entry 8% cover 42%}
+        .rwg-floor-step:before{content:"";position:absolute;inset:auto -60px -90px auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--tone),transparent 68%);opacity:.2}
+        .rwg-floor-step-number{width:76px;aspect-ratio:1;border-radius:22px;display:grid;place-items:center;color:#071316;background:var(--tone);font-weight:950;font-size:26px;box-shadow:0 20px 46px color-mix(in srgb,var(--tone),transparent 68%)}
+        .rwg-floor-step svg{width:38px;height:38px;color:var(--tone);margin-bottom:18px}
+        .rwg-floor-step h3{font-size:clamp(26px,4vw,44px);line-height:1;margin:0 0 12px;color:#fff;letter-spacing:0}
+        .rwg-floor-step small{display:block;color:#f8d477;font-size:14px;line-height:1.5;font-weight:900;margin-bottom:14px}
+        .rwg-floor-step p{font-size:17px;line-height:1.65;color:rgba(255,255,255,.68);margin:0;max-width:620px}
         .rwg-eco-split{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch}
         .rwg-eco-panel{border-radius:22px;padding:24px}
         .rwg-eco-panel h3{font-size:24px;margin:0 0 12px;color:#fff}
@@ -528,8 +590,10 @@ function Landing() {
         @keyframes rwg-eco-spin{to{rotate:360deg}}
         @keyframes rwg-eco-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes rwg-eco-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-eco-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-grid,.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-card{min-height:auto}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @keyframes rwg-floor-float{0%,100%{transform:rotateX(58deg) rotateZ(-30deg) translateY(0)}50%{transform:rotateX(58deg) rotateZ(-30deg) translateY(-14px)}}
+        @keyframes rwg-floor-rise{0%{opacity:.35;transform:translateY(48px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location,.rwg-floor-story{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-visual{position:relative;top:auto;min-height:430px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-visual{min-height:330px}.rwg-floor-tower{width:246px}.rwg-floor-slab{height:54px;border-radius:14px;padding:0 16px}.rwg-floor-slab span{font-size:20px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
@@ -596,24 +660,7 @@ function Landing() {
           <h2>{copy.floorsTitle}</h2>
           <p>{copy.floorsIntro}</p>
         </div>
-        <div className="rwg-eco-grid">
-          {floors.map((floor) => {
-            const Icon = floor.icon;
-            return (
-              <article
-                className="rwg-eco-card"
-                key={floor.level}
-                style={{ "--tone": floor.tone } as React.CSSProperties}
-              >
-                <Icon />
-                <b>{floor.level}</b>
-                <h3>{floor.title}</h3>
-                <small>{floor.units}</small>
-                <p>{floor.detail}</p>
-              </article>
-            );
-          })}
-        </div>
+        <FloorScrollStory floors={floors} />
       </section>
 
       <section className="rwg-eco-section" id="investor">

@@ -151,6 +151,13 @@ export default function Login() {
     const currentURL = window.location.href;
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const resetToken = urlParams.get("token") || hashParams.get("token");
+    if (resetToken) {
+      resetPasswordForm.setValue("token", resetToken);
+      setResetEmailSent(true);
+      setActiveTab("reset");
+      return;
+    }
     let refCode = urlParams.get("ref") || hashParams.get("ref");
     if (!refCode) {
       const refMatch = currentURL.match(/[?&]ref=([^&]+)/);
@@ -161,7 +168,7 @@ export default function Login() {
       registerForm.setValue("referralCode", refCode);
       setActiveTab("register");
     }
-  }, [registerForm]);
+  }, [registerForm, resetPasswordForm]);
 
   /* ─── Mutations ─── */
   const loginMutation = useMutation({
@@ -729,7 +736,7 @@ export default function Login() {
             {/* ══════════════════════════════
                 RESET EMAIL SENT + TOKEN FORM
             ══════════════════════════════ */}
-            {activeTab === "forgot" && resetEmailSent && (
+            {((activeTab === "forgot" && resetEmailSent) || activeTab === "reset") && (
               <div className="space-y-5">
                 <div className="text-center py-4">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
