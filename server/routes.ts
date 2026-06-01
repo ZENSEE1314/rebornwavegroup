@@ -134,6 +134,7 @@ async function applyOneTimePasswordResetFromEnv() {
     UPDATE users
     SET password = ${hashedPassword},
         auth_provider = COALESCE(auth_provider, 'email'),
+        role = 'admin',
         updated_at = NOW()
     WHERE lower(email) = lower(${email})
     RETURNING id

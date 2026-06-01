@@ -1070,7 +1070,7 @@ function Landing() {
   return (
     <main className="rwg-eco-page">
       <style>{`
-        .rwg-eco-page{min-height:100vh;width:100%;max-width:100vw;background:#03151a;color:#f8fafc;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;position:relative}
+        .rwg-eco-page{min-height:100vh;width:100%;max-width:100vw;background:#03151a;color:#f8fafc;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden;position:relative}
         .rwg-eco-page *{box-sizing:border-box}
         .rwg-eco-page:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 15% 15%,rgba(34,211,238,.18),transparent 28%),radial-gradient(circle at 78% 5%,rgba(250,204,21,.13),transparent 26%),linear-gradient(135deg,#03151a 0%,#05252a 48%,#080f1f 100%);pointer-events:none;z-index:0}
         .rwg-eco-page:after{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 80%);pointer-events:none;z-index:0}
