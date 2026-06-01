@@ -61,6 +61,51 @@ function broadcastAdminLogUpdate(logData: any) {
   }
 }
 
+async function ensureUserAuthColumns() {
+  await db.execute(sql`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS username VARCHAR UNIQUE,
+      ADD COLUMN IF NOT EXISTS password VARCHAR,
+      ADD COLUMN IF NOT EXISTS auth_provider VARCHAR NOT NULL DEFAULT 'email',
+      ADD COLUMN IF NOT EXISTS google_id VARCHAR UNIQUE,
+      ADD COLUMN IF NOT EXISTS apple_id VARCHAR UNIQUE,
+      ADD COLUMN IF NOT EXISTS phone_number VARCHAR,
+      ADD COLUMN IF NOT EXISTS gender VARCHAR,
+      ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS role VARCHAR NOT NULL DEFAULT 'user',
+      ADD COLUMN IF NOT EXISTS credits NUMERIC(10, 2) NOT NULL DEFAULT '0.00',
+      ADD COLUMN IF NOT EXISTS loyalty_points INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS lifetime_points INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tokens INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS referral_code VARCHAR,
+      ADD COLUMN IF NOT EXISTS referred_by_id VARCHAR,
+      ADD COLUMN IF NOT EXISTS introducer_id VARCHAR,
+      ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC(10, 2) NOT NULL DEFAULT '0.00',
+      ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR,
+      ADD COLUMN IF NOT EXISTS bank_name VARCHAR,
+      ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR,
+      ADD COLUMN IF NOT EXISTS membership_card_number VARCHAR,
+      ADD COLUMN IF NOT EXISTS mpoint INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR,
+      ADD COLUMN IF NOT EXISTS password_reset_expiry TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW(),
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
+  `);
+
+  await db.execute(sql`
+    UPDATE users
+    SET referral_code = COALESCE(referral_code, 'RWG-' || substr(md5(id::text), 1, 8))
+    WHERE referral_code IS NULL
+  `);
+
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique
+    ON users(referral_code)
+    WHERE referral_code IS NOT NULL
+  `);
+}
+
 function startSleepEnergyTimer(petId: number) {
   // Clear existing timer if any
   if (sleepTimers.has(petId)) {
@@ -240,6 +285,12 @@ const multerStorage = multer.diskStorage({
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  try {
+    await ensureUserAuthColumns();
+  } catch (error) {
+    console.error("[startup] user auth column setup failed:", error);
+  }
+
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
   // Initialize real-time energy timers for currently sleeping pets
