@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
+import { pool } from './db';
 import type { Express, Request, Response } from 'express';
 
 // Helper function to extract user ID from different auth formats
@@ -57,7 +58,11 @@ export function setupLocalAuth() {
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
       try {
-        const user = await storage.getUserByEmail(email.toLowerCase());
+        const result = await pool.query(
+          'SELECT id, email, password FROM users WHERE lower(email) = lower($1) LIMIT 1',
+          [email],
+        );
+        const user = result.rows[0];
         if (!user || !user.password) {
           return done(null, false, { message: 'Invalid email or password' });
         }
