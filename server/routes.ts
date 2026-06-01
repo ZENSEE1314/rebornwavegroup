@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import express from "express";
 import path from "path";
-import { inspect } from "util";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
@@ -301,19 +300,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (error) {
     console.error("[startup] user auth column setup failed:", error);
   }
-
-  app.get('/api/debug/auth-schema-check', async (_req, res) => {
-    try {
-      await db.execute(sql`SELECT id, email, password FROM users LIMIT 0`);
-      res.json({ ok: true });
-    } catch (error: any) {
-      res.status(500).json({
-        ok: false,
-        message: error?.message || error?.toString?.() || String(error),
-        detail: inspect(error, { depth: 5, showHidden: true }),
-      });
-    }
-  });
 
   // Serve uploaded images statically
   app.use('/uploaded-images', express.static('uploaded-images'));
