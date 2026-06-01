@@ -62,39 +62,46 @@ function broadcastAdminLogUpdate(logData: any) {
 }
 
 async function ensureUserAuthColumns() {
-  await db.execute(sql`
-    ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS username VARCHAR UNIQUE,
-      ADD COLUMN IF NOT EXISTS password VARCHAR,
-      ADD COLUMN IF NOT EXISTS auth_provider VARCHAR NOT NULL DEFAULT 'email',
-      ADD COLUMN IF NOT EXISTS google_id VARCHAR UNIQUE,
-      ADD COLUMN IF NOT EXISTS apple_id VARCHAR UNIQUE,
-      ADD COLUMN IF NOT EXISTS first_name VARCHAR,
-      ADD COLUMN IF NOT EXISTS last_name VARCHAR,
-      ADD COLUMN IF NOT EXISTS phone_number VARCHAR,
-      ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR,
-      ADD COLUMN IF NOT EXISTS gender VARCHAR,
-      ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS role VARCHAR NOT NULL DEFAULT 'user',
-      ADD COLUMN IF NOT EXISTS credits NUMERIC(10, 2) NOT NULL DEFAULT '0.00',
-      ADD COLUMN IF NOT EXISTS loyalty_points INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS lifetime_points INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS tokens INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS referral_code VARCHAR,
-      ADD COLUMN IF NOT EXISTS referred_by_id VARCHAR,
-      ADD COLUMN IF NOT EXISTS introducer_id VARCHAR,
-      ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC(10, 2) NOT NULL DEFAULT '0.00',
-      ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR,
-      ADD COLUMN IF NOT EXISTS bank_name VARCHAR,
-      ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR,
-      ADD COLUMN IF NOT EXISTS membership_card_number VARCHAR,
-      ADD COLUMN IF NOT EXISTS mpoint INTEGER NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR,
-      ADD COLUMN IF NOT EXISTS password_reset_expiry TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW(),
-      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
-  `);
+  const columnStatements = [
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR NOT NULL DEFAULT 'email'",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR NOT NULL DEFAULT 'user'",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS credits NUMERIC(10, 2) NOT NULL DEFAULT '0.00'",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS loyalty_points INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS lifetime_points INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS introducer_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC(10, 2) NOT NULL DEFAULT '0.00'",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_card_number VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS mpoint INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expiry TIMESTAMP",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+  ];
+
+  for (const statement of columnStatements) {
+    try {
+      await db.execute(sql.raw(statement));
+    } catch (error) {
+      console.error("[startup] user column repair failed:", statement, error);
+    }
+  }
 
   await db.execute(sql`
     UPDATE users
