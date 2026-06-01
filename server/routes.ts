@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import express from "express";
 import path from "path";
+import { inspect } from "util";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
@@ -309,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         ok: false,
         message: error?.message || error?.toString?.() || String(error),
-        detail: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        detail: inspect(error, { depth: 5, showHidden: true }),
       });
     }
   });
