@@ -24,6 +24,11 @@ import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
 import doluruuBaby from "@assets/Doluruu Baby_1749663725243.png";
 import doluruuFemale from "@assets/doluruu-female-transparent.png";
 import doluruuBlindboxBox from "@assets/doluruu-blindbox-box.jpeg";
+import level1Concept from "@assets/level-concepts/level-1-ktv-game.png";
+import level2Concept from "@assets/level-concepts/level-2-private-ktv-salon.png";
+import level3Concept from "@assets/level-concepts/level-3-vip-salon.png";
+import level4Concept from "@assets/level-concepts/level-4-pet-cafe.png";
+import level5Concept from "@assets/level-concepts/level-5-live-house.png";
 
 type Floor = {
   level: string;
@@ -64,6 +69,14 @@ const floorMeta: Floor[] = [
     scene: "live",
   },
 ];
+
+const levelConceptImages: Record<string, string> = {
+  "1F": level1Concept,
+  "2F": level2Concept,
+  "3F": level3Concept,
+  "4F": level4Concept,
+  "5F": level5Concept,
+};
 
 const stepIcons = [WalletCards, BadgeDollarSign, Landmark, Users];
 const audienceIcons = [Sparkles, HeartHandshake, Building2];
@@ -999,8 +1012,13 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
               } as React.CSSProperties
             }
           >
-            <div className="rwg-floor-visual" aria-label={`${floor.level} renovated 3D showroom`}>
-              <FloorShowcaseScene floors={floors} activeIndex={index} />
+            <div className="rwg-floor-visual rwg-floor-image-visual" aria-label={`${floor.level} renovated concept image`}>
+              <img
+                src={levelConceptImages[floor.level]}
+                alt={`${floor.level} ${floor.title} renovated concept`}
+                className="rwg-floor-concept-img"
+                loading={index === 0 ? "eager" : "lazy"}
+              />
               <div className="rwg-floor-tower">
                 {floors
                   .slice()
@@ -1159,6 +1177,10 @@ function Landing() {
         .rwg-floor-visual{position:relative;min-height:min(76vh,760px);border-radius:30px;display:grid;grid-template-rows:minmax(0,1fr);gap:18px;padding:clamp(18px,3vw,40px);overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.07),rgba(255,255,255,.025));border:1px solid color-mix(in srgb,var(--tone),rgba(255,255,255,.14) 34%);box-shadow:0 28px 90px rgba(0,0,0,.34);perspective:1200px;transform:translateY(54px) scale(.96);opacity:.42;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .7s ease,border-color .45s ease}
         .rwg-floor-level.is-active .rwg-floor-visual{transform:translateY(0) scale(1);opacity:1}
         .rwg-floor-visual:before{content:"";position:absolute;inset:28px;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:34px 34px;mask-image:radial-gradient(circle at center,#000,transparent 76%)}
+        .rwg-floor-image-visual{display:block;padding:0;background:#06151b}
+        .rwg-floor-image-visual:before{z-index:2;inset:16px;pointer-events:none}
+        .rwg-floor-concept-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.08) contrast(1.04);transform:scale(1.02);transition:transform .9s cubic-bezier(.2,.8,.2,1),filter .45s ease}
+        .rwg-floor-level.is-active .rwg-floor-concept-img{transform:scale(1)}
         .rwg-floor-showcase-scene{position:relative;z-index:2;min-height:min(68vh,720px);height:100%;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 34% 24%,rgba(34,211,238,.16),transparent 34%),linear-gradient(145deg,rgba(3,21,26,.82),rgba(10,54,64,.42));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 26px 70px rgba(0,0,0,.32)}
         .rwg-floor-showcase-scene:before{content:"";position:absolute;inset:16px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px);background-size:30px 30px;opacity:.62;pointer-events:none}
         .rwg-floor-showcase-scene canvas{position:relative;z-index:1;width:100%;height:100%;display:block}

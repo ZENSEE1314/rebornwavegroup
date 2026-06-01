@@ -773,8 +773,12 @@ export default function Login() {
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-7 h-7 text-emerald-400" />
                   </div>
-                  <h3 className="font-semibold text-white mb-1">Reset Email Sent!</h3>
-                  <p className="text-sm text-white/40">Check your inbox. The link expires in 1 hour.</p>
+                  <h3 className="font-semibold text-white mb-1">
+                    {recoveryToken ? "Email Failed - Recovery Token Ready" : "Reset Email Sent!"}
+                  </h3>
+                  <p className="text-sm text-white/40">
+                    {recoveryToken ? "Resend did not deliver the email. Use the token below now." : "Check your inbox. The link expires in 1 hour."}
+                  </p>
                 </div>
 
                 {recoveryToken && (
