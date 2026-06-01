@@ -1,9 +1,11 @@
 import { Resend } from 'resend';
 import sgMail from '@sendgrid/mail';
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY);
-if (process.env.SENDGRID_API_KEY) sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim();
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const hasSendGrid = Boolean(sendgridApiKey);
+if (sendgridApiKey) sgMail.setApiKey(sendgridApiKey);
 if (!resend) console.warn('RESEND_API_KEY not set — appointment emails disabled');
 
 const FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>';
@@ -22,44 +24,59 @@ function normalizeSendGridFrom(from: string) {
   return match ? { email: match[2], name: match[1].trim() || undefined } : from;
 }
 
-export async function sendEmail(params: EmailParams): Promise<boolean> {
+export async function sendEmailDetailed(params: EmailParams): Promise<{ ok: boolean; provider: string; from: string; error?: string }> {
+  const from = params.from || FROM;
+
   if (!resend && !hasSendGrid) {
     console.error('Email not sent: set RESEND_API_KEY or SENDGRID_API_KEY');
-    return false;
+    return { ok: false, provider: 'none', from, error: 'Missing RESEND_API_KEY or SENDGRID_API_KEY in Railway variables.' };
   }
 
   if (resend) {
     try {
       const { error } = await resend.emails.send({
-        from: params.from || FROM,
+        from,
         to: params.to,
         subject: params.subject,
         text: params.text,
         html: params.html,
       });
-      if (error) { console.error('Resend error:', error); return false; }
-      return true;
+      if (error) {
+        const message = typeof error === 'string' ? error : (error as any)?.message || JSON.stringify(error);
+        console.error('Resend error:', error);
+        return { ok: false, provider: 'resend', from, error: message };
+      }
+      return { ok: true, provider: 'resend', from };
     } catch (error: any) {
-      console.error('Resend email error:', error?.message || error);
+      const message = error?.message || String(error);
+      console.error('Resend email error:', message);
+      return { ok: false, provider: 'resend', from, error: message };
     }
   }
 
   if (hasSendGrid) {
     try {
       await sgMail.send({
-        from: normalizeSendGridFrom(params.from || FROM),
+        from: normalizeSendGridFrom(from),
         to: params.to,
         subject: params.subject,
         text: params.text,
         html: params.html,
       });
-      return true;
+      return { ok: true, provider: 'sendgrid', from };
     } catch (error: any) {
+      const message = JSON.stringify(error?.response?.body || error?.message || error);
       console.error('SendGrid email error:', error?.response?.body || error?.message || error);
+      return { ok: false, provider: 'sendgrid', from, error: message };
     }
   }
 
-  return false;
+  return { ok: false, provider: 'none', from, error: 'No email provider available.' };
+}
+
+export async function sendEmail(params: EmailParams): Promise<boolean> {
+  const result = await sendEmailDetailed(params);
+  return result.ok;
 }
 
 export async function sendAppointmentConfirmationEmail(

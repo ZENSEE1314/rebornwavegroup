@@ -109,6 +109,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [recoveryToken, setRecoveryToken] = useState("");
+  const [emailStatus, setEmailStatus] = useState<any>(null);
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
 
@@ -245,9 +246,11 @@ export default function Login() {
     onSuccess: (data: any) => {
       if (data?.recoveryToken) {
         setRecoveryToken(data.recoveryToken);
+        setEmailStatus(data.emailStatus || null);
         resetPasswordForm.setValue("token", data.recoveryToken);
       } else {
         setRecoveryToken("");
+        setEmailStatus(null);
       }
       setResetEmailSent(true);
       toast({
@@ -277,6 +280,7 @@ export default function Login() {
       setActiveTab("login");
       setResetEmailSent(false);
       setRecoveryToken("");
+      setEmailStatus(null);
       resetPasswordForm.reset();
     },
     onError: (err: any) =>
@@ -781,6 +785,14 @@ export default function Login() {
                     <code className="block rounded-xl bg-black/30 px-3 py-2 text-amber-200 break-all text-sm">
                       {recoveryToken}
                     </code>
+                    {emailStatus && (
+                      <div className="mt-3 rounded-xl bg-black/20 p-3 text-[11px] leading-relaxed text-amber-100/70">
+                        <div>Email provider: {emailStatus.provider || "none"}</div>
+                        <div>Sender: {emailStatus.from || "not set"}</div>
+                        <div>Resend key in Railway: {emailStatus.hasResendKey ? "yes" : "no"}</div>
+                        {emailStatus.error && <div className="mt-1 break-words">Error: {emailStatus.error}</div>}
+                      </div>
+                    )}
                   </div>
                 )}
 

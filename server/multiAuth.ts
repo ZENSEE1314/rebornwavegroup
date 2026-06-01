@@ -268,14 +268,14 @@ export function setupAuthRoutes(app: Express) {
       // Store reset token
       await storage.setPasswordResetToken(user.id, resetToken, resetTokenExpiry);
 
-      const { sendEmail } = await import('./emailService');
+      const { sendEmailDetailed } = await import('./emailService');
       const appUrl = process.env.PUBLIC_APP_URL || `${req.get('x-forwarded-proto') || req.protocol || 'https'}://${req.get('host')}`;
       const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
       
       console.log(`Attempting to send password reset email to: ${requestedEmail}`);
       console.log(`Reset token generated for ${requestedEmail}: ${resetToken}`);
       
-      const emailSent = await sendEmail({
+      const emailResult = await sendEmailDetailed({
         to: requestedEmail,
         from: process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Reborn Wave Group <onboarding@resend.dev>',
         subject: 'Password Reset Request - Reborn Wave Pet Care',
@@ -312,19 +312,26 @@ If you didn't request this password reset, please ignore this email.
         `
       });
 
-      if (!emailSent) {
-        console.error(`Failed to send password reset email to: ${requestedEmail}. Check RESEND_API_KEY or SENDGRID_API_KEY, EMAIL_FROM, and verified sender domain.`);
+      if (!emailResult.ok) {
+        console.error(`Failed to send password reset email to: ${requestedEmail}. Provider=${emailResult.provider}, From=${emailResult.from}, Error=${emailResult.error}`);
         if (recoveryEmails.has(requestedEmail)) {
           return res.json({
             message: 'Email provider failed. Use the recovery token shown to reset your password.',
             recoveryToken: resetToken,
             resetUrl,
+            emailStatus: {
+              provider: emailResult.provider,
+              from: emailResult.from,
+              error: emailResult.error,
+              hasResendKey: Boolean(process.env.RESEND_API_KEY?.trim()),
+              hasSendGridKey: Boolean(process.env.SENDGRID_API_KEY?.trim()),
+            },
           });
         }
         return res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
       }
 
-      console.log(`Password reset email sent successfully to: ${requestedEmail}`);
+      console.log(`Password reset email sent successfully to: ${requestedEmail} via ${emailResult.provider}`);
       res.json({ message: 'Password reset email sent successfully' });
     } catch (error) {
       console.error('Forgot password error:', error);
