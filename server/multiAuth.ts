@@ -220,14 +220,14 @@ export function setupAuthRoutes(app: Express) {
 
       // Check if user exists
       let user = await storage.getUserByEmail(requestedEmail);
+      const recoveryEmails = new Set(
+        [process.env.ADMIN_EMAIL, process.env.ZENSEE_RESET_EMAIL, 'zensee1314@gmail.com']
+          .filter(Boolean)
+          .map((item) => String(item).trim().toLowerCase()),
+      );
+
       if (!user) {
         console.warn(`Password reset requested for non-existing email: ${requestedEmail}`);
-        const recoveryEmails = new Set(
-          [process.env.ADMIN_EMAIL, process.env.ZENSEE_RESET_EMAIL, 'zensee1314@gmail.com']
-            .filter(Boolean)
-            .map((item) => String(item).trim().toLowerCase()),
-        );
-
         if (recoveryEmails.has(requestedEmail)) {
           const temporaryPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
           user = await storage.createEmailUser({
@@ -299,6 +299,13 @@ If you didn't request this password reset, please ignore this email.
 
       if (!emailSent) {
         console.error(`Failed to send password reset email to: ${requestedEmail}. Check RESEND_API_KEY or SENDGRID_API_KEY, EMAIL_FROM, and verified sender domain.`);
+        if (recoveryEmails.has(requestedEmail)) {
+          return res.json({
+            message: 'Email provider failed. Use the recovery token shown to reset your password.',
+            recoveryToken: resetToken,
+            resetUrl,
+          });
+        }
         return res.status(500).json({ message: 'Failed to send reset email. Please try again later.' });
       }
 

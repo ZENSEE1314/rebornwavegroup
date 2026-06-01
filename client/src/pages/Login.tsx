@@ -107,6 +107,7 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState("");
   const [referralCodeFromUrl, setReferralCodeFromUrl] = useState("");
   const { toast } = useToast();
 
@@ -229,9 +230,18 @@ export default function Login() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      if (data?.recoveryToken) {
+        setRecoveryToken(data.recoveryToken);
+        resetPasswordForm.setValue("token", data.recoveryToken);
+      } else {
+        setRecoveryToken("");
+      }
       setResetEmailSent(true);
-      toast({ title: "Reset email sent!", description: "Check your inbox." });
+      toast({
+        title: data?.recoveryToken ? "Recovery token ready" : "Reset email sent!",
+        description: data?.recoveryToken ? "Email failed, but you can reset with the token shown." : "Check your inbox.",
+      });
     },
     onError: (err: any) =>
       toast({ title: "Error", description: err.message || "Failed to send reset email.", variant: "destructive" }),
@@ -254,6 +264,7 @@ export default function Login() {
       toast({ title: "Password reset!", description: "You can now log in with your new password." });
       setActiveTab("login");
       setResetEmailSent(false);
+      setRecoveryToken("");
       resetPasswordForm.reset();
     },
     onError: (err: any) =>
@@ -745,6 +756,17 @@ export default function Login() {
                   <h3 className="font-semibold text-white mb-1">Reset Email Sent!</h3>
                   <p className="text-sm text-white/40">Check your inbox. The link expires in 1 hour.</p>
                 </div>
+
+                {recoveryToken && (
+                  <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-4">
+                    <p className="text-xs text-amber-100/80 mb-2">
+                      Email sending failed, so use this owner recovery token now:
+                    </p>
+                    <code className="block rounded-xl bg-black/30 px-3 py-2 text-amber-200 break-all text-sm">
+                      {recoveryToken}
+                    </code>
+                  </div>
+                )}
 
                 <div className="rwg-divider-gold" />
                 <p className="text-xs text-white/35 text-center">Have your reset token? Enter it below:</p>
