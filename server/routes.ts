@@ -307,7 +307,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await pool.query('SELECT id, email, password FROM users LIMIT 0');
       res.json({ ok: true });
     } catch (error: any) {
-      res.status(500).json({ ok: false, message: error?.message || String(error) });
+      res.status(500).json({
+        ok: false,
+        message: error?.message || error?.toString?.() || String(error),
+        detail: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      });
     }
   });
 
