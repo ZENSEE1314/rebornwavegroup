@@ -3,7 +3,8 @@ import { Strategy as LocalStrategy } from 'passport-local';
 
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
-import { pool } from './db';
+import { db } from './db';
+import { sql } from 'drizzle-orm';
 import type { Express, Request, Response } from 'express';
 
 // Helper function to extract user ID from different auth formats
@@ -58,11 +59,13 @@ export function setupLocalAuth() {
     { usernameField: 'email' },
     async (email: string, password: string, done) => {
       try {
-        const result = await pool.query(
-          'SELECT id, email, password FROM users WHERE lower(email) = lower($1) LIMIT 1',
-          [email],
-        );
-        const user = result.rows[0];
+        const result: any = await db.execute(sql`
+          SELECT id, email, password
+          FROM users
+          WHERE lower(email) = lower(${email})
+          LIMIT 1
+        `);
+        const user = (result.rows || result)[0];
         if (!user || !user.password) {
           return done(null, false, { message: 'Invalid email or password' });
         }
