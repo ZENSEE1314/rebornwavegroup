@@ -822,6 +822,69 @@ function FloorShowcaseScene({
   );
 }
 
+function RenovatedFloorPlanShowcase({
+  floors,
+  activeIndex,
+}: {
+  floors: Array<Floor & { title: string; units: string; detail: string }>;
+  activeIndex: number;
+}) {
+  const activeFloor = floors[activeIndex] || floors[0];
+  const roomSets: Record<Floor["scene"], Array<{ label: string; className: string }>> = {
+    ktv: [
+      { label: "KTV Lounge", className: "large cyan left" },
+      { label: "Competition Stage", className: "wide gold bottom" },
+      { label: "Kids Game House", className: "medium pink right" },
+    ],
+    private: [
+      { label: "Private Room 1", className: "small cyan left" },
+      { label: "Private Room 2", className: "small cyan mid" },
+      { label: "Private Room 3", className: "small cyan upper" },
+      { label: "Private Room 4", className: "small cyan right" },
+      { label: "Beauty Salon", className: "wide pink bottom" },
+    ],
+    vip: [
+      { label: "VIP KTV Suite", className: "large gold left" },
+      { label: "VIP KTV Suite", className: "large violet right" },
+      { label: "Beauty Lounge", className: "wide pink bottom" },
+    ],
+    pet: [
+      { label: "Pet Cafe Hall", className: "large green left" },
+      { label: "Dining", className: "medium gold right" },
+      { label: "Blindbox Corner", className: "small pink upper" },
+      { label: "Pet Play Area", className: "wide cyan bottom" },
+    ],
+    live: [
+      { label: "Live Stage", className: "wide violet upper" },
+      { label: "Dance Floor", className: "large gold left" },
+      { label: "Sea View Lounge", className: "wide cyan bottom" },
+    ],
+  };
+
+  return (
+    <div className="rwg-renovated-plan" style={{ "--tone": activeFloor?.tone } as React.CSSProperties}>
+      <div className="rwg-renovated-plan-head">
+        <span>{activeFloor?.level}</span>
+        <strong>{activeFloor?.title}</strong>
+      </div>
+      <div className={`rwg-renovated-plan-body scene-${activeFloor?.scene}`}>
+        <div className="rwg-plan-core lift">Lift</div>
+        <div className="rwg-plan-core stair stair-a">Stairs</div>
+        <div className="rwg-plan-core stair stair-b">Stairs</div>
+        {(roomSets[activeFloor?.scene || "ktv"] || []).map((room) => (
+          <div className={`rwg-plan-room ${room.className}`} key={`${activeFloor?.level}-${room.label}`}>
+            <span>{room.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="rwg-renovated-plan-foot">
+        <span>15.2m frontage concept</span>
+        <span>Renovated layout preview</span>
+      </div>
+    </div>
+  );
+}
+
 function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
@@ -847,9 +910,9 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
   }, [floors]);
 
   return (
-    <div className="rwg-floor-story">
+      <div className="rwg-floor-story">
       <div className="rwg-floor-visual" aria-label="Scroll activated renovated 3D floor plan">
-        <FloorShowcaseScene floors={floors} activeIndex={activeIndex} />
+        <RenovatedFloorPlanShowcase floors={floors} activeIndex={activeIndex} />
         <div className="rwg-floor-tower">
           {floors
             .slice()
@@ -1005,6 +1068,23 @@ function Landing() {
         .rwg-floor-showcase-label{position:absolute;left:18px;right:18px;top:18px;z-index:3;display:flex;align-items:center;gap:12px;pointer-events:none}
         .rwg-floor-showcase-label span{width:52px;aspect-ratio:1;border-radius:16px;display:grid;place-items:center;background:#f8d477;color:#061316;font-weight:950;box-shadow:0 16px 36px rgba(248,212,119,.28)}
         .rwg-floor-showcase-label strong{font-size:clamp(18px,2vw,24px);line-height:1.1;color:#fff;text-shadow:0 12px 30px rgba(0,0,0,.38)}
+        .rwg-renovated-plan{position:relative;z-index:2;min-height:430px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 34% 24%,color-mix(in srgb,var(--tone),transparent 74%),transparent 34%),linear-gradient(145deg,rgba(3,21,26,.82),rgba(10,54,64,.42));border:1px solid color-mix(in srgb,var(--tone),rgba(255,255,255,.16) 35%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 26px 70px rgba(0,0,0,.32);display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:18px;transition:border-color .35s ease,background .35s ease}
+        .rwg-renovated-plan:before{content:"";position:absolute;inset:16px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px);background-size:30px 30px;opacity:.62;pointer-events:none}
+        .rwg-renovated-plan-head,.rwg-renovated-plan-foot{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .rwg-renovated-plan-head span{width:52px;aspect-ratio:1;border-radius:16px;display:grid;place-items:center;background:var(--tone);color:#061316;font-weight:950;box-shadow:0 16px 36px color-mix(in srgb,var(--tone),transparent 62%)}
+        .rwg-renovated-plan-head strong{font-size:clamp(18px,2vw,24px);line-height:1.1;color:#fff;text-align:right}
+        .rwg-renovated-plan-foot{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.48);font-weight:900}
+        .rwg-renovated-plan-body{position:relative;z-index:1;margin:18px 0;border-radius:18px;border:2px solid rgba(199,249,210,.62);background:linear-gradient(145deg,rgba(8,47,56,.64),rgba(3,21,26,.38));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transform:perspective(900px) rotateX(55deg) rotateZ(-34deg) translateY(20px);transform-origin:center;animation:rwg-plan-breathe 7s ease-in-out infinite}
+        .rwg-renovated-plan-body:before,.rwg-renovated-plan-body:after{content:"";position:absolute;background:rgba(199,249,210,.72);box-shadow:0 0 18px rgba(74,222,128,.26)}
+        .rwg-renovated-plan-body:before{left:8%;right:8%;top:34%;height:3px}
+        .rwg-renovated-plan-body:after{top:10%;bottom:10%;left:52%;width:3px}
+        .rwg-plan-room{position:absolute;border:1px solid color-mix(in srgb,var(--tone),white 18%);border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 14px 28px rgba(0,0,0,.22);display:grid;place-items:center;padding:8px;text-align:center;color:#061316;font-weight:950;font-size:11px;line-height:1.2;overflow:hidden}
+        .rwg-plan-room span{position:relative;z-index:1}
+        .rwg-plan-room.cyan{background:linear-gradient(135deg,#22d3ee,#0e7490);color:#031316}.rwg-plan-room.gold{background:linear-gradient(135deg,#f8d477,#b7791f);color:#1b1300}.rwg-plan-room.pink{background:linear-gradient(135deg,#f472b6,#be185d);color:#190310}.rwg-plan-room.green{background:linear-gradient(135deg,#34d399,#047857);color:#03170e}.rwg-plan-room.violet{background:linear-gradient(135deg,#a78bfa,#6d28d9);color:#100522}
+        .rwg-plan-room.large{width:42%;height:44%}.rwg-plan-room.medium{width:30%;height:32%}.rwg-plan-room.small{width:20%;height:22%}.rwg-plan-room.wide{width:58%;height:22%}
+        .rwg-plan-room.left{left:8%;top:12%}.rwg-plan-room.mid{left:31%;top:12%}.rwg-plan-room.upper{right:9%;top:10%}.rwg-plan-room.right{right:8%;top:18%}.rwg-plan-room.bottom{left:20%;bottom:9%}
+        .rwg-plan-core{position:absolute;z-index:2;border:1px solid rgba(255,255,255,.22);background:rgba(3,21,26,.86);color:#f8d477;border-radius:8px;display:grid;place-items:center;font-size:10px;font-weight:950;text-transform:uppercase;box-shadow:0 12px 24px rgba(0,0,0,.28)}
+        .rwg-plan-core.lift{width:13%;height:13%;left:44%;top:43%}.rwg-plan-core.stair{width:15%;height:28%;right:7%;top:46%;background:repeating-linear-gradient(0deg,rgba(248,212,119,.92) 0 3px,rgba(3,21,26,.88) 3px 9px)}.rwg-plan-core.stair-b{left:8%;right:auto;top:62%;height:24%}
         .rwg-floor-tower{position:relative;z-index:3;width:min(300px,70vw);justify-self:center;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-30deg);animation:rwg-floor-float 8s ease-in-out infinite}
         .rwg-floor-slab{height:46px;margin:-2px 0;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--floor-tone),#03151a 70%),rgba(255,255,255,.12));border:1px solid color-mix(in srgb,var(--floor-tone),white 20%);box-shadow:0 12px 0 color-mix(in srgb,var(--floor-tone),#020617 72%),0 22px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.2);transform:translateZ(calc(var(--floor-index) * 16px));display:flex;align-items:center;padding:0 18px;position:relative;overflow:hidden;opacity:.52;transition:opacity .35s ease,filter .35s ease}
         .rwg-floor-slab.is-active{opacity:1;filter:saturate(1.3) brightness(1.18)}
@@ -1085,6 +1165,7 @@ function Landing() {
         @keyframes rwg-eco-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
         @keyframes rwg-floor-float{0%,100%{transform:rotateX(58deg) rotateZ(-30deg) translateY(0)}50%{transform:rotateX(58deg) rotateZ(-30deg) translateY(-14px)}}
         @keyframes rwg-floor-rise{0%{opacity:.35;transform:translateY(48px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes rwg-plan-breathe{0%,100%{transform:perspective(900px) rotateX(55deg) rotateZ(-34deg) translateY(20px)}50%{transform:perspective(900px) rotateX(57deg) rotateZ(-31deg) translateY(8px)}}
         @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location,.rwg-floor-story{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-visual{position:relative;top:auto;min-height:430px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr);}.rwg-floor-mini-scene{min-height:320px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-visual{min-height:330px}.rwg-floor-tower{width:246px}.rwg-floor-slab{height:54px;border-radius:14px;padding:0 16px}.rwg-floor-slab span{font-size:20px}.rwg-floor-step{min-height:auto;grid-template-columns:1fr;padding:20px}.rwg-floor-step-number{width:58px;border-radius:16px;font-size:20px}.rwg-floor-step p{font-size:14px}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
