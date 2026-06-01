@@ -232,15 +232,15 @@ export function setupAuthRoutes(app: Express) {
       await storage.setPasswordResetToken(user.id, resetToken, resetTokenExpiry);
 
       const { sendEmail } = await import('./emailService');
-      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-      const resetUrl = `${protocol}://${req.get('host')}/reset-password?token=${encodeURIComponent(resetToken)}`;
+      const appUrl = process.env.PUBLIC_APP_URL || `${req.get('x-forwarded-proto') || req.protocol || 'https'}://${req.get('host')}`;
+      const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
       
       console.log(`Attempting to send password reset email to: ${email}`);
       console.log(`Reset token generated: ${resetToken}`);
       
       const emailSent = await sendEmail({
         to: email,
-        from: 'admin@rebornwave.group',
+        from: process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>',
         subject: 'Password Reset Request - Reborn Wave Pet Care',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

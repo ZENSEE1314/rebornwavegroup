@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 if (!resend) console.warn('RESEND_API_KEY not set — email sending disabled');
 
-const FROM = 'admin@rebornwave.group';
+const FROM = process.env.EMAIL_FROM || 'Reborn Wave Group <admin@rebornwave.group>';
 
 interface EmailParams {
   to: string;
@@ -14,7 +14,10 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  if (!resend) return false;
+  if (!resend) {
+    console.error('Email not sent: RESEND_API_KEY is not set');
+    return false;
+  }
   try {
     const { error } = await resend.emails.send({
       from: params.from || FROM,
@@ -29,7 +32,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     }
     return true;
   } catch (error: any) {
-    console.error('Resend email error:', error?.message);
+    console.error('Resend email error:', error?.message || error);
     return false;
   }
 }
