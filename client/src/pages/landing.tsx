@@ -33,6 +33,13 @@ type Floor = {
   scene: "ktv" | "private" | "vip" | "pet" | "live";
 };
 
+type FloorView = Floor & {
+  title: string;
+  units: string;
+  detail: string;
+  unitSplit: string[];
+};
+
 const floorMeta: Floor[] = [
   {
     level: "1F",
@@ -71,32 +78,34 @@ const audienceIcons = [Sparkles, HeartHandshake, Building2];
 const clubAddress =
   "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront - Batam Centre.49 blok A. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
 const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clubAddress)}`;
+const tiktokUrl = "https://www.tiktok.com/@reborn.wave.group";
+const instagramUrl = "https://www.instagram.com/rebornwavegroup/";
 
 const landingCopy: Record<Language, any> = {
   en: {
-    nav: ["Ecosystem", "Investors", "Blindbox", "Join"],
+    nav: ["Floors", "Activities", "Blindbox", "Location"],
     login: "Log In",
-    investorPackage: "Investor Package",
+    investorPackage: "Follow Us",
     heroTitle: "Reborn Wave Group",
-    heroAccent: "Club Economy",
+    heroAccent: "Batam Club",
     heroText:
-      "A 5-story, 3-unit waterfront club built to bring in customers, investors, sales partners, and workers through one connected ecosystem: KTV, kids game house, beauty salons, pet cafe, live band, dance floor, sea view, membership credits, and blindbox pet rewards.",
-    explore: "Explore Ecosystem",
+      "A 5-story, 3-unit waterfront club in Batam for tourists, families, friends, and event lovers. Sing in KTV lounges, join singing competitions, bring kids to the game house, enjoy beauty services, visit the pet cafe, and end the night with live bands, performances, dance floor energy, and sea-view events.",
+    explore: "Explore The Club",
     seeBlindbox: "See Blindbox Rewards",
     proof: [
-      ["5 floors", "Each floor has a different reason for people to visit and spend."],
-      ["$200K cap", "Total investor allocation is capped for this package plan."],
-      ["Live members", "Live member interest counter for waitlist and launch campaigns."],
+      ["5 floors", "Each level gives visitors a different activity and reason to stay longer."],
+      ["One-stop fun", "KTV, kids games, beauty, pet cafe, live bands, events, and performances."],
+      ["Live interest", "Growing visitor and member interest for launch campaigns."],
     ],
-    floorsTitle: "Five floors that feed one another.",
+    floorsTitle: "Five floors of activities.",
     floorsIntro:
-      "The club is designed like a loop: daytime families, beauty customers, private KTV groups, pet lovers, nightlife guests, and investor-hosted visitors all create traffic for each other.",
+      "Each scroll reveals one floor at a time, showing how families, tourists, friends, performers, and nightlife guests can enjoy the building from day to night.",
     floors: [
-      ["KTV Lounge + Game House", "2 units KTV lounges, 1 unit kids game house", "Open singing, competitions, family play, and daily customer traffic from morning to night."],
-      ["Private KTV + Beauty Salon", "2 units with 4 private KTV rooms, 1 unit beauty salon", "Private celebrations, customer hosting, beauty services, and repeat booking packages."],
-      ["VIP KTV + Beauty Salon", "2 units with 2 VIP private rooms, 1 unit beauty salon", "Premium rooms for investor guests, birthday events, business hosting, and higher spend per visit."],
-      ["Pet Cafe", "All 3 units connected as a pet cafe", "Food, drinks, pet-themed community, blindbox tie-ins, and content-friendly social traffic."],
-      ["Sea-View Live House", "Live band, dance floor, and rooftop sea view", "Nightlife anchor with live music, special events, dance floor energy, and premium table sales."],
+      ["KTV Lounges + Kids Game House", "3-unit floor: 2 KTV lounge units + 1 kids game house unit", "Open singing, singing competitions, family play, and daily customer traffic from morning to night.", ["Unit A: KTV lounge", "Unit B: KTV lounge and competition stage", "Unit C: kids game house"]],
+      ["Private KTV + Beauty Salon", "3-unit floor: 2 KTV units with 4 private rooms + 1 beauty salon unit", "Private celebrations, customer hosting, beauty services, and repeat booking packages.", ["Unit A-B: four private KTV rooms", "Unit C: beauty salon", "Shared: reception, wash area, and customer waiting"]],
+      ["VIP KTV + Beauty Salon", "3-unit floor: 2 VIP KTV units + 1 beauty salon unit", "Premium rooms for VIP guests, birthday events, business hosting, and higher spend per visit.", ["Unit A: VIP KTV private room", "Unit B: VIP KTV private room", "Unit C: beauty salon and beauty prep"]],
+      ["Pet Cafe", "All 3 units connected as a pet cafe", "Food, drinks, pet-themed community, blindbox tie-ins, and content-friendly social traffic.", ["Unit A: pet cafe seating", "Unit B: pet play and photo area", "Unit C: kitchen, blindbox corner, and service"]],
+      ["Sea-View Live House", "All 3 units joined for live band, audience, dance floor, and sea view", "Nightlife anchor with live music, special events, dance floor energy, and premium table sales.", ["Live band stage and backstage", "Audience tables and VIP viewing", "Dance floor with sea-view bar"]],
     ],
     investorTitle: "Investor package made simple.",
     investorIntro:
@@ -118,30 +127,32 @@ const landingCopy: Record<Language, any> = {
     calcText:
       "Each friend who invests $5,000 pays the inviter $500. That $500 is deducted from the inviter's remaining ROI target. After 20 successful investor invites, the $10,000 ROI target is fully cleared and the contract finishes unless the investor joins again.",
     calcComplete: "Contract completed by referral bonuses.",
-    audienceTitle: "One ecosystem for sales, customers, and workers.",
+    audienceTitle: "A one-stop club for tourists and families.",
     audienceIntro:
-      "The club needs more than investors. It needs customers who return, promoters who bring people, and workers who can grow inside the business.",
+      "Reborn Wave Group is made for full-day entertainment: family activities, services, singing competitions, social content, live shows, and evening events in one place.",
     audience: [
-      ["Customers", "Spend credits across KTV, beauty, pet cafe, game house, events, and live house nights."],
-      ["Investors", "Enter with a clear $5,000 package, referral upside, capped allocation, and transparent monthly pool logic."],
-      ["Workers", "A multi-floor club creates roles for hosts, singers, stylists, pet cafe crew, event staff, and promoters."],
+      ["Tourists", "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances."],
+      ["Families", "Kids game house, daytime KTV, pet cafe visits, beauty services, and safe group activities."],
+      ["Events", "Singing competitions, live bands, performances, private rooms, birthday parties, and dance floor nights."],
     ],
     blindboxTitle: "Blindbox pets turn members into daily users.",
     blindboxIntro:
-      "The blindbox is not just a doll. It is a digital pet companion that members feed daily to earn tokens, exchange prizes, and come back to the Reborn Wave ecosystem.",
-    pets: [["Male pet", "1 token daily"], ["Female pet", "1 token daily"], ["Baby pet", "1 token daily"], ["Blindbox package", "Investor gift box"]],
+      "The blindbox is not just a doll. It is a digital pet companion that members feed daily to earn tokens, exchange prizes, and keep coming back to the club.",
+    pets: [["Male pet", "1 token daily"], ["Female pet", "1 token daily"], ["Baby pet", "1 token daily"], ["Blindbox package", "Member reward box"]],
     rules: [
-      ["Investor bonus", "Every investor receives 1 blindbox free as part of the $5,000 package."],
+      ["Member reward", "Blindbox pets can be used for club campaigns, member rewards, and event prizes."],
       ["Male + female = baby", "If a user owns both male and female pets, they receive 1 baby pet free."],
       ["3 pets = 3 daily tokens", "Feeding male, female, and baby pets gives 3 tokens per day for prize exchange."],
       ["Tokens drive repeat visits", "Tokens can be used for rewards, upgrades, prizes, and club spending campaigns."],
     ],
+    socialTitle: "Follow the club.",
+    socialIntro: "See singing competitions, pet cafe moments, beauty services, live band nights, performances, and event updates on our official social pages.",
     locationTitle: "Find us in Batam, Indonesia.",
     locationIntro:
-      "The club sits near Harbourfront Batam Centre, giving visitors a clear destination for KTV, beauty, pet cafe, live house events, investor hosting, and member rewards.",
+      "The club sits near Harbourfront Batam Centre, giving visitors a clear destination for KTV, beauty, pet cafe, live house events, family activities, and member rewards.",
     locationCta: "Open Google Maps",
     disclaimer:
-      "This homepage draft explains the package in customer-friendly language. ROI references are targets, not guaranteed returns. Actual investor contracts, payout rules, profit calculation, referral deductions, compliance requirements, and risk disclosures should be reviewed by a qualified legal and financial professional before launch.",
+      "Service details, event schedules, prizes, room availability, and campaign rewards may change by season, booking demand, and club operations.",
     footerLeft: "Reborn Wave Group - Waterfront Lifestyle Club, Batam",
     footerRight: "KTV - Game House - Beauty - Pet Cafe - Live House - Blindbox Rewards",
   },
@@ -218,29 +229,29 @@ const landingCopy: Record<Language, any> = {
     footerRight: "KTV - 游戏屋 - 美容 - 宠物咖啡厅 - Live House - 盲盒奖励",
   },
   id: {
-    nav: ["Ekosistem", "Investor", "Blindbox", "Gabung"],
+    nav: ["Lantai", "Aktivitas", "Blindbox", "Lokasi"],
     login: "Masuk",
-    investorPackage: "Paket Investor",
+    investorPackage: "Follow Us",
     heroTitle: "Reborn Wave Group",
-    heroAccent: "Ekonomi Klub",
+    heroAccent: "Batam Club",
     heroText:
-      "Klub waterfront 5 lantai dengan 3 unit bangunan yang menghubungkan pelanggan, investor, partner sales, dan pekerja dalam satu ekosistem: KTV, game house anak, salon kecantikan, pet cafe, live band, dance floor, sea view, kredit membership, dan hadiah blindbox pet.",
-    explore: "Jelajahi Ekosistem",
+      "Klub waterfront 5 lantai di Batam untuk turis, keluarga, teman, dan pecinta event. Ada KTV lounge, kompetisi menyanyi, kids game house, beauty salon, pet cafe, live band, performance, dance floor, dan event sea view.",
+    explore: "Jelajahi Klub",
     seeBlindbox: "Lihat Hadiah Blindbox",
     proof: [
-      ["5 lantai", "Setiap lantai punya alasan berbeda untuk orang datang dan belanja."],
-      ["Batas $200K", "Total alokasi investor dibatasi untuk paket ini."],
-      ["Member live", "Counter minat member untuk waitlist dan campaign launching."],
+      ["5 lantai", "Setiap lantai punya aktivitas berbeda untuk membuat tamu tinggal lebih lama."],
+      ["One-stop fun", "KTV, kids games, beauty, pet cafe, live band, event, dan performance."],
+      ["Minat live", "Minat visitor dan member terus bertumbuh untuk campaign launching."],
     ],
-    floorsTitle: "Lima lantai yang saling membawa traffic.",
+    floorsTitle: "Lima lantai penuh aktivitas.",
     floorsIntro:
-      "Klub dirancang seperti loop: keluarga siang hari, pelanggan salon, grup KTV privat, pecinta pet cafe, tamu nightlife, dan tamu investor saling membantu menciptakan traffic.",
+      "Setiap scroll menampilkan satu lantai, dari aktivitas keluarga siang hari sampai live band, performance, dan nightlife di malam hari.",
     floors: [
-      ["KTV Lounge + Game House", "2 unit KTV lounge, 1 unit kids game house", "Nyanyi terbuka, kompetisi menyanyi, hiburan keluarga, dan traffic pelanggan dari pagi sampai malam."],
-      ["Private KTV + Beauty Salon", "2 unit dengan 4 ruang private KTV, 1 unit salon kecantikan", "Perayaan privat, entertainment pelanggan, layanan kecantikan, dan paket booking berulang."],
-      ["VIP KTV + Beauty Salon", "2 unit dengan 2 ruang VIP private, 1 unit salon kecantikan", "Ruangan premium untuk tamu investor, ulang tahun, business hosting, dan spending lebih tinggi."],
-      ["Pet Cafe", "Semua 3 unit lantai 4 menjadi pet cafe", "Makanan, minuman, komunitas pet, koneksi blindbox, dan konten yang mudah dibagikan."],
-      ["Sea-View Live House", "Live band, dance floor, dan rooftop sea view", "Anchor nightlife dengan live music, event spesial, dance floor, dan penjualan meja premium."],
+      ["KTV Lounge + Kids Game House", "Lantai 3 unit: 2 unit KTV lounge + 1 unit kids game house", "Nyanyi terbuka, kompetisi menyanyi, hiburan keluarga, dan traffic pelanggan dari pagi sampai malam.", ["Unit A: KTV lounge", "Unit B: KTV lounge dan competition stage", "Unit C: kids game house"]],
+      ["Private KTV + Beauty Salon", "Lantai 3 unit: 2 unit KTV berisi 4 private room + 1 unit beauty salon", "Perayaan privat, entertainment pelanggan, layanan kecantikan, dan paket booking berulang.", ["Unit A-B: empat private KTV room", "Unit C: beauty salon", "Shared: reception, wash area, dan waiting area"]],
+      ["VIP KTV + Beauty Salon", "Lantai 3 unit: 2 unit VIP KTV + 1 unit beauty salon", "Ruangan premium untuk tamu VIP, ulang tahun, business hosting, dan spending lebih tinggi.", ["Unit A: VIP KTV private room", "Unit B: VIP KTV private room", "Unit C: beauty salon dan beauty prep"]],
+      ["Pet Cafe", "Semua 3 unit lantai 4 menjadi pet cafe", "Makanan, minuman, komunitas pet, koneksi blindbox, dan konten yang mudah dibagikan.", ["Unit A: seating pet cafe", "Unit B: pet play dan photo area", "Unit C: kitchen, blindbox corner, dan service"]],
+      ["Sea-View Live House", "Semua 3 unit digabung untuk live band, audience, dance floor, dan sea view", "Anchor nightlife dengan live music, event spesial, dance floor, dan penjualan meja premium.", ["Live band stage dan backstage", "Audience tables dan VIP viewing", "Dance floor dengan sea-view bar"]],
     ],
     investorTitle: "Paket investor dibuat mudah dipahami.",
     investorIntro:
@@ -262,30 +273,32 @@ const landingCopy: Record<Language, any> = {
     calcText:
       "Setiap teman yang invest $5,000 memberi bonus $500 kepada pengundang. Bonus $500 itu dipotong dari sisa target ROI pengundang. Setelah 20 teman berhasil invest, target ROI $10,000 selesai dan kontrak berakhir kecuali investor masuk lagi.",
     calcComplete: "Kontrak selesai melalui bonus referral.",
-    audienceTitle: "Satu ekosistem untuk sales, pelanggan, dan pekerja.",
+    audienceTitle: "One-stop club untuk turis dan keluarga.",
     audienceIntro:
-      "Klub membutuhkan lebih dari investor. Klub butuh pelanggan yang kembali, promoter yang membawa orang, dan pekerja yang bisa tumbuh di dalam bisnis.",
+      "Reborn Wave Group dibuat untuk hiburan seharian: aktivitas keluarga, service, kompetisi menyanyi, social content, live show, dan event malam dalam satu tempat.",
     audience: [
-      ["Pelanggan", "Gunakan kredit di KTV, beauty, pet cafe, game house, event, dan live house night."],
-      ["Investor", "Masuk dengan paket $5,000 yang jelas, upside referral, alokasi terbatas, dan logika pool bulanan yang transparan."],
-      ["Pekerja", "Klub multi-lantai membuka peran untuk host, singer, stylist, crew pet cafe, staff event, dan promoter."],
+      ["Turis", "Destinasi jelas di Batam untuk nyanyi, kuliner, pet cafe content, sea-view nightlife, dan live performance."],
+      ["Keluarga", "Kids game house, KTV siang hari, pet cafe, beauty service, dan aktivitas grup yang nyaman."],
+      ["Event", "Kompetisi menyanyi, live band, performance, private room, birthday party, dan dance floor night."],
     ],
     blindboxTitle: "Blindbox pet membuat member aktif setiap hari.",
     blindboxIntro:
-      "Blindbox bukan hanya boneka. Ini adalah digital pet companion yang bisa diberi makan setiap hari untuk mendapatkan token, menukar hadiah, dan kembali ke ekosistem Reborn Wave.",
-    pets: [["Male pet", "1 token per hari"], ["Female pet", "1 token per hari"], ["Baby pet", "1 token per hari"], ["Box blindbox", "Gift box investor"]],
+      "Blindbox bukan hanya boneka. Ini digital pet companion yang bisa diberi makan setiap hari untuk mendapat token, tukar hadiah, dan membuat member kembali ke klub.",
+    pets: [["Male pet", "1 token per hari"], ["Female pet", "1 token per hari"], ["Baby pet", "1 token per hari"], ["Box blindbox", "Member reward box"]],
     rules: [
-      ["Bonus investor", "Setiap investor mendapat 1 blindbox gratis sebagai bagian dari paket $5,000."],
+      ["Reward member", "Blindbox pet bisa dipakai untuk campaign klub, reward member, dan hadiah event."],
       ["Male + female = baby", "Jika user memiliki pet male dan female, user mendapat 1 baby pet gratis."],
       ["3 pet = 3 token harian", "Memberi makan male, female, dan baby pet memberi 3 token per hari untuk tukar hadiah."],
       ["Token mendorong repeat visit", "Token dapat digunakan untuk reward, upgrade, hadiah, dan campaign spending klub."],
     ],
+    socialTitle: "Follow klub kami.",
+    socialIntro: "Lihat kompetisi menyanyi, momen pet cafe, beauty service, live band night, performance, dan update event di social media resmi kami.",
     locationTitle: "Kunjungi kami di Batam, Indonesia.",
     locationIntro:
-      "Klub berada dekat Harbourfront Batam Centre, menjadi destinasi jelas untuk KTV, beauty, pet cafe, live house, investor hosting, dan reward member.",
+      "Klub berada dekat Harbourfront Batam Centre, menjadi destinasi jelas untuk KTV, beauty, pet cafe, live house, aktivitas keluarga, dan reward member.",
     locationCta: "Buka Google Maps",
     disclaimer:
-      "Draft homepage ini menjelaskan paket dengan bahasa yang mudah dipahami pelanggan. ROI adalah target, bukan jaminan return. Kontrak investor, aturan payout, perhitungan profit, potongan referral, compliance, dan disclosure risiko harus ditinjau oleh profesional hukum dan keuangan sebelum launching.",
+      "Detail service, jadwal event, hadiah, ketersediaan room, dan reward campaign dapat berubah sesuai musim, booking, dan operasional klub.",
     footerLeft: "Reborn Wave Group - Waterfront Lifestyle Club, Batam",
     footerRight: "KTV - Game House - Beauty - Pet Cafe - Live House - Blindbox Rewards",
   },
@@ -347,7 +360,7 @@ function InvestorCalculator({ copy }: { copy: (typeof landingCopy)["en"] }) {
   );
 }
 
-function BuildingStack({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
+function BuildingStack({ floors }: { floors: FloorView[] }) {
   return (
     <div className="rwg-eco-stage" aria-label="Animated 3D five floor club model">
       <div className="rwg-eco-orbit orbit-one" />
@@ -384,7 +397,7 @@ function FloorMiniScene({
   floor,
   index,
 }: {
-  floor: Floor & { title: string; units: string; detail: string };
+  floor: FloorView;
   index: number;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -590,7 +603,7 @@ function FloorShowcaseScene({
   floors,
   activeIndex,
 }: {
-  floors: Array<Floor & { title: string; units: string; detail: string }>;
+  floors: FloorView[];
   activeIndex: number;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -840,32 +853,32 @@ function RenovatedFloorPlanShowcase({
   floors,
   activeIndex,
 }: {
-  floors: Array<Floor & { title: string; units: string; detail: string }>;
+  floors: FloorView[];
   activeIndex: number;
 }) {
   const activeFloor = floors[activeIndex] || floors[0];
   const planKey = (activeFloor?.level || "1F").toLowerCase();
   const floorPlanRooms: Record<string, Array<{ label: string; className: string }>> = {
     "1f": [
-      { label: "KTV Lounge", className: "cyan l1-main-left" },
-      { label: "KTV Competition", className: "gold l1-main-right" },
+      { label: "KTV Lounge Unit A", className: "cyan l1-main-left" },
+      { label: "KTV Lounge Unit B", className: "gold l1-main-right" },
       { label: "Kids Game House", className: "pink l1-front-left" },
-      { label: "Reception", className: "green l1-front-right" },
+      { label: "Competition Stage", className: "green l1-front-right" },
       { label: "Toilets", className: "service l1-toilets" },
       { label: "Store", className: "service l1-store" },
     ],
     "2f": [
       { label: "Private KTV 1", className: "cyan l2-room-a" },
       { label: "Private KTV 2", className: "cyan l2-room-b" },
-      { label: "Private KTV 3", className: "cyan l2-room-c" },
-      { label: "Private KTV 4", className: "cyan l2-room-d" },
-      { label: "Beauty Salon", className: "pink l2-salon" },
+      { label: "Private KTV 3", className: "gold l2-room-c" },
+      { label: "Private KTV 4", className: "gold l2-room-d" },
+      { label: "Beauty Salon Unit", className: "pink l2-salon" },
       { label: "Wash / WC", className: "service l2-toilets" },
     ],
     "3f": [
-      { label: "VIP KTV Suite", className: "gold l3-vip-a" },
-      { label: "VIP KTV Suite", className: "violet l3-vip-b" },
-      { label: "Beauty Salon", className: "pink l3-salon" },
+      { label: "VIP KTV Unit A", className: "gold l3-vip-a" },
+      { label: "VIP KTV Unit B", className: "violet l3-vip-b" },
+      { label: "Beauty Salon Unit", className: "pink l3-salon" },
       { label: "Wash / WC", className: "service l3-toilets" },
       { label: "Makeup Bar", className: "green l3-makeup" },
     ],
@@ -959,7 +972,7 @@ function RenovatedFloorPlanShowcase({
   );
 }
 
-function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; units: string; detail: string }> }) {
+function FloorScrollStory({ floors }: { floors: FloorView[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const storyRef = useRef<HTMLDivElement | null>(null);
 
@@ -1033,6 +1046,13 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
                 <h3>{floor.title}</h3>
                 <small>{floor.units}</small>
                 <p>{floor.detail}</p>
+                {floor.unitSplit.length > 0 && (
+                  <ul className="rwg-floor-unit-split">
+                    {floor.unitSplit.map((unit) => (
+                      <li key={unit}>{unit}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </article>
           </section>
@@ -1064,11 +1084,8 @@ function FloorScrollStory({ floors }: { floors: Array<Floor & { title: string; u
 
 function Landing() {
   const { language } = useTranslation();
-  const copy = landingCopy[language] || landingCopy.en;
+  const copy = language === "zh" ? landingCopy.en : landingCopy[language] || landingCopy.en;
   const members = useLiveNumber(2341, 28);
-  const raised = 65000;
-  const cap = 200000;
-  const capPct = useMemo(() => Math.round((raised / cap) * 100), [raised]);
   const floors = useMemo(
     () =>
       floorMeta.map((floor, index) => ({
@@ -1076,15 +1093,7 @@ function Landing() {
         title: copy.floors[index][0],
         units: copy.floors[index][1],
         detail: copy.floors[index][2],
-      })),
-    [copy],
-  );
-  const investorSteps = useMemo(
-    () =>
-      copy.steps.map((step: string[], index: number) => ({
-        title: step[0],
-        detail: step[1],
-        icon: stepIcons[index],
+        unitSplit: copy.floors[index][3] || [],
       })),
     [copy],
   );
@@ -1236,6 +1245,9 @@ function Landing() {
         .rwg-floor-step h3{font-size:clamp(26px,3vw,38px);line-height:1.05;margin:0 0 12px;color:#fff;letter-spacing:0}
         .rwg-floor-step small{display:block;color:#f8d477;font-size:14px;line-height:1.5;font-weight:900;margin-bottom:14px}
         .rwg-floor-step p{font-size:17px;line-height:1.65;color:rgba(255,255,255,.68);margin:0;max-width:620px}
+        .rwg-floor-unit-split{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:8px;max-width:620px}
+        .rwg-floor-unit-split li{position:relative;min-height:40px;display:flex;align-items:center;padding:10px 12px 10px 38px;border-radius:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.82);font-size:13px;font-weight:800;line-height:1.35}
+        .rwg-floor-unit-split li:before{content:"";position:absolute;left:14px;width:10px;height:10px;border-radius:50%;background:var(--tone);box-shadow:0 0 0 5px color-mix(in srgb,var(--tone),transparent 84%),0 0 18px color-mix(in srgb,var(--tone),transparent 45%)}
         .rwg-floor-rail{position:sticky;left:18px;bottom:26px;z-index:10;display:flex;gap:8px;width:max-content;margin:-74px 0 0 clamp(16px,4vw,54px);padding:10px;border-radius:18px;background:rgba(3,21,26,.78);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(18px);box-shadow:0 18px 48px rgba(0,0,0,.3)}
         .rwg-floor-rail a{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;text-decoration:none;color:rgba(255,255,255,.45);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);transition:transform .3s ease,background .3s ease,color .3s ease}
         .rwg-floor-rail a svg{width:16px;height:16px}
@@ -1268,6 +1280,16 @@ function Landing() {
         .rwg-eco-calc-grid small{display:block;color:rgba(255,255,255,.55);font-size:11px;margin-bottom:6px}
         .rwg-eco-calc-grid strong{font-size:22px;color:#fff}
         .rwg-eco-complete{padding:12px 14px;border-radius:14px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.32);color:#86efac;font-weight:800;font-size:13px}
+        .rwg-social-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+        .rwg-social-card{position:relative;min-height:220px;border-radius:24px;padding:28px;display:flex;flex-direction:column;justify-content:flex-end;text-decoration:none;color:#fff;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 80px rgba(0,0,0,.28);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+        .rwg-social-card:before{content:"";position:absolute;inset:-35% -15% auto auto;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.42),transparent 68%);filter:blur(10px);opacity:.75}
+        .rwg-social-card:nth-child(2):before{background:radial-gradient(circle,rgba(244,114,182,.5),transparent 68%)}
+        .rwg-social-card:after{content:"";position:absolute;inset:18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px);background-size:30px 30px;mask-image:radial-gradient(circle at center,#000,transparent 78%);pointer-events:none}
+        .rwg-social-card:hover{transform:translateY(-5px);border-color:rgba(248,212,119,.34);box-shadow:0 28px 90px rgba(0,0,0,.36)}
+        .rwg-social-card span,.rwg-social-card strong,.rwg-social-card small{position:relative;z-index:1}
+        .rwg-social-card span{width:max-content;border-radius:999px;padding:7px 10px;background:rgba(248,212,119,.14);border:1px solid rgba(248,212,119,.28);color:#f8d477;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+        .rwg-social-card strong{font-size:clamp(26px,4vw,44px);line-height:1;color:#fff;letter-spacing:0;margin-bottom:12px;overflow-wrap:anywhere}
+        .rwg-social-card small{display:block;max-width:520px;color:rgba(255,255,255,.66);font-size:14px;line-height:1.55}
         .rwg-eco-audience{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
         .rwg-eco-audience .rwg-eco-panel svg{width:30px;height:30px;color:#22d3ee;margin-bottom:14px}
         .rwg-eco-blindbox{display:grid;grid-template-columns:.9fr 1.1fr;gap:18px;align-items:center}
@@ -1322,7 +1344,7 @@ function Landing() {
         @keyframes rwg-yash-glow{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
         @keyframes rwg-audience-bop{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
         @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-story{margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);overflow:hidden}.rwg-floor-level,.rwg-floor-level:nth-child(even){grid-template-columns:1fr;min-height:auto;padding:44px 18px 96px;gap:18px}.rwg-floor-level:nth-child(even) .rwg-floor-visual,.rwg-floor-level:nth-child(even) .rwg-floor-step{order:initial}.rwg-floor-visual{min-height:640px;border-radius:24px;padding:14px}.rwg-renovated-plan{min-height:610px;border-radius:22px;padding:16px}.rwg-renovated-plan-body{width:min(680px,82vw);min-height:360px}.rwg-yash-scroll-rail{left:12px;top:78px;bottom:52px}.rwg-plan-level-stack{right:14px;top:72px;width:74px;height:74px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr)}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-tower{width:190px;right:18px;bottom:24px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location{grid-template-columns:1fr}.rwg-floor-level{padding:28px 12px 92px;gap:12px}.rwg-floor-visual{min-height:500px;border-radius:18px;margin-left:0;margin-right:0;padding:10px}.rwg-floor-visual:before{inset:10px;border-radius:14px;background-size:22px 22px}.rwg-renovated-plan{border-radius:16px;min-height:480px;padding:10px}.rwg-renovated-plan:before{inset:8px;border-radius:12px;background-size:20px 20px}.rwg-renovated-plan-head{align-items:flex-start}.rwg-renovated-plan-head span{width:42px;border-radius:13px;font-size:14px}.rwg-renovated-plan-head strong{font-size:14px;max-width:190px}.rwg-renovated-plan-foot{font-size:8px;gap:8px}.rwg-renovated-plan-body{width:61vw;min-height:238px;margin:68px auto 18px;transform:perspective(700px) rotateX(54deg) rotateZ(-16deg) translateY(6px);box-shadow:0 18px 0 rgba(2,8,12,.58),0 28px 42px rgba(0,0,0,.32)}.rwg-plan-room{font-size:7px;line-height:1.05;padding:2px;border-radius:6px}.rwg-plan-room:after{height:5px;bottom:-5px}.rwg-plan-core{font-size:6px;border-radius:5px}.rwg-plan-wall.wall-top,.rwg-plan-wall.wall-bottom{height:4px}.rwg-plan-wall.wall-left,.rwg-plan-wall.wall-right{width:4px}.rwg-yash-camera-ring{display:none}.rwg-yash-scroll-rail{left:8px;top:62px;bottom:48px;gap:8px}.rwg-yash-scroll-rail b{width:11px;height:11px}.rwg-yash-scroll-rail:before{left:5px}.rwg-plan-level-stack{display:none}.rwg-floor-tower{width:116px;right:12px;bottom:16px;transform:rotateX(58deg) rotateZ(-28deg)}.rwg-floor-slab{height:28px;border-radius:9px;padding:0 8px}.rwg-floor-slab span{font-size:14px}.rwg-floor-step{min-height:auto;grid-template-columns:54px minmax(0,1fr);gap:12px;padding:16px;border-radius:18px}.rwg-floor-step-number{width:54px;border-radius:15px;font-size:18px}.rwg-floor-step svg{width:28px;height:28px;margin-bottom:10px}.rwg-floor-step h3{font-size:24px}.rwg-floor-step p{font-size:14px;line-height:1.55}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location,.rwg-social-grid{grid-template-columns:1fr}.rwg-social-card{min-height:185px;padding:22px}.rwg-social-card strong{font-size:28px}.rwg-floor-level{padding:28px 12px 92px;gap:12px}.rwg-floor-visual{min-height:500px;border-radius:18px;margin-left:0;margin-right:0;padding:10px}.rwg-floor-visual:before{inset:10px;border-radius:14px;background-size:22px 22px}.rwg-renovated-plan{border-radius:16px;min-height:480px;padding:10px}.rwg-renovated-plan:before{inset:8px;border-radius:12px;background-size:20px 20px}.rwg-renovated-plan-head{align-items:flex-start}.rwg-renovated-plan-head span{width:42px;border-radius:13px;font-size:14px}.rwg-renovated-plan-head strong{font-size:14px;max-width:190px}.rwg-renovated-plan-foot{font-size:8px;gap:8px}.rwg-renovated-plan-body{width:61vw;min-height:238px;margin:68px auto 18px;transform:perspective(700px) rotateX(54deg) rotateZ(-16deg) translateY(6px);box-shadow:0 18px 0 rgba(2,8,12,.58),0 28px 42px rgba(0,0,0,.32)}.rwg-plan-room{font-size:7px;line-height:1.05;padding:2px;border-radius:6px}.rwg-plan-room:after{height:5px;bottom:-5px}.rwg-plan-core{font-size:6px;border-radius:5px}.rwg-plan-wall.wall-top,.rwg-plan-wall.wall-bottom{height:4px}.rwg-plan-wall.wall-left,.rwg-plan-wall.wall-right{width:4px}.rwg-yash-camera-ring{display:none}.rwg-yash-scroll-rail{left:8px;top:62px;bottom:48px;gap:8px}.rwg-yash-scroll-rail b{width:11px;height:11px}.rwg-yash-scroll-rail:before{left:5px}.rwg-plan-level-stack{display:none}.rwg-floor-tower{width:116px;right:12px;bottom:16px;transform:rotateX(58deg) rotateZ(-28deg)}.rwg-floor-slab{height:28px;border-radius:9px;padding:0 8px}.rwg-floor-slab span{font-size:14px}.rwg-floor-step{min-height:auto;grid-template-columns:54px minmax(0,1fr);gap:12px;padding:16px;border-radius:18px}.rwg-floor-step-number{width:54px;border-radius:15px;font-size:18px}.rwg-floor-step svg{width:28px;height:28px;margin-bottom:10px}.rwg-floor-step h3{font-size:24px}.rwg-floor-step p{font-size:14px;line-height:1.55}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
@@ -1332,12 +1354,12 @@ function Landing() {
             <img src={rwgLogo} alt="Reborn Wave Group logo" />
             <span>Reborn Wave Group</span>
           </a>
-          <div className="rwg-eco-links">
-            <button onClick={() => scrollTo("ecosystem")}>{copy.nav[0]}</button>
-            <button onClick={() => scrollTo("investor")}>{copy.nav[1]}</button>
-            <button onClick={() => scrollTo("blindbox")}>{copy.nav[2]}</button>
-            <button onClick={() => scrollTo("join")}>{copy.nav[3]}</button>
-          </div>
+            <div className="rwg-eco-links">
+              <button onClick={() => scrollTo("ecosystem")}>{copy.nav[0]}</button>
+            <button onClick={() => scrollTo("join")}>{copy.nav[1]}</button>
+              <button onClick={() => scrollTo("blindbox")}>{copy.nav[2]}</button>
+              <button onClick={() => scrollTo("location")}>{copy.nav[3]}</button>
+            </div>
           <div className="rwg-eco-actions">
             <div className="rwg-language-wrap">
               <LanguageSelector />
@@ -1345,7 +1367,7 @@ function Landing() {
             <button className="rwg-eco-secondary" onClick={handleLogin}>
               {copy.login}
             </button>
-            <button className="rwg-eco-primary" onClick={() => scrollTo("investor")}>
+            <button className="rwg-eco-primary" onClick={() => scrollTo("social")}>
               {copy.investorPackage}
             </button>
           </div>
@@ -1387,7 +1409,7 @@ function Landing() {
       <section className="rwg-eco-section rwg-demo-section" id="demo">
         <div className="rwg-eco-section-head">
           <h2>Demo Video</h2>
-          <p>Watch the Reborn Wave Group club concept in motion: lifestyle, entertainment, and the member ecosystem in one quick preview.</p>
+          <p>Watch the Reborn Wave Group club concept in motion: singing, lifestyle, entertainment, services, family activities, and live events in one quick preview.</p>
         </div>
         <div className="rwg-demo-video-frame">
           <video src={rebornDemoVideo} controls playsInline preload="metadata" />
@@ -1402,38 +1424,22 @@ function Landing() {
         <FloorScrollStory floors={floors} />
       </section>
 
-      <section className="rwg-eco-section" id="investor">
+      <section className="rwg-eco-section" id="social">
         <div className="rwg-eco-section-head">
-          <h2>{copy.investorTitle}</h2>
-          <p>{copy.investorIntro}</p>
+          <h2>{copy.socialTitle || landingCopy.en.socialTitle}</h2>
+          <p>{copy.socialIntro || landingCopy.en.socialIntro}</p>
         </div>
-        <div className="rwg-eco-split">
-          <div className="rwg-eco-panel">
-            <h3>{copy.packageFlow}</h3>
-            <p>{copy.packageText}</p>
-            <div className="rwg-eco-invest-grid">
-              {investorSteps.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <div className="rwg-eco-invest-step" key={step.title}>
-                    <Icon />
-                    <strong>{step.title}</strong>
-                    <span>{step.detail}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="rwg-eco-cap">
-              <div className="rwg-eco-cap-row">
-                <span>{copy.capProgress}</span>
-                <span>${raised.toLocaleString()} / ${cap.toLocaleString()}</span>
-              </div>
-              <div className="rwg-eco-cap-track">
-                <div className="rwg-eco-cap-fill" style={{ "--cap-pct": `${capPct}%` } as React.CSSProperties} />
-              </div>
-            </div>
-          </div>
-          <InvestorCalculator copy={copy} />
+        <div className="rwg-social-grid">
+          <a className="rwg-social-card" href={tiktokUrl} target="_blank" rel="noreferrer">
+            <span>TikTok</span>
+            <strong>@reborn.wave.group</strong>
+            <small>Singing competitions, events, live clips, and behind-the-scenes moments.</small>
+          </a>
+          <a className="rwg-social-card" href={instagramUrl} target="_blank" rel="noreferrer">
+            <span>Instagram</span>
+            <strong>@rebornwavegroup</strong>
+            <small>Floor concepts, club moments, pet cafe content, beauty services, and live house updates.</small>
+          </a>
         </div>
       </section>
 
@@ -1560,7 +1566,7 @@ function Landing() {
         <button className="rwg-eco-secondary" onClick={handleLogin}>
           {copy.login}
         </button>
-        <button className="rwg-eco-primary" onClick={() => scrollTo("investor")}>
+        <button className="rwg-eco-primary" onClick={() => scrollTo("social")}>
           {copy.investorPackage}
         </button>
       </div>
