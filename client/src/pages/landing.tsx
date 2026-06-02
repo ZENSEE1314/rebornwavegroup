@@ -101,9 +101,9 @@ const landingCopy: Record<Language, any> = {
     floorsIntro:
       "Each scroll reveals one floor at a time, showing how families, tourists, friends, performers, and nightlife guests can enjoy the building from day to night.",
     floors: [
-      ["KTV Lounges + Kids Fun House", "Split floor: 2 units KTV lounge + 1 separate kids fun house unit", "Open singing, singing competitions, family play, and daily customer traffic from morning to night.", ["KTV Lounge: 2 units for open singing, group seating, and singing competition stage", "Kids Fun House: 1 separate unit for children, family play, and daytime tourist traffic"]],
-      ["Private KTV Rooms + Beauty Salon", "Split floor: 2 units private KTV rooms + 1 separate beauty salon unit", "Private celebrations, customer hosting, beauty services, and repeat booking packages.", ["Private KTV Rooms: 2 units with 4 private rooms for groups and birthdays", "Beauty Salon: 1 separate unit for beauty services, waiting, and repeat appointments"]],
-      ["VIP KTV Rooms + Beauty Salon", "Split floor: 2 units VIP KTV rooms + 1 separate beauty salon unit", "Premium rooms for VIP guests, birthday events, business hosting, and higher spend per visit.", ["VIP KTV Rooms: 2 units with 2 premium private rooms for higher-spend groups", "Beauty Salon: 1 separate unit for beauty service, makeup prep, and guest pampering"]],
+      ["Level 1 Activity Plans", "Two separate plans: Kids Fun House and KTV lounge", "Open singing, singing competitions, family play, and daily customer traffic from morning to night.", ["Kids Fun House: 1 separate unit for children, family play, and daytime tourist traffic", "KTV Lounge: 2 units for open singing, group seating, and singing competition stage"]],
+      ["Level 2 Service Plans", "Two separate plans: Beauty Salon and Private KTV rooms", "Private celebrations, customer hosting, beauty services, and repeat booking packages.", ["Beauty Salon: 1 separate unit for beauty services, waiting, and repeat appointments", "Private KTV Rooms: 2 units with 4 private rooms for groups and birthdays"]],
+      ["Level 3 VIP Plans", "Two separate plans: Beauty Salon and VIP KTV rooms", "Premium rooms for VIP guests, birthday events, business hosting, and higher spend per visit.", ["Beauty Salon: 1 separate unit for beauty service, makeup prep, and guest pampering", "VIP KTV Rooms: 2 units with 2 premium private rooms for higher-spend groups"]],
       ["Pet Cafe", "All 3 units connected as a pet cafe", "Food, drinks, pet-themed community, blindbox tie-ins, and content-friendly social traffic.", ["Unit A: pet cafe seating", "Unit B: pet play and photo area", "Unit C: kitchen, blindbox corner, and service"]],
       ["Sea-View Live House", "All 3 units joined for live band, audience, dance floor, and sea view", "Nightlife anchor with live music, special events, dance floor energy, and premium table sales.", ["Live band stage and backstage", "Audience tables and VIP viewing", "Dance floor with sea-view bar"]],
     ],
@@ -247,9 +247,9 @@ const landingCopy: Record<Language, any> = {
     floorsIntro:
       "Setiap scroll menampilkan satu lantai, dari aktivitas keluarga siang hari sampai live band, performance, dan nightlife di malam hari.",
     floors: [
-      ["KTV Lounge + Kids Fun House", "Lantai split: 2 unit KTV lounge + 1 unit kids fun house terpisah", "Nyanyi terbuka, kompetisi menyanyi, hiburan keluarga, dan traffic pelanggan dari pagi sampai malam.", ["KTV Lounge: 2 unit untuk open singing, group seating, dan competition stage", "Kids Fun House: 1 unit terpisah untuk anak, family play, dan traffic turis siang hari"]],
-      ["Private KTV Rooms + Beauty Salon", "Lantai split: 2 unit private KTV room + 1 unit beauty salon terpisah", "Perayaan privat, entertainment pelanggan, layanan kecantikan, dan paket booking berulang.", ["Private KTV Rooms: 2 unit berisi 4 private room untuk grup dan birthday", "Beauty Salon: 1 unit terpisah untuk beauty service, waiting, dan repeat appointment"]],
-      ["VIP KTV Rooms + Beauty Salon", "Lantai split: 2 unit VIP KTV room + 1 unit beauty salon terpisah", "Ruangan premium untuk tamu VIP, ulang tahun, business hosting, dan spending lebih tinggi.", ["VIP KTV Rooms: 2 unit dengan 2 premium private room untuk grup high-spend", "Beauty Salon: 1 unit terpisah untuk beauty service, makeup prep, dan guest pampering"]],
+      ["Level 1 Activity Plans", "Dua plan terpisah: Kids Fun House dan KTV lounge", "Nyanyi terbuka, kompetisi menyanyi, hiburan keluarga, dan traffic pelanggan dari pagi sampai malam.", ["Kids Fun House: 1 unit terpisah untuk anak, family play, dan traffic turis siang hari", "KTV Lounge: 2 unit untuk open singing, group seating, dan competition stage"]],
+      ["Level 2 Service Plans", "Dua plan terpisah: Beauty Salon dan Private KTV rooms", "Perayaan privat, entertainment pelanggan, layanan kecantikan, dan paket booking berulang.", ["Beauty Salon: 1 unit terpisah untuk beauty service, waiting, dan repeat appointment", "Private KTV Rooms: 2 unit berisi 4 private room untuk grup dan birthday"]],
+      ["Level 3 VIP Plans", "Dua plan terpisah: Beauty Salon dan VIP KTV rooms", "Ruangan premium untuk tamu VIP, ulang tahun, business hosting, dan spending lebih tinggi.", ["Beauty Salon: 1 unit terpisah untuk beauty service, makeup prep, dan guest pampering", "VIP KTV Rooms: 2 unit dengan 2 premium private room untuk grup high-spend"]],
       ["Pet Cafe", "Semua 3 unit lantai 4 menjadi pet cafe", "Makanan, minuman, komunitas pet, koneksi blindbox, dan konten yang mudah dibagikan.", ["Unit A: seating pet cafe", "Unit B: pet play dan photo area", "Unit C: kitchen, blindbox corner, dan service"]],
       ["Sea-View Live House", "Semua 3 unit digabung untuk live band, audience, dance floor, dan sea view", "Anchor nightlife dengan live music, event spesial, dance floor, dan penjualan meja premium.", ["Live band stage dan backstage", "Audience tables dan VIP viewing", "Dance floor dengan sea-view bar"]],
     ],
@@ -858,6 +858,63 @@ function RenovatedFloorPlanShowcase({
 }) {
   const activeFloor = floors[activeIndex] || floors[0];
   const planKey = (activeFloor?.level || "1F").toLowerCase();
+  const splitFloorPlans: Record<string, Array<{ title: string; rooms: Array<{ label: string; className: string }> }>> = {
+    "1f": [
+      {
+        title: "Kids Fun House Plan",
+        rooms: [
+          { label: "Kids Fun House", className: "pink sub-wide" },
+          { label: "Family Play Zone", className: "gold sub-left" },
+          { label: "Prize Counter", className: "green sub-right" },
+        ],
+      },
+      {
+        title: "KTV Lounge Plan",
+        rooms: [
+          { label: "KTV Lounge Unit A", className: "cyan sub-left-big" },
+          { label: "KTV Lounge Unit B", className: "cyan sub-right-big" },
+          { label: "Singing Competition Stage", className: "gold sub-wide-bottom" },
+        ],
+      },
+    ],
+    "2f": [
+      {
+        title: "Beauty Salon Plan",
+        rooms: [
+          { label: "Beauty Salon", className: "pink sub-wide" },
+          { label: "Wash Area", className: "service sub-left" },
+          { label: "Waiting Lounge", className: "green sub-right" },
+        ],
+      },
+      {
+        title: "Private KTV Room Plan",
+        rooms: [
+          { label: "Private KTV 1", className: "cyan sub-quad-a" },
+          { label: "Private KTV 2", className: "cyan sub-quad-b" },
+          { label: "Private KTV 3", className: "gold sub-quad-c" },
+          { label: "Private KTV 4", className: "gold sub-quad-d" },
+        ],
+      },
+    ],
+    "3f": [
+      {
+        title: "Beauty Salon Plan",
+        rooms: [
+          { label: "Beauty Salon", className: "pink sub-wide" },
+          { label: "Makeup Prep", className: "green sub-left" },
+          { label: "Wash Area", className: "service sub-right" },
+        ],
+      },
+      {
+        title: "VIP KTV Room Plan",
+        rooms: [
+          { label: "VIP KTV Room A", className: "gold sub-left-big" },
+          { label: "VIP KTV Room B", className: "violet sub-right-big" },
+          { label: "VIP Host Lobby", className: "cyan sub-wide-bottom" },
+        ],
+      },
+    ],
+  };
   const floorPlanRooms: Record<string, Array<{ label: string; className: string }>> = {
     "1f": [
       { label: "KTV Lounge Zone", className: "cyan l1-main-left" },
@@ -896,6 +953,48 @@ function RenovatedFloorPlanShowcase({
       { label: "Sea View Bar", className: "green l5-seaview" },
     ],
   };
+  const activeSplitPlans = splitFloorPlans[planKey];
+
+  const renderPlanBody = (
+    rooms: Array<{ label: string; className: string }>,
+    label: string,
+    keySuffix: string,
+    isSubPlan = false,
+  ) => (
+    <div
+      key={`${activeFloor?.level}-${keySuffix}`}
+      className={`rwg-renovated-plan-body scene-${activeFloor?.scene} plan-${planKey} ${isSubPlan ? "is-sub-plan" : ""}`}
+    >
+      {isSubPlan && <div className="rwg-sub-plan-title">{label}</div>}
+      <div className="rwg-yash-camera-ring ring-one" />
+      <div className="rwg-yash-camera-ring ring-two" />
+      <div className="rwg-plan-outline-cut cut-a" />
+      <div className="rwg-plan-outline-cut cut-b" />
+      <div className="rwg-plan-wall wall-top" />
+      <div className="rwg-plan-wall wall-bottom" />
+      <div className="rwg-plan-wall wall-left" />
+      <div className="rwg-plan-wall wall-right" />
+      {!isSubPlan && <div className="rwg-plan-core lift">Lift</div>}
+      {!isSubPlan && <div className="rwg-plan-core stair stair-a">Stairs</div>}
+      {!isSubPlan && <div className="rwg-plan-core stair stair-b">Stairs</div>}
+      {rooms.map((room, roomIndex) => (
+        <div
+          className={`rwg-plan-room ${room.className}`}
+          key={`${activeFloor?.level}-${keySuffix}-${room.label}`}
+          style={{ "--room-index": roomIndex } as React.CSSProperties}
+        >
+          <span>{room.label}</span>
+        </div>
+      ))}
+      {planKey === "5f" && (
+        <div className="rwg-live-audience-dots" aria-hidden="true">
+          {Array.from({ length: 28 }).map((_, index) => (
+            <i key={`audience-${index}`} style={{ "--audience-index": index } as React.CSSProperties} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -935,35 +1034,13 @@ function RenovatedFloorPlanShowcase({
           />
         ))}
       </div>
-      <div key={activeFloor?.level} className={`rwg-renovated-plan-body scene-${activeFloor?.scene} plan-${planKey}`}>
-        <div className="rwg-yash-camera-ring ring-one" />
-        <div className="rwg-yash-camera-ring ring-two" />
-        <div className="rwg-plan-outline-cut cut-a" />
-        <div className="rwg-plan-outline-cut cut-b" />
-        <div className="rwg-plan-wall wall-top" />
-        <div className="rwg-plan-wall wall-bottom" />
-        <div className="rwg-plan-wall wall-left" />
-        <div className="rwg-plan-wall wall-right" />
-        <div className="rwg-plan-core lift">Lift</div>
-        <div className="rwg-plan-core stair stair-a">Stairs</div>
-        <div className="rwg-plan-core stair stair-b">Stairs</div>
-        {(floorPlanRooms[planKey] || floorPlanRooms["1f"]).map((room, roomIndex) => (
-          <div
-            className={`rwg-plan-room ${room.className}`}
-            key={`${activeFloor?.level}-${room.label}`}
-            style={{ "--room-index": roomIndex } as React.CSSProperties}
-          >
-            <span>{room.label}</span>
-          </div>
-        ))}
-        {planKey === "5f" && (
-          <div className="rwg-live-audience-dots" aria-hidden="true">
-            {Array.from({ length: 28 }).map((_, index) => (
-              <i key={`audience-${index}`} style={{ "--audience-index": index } as React.CSSProperties} />
-            ))}
-          </div>
-        )}
-      </div>
+      {activeSplitPlans ? (
+        <div className="rwg-split-plan-grid">
+          {activeSplitPlans.map((plan, index) => renderPlanBody(plan.rooms, plan.title, `split-${index}`, true))}
+        </div>
+      ) : (
+        renderPlanBody(floorPlanRooms[planKey] || floorPlanRooms["1f"], activeFloor?.title || "", "main")
+      )}
       <div className="rwg-renovated-plan-foot">
         <span>15.2m frontage concept</span>
         <span>Renovated layout preview</span>
@@ -1194,6 +1271,10 @@ function Landing() {
         .rwg-plan-level-stack i{position:absolute;inset:0;border-radius:14px;border:1px solid color-mix(in srgb,var(--stack-tone),white 18%);background:linear-gradient(135deg,color-mix(in srgb,var(--stack-tone),#03151a 62%),rgba(255,255,255,.08));box-shadow:0 8px 0 color-mix(in srgb,var(--stack-tone),#020617 70%),0 18px 28px rgba(0,0,0,.22);opacity:.35;transform:translateZ(calc(var(--stack-index) * 16px));transition:opacity .35s ease,filter .35s ease,transform .35s ease}
         .rwg-plan-level-stack i.is-active{opacity:1;filter:saturate(1.35) brightness(1.25);transform:translateZ(calc(var(--stack-index) * 16px + 18px))}
         .rwg-renovated-plan-body{position:relative;z-index:1;margin:18px auto;border-radius:22px;border:0;width:min(820px,82vw);min-height:min(52vh,520px);background:linear-gradient(145deg,rgba(8,47,56,.64),rgba(3,21,26,.38));box-shadow:0 34px 0 rgba(2,8,12,.58),0 54px 88px rgba(0,0,0,.38),inset 0 0 0 1px rgba(255,255,255,.08);transform:perspective(900px) rotateX(56deg) rotateZ(-34deg) translateY(18px);transform-origin:center;animation:rwg-plan-enter .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe 7s ease-in-out infinite .65s;transform-style:preserve-3d}
+        .rwg-split-plan-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(14px,2vw,24px);align-items:center;margin:18px auto;width:min(1040px,88vw)}
+        .rwg-renovated-plan-body.is-sub-plan{width:100%;min-height:min(42vh,420px);margin:0;transform:perspective(820px) rotateX(54deg) rotateZ(-22deg) translateY(12px);box-shadow:0 26px 0 rgba(2,8,12,.58),0 42px 66px rgba(0,0,0,.36),inset 0 0 0 1px rgba(255,255,255,.08)}
+        .rwg-split-plan-grid .rwg-renovated-plan-body:nth-child(2){transform:perspective(820px) rotateX(54deg) rotateZ(-22deg) translateY(34px)}
+        .rwg-sub-plan-title{position:absolute;left:14px;top:14px;z-index:8;max-width:72%;border-radius:999px;padding:8px 10px;background:rgba(3,21,26,.82);border:1px solid rgba(255,255,255,.16);color:#f8d477;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;transform:translateZ(52px);box-shadow:0 14px 26px rgba(0,0,0,.28)}
         .rwg-renovated-plan-body.scene-private{animation:rwg-plan-enter-private .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe-private 7s ease-in-out infinite .65s}
         .rwg-renovated-plan-body.scene-vip{animation:rwg-plan-enter-vip .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe-vip 7s ease-in-out infinite .65s}
         .rwg-renovated-plan-body.scene-pet{animation:rwg-plan-enter-pet .65s cubic-bezier(.2,.8,.2,1),rwg-plan-breathe-pet 7s ease-in-out infinite .65s}
@@ -1223,6 +1304,9 @@ function Landing() {
         .rwg-plan-room.l3-vip-a{left:9%;top:8%;width:28%;height:42%}.rwg-plan-room.l3-vip-b{left:41%;top:8%;width:29%;height:42%}.rwg-plan-room.l3-salon{left:9%;bottom:8%;width:33%;height:28%}.rwg-plan-room.l3-toilets{right:7%;top:8%;width:18%;height:22%}.rwg-plan-room.l3-makeup{right:7%;top:36%;width:18%;height:20%}
         .rwg-plan-room.l4-cafe{left:9%;top:8%;width:33%;height:56%}.rwg-plan-room.l4-play{left:46%;top:8%;width:23%;height:56%}.rwg-plan-room.l4-kitchen{right:7%;top:8%;width:18%;height:20%}.rwg-plan-room.l4-blindbox{left:9%;bottom:8%;width:38%;height:25%}.rwg-plan-room.l4-toilets{right:7%;top:32%;width:18%;height:18%}
         .rwg-plan-room.l5-stage{left:9%;top:8%;width:38%;height:28%}.rwg-plan-room.l5-audience{left:9%;top:42%;width:38%;height:42%}.rwg-plan-room.l5-dance{left:52%;top:42%;width:28%;height:42%}.rwg-plan-room.l5-seaview{left:52%;top:8%;width:28%;height:28%}
+        .rwg-plan-room.sub-wide{left:10%;top:20%;width:80%;height:36%}.rwg-plan-room.sub-left{left:10%;bottom:10%;width:37%;height:25%}.rwg-plan-room.sub-right{right:10%;bottom:10%;width:37%;height:25%}
+        .rwg-plan-room.sub-left-big{left:9%;top:20%;width:38%;height:56%}.rwg-plan-room.sub-right-big{right:9%;top:20%;width:38%;height:56%}.rwg-plan-room.sub-wide-bottom{left:14%;bottom:10%;width:72%;height:22%}
+        .rwg-plan-room.sub-quad-a{left:10%;top:20%;width:36%;height:27%}.rwg-plan-room.sub-quad-b{right:10%;top:20%;width:36%;height:27%}.rwg-plan-room.sub-quad-c{left:10%;bottom:12%;width:36%;height:27%}.rwg-plan-room.sub-quad-d{right:10%;bottom:12%;width:36%;height:27%}
         .rwg-live-audience-dots{position:absolute;left:13%;top:49%;width:30%;height:28%;z-index:4;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;transform:translateZ(38px);pointer-events:none}
         .rwg-live-audience-dots i{width:10px;height:10px;border-radius:50%;background:#f8fafc;box-shadow:0 8px 0 rgba(15,23,42,.45),0 0 14px rgba(248,250,252,.36);animation:rwg-audience-bop 2.4s ease-in-out infinite;animation-delay:calc(var(--audience-index,0) * .04s)}
         .rwg-live-audience-dots i:nth-child(3n){background:#f8d477}.rwg-live-audience-dots i:nth-child(4n){background:#22d3ee}.rwg-live-audience-dots i:nth-child(5n){background:#f472b6}
@@ -1344,8 +1428,8 @@ function Landing() {
         @keyframes rwg-yash-ring{0%{transform:translate(-50%,-50%) translateZ(2px) rotate(0)}100%{transform:translate(-50%,-50%) translateZ(2px) rotate(360deg)}}
         @keyframes rwg-yash-glow{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
         @keyframes rwg-audience-bop{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-story{margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);overflow:hidden}.rwg-floor-level,.rwg-floor-level:nth-child(even){grid-template-columns:1fr;min-height:auto;padding:44px 18px 96px;gap:18px}.rwg-floor-level:nth-child(even) .rwg-floor-visual,.rwg-floor-level:nth-child(even) .rwg-floor-step{order:initial}.rwg-floor-visual{min-height:640px;border-radius:24px;padding:14px}.rwg-renovated-plan{min-height:610px;border-radius:22px;padding:16px}.rwg-renovated-plan-body{width:min(680px,82vw);min-height:360px}.rwg-yash-scroll-rail{left:12px;top:78px;bottom:52px}.rwg-plan-level-stack{right:14px;top:72px;width:74px;height:74px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr)}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-tower{width:190px;right:18px;bottom:24px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location,.rwg-social-grid,.rwg-floor-unit-split{grid-template-columns:1fr}.rwg-floor-unit-split li{min-height:auto}.rwg-social-card{min-height:185px;padding:22px}.rwg-social-card strong{font-size:28px}.rwg-floor-level{padding:28px 12px 92px;gap:12px}.rwg-floor-visual{min-height:500px;border-radius:18px;margin-left:0;margin-right:0;padding:10px}.rwg-floor-visual:before{inset:10px;border-radius:14px;background-size:22px 22px}.rwg-renovated-plan{border-radius:16px;min-height:480px;padding:10px}.rwg-renovated-plan:before{inset:8px;border-radius:12px;background-size:20px 20px}.rwg-renovated-plan-head{align-items:flex-start}.rwg-renovated-plan-head span{width:42px;border-radius:13px;font-size:14px}.rwg-renovated-plan-head strong{font-size:14px;max-width:190px}.rwg-renovated-plan-foot{font-size:8px;gap:8px}.rwg-renovated-plan-body{width:61vw;min-height:238px;margin:68px auto 18px;transform:perspective(700px) rotateX(54deg) rotateZ(-16deg) translateY(6px);box-shadow:0 18px 0 rgba(2,8,12,.58),0 28px 42px rgba(0,0,0,.32)}.rwg-plan-room{font-size:7px;line-height:1.05;padding:2px;border-radius:6px}.rwg-plan-room:after{height:5px;bottom:-5px}.rwg-plan-core{font-size:6px;border-radius:5px}.rwg-plan-wall.wall-top,.rwg-plan-wall.wall-bottom{height:4px}.rwg-plan-wall.wall-left,.rwg-plan-wall.wall-right{width:4px}.rwg-yash-camera-ring{display:none}.rwg-yash-scroll-rail{left:8px;top:62px;bottom:48px;gap:8px}.rwg-yash-scroll-rail b{width:11px;height:11px}.rwg-yash-scroll-rail:before{left:5px}.rwg-plan-level-stack{display:none}.rwg-floor-tower{width:116px;right:12px;bottom:16px;transform:rotateX(58deg) rotateZ(-28deg)}.rwg-floor-slab{height:28px;border-radius:9px;padding:0 8px}.rwg-floor-slab span{font-size:14px}.rwg-floor-step{min-height:auto;grid-template-columns:54px minmax(0,1fr);gap:12px;padding:16px;border-radius:18px}.rwg-floor-step-number{width:54px;border-radius:15px;font-size:18px}.rwg-floor-step svg{width:28px;height:28px;margin-bottom:10px}.rwg-floor-step h3{font-size:24px}.rwg-floor-step p{font-size:14px;line-height:1.55}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
+        @media(max-width:1020px){.rwg-eco-links{display:none}.rwg-eco-hero,.rwg-eco-split,.rwg-eco-blindbox,.rwg-eco-location{grid-template-columns:1fr}.rwg-eco-hero{padding-top:42px}.rwg-eco-stage{min-height:500px;order:-1}.rwg-floor-story{margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);overflow:hidden}.rwg-floor-level,.rwg-floor-level:nth-child(even){grid-template-columns:1fr;min-height:auto;padding:44px 18px 96px;gap:18px}.rwg-floor-level:nth-child(even) .rwg-floor-visual,.rwg-floor-level:nth-child(even) .rwg-floor-step{order:initial}.rwg-floor-visual{min-height:640px;border-radius:24px;padding:14px}.rwg-renovated-plan{min-height:610px;border-radius:22px;padding:16px}.rwg-split-plan-grid{grid-template-columns:1fr;width:min(680px,82vw);gap:24px}.rwg-renovated-plan-body{width:min(680px,82vw);min-height:360px}.rwg-renovated-plan-body.is-sub-plan{min-height:310px}.rwg-split-plan-grid .rwg-renovated-plan-body:nth-child(2){transform:perspective(820px) rotateX(54deg) rotateZ(-22deg) translateY(12px)}.rwg-yash-scroll-rail{left:12px;top:78px;bottom:52px}.rwg-plan-level-stack{right:14px;top:72px;width:74px;height:74px}.rwg-floor-step{grid-template-columns:76px minmax(0,1fr)}.rwg-floor-mini-scene{min-height:320px}.rwg-floor-tower{width:190px;right:18px;bottom:24px}.rwg-eco-invest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rwg-eco-pets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){.rwg-eco-nav-inner{padding:10px 14px}.rwg-eco-brand span{display:none}.rwg-eco-actions{display:none}.rwg-eco-hero{display:flex;flex-direction:column;padding:26px 14px 28px;gap:18px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-hero>div{width:100%;min-width:0}.rwg-eco-hero h1{font-size:clamp(36px,12vw,46px);max-width:100%;overflow-wrap:normal}.rwg-eco-hero p{font-size:15px;max-width:100%;overflow-wrap:break-word}.rwg-eco-hero-ctas{display:grid;grid-template-columns:1fr;width:100%}.rwg-eco-proof{grid-template-columns:1fr;width:100%}.rwg-eco-stage{min-height:390px;width:100%;max-width:100%;min-width:0;overflow:hidden}.rwg-eco-building{width:260px;transform:rotateX(58deg) rotateZ(-24deg)}.rwg-eco-floor{height:64px;border-radius:14px;padding:0 16px}.rwg-eco-floor span{font-size:20px}.rwg-eco-floor strong{font-size:11px}.rwg-eco-floor small{display:none}.rwg-eco-pet-boy{width:86px;right:8px;top:54px}.rwg-eco-pet-baby{width:82px;left:4px;bottom:54px}.rwg-eco-box{width:118px;right:8px;bottom:36px;border-radius:14px}.orbit-one{width:286px;height:110px}.orbit-two{width:210px;height:80px}.rwg-eco-section{padding:40px 14px;overflow:hidden;width:100%;max-width:100vw}.rwg-eco-section-head{display:block}.rwg-eco-section-head p{margin-top:10px}.rwg-eco-invest-grid,.rwg-eco-audience,.rwg-eco-pets,.rwg-eco-calc-grid,.rwg-eco-location,.rwg-social-grid,.rwg-floor-unit-split{grid-template-columns:1fr}.rwg-floor-unit-split li{min-height:auto}.rwg-social-card{min-height:185px;padding:22px}.rwg-social-card strong{font-size:28px}.rwg-floor-level{padding:28px 12px 92px;gap:12px}.rwg-floor-visual{min-height:720px;border-radius:18px;margin-left:0;margin-right:0;padding:10px}.rwg-floor-visual:before{inset:10px;border-radius:14px;background-size:22px 22px}.rwg-renovated-plan{border-radius:16px;min-height:700px;padding:10px}.rwg-renovated-plan:before{inset:8px;border-radius:12px;background-size:20px 20px}.rwg-renovated-plan-head{align-items:flex-start}.rwg-renovated-plan-head span{width:42px;border-radius:13px;font-size:14px}.rwg-renovated-plan-head strong{font-size:14px;max-width:190px}.rwg-renovated-plan-foot{font-size:8px;gap:8px}.rwg-split-plan-grid{width:72vw;gap:34px}.rwg-renovated-plan-body{width:61vw;min-height:238px;margin:68px auto 18px;transform:perspective(700px) rotateX(54deg) rotateZ(-16deg) translateY(6px);box-shadow:0 18px 0 rgba(2,8,12,.58),0 28px 42px rgba(0,0,0,.32)}.rwg-renovated-plan-body.is-sub-plan{width:72vw;min-height:235px;transform:perspective(700px) rotateX(52deg) rotateZ(-14deg) translateY(6px)}.rwg-split-plan-grid .rwg-renovated-plan-body:nth-child(2){transform:perspective(700px) rotateX(52deg) rotateZ(-14deg) translateY(6px)}.rwg-sub-plan-title{font-size:7px;padding:6px 8px;max-width:86%}.rwg-plan-room{font-size:7px;line-height:1.05;padding:2px;border-radius:6px}.rwg-plan-room:after{height:5px;bottom:-5px}.rwg-plan-core{font-size:6px;border-radius:5px}.rwg-plan-wall.wall-top,.rwg-plan-wall.wall-bottom{height:4px}.rwg-plan-wall.wall-left,.rwg-plan-wall.wall-right{width:4px}.rwg-yash-camera-ring{display:none}.rwg-yash-scroll-rail{left:8px;top:62px;bottom:48px;gap:8px}.rwg-yash-scroll-rail b{width:11px;height:11px}.rwg-yash-scroll-rail:before{left:5px}.rwg-plan-level-stack{display:none}.rwg-floor-tower{width:116px;right:12px;bottom:16px;transform:rotateX(58deg) rotateZ(-28deg)}.rwg-floor-slab{height:28px;border-radius:9px;padding:0 8px}.rwg-floor-slab span{font-size:14px}.rwg-floor-step{min-height:auto;grid-template-columns:54px minmax(0,1fr);gap:12px;padding:16px;border-radius:18px}.rwg-floor-step-number{width:54px;border-radius:15px;font-size:18px}.rwg-floor-step svg{width:28px;height:28px;margin-bottom:10px}.rwg-floor-step h3{font-size:24px}.rwg-floor-step p{font-size:14px;line-height:1.55}.rwg-floor-mini-scene{min-height:250px;aspect-ratio:1}.rwg-floor-rail{left:10px;bottom:76px;margin-left:10px}.rwg-floor-rail a{width:34px;height:34px;border-radius:11px}.rwg-eco-panel,.rwg-eco-calculator{padding:18px}.rwg-eco-mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:10px 12px 18px;background:rgba(3,21,26,.94);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.12);gap:10px}.rwg-eco-mobile-bar button{flex:1;min-width:0;padding-left:8px;padding-right:8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rwg-eco-footer{padding-bottom:105px}}
         @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
 
