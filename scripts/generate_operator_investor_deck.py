@@ -29,7 +29,7 @@ MAP_URL = (
     "https://www.google.com/maps/search/?api=1&query=Ruko%20Oceanic%20Bliss%2C%20Jl.%20Pasir%20Putih%20Harbourfront%20-%20Batam%20Centre.49%20blok%20A.%2051%2C%20Sadai%2C%20Bengkong%2C%20Batam%20City%2C%20Riau%20Islands%2029444"
 )
 DISCLAIMER = (
-    "ROI projections are estimates, not guaranteed returns. Figures require review by qualified "
+    "Return projections are estimates, not guaranteed returns. Figures require review by qualified "
     "legal, tax, and accounting professionals before operator contracts are signed."
 )
 PAYBACK_LINE = "Projection target: operator recovers setup capital in 6 months; month 7 onward becomes operating profit."
@@ -47,7 +47,10 @@ BUSINESSES = [
         "opex": "Rp95M",
         "net": "Rp208M",
         "operator_profit": "Rp1.75B",
-        "roi": "200%",
+        "operator_monthly": "Rp146M/month",
+        "reborn_monthly": "Rp62M/month",
+        "month7_profit": "Rp875M",
+        "visual": "Untitled design (1)_1749583559820.png",
         "why": "Family and tourist daytime traffic, prize games, birthday visits, and safe kid-friendly activities.",
         "accent": PINK,
     },
@@ -62,7 +65,10 @@ BUSINESSES = [
         "opex": "Rp205M",
         "net": "Rp417M",
         "operator_profit": "Rp3.5B",
-        "roi": "200%",
+        "operator_monthly": "Rp292M/month",
+        "reborn_monthly": "Rp125M/month",
+        "month7_profit": "Rp1.75B",
+        "visual": "image_1764558901062.png",
         "why": "Open singing, group seating, singing competitions, and social video moments for repeat traffic.",
         "accent": CYAN,
     },
@@ -77,7 +83,10 @@ BUSINESSES = [
         "opex": "Rp85M",
         "net": "Rp185M",
         "operator_profit": "Rp1.55B",
-        "roi": "200%",
+        "operator_monthly": "Rp129M/month",
+        "reborn_monthly": "Rp55M/month",
+        "month7_profit": "Rp775M",
+        "visual": "image_1764574285772.png",
         "why": "Repeat appointments, group makeovers, event prep, and cross-traffic from KTV guests.",
         "accent": PINK,
     },
@@ -92,7 +101,10 @@ BUSINESSES = [
         "opex": "Rp235M",
         "net": "Rp452M",
         "operator_profit": "Rp3.8B",
-        "roi": "200%",
+        "operator_monthly": "Rp317M/month",
+        "reborn_monthly": "Rp136M/month",
+        "month7_profit": "Rp1.9B",
+        "visual": "image_1764574285772.png",
         "why": "Four bookable rooms for birthdays, friend groups, customer hosting, and private celebrations.",
         "accent": CYAN,
     },
@@ -107,7 +119,10 @@ BUSINESSES = [
         "opex": "Rp90M",
         "net": "Rp185M",
         "operator_profit": "Rp1.55B",
-        "roi": "200%",
+        "operator_monthly": "Rp129M/month",
+        "reborn_monthly": "Rp55M/month",
+        "month7_profit": "Rp775M",
+        "visual": "image_1764574285772.png",
         "why": "Beauty service beside VIP KTV supports premium guests, event prep, and recurring spend.",
         "accent": PINK,
     },
@@ -122,7 +137,10 @@ BUSINESSES = [
         "opex": "Rp270M",
         "net": "Rp512M",
         "operator_profit": "Rp4.3B",
-        "roi": "200%",
+        "operator_monthly": "Rp358M/month",
+        "reborn_monthly": "Rp154M/month",
+        "month7_profit": "Rp2.15B",
+        "visual": "image_1764574285772.png",
         "why": "Two premium rooms for VIP groups, business hosting, birthday events, and higher table spend.",
         "accent": GOLD,
     },
@@ -137,7 +155,10 @@ BUSINESSES = [
         "opex": "Rp330M",
         "net": "Rp595M",
         "operator_profit": "Rp5.0B",
-        "roi": "200%",
+        "operator_monthly": "Rp417M/month",
+        "reborn_monthly": "Rp179M/month",
+        "month7_profit": "Rp2.5B",
+        "visual": "doluruu-blindbox-box.jpeg",
         "why": "Food, drinks, pet community, blindbox tie-ins, photo content, and family-friendly visits.",
         "accent": GREEN,
     },
@@ -152,7 +173,10 @@ BUSINESSES = [
         "opex": "Rp550M",
         "net": "Rp857M",
         "operator_profit": "Rp7.2B",
-        "roi": "200%",
+        "operator_monthly": "Rp600M/month",
+        "reborn_monthly": "Rp257M/month",
+        "month7_profit": "Rp3.6B",
+        "visual": "Untitled design (1)_1749583559820.png",
         "why": "Live band, performances, dance floor, sea-view events, premium tables, and nightlife traffic.",
         "accent": VIOLET,
     },
@@ -210,7 +234,7 @@ def image(slide, filename, x, y, w, h=None):
 
 def footer(slide):
     tx(slide, "Reborn Wave Group | Operator-Investor Deck | IDR main + SGD reference", 0.55, 7.05, 7.8, 0.2, 7, MUTED)
-    tx(slide, "ROI estimates only, not guaranteed returns.", 8.2, 6.95, 4.6, 0.25, 6, MUTED, align=PP_ALIGN.RIGHT)
+    tx(slide, "Return estimates only, not guaranteed returns.", 8.2, 6.95, 4.6, 0.25, 6, MUTED, align=PP_ALIGN.RIGHT)
 
 
 def title(slide, heading, sub=None):
@@ -252,13 +276,16 @@ def opportunity(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
     title(slide, "The Opportunity", "Tourism, family, nightlife, beauty, KTV, pet cafe, and events in one building.")
+    rect(slide, 0.7, 1.78, 4.25, 3.65, PANEL_2, CYAN)
+    image(slide, "image_1764558901062.png", 0.9, 2.0, 3.85, 2.35)
+    tx(slide, "Website-style premium dark visuals, social content, and shared traffic make the building feel like one destination.", 0.92, 4.62, 3.85, 0.58, 10, WHITE)
     items = [
         ("One Destination", "A five-level Batam club where tourists, families, groups, and nightlife guests can stay longer and spend across multiple activities."),
         ("Partner-Led Growth", "Operators bring capital and operating expertise while Reborn Wave provides space, brand, traffic, website, social media, and shared customer flow."),
         ("Cross-Traffic", "KTV, kids play, beauty, pet cafe, and live events feed each other through packages, birthdays, competitions, and social content."),
     ]
     for i, item in enumerate(items):
-        card(slide, 0.7 + i * 4.05, 1.95, 3.55, 2.6, item[0], item[1], [CYAN, GOLD, GREEN][i], 10)
+        card(slide, 5.25, 1.7 + i * 1.42, 6.7, 1.08, item[0], item[1], [CYAN, GOLD, GREEN][i], 9)
     footer(slide)
 
 
@@ -295,9 +322,9 @@ def floor_breakdown(prs):
 def roi_table(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "6-Month Capital Recovery Projection", "Base-case projections target capital back in 6 months; month 7 onward becomes operator profit.")
-    headers = ["Business", "Setup IDR", "Setup SGD", "Monthly Net", "Operator Annual", "ROI"]
-    widths = [2.6, 1.65, 1.35, 1.75, 1.9, 0.9]
+    title(slide, "Monthly Return Stats", "Base-case projections target capital back in 6 months; month 7 onward becomes operator profit.")
+    headers = ["Business", "Setup IDR", "Monthly Net", "Operator Monthly", "Reborn Monthly", "Profit After Month 6"]
+    widths = [2.55, 1.45, 1.5, 1.75, 1.75, 2.0]
     x0, y0 = 0.55, 1.55
     x = x0
     for header, width in zip(headers, widths):
@@ -306,13 +333,13 @@ def roi_table(prs):
         x += width
     for r, b in enumerate(BUSINESSES):
         y = y0 + 0.43 + r * 0.52
-        vals = [f'{b["code"]} {b["name"]}', b["setup_idr"], b["setup_sgd"], b["net"], b["operator_profit"], b["roi"]]
+        vals = [f'{b["code"]} {b["name"]}', b["setup_idr"], b["net"], b["operator_monthly"], b["reborn_monthly"], b["month7_profit"]]
         x = x0
         for c, (val, width) in enumerate(zip(vals, widths)):
             fill = RGBColor(7, 39, 45) if r % 2 == 0 else RGBColor(9, 48, 54)
             rect(slide, x, y, width, 0.5, fill, LINE, False)
-            color = b["accent"] if c == 5 else WHITE if c == 0 else MUTED
-            tx(slide, val, x + 0.05, y + 0.12, width - 0.1, 0.16, 7, color, c in [0, 5], PP_ALIGN.CENTER if c > 0 else None)
+            color = b["accent"] if c in [3, 5] else WHITE if c == 0 else MUTED
+            tx(slide, val, x + 0.05, y + 0.12, width - 0.1, 0.16, 7, color, c in [0, 3, 5], PP_ALIGN.CENTER if c > 0 else None)
             x += width
     tx(slide, f"{PAYBACK_LINE} Exchange assumption: SGD 1 approx. IDR 13,900.", 0.65, 6.36, 9.9, 0.38, 8, MUTED)
     footer(slide)
@@ -325,11 +352,13 @@ def business_slide(prs, b):
     metric(slide, 0.72, 1.72, 1.6, "Setup IDR", b["setup_idr"], b["accent"])
     metric(slide, 2.55, 1.72, 1.45, "Setup SGD", b["setup_sgd"], GOLD)
     metric(slide, 4.25, 1.72, 1.55, "Monthly net", b["net"], CYAN)
-    metric(slide, 6.05, 1.72, 1.65, "Annual operator", b["operator_profit"], GREEN)
-    metric(slide, 7.95, 1.72, 1.25, "Annual ROI", b["roi"], b["accent"])
-    card(slide, 0.72, 3.0, 4.0, 2.05, "Monthly assumptions", f'Revenue: {b["revenue"]}\nOperating costs: {b["opex"]}\nNet profit before split: {b["net"]}', CYAN, 12)
-    card(slide, 5.0, 3.0, 3.65, 2.05, "Why it attracts customers", b["why"], b["accent"], 11)
-    card(slide, 8.95, 3.0, 3.0, 2.05, "Operator upside", f'Target setup capital back in 6 months.\nMonth 7 onward becomes projected profit.\nAnnual ROI projection: {b["roi"]}.', GOLD, 10)
+    metric(slide, 6.05, 1.72, 1.85, "Operator monthly", b["operator_monthly"], GREEN)
+    metric(slide, 8.15, 1.72, 1.65, "Reborn monthly", b["reborn_monthly"], GOLD)
+    rect(slide, 0.72, 3.0, 3.35, 2.25, PANEL_2, b["accent"])
+    image(slide, b["visual"], 0.92, 3.18, 2.95, 1.7)
+    card(slide, 4.35, 3.0, 3.2, 2.05, "Monthly assumptions", f'Revenue: {b["revenue"]}\nOperating costs: {b["opex"]}\nNet profit before split: {b["net"]}', CYAN, 11)
+    card(slide, 7.85, 3.0, 3.55, 2.05, "Operator return", f'Operator monthly earning: {b["operator_monthly"]}\nProjected capital back: 6 months\nMonth 7 onward profit: {b["month7_profit"]} per 6 months', GOLD, 10)
+    card(slide, 1.1, 5.48, 10.25, 0.78, "Customer engine", b["why"], b["accent"], 9)
     footer(slide)
 
 
@@ -414,7 +443,7 @@ def build():
     risk_controls(prs)
     next_steps(prs)
     OUT.mkdir(exist_ok=True)
-    output = OUT / "Reborn-Wave-Operator-Investor-Deck-EN-6-Month-ROI.pptx"
+    output = OUT / "Reborn-Wave-Operator-Investor-Deck-EN-Monthly-Return-Stats.pptx"
     prs.save(output)
     return output
 
