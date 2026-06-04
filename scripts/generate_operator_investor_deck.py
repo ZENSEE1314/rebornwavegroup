@@ -32,6 +32,7 @@ DISCLAIMER = (
     "ROI projections are estimates, not guaranteed returns. Figures require review by qualified "
     "legal, tax, and accounting professionals before operator contracts are signed."
 )
+PAYBACK_LINE = "Projection target: operator recovers setup capital in 6 months; month 7 onward becomes operating profit."
 
 
 BUSINESSES = [
@@ -42,11 +43,11 @@ BUSINESSES = [
         "sqm": 75,
         "setup_idr": "Rp875M",
         "setup_sgd": "S$63K",
-        "revenue": "Rp140M",
+        "revenue": "Rp303M",
         "opex": "Rp95M",
-        "net": "Rp45M",
-        "operator_profit": "Rp378M",
-        "roi": "43%",
+        "net": "Rp208M",
+        "operator_profit": "Rp1.75B",
+        "roi": "200%",
         "why": "Family and tourist daytime traffic, prize games, birthday visits, and safe kid-friendly activities.",
         "accent": PINK,
     },
@@ -57,11 +58,11 @@ BUSINESSES = [
         "sqm": 150,
         "setup_idr": "Rp1.75B",
         "setup_sgd": "S$126K",
-        "revenue": "Rp300M",
+        "revenue": "Rp622M",
         "opex": "Rp205M",
-        "net": "Rp95M",
-        "operator_profit": "Rp798M",
-        "roi": "46%",
+        "net": "Rp417M",
+        "operator_profit": "Rp3.5B",
+        "roi": "200%",
         "why": "Open singing, group seating, singing competitions, and social video moments for repeat traffic.",
         "accent": CYAN,
     },
@@ -72,11 +73,11 @@ BUSINESSES = [
         "sqm": 75,
         "setup_idr": "Rp775M",
         "setup_sgd": "S$56K",
-        "revenue": "Rp135M",
+        "revenue": "Rp270M",
         "opex": "Rp85M",
-        "net": "Rp50M",
-        "operator_profit": "Rp420M",
-        "roi": "54%",
+        "net": "Rp185M",
+        "operator_profit": "Rp1.55B",
+        "roi": "200%",
         "why": "Repeat appointments, group makeovers, event prep, and cross-traffic from KTV guests.",
         "accent": PINK,
     },
@@ -87,11 +88,11 @@ BUSINESSES = [
         "sqm": 150,
         "setup_idr": "Rp1.9B",
         "setup_sgd": "S$137K",
-        "revenue": "Rp350M",
+        "revenue": "Rp687M",
         "opex": "Rp235M",
-        "net": "Rp115M",
-        "operator_profit": "Rp966M",
-        "roi": "51%",
+        "net": "Rp452M",
+        "operator_profit": "Rp3.8B",
+        "roi": "200%",
         "why": "Four bookable rooms for birthdays, friend groups, customer hosting, and private celebrations.",
         "accent": CYAN,
     },
@@ -102,11 +103,11 @@ BUSINESSES = [
         "sqm": 75,
         "setup_idr": "Rp775M",
         "setup_sgd": "S$56K",
-        "revenue": "Rp145M",
+        "revenue": "Rp275M",
         "opex": "Rp90M",
-        "net": "Rp55M",
-        "operator_profit": "Rp462M",
-        "roi": "60%",
+        "net": "Rp185M",
+        "operator_profit": "Rp1.55B",
+        "roi": "200%",
         "why": "Beauty service beside VIP KTV supports premium guests, event prep, and recurring spend.",
         "accent": PINK,
     },
@@ -117,11 +118,11 @@ BUSINESSES = [
         "sqm": 150,
         "setup_idr": "Rp2.15B",
         "setup_sgd": "S$155K",
-        "revenue": "Rp400M",
+        "revenue": "Rp782M",
         "opex": "Rp270M",
-        "net": "Rp130M",
-        "operator_profit": "Rp1.092B",
-        "roi": "51%",
+        "net": "Rp512M",
+        "operator_profit": "Rp4.3B",
+        "roi": "200%",
         "why": "Two premium rooms for VIP groups, business hosting, birthday events, and higher table spend.",
         "accent": GOLD,
     },
@@ -132,11 +133,11 @@ BUSINESSES = [
         "sqm": 225,
         "setup_idr": "Rp2.5B",
         "setup_sgd": "S$180K",
-        "revenue": "Rp450M",
+        "revenue": "Rp925M",
         "opex": "Rp330M",
-        "net": "Rp120M",
-        "operator_profit": "Rp1.008B",
-        "roi": "40%",
+        "net": "Rp595M",
+        "operator_profit": "Rp5.0B",
+        "roi": "200%",
         "why": "Food, drinks, pet community, blindbox tie-ins, photo content, and family-friendly visits.",
         "accent": GREEN,
     },
@@ -147,11 +148,11 @@ BUSINESSES = [
         "sqm": 225,
         "setup_idr": "Rp3.6B",
         "setup_sgd": "S$259K",
-        "revenue": "Rp750M",
+        "revenue": "Rp1.407B",
         "opex": "Rp550M",
-        "net": "Rp200M",
-        "operator_profit": "Rp1.68B",
-        "roi": "47%",
+        "net": "Rp857M",
+        "operator_profit": "Rp7.2B",
+        "roi": "200%",
         "why": "Live band, performances, dance floor, sea-view events, premium tables, and nightlife traffic.",
         "accent": VIOLET,
     },
@@ -238,7 +239,7 @@ def cover(prs):
     tx(slide, "Reborn Wave Group", 0.72, 1.72, 6.2, 0.7, 39, WHITE, True)
     tx(slide, "5-Level Batam Activity Club", 0.76, 2.58, 5.9, 0.38, 18, GOLD, True)
     tx(slide, "Operator-Investor Opportunity: 2 Years $0 Rent", 0.76, 3.25, 5.6, 0.55, 16, MUTED)
-    tx(slide, "Business owners fund renovation and operations, then keep 70% of monthly net profit.", 0.76, 4.08, 5.7, 0.65, 13, WHITE)
+    tx(slide, "Business owners fund renovation and operations, target capital recovery in 6 months, then keep 70% of monthly net profit from month 7 onward.", 0.76, 4.02, 5.9, 0.86, 12, WHITE)
     rect(slide, 7.05, 0.9, 5.15, 5.6, PANEL_2)
     image(slide, "doluruu-blindbox-box.jpeg", 7.38, 1.14, 4.45, 2.55)
     image(slide, "doluruu-female-transparent.png", 8.18, 3.38, 1.45)
@@ -264,11 +265,11 @@ def opportunity(prs):
 def operator_deal(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "Operator Deal", "A lower-rent-risk path for business owners to operate inside a ready destination.")
+    title(slide, "Operator Deal", "A lower-rent-risk path with a 6-month capital recovery target.")
     deal = [
         ("$0 rent for 24 months", "Operator gets two years rent-free from opening or handover date."),
         ("Operator funds the business", "Renovation, equipment, staff, stock, licenses, utilities, and operations are covered by the operator."),
-        ("70/30 monthly profit split", "Monthly net operating profit is split 70% to operator and 30% to Reborn Wave Group."),
+        ("70/30 split + 6-month target", "Monthly net profit is split 70% to operator and 30% to Reborn. Base case targets capital back in 6 months."),
         ("Transparent reporting", "Sales run through shared POS or audited monthly report; cash sales must be recorded daily."),
     ]
     for i, item in enumerate(deal):
@@ -294,7 +295,7 @@ def floor_breakdown(prs):
 def roi_table(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "Budget + ROI Projection", "Balanced base-case projections. Operator annual ROI is based on 70% profit share.")
+    title(slide, "6-Month Capital Recovery Projection", "Base-case projections target capital back in 6 months; month 7 onward becomes operator profit.")
     headers = ["Business", "Setup IDR", "Setup SGD", "Monthly Net", "Operator Annual", "ROI"]
     widths = [2.6, 1.65, 1.35, 1.75, 1.9, 0.9]
     x0, y0 = 0.55, 1.55
@@ -313,7 +314,7 @@ def roi_table(prs):
             color = b["accent"] if c == 5 else WHITE if c == 0 else MUTED
             tx(slide, val, x + 0.05, y + 0.12, width - 0.1, 0.16, 7, color, c in [0, 5], PP_ALIGN.CENTER if c > 0 else None)
             x += width
-    tx(slide, "Exchange assumption: SGD 1 approx. IDR 13,900.", 0.65, 6.45, 6.3, 0.25, 8, MUTED)
+    tx(slide, f"{PAYBACK_LINE} Exchange assumption: SGD 1 approx. IDR 13,900.", 0.65, 6.36, 9.9, 0.38, 8, MUTED)
     footer(slide)
 
 
@@ -328,21 +329,21 @@ def business_slide(prs, b):
     metric(slide, 7.95, 1.72, 1.25, "Annual ROI", b["roi"], b["accent"])
     card(slide, 0.72, 3.0, 4.0, 2.05, "Monthly assumptions", f'Revenue: {b["revenue"]}\nOperating costs: {b["opex"]}\nNet profit before split: {b["net"]}', CYAN, 12)
     card(slide, 5.0, 3.0, 3.65, 2.05, "Why it attracts customers", b["why"], b["accent"], 11)
-    card(slide, 8.95, 3.0, 3.0, 2.05, "Operator upside", f'Operator receives 70% of net monthly profit.\nAnnual ROI projection: {b["roi"]}.', GOLD, 11)
+    card(slide, 8.95, 3.0, 3.0, 2.05, "Operator upside", f'Target setup capital back in 6 months.\nMonth 7 onward becomes projected profit.\nAnnual ROI projection: {b["roi"]}.', GOLD, 10)
     footer(slide)
 
 
 def reborn_projection(prs):
-    monthly = "Rp255M/month"
-    annual = "Rp3.06B/year"
-    sgd = "S$220K/year"
+    monthly = "Rp1.02B/month"
+    annual = "Rp12.28B/year"
+    sgd = "S$884K/year"
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "Reborn Wave Revenue Projection", "Reborn receives 30% of each operator's monthly net profit.")
+    title(slide, "Reborn Wave Revenue Projection", "Reborn receives 30% of each operator's monthly net profit after verified reporting.")
     metric(slide, 0.85, 1.8, 2.8, "Monthly Reborn profit share", monthly, GOLD)
     metric(slide, 4.0, 1.8, 2.8, "Annual Reborn profit share", annual, CYAN)
     metric(slide, 7.15, 1.8, 2.4, "SGD reference", sgd, GREEN)
-    card(slide, 0.85, 3.25, 5.2, 1.7, "Why the model works", "Operators carry setup and operating costs. Reborn monetizes location, brand, traffic, systems, and shared customer flow without charging rent during the first two years.", CYAN, 11)
+    card(slide, 0.85, 3.25, 5.2, 1.7, "Why the model works", "Operators carry setup and operating costs. The base case targets capital back in 6 months, then month 7 onward profit while Reborn monetizes location, brand, traffic, and systems.", CYAN, 10)
     card(slide, 6.45, 3.25, 4.75, 1.7, "Portfolio logic", "Multiple verticals reduce reliance on one business type: family traffic, beauty appointments, KTV bookings, pet cafe visits, and live events.", GOLD, 11)
     footer(slide)
 
@@ -413,7 +414,7 @@ def build():
     risk_controls(prs)
     next_steps(prs)
     OUT.mkdir(exist_ok=True)
-    output = OUT / "Reborn-Wave-Operator-Investor-Deck-EN.pptx"
+    output = OUT / "Reborn-Wave-Operator-Investor-Deck-EN-6-Month-ROI.pptx"
     prs.save(output)
     return output
 
