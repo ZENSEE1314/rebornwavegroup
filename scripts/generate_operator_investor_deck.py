@@ -41,15 +41,14 @@ BUSINESSES = [
         "name": "Kids Fun House",
         "units": 1,
         "sqm": 75,
-        "setup_idr": "Rp875M",
-        "setup_sgd": "S$63K",
-        "revenue": "Rp303M",
-        "opex": "Rp95M",
-        "net": "Rp208M",
-        "operator_profit": "Rp1.75B",
-        "operator_monthly": "Rp146M/month",
-        "reborn_monthly": "Rp62M/month",
-        "month7_profit": "Rp875M",
+        "setup_capital": "S$63K",
+        "revenue": "S$22K",
+        "opex": "S$7K",
+        "net": "S$15K",
+        "operator_profit": "S$126K",
+        "operator_monthly": "S$10.5K/month",
+        "reborn_monthly": "S$4.5K/month",
+        "month7_profit": "S$63K",
         "visual": "Untitled design (1)_1749583559820.png",
         "why": "Family and tourist daytime traffic, prize games, birthday visits, and safe kid-friendly activities.",
         "accent": PINK,
@@ -59,15 +58,14 @@ BUSINESSES = [
         "name": "KTV Lounge",
         "units": 2,
         "sqm": 150,
-        "setup_idr": "Rp1.75B",
-        "setup_sgd": "S$126K",
-        "revenue": "Rp622M",
-        "opex": "Rp205M",
-        "net": "Rp417M",
-        "operator_profit": "Rp3.5B",
-        "operator_monthly": "Rp292M/month",
-        "reborn_monthly": "Rp125M/month",
-        "month7_profit": "Rp1.75B",
+        "setup_capital": "S$126K",
+        "revenue": "S$45K",
+        "opex": "S$15K",
+        "net": "S$30K",
+        "operator_profit": "S$252K",
+        "operator_monthly": "S$21K/month",
+        "reborn_monthly": "S$9K/month",
+        "month7_profit": "S$126K",
         "visual": "image_1764558901062.png",
         "why": "Open singing, group seating, singing competitions, and social video moments for repeat traffic.",
         "accent": CYAN,
@@ -77,15 +75,14 @@ BUSINESSES = [
         "name": "Beauty Salon",
         "units": 1,
         "sqm": 75,
-        "setup_idr": "Rp775M",
-        "setup_sgd": "S$56K",
-        "revenue": "Rp270M",
-        "opex": "Rp85M",
-        "net": "Rp185M",
-        "operator_profit": "Rp1.55B",
-        "operator_monthly": "Rp129M/month",
-        "reborn_monthly": "Rp55M/month",
-        "month7_profit": "Rp775M",
+        "setup_capital": "S$56K",
+        "revenue": "S$19K",
+        "opex": "S$6K",
+        "net": "S$13K",
+        "operator_profit": "S$112K",
+        "operator_monthly": "S$9.3K/month",
+        "reborn_monthly": "S$4K/month",
+        "month7_profit": "S$56K",
         "visual": "image_1764574285772.png",
         "why": "Repeat appointments, group makeovers, event prep, and cross-traffic from KTV guests.",
         "accent": PINK,
@@ -95,15 +92,14 @@ BUSINESSES = [
         "name": "Private KTV Rooms",
         "units": 2,
         "sqm": 150,
-        "setup_idr": "Rp1.9B",
-        "setup_sgd": "S$137K",
-        "revenue": "Rp687M",
-        "opex": "Rp235M",
-        "net": "Rp452M",
-        "operator_profit": "Rp3.8B",
-        "operator_monthly": "Rp317M/month",
-        "reborn_monthly": "Rp136M/month",
-        "month7_profit": "Rp1.9B",
+        "setup_capital": "S$137K",
+        "revenue": "S$49K",
+        "opex": "S$17K",
+        "net": "S$33K",
+        "operator_profit": "S$274K",
+        "operator_monthly": "S$22.8K/month",
+        "reborn_monthly": "S$9.8K/month",
+        "month7_profit": "S$137K",
         "visual": "image_1764574285772.png",
         "why": "Four bookable rooms for birthdays, friend groups, customer hosting, and private celebrations.",
         "accent": CYAN,
@@ -113,15 +109,14 @@ BUSINESSES = [
         "name": "Beauty Salon",
         "units": 1,
         "sqm": 75,
-        "setup_idr": "Rp775M",
-        "setup_sgd": "S$56K",
-        "revenue": "Rp275M",
-        "opex": "Rp90M",
-        "net": "Rp185M",
-        "operator_profit": "Rp1.55B",
-        "operator_monthly": "Rp129M/month",
-        "reborn_monthly": "Rp55M/month",
-        "month7_profit": "Rp775M",
+        "setup_capital": "S$56K",
+        "revenue": "S$20K",
+        "opex": "S$6.5K",
+        "net": "S$13K",
+        "operator_profit": "S$112K",
+        "operator_monthly": "S$9.3K/month",
+        "reborn_monthly": "S$4K/month",
+        "month7_profit": "S$56K",
         "visual": "image_1764574285772.png",
         "why": "Beauty service beside VIP KTV supports premium guests, event prep, and recurring spend.",
         "accent": PINK,
@@ -131,15 +126,14 @@ BUSINESSES = [
         "name": "VIP KTV Rooms",
         "units": 2,
         "sqm": 150,
-        "setup_idr": "Rp2.15B",
-        "setup_sgd": "S$155K",
-        "revenue": "Rp782M",
-        "opex": "Rp270M",
-        "net": "Rp512M",
-        "operator_profit": "Rp4.3B",
-        "operator_monthly": "Rp358M/month",
-        "reborn_monthly": "Rp154M/month",
-        "month7_profit": "Rp2.15B",
+        "setup_capital": "S$155K",
+        "revenue": "S$56K",
+        "opex": "S$19K",
+        "net": "S$37K",
+        "operator_profit": "S$310K",
+        "operator_monthly": "S$25.8K/month",
+        "reborn_monthly": "S$11.1K/month",
+        "month7_profit": "S$155K",
         "visual": "image_1764574285772.png",
         "why": "Two premium rooms for VIP groups, business hosting, birthday events, and higher table spend.",
         "accent": GOLD,
@@ -149,15 +143,14 @@ BUSINESSES = [
         "name": "Pet Cafe",
         "units": 3,
         "sqm": 225,
-        "setup_idr": "Rp2.5B",
-        "setup_sgd": "S$180K",
-        "revenue": "Rp925M",
-        "opex": "Rp330M",
-        "net": "Rp595M",
-        "operator_profit": "Rp5.0B",
-        "operator_monthly": "Rp417M/month",
-        "reborn_monthly": "Rp179M/month",
-        "month7_profit": "Rp2.5B",
+        "setup_capital": "S$180K",
+        "revenue": "S$67K",
+        "opex": "S$24K",
+        "net": "S$43K",
+        "operator_profit": "S$360K",
+        "operator_monthly": "S$30K/month",
+        "reborn_monthly": "S$12.9K/month",
+        "month7_profit": "S$180K",
         "visual": "doluruu-blindbox-box.jpeg",
         "why": "Food, drinks, pet community, blindbox tie-ins, photo content, and family-friendly visits.",
         "accent": GREEN,
@@ -167,15 +160,14 @@ BUSINESSES = [
         "name": "Live House",
         "units": 3,
         "sqm": 225,
-        "setup_idr": "Rp3.6B",
-        "setup_sgd": "S$259K",
-        "revenue": "Rp1.407B",
-        "opex": "Rp550M",
-        "net": "Rp857M",
-        "operator_profit": "Rp7.2B",
-        "operator_monthly": "Rp600M/month",
-        "reborn_monthly": "Rp257M/month",
-        "month7_profit": "Rp3.6B",
+        "setup_capital": "S$259K",
+        "revenue": "S$101K",
+        "opex": "S$40K",
+        "net": "S$62K",
+        "operator_profit": "S$518K",
+        "operator_monthly": "S$43.2K/month",
+        "reborn_monthly": "S$18.5K/month",
+        "month7_profit": "S$259K",
         "visual": "Untitled design (1)_1749583559820.png",
         "why": "Live band, performances, dance floor, sea-view events, premium tables, and nightlife traffic.",
         "accent": VIOLET,
@@ -233,7 +225,7 @@ def image(slide, filename, x, y, w, h=None):
 
 
 def footer(slide):
-    tx(slide, "Reborn Wave Group | Operator-Investor Deck | IDR main + SGD reference", 0.55, 7.05, 7.8, 0.2, 7, MUTED)
+    tx(slide, "Reborn Wave Group | Operator-Investor Deck | SGD financial model", 0.55, 7.05, 7.8, 0.2, 7, MUTED)
     tx(slide, "Return estimates only, not guaranteed returns.", 8.2, 6.95, 4.6, 0.25, 6, MUTED, align=PP_ALIGN.RIGHT)
 
 
@@ -268,7 +260,7 @@ def cover(prs):
     image(slide, "doluruu-blindbox-box.jpeg", 7.38, 1.14, 4.45, 2.55)
     image(slide, "doluruu-female-transparent.png", 8.18, 3.38, 1.45)
     image(slide, "Doluruu Boy_1749664545355.png", 9.62, 3.35, 1.32)
-    tx(slide, "75 sqm per unit | IDR main + SGD reference", 7.42, 5.5, 4.45, 0.35, 14, GOLD, True, PP_ALIGN.CENTER)
+    tx(slide, "75 sqm per unit | SGD financial model", 7.42, 5.5, 4.45, 0.35, 14, GOLD, True, PP_ALIGN.CENTER)
     footer(slide)
 
 
@@ -323,7 +315,7 @@ def roi_table(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
     title(slide, "Monthly Return Stats", "Base-case projections target capital back in 6 months; month 7 onward becomes operator profit.")
-    headers = ["Business", "Setup IDR", "Monthly Net", "Operator Monthly", "Reborn Monthly", "Profit After Month 6"]
+    headers = ["Business", "Setup", "Monthly Net", "Operator Monthly", "Reborn Monthly", "Profit After Month 6"]
     widths = [2.55, 1.45, 1.5, 1.75, 1.75, 2.0]
     x0, y0 = 0.55, 1.55
     x = x0
@@ -333,7 +325,7 @@ def roi_table(prs):
         x += width
     for r, b in enumerate(BUSINESSES):
         y = y0 + 0.43 + r * 0.52
-        vals = [f'{b["code"]} {b["name"]}', b["setup_idr"], b["net"], b["operator_monthly"], b["reborn_monthly"], b["month7_profit"]]
+        vals = [f'{b["code"]} {b["name"]}', b["setup_capital"], b["net"], b["operator_monthly"], b["reborn_monthly"], b["month7_profit"]]
         x = x0
         for c, (val, width) in enumerate(zip(vals, widths)):
             fill = RGBColor(7, 39, 45) if r % 2 == 0 else RGBColor(9, 48, 54)
@@ -341,7 +333,7 @@ def roi_table(prs):
             color = b["accent"] if c in [3, 5] else WHITE if c == 0 else MUTED
             tx(slide, val, x + 0.05, y + 0.12, width - 0.1, 0.16, 7, color, c in [0, 3, 5], PP_ALIGN.CENTER if c > 0 else None)
             x += width
-    tx(slide, f"{PAYBACK_LINE} Exchange assumption: SGD 1 approx. IDR 13,900.", 0.65, 6.36, 9.9, 0.38, 8, MUTED)
+    tx(slide, f"{PAYBACK_LINE} All financial projections are shown in SGD.", 0.65, 6.36, 9.9, 0.38, 8, MUTED)
     footer(slide)
 
 
@@ -349,11 +341,10 @@ def business_slide(prs, b):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
     title(slide, f'{b["code"]} {b["name"]}', f'{b["units"]} unit(s) | {b["sqm"]} sqm | 70% operator / 30% Reborn Wave')
-    metric(slide, 0.72, 1.72, 1.6, "Setup IDR", b["setup_idr"], b["accent"])
-    metric(slide, 2.55, 1.72, 1.45, "Setup SGD", b["setup_sgd"], GOLD)
-    metric(slide, 4.25, 1.72, 1.55, "Monthly net", b["net"], CYAN)
-    metric(slide, 6.05, 1.72, 1.85, "Operator monthly", b["operator_monthly"], GREEN)
-    metric(slide, 8.15, 1.72, 1.65, "Reborn monthly", b["reborn_monthly"], GOLD)
+    metric(slide, 0.72, 1.72, 1.6, "Setup capital", b["setup_capital"], b["accent"])
+    metric(slide, 2.55, 1.72, 1.45, "Monthly net", b["net"], CYAN)
+    metric(slide, 4.25, 1.72, 1.85, "Operator monthly", b["operator_monthly"], GREEN)
+    metric(slide, 6.35, 1.72, 1.65, "Reborn monthly", b["reborn_monthly"], GOLD)
     rect(slide, 0.72, 3.0, 3.35, 2.25, PANEL_2, b["accent"])
     image(slide, b["visual"], 0.92, 3.18, 2.95, 1.7)
     card(slide, 4.35, 3.0, 3.2, 2.05, "Monthly assumptions", f'Revenue: {b["revenue"]}\nOperating costs: {b["opex"]}\nNet profit before split: {b["net"]}', CYAN, 11)
@@ -363,15 +354,15 @@ def business_slide(prs, b):
 
 
 def reborn_projection(prs):
-    monthly = "Rp1.02B/month"
-    annual = "Rp12.28B/year"
-    sgd = "S$884K/year"
+    monthly = "S$74K/month"
+    annual = "S$884K/year"
+    rent_free = "24 months"
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
     title(slide, "Reborn Wave Revenue Projection", "Reborn receives 30% of each operator's monthly net profit after verified reporting.")
     metric(slide, 0.85, 1.8, 2.8, "Monthly Reborn profit share", monthly, GOLD)
     metric(slide, 4.0, 1.8, 2.8, "Annual Reborn profit share", annual, CYAN)
-    metric(slide, 7.15, 1.8, 2.4, "SGD reference", sgd, GREEN)
+    metric(slide, 7.15, 1.8, 2.4, "$0 rent period", rent_free, GREEN)
     card(slide, 0.85, 3.25, 5.2, 1.7, "Why the model works", "Operators carry setup and operating costs. The base case targets capital back in 6 months, then month 7 onward profit while Reborn monetizes location, brand, traffic, and systems.", CYAN, 10)
     card(slide, 6.45, 3.25, 4.75, 1.7, "Portfolio logic", "Multiple verticals reduce reliance on one business type: family traffic, beauty appointments, KTV bookings, pet cafe visits, and live events.", GOLD, 11)
     footer(slide)
