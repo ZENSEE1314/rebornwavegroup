@@ -12,6 +12,7 @@ import * as schema from "../shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
+import { registerInvestorRoutes } from "./investorRoutes";
 
 // Initialize Stripe (optional — payment routes disabled if key not set)
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -714,6 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup multi-provider authentication (AFTER star routes)
   setupMultiAuth(app);
+  await registerInvestorRoutes(app);
 
   // Test endpoint to verify changes are loaded
   app.post("/api/test-endpoint", (req, res) => {

@@ -68,6 +68,10 @@ const PaymentSuccess       = lazy(() => import("@/pages/payment-success"));
 const NotFound             = lazy(() => import("@/pages/not-found"));
 const SimplePetCare        = lazy(() => import("@/pages/simple-pet-care"));
 const PetCareWithEnergy    = lazy(() => import("@/pages/pet-care-with-energy"));
+const InvestorLanding      = lazy(() => import("@/pages/investor-landing"));
+const InvestorLogin        = lazy(() => import("@/pages/investor-login"));
+const InvestorDashboard    = lazy(() => import("@/pages/investor-dashboard"));
+const InvestorAdmin        = lazy(() => import("@/pages/investor-admin"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -139,6 +143,8 @@ function Router() {
         {/* Login route should always be accessible */}
         <Route path="/login" component={Login} />
         <Route path="/reset-password" component={Login} />
+        <Route path="/investor/login" component={InvestorLogin} />
+        <Route path="/investor" component={InvestorLanding} />
 
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />
@@ -147,6 +153,8 @@ function Router() {
             {/* Default route - both admin and regular users can access main app */}
             <Route path="/" component={CompleteApp} />
             <Route path="/complete-app" component={CompleteApp} />
+            <Route path="/investor/admin" component={InvestorAdmin} />
+            <Route path="/investor/dashboard" component={InvestorDashboard} />
             <Route path="/admin" component={EnhancedAdminDashboard} />
             <Route path="/admin-dashboard" component={EnhancedAdminDashboard} />
             <Route path="/app" component={CompleteApp} />

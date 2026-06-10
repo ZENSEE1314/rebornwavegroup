@@ -1074,6 +1074,143 @@ export const paymentTransactions = pgTable("payment_transactions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Investor app tables - separate from the member wallet/pet economy.
+export const investorWallets = pgTable("investor_wallets", {
+  userId: varchar("user_id").primaryKey().notNull().references(() => users.id),
+  cashBalance: decimal("cash_balance", { precision: 14, scale: 2 }).default("0.00").notNull(),
+  spendingBalance: decimal("spending_balance", { precision: 14, scale: 2 }).default("0.00").notNull(),
+  connectedWallet: varchar("connected_wallet"),
+  qrCode: varchar("qr_code").unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const investorSettings = pgTable("investor_settings", {
+  key: varchar("key").primaryKey().notNull(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const investorPackages = pgTable("investor_packages", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const investorProjects = pgTable("investor_projects", {
+  code: varchar("code").primaryKey().notNull(),
+  name: varchar("name").notNull(),
+  description: text("description").notNull(),
+  imageKey: varchar("image_key").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+});
+
+export const investorTopups = pgTable("investor_topups", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  walletAddress: varchar("wallet_address").notNull(),
+  txHash: varchar("tx_hash").unique().notNull(),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  status: varchar("status").default("confirmed").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  confirmedAt: timestamp("confirmed_at").defaultNow(),
+});
+
+export const investorPurchases = pgTable("investor_purchases", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  packageId: integer("package_id").notNull().references(() => investorPackages.id),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  units: integer("units").notNull(),
+  status: varchar("status").default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorAllocations = pgTable("investor_allocations", {
+  id: serial("id").primaryKey(),
+  purchaseId: integer("purchase_id").notNull().references(() => investorPurchases.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  projectCode: varchar("project_code").notNull().references(() => investorProjects.code),
+  units: integer("units").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorTokenBalances = pgTable("investor_token_balances", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  projectCode: varchar("project_code").notNull().references(() => investorProjects.code),
+  activeTokens: decimal("active_tokens", { precision: 18, scale: 4 }).default("0.0000").notNull(),
+  soldTokens: decimal("sold_tokens", { precision: 18, scale: 4 }).default("0.0000").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const investorTokenLedger = pgTable("investor_token_ledger", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  projectCode: varchar("project_code").notNull().references(() => investorProjects.code),
+  tokens: decimal("tokens", { precision: 18, scale: 4 }).notNull(),
+  type: varchar("type").notNull(),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorDailyTokenClaims = pgTable("investor_daily_token_claims", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  claimDate: varchar("claim_date").notNull(),
+  tokensAwarded: decimal("tokens_awarded", { precision: 18, scale: 4 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorPoolEvents = pgTable("investor_pool_events", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  purchaseId: integer("purchase_id").references(() => investorPurchases.id),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  type: varchar("type").notNull(),
+  description: text("description").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorReferralRewards = pgTable("investor_referral_rewards", {
+  id: serial("id").primaryKey(),
+  purchaseId: integer("purchase_id").notNull().references(() => investorPurchases.id),
+  beneficiaryUserId: varchar("beneficiary_user_id").notNull().references(() => users.id),
+  sourceUserId: varchar("source_user_id").notNull().references(() => users.id),
+  level: integer("level").notNull(),
+  walletType: varchar("wallet_type").notNull(),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorWithdrawals = pgTable("investor_withdrawals", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  walletAddress: varchar("wallet_address").notNull(),
+  status: varchar("status").default("pending").notNull(),
+  adminNotes: text("admin_notes"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by").references(() => users.id),
+});
+
+export const investorQrPayments = pgTable("investor_qr_payments", {
+  id: serial("id").primaryKey(),
+  investorUserId: varchar("investor_user_id").notNull().references(() => users.id),
+  merchantUserId: varchar("merchant_user_id").references(() => users.id),
+  amountUsdt: decimal("amount_usdt", { precision: 14, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  status: varchar("status").default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
 export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
   id: true,
@@ -1097,6 +1234,18 @@ export const insertPaymentTransactionSchema = createInsertSchema(paymentTransact
   updatedAt: true,
 });
 export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
+
+export type InvestorWallet = typeof investorWallets.$inferSelect;
+export type InvestorPackage = typeof investorPackages.$inferSelect;
+export type InvestorProject = typeof investorProjects.$inferSelect;
+export type InvestorTopup = typeof investorTopups.$inferSelect;
+export type InvestorPurchase = typeof investorPurchases.$inferSelect;
+export type InvestorAllocation = typeof investorAllocations.$inferSelect;
+export type InvestorTokenBalance = typeof investorTokenBalances.$inferSelect;
+export type InvestorPoolEvent = typeof investorPoolEvents.$inferSelect;
+export type InvestorReferralReward = typeof investorReferralRewards.$inferSelect;
+export type InvestorWithdrawal = typeof investorWithdrawals.$inferSelect;
+export type InvestorQrPayment = typeof investorQrPayments.$inferSelect;
 
 // Token history table - track all token transactions
 export const tokenHistory = pgTable("token_history", {
