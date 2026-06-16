@@ -30,11 +30,11 @@ DISCLAIMER = (
 )
 
 PACKAGES = [
-    ("Starter Unit", "$500", "1 unit", "Good first entry"),
-    ("Builder Pack", "$1,000", "2 units", "Split across 1-2 businesses"),
-    ("Growth Pack", "$3,000", "6 units", "Flexible project exposure"),
-    ("Founder Pack", "$5,000", "10 units", "Serious early supporter"),
-    ("Anchor Pack", "$10,000", "20 units", "Major participation"),
+    ("$500", "$500 credit", "1 share", "10% referral", "-"),
+    ("$1,000", "$1,000 credit", "2 shares", "10% referral", "2D1N company tour"),
+    ("$3,000", "$3,000 credit", "6 shares", "10% referral", "3D2N visit + entertainment"),
+    ("$5,000", "$7,000 credit", "10 shares", "10% referral", "3D2N visit + entertainment"),
+    ("$10,000", "$15,000 credit", "20 shares", "10% referral", "3D2N visit + entertainment"),
 ]
 
 PROJECTS = [
@@ -137,10 +137,10 @@ def cover(prs):
 def package_overview(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "Investor Packages", "Every $500 equals 1 allocation unit. Investors choose which business receives their units.")
-    headers = ["Package", "Amount", "Units", "Use case"]
-    widths = [2.2, 1.4, 1.2, 5.5]
-    x0, y0 = 1.0, 1.75
+    title(slide, "Investor Packages", "Each package gives club spending credit, project shares, referral bonus, and selected travel/entertainment gifts.")
+    headers = ["Amount", "Spending credit", "Shares", "Referral", "Extra gift"]
+    widths = [1.35, 2.0, 1.35, 1.65, 4.15]
+    x0, y0 = 0.82, 1.75
     x = x0
     for h, w in zip(headers, widths):
         rect(slide, x, y0, w, 0.5, RGBColor(8, 61, 68), CYAN, False)
@@ -155,7 +155,7 @@ def package_overview(prs):
             color = GOLD if c in [1, 2] else WHITE if c == 0 else MUTED
             tx(slide, val, x + 0.06, y + 0.15, w - 0.12, 0.16, 8, color, c in [0, 1, 2], PP_ALIGN.CENTER if c < 3 else None)
             x += w
-    card(slide, 1.0, 5.55, 10.3, 0.72, "Example", "$3,000 Growth Pack = 6 units. You can place all 6 into Pet Cafe, or split 2 KTV + 2 Live House + 2 Game House.", GOLD, 9)
+    card(slide, 0.82, 5.55, 10.65, 0.72, "Shared pool upside", "Each share is based on $500 participation for two years. 40% of the company shared pool is allocated to participating investors, with projected 5-10x upside potential, not guaranteed.", GOLD, 8)
     footer(slide)
 
 

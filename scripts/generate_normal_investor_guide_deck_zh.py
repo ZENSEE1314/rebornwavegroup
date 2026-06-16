@@ -30,11 +30,11 @@ DISCLAIMER = (
 )
 
 PACKAGES = [
-    ("Starter Unit", "$500", "1 单位", "适合第一次参与"),
-    ("Builder Pack", "$1,000", "2 单位", "可分配到 1-2 个业务"),
-    ("Growth Pack", "$3,000", "6 单位", "更灵活的项目配置"),
-    ("Founder Pack", "$5,000", "10 单位", "适合早期重点支持者"),
-    ("Anchor Pack", "$10,000", "20 单位", "主要参与配套"),
+    ("$500", "$500 消费额度", "1 股", "10% 推荐奖励", "-"),
+    ("$1,000", "$1,000 消费额度", "2 股", "10% 推荐奖励", "2天1夜公司参观"),
+    ("$3,000", "$3,000 消费额度", "6 股", "10% 推荐奖励", "3天2夜参观 + 娱乐"),
+    ("$5,000", "$7,000 消费额度", "10 股", "10% 推荐奖励", "3天2夜参观 + 娱乐"),
+    ("$10,000", "$15,000 消费额度", "20 股", "10% 推荐奖励", "3天2夜参观 + 娱乐"),
 ]
 
 PROJECTS = [
@@ -137,10 +137,10 @@ def cover(prs):
 def package_overview(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_bg(slide)
-    title(slide, "投资配套", "每 $500 等于 1 个分配单位。投资人可选择把单位分配到不同业务。")
-    headers = ["配套", "金额", "单位", "适合用途"]
-    widths = [2.2, 1.4, 1.2, 5.5]
-    x0, y0 = 1.0, 1.75
+    title(slide, "投资配套", "每个配套包含俱乐部消费额度、项目股份、推荐奖励，以及部分配套的参观娱乐礼遇。")
+    headers = ["金额", "消费额度", "股份", "推荐", "额外礼遇"]
+    widths = [1.35, 2.0, 1.35, 1.65, 4.15]
+    x0, y0 = 0.82, 1.75
     x = x0
     for h, w in zip(headers, widths):
         rect(slide, x, y0, w, 0.5, RGBColor(8, 61, 68), CYAN, False)
@@ -155,7 +155,7 @@ def package_overview(prs):
             color = GOLD if c in [1, 2] else WHITE if c == 0 else MUTED
             tx(slide, val, x + 0.06, y + 0.15, w - 0.12, 0.16, 8, color, c in [0, 1, 2], PP_ALIGN.CENTER if c < 3 else None)
             x += w
-    card(slide, 1.0, 5.55, 10.3, 0.72, "例子", "$3,000 Growth Pack = 6 单位。可以全部放 Pet Cafe，也可以 2 KTV + 2 Live House + 2 Game House。", GOLD, 9)
+    card(slide, 0.82, 5.55, 10.65, 0.72, "共享池潜在收益", "每股以 $500 参与额计算，有效期两年。公司 40% 共享池分配给参与投资人，并有机会获得 5-10 倍潜在回报；此为预测，不保证收益。", GOLD, 8)
     footer(slide)
 
 
