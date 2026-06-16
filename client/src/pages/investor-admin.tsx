@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { InvestorLanguageToggle } from "@/components/InvestorLanguageToggle";
+import { useTranslation } from "@/lib/i18n";
+import { investorPackageName, investorT } from "@/lib/investor-copy";
 
 function usd(value: any) {
   return `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -16,6 +19,8 @@ function usd(value: any) {
 
 export default function InvestorAdmin() {
   const { toast } = useToast();
+  const { language } = useTranslation();
+  const t = (key: string) => investorT(language, key);
   const { data, isLoading } = useQuery<any>({ queryKey: ["/api/investor/admin/overview"] });
   const [walletAddress, setWalletAddress] = useState("");
   const [pkg, setPkg] = useState({ name: "", amountUsdt: "", description: "", isActive: true });
@@ -49,52 +54,55 @@ export default function InvestorAdmin() {
     onSuccess: refresh,
   });
 
-  if (isLoading) return <div className="grid min-h-screen place-items-center bg-[#090d12] text-white">Loading investor admin...</div>;
+  if (isLoading) return <div className="grid min-h-screen place-items-center bg-[#090d12] text-white">{t("investor.admin.loading")}</div>;
 
   return (
     <main className="min-h-screen bg-[#090d12] text-white">
       <div className="mx-auto max-w-7xl px-5 py-6">
-        <header className="mb-6">
-          <h1 className="text-4xl font-black">Investor Admin</h1>
-          <p className="mt-1 text-white/50">Manage packages, BEP20 wallet, spending QR payments, withdrawals, and pool history.</p>
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-black">{t("investor.admin.title")}</h1>
+            <p className="mt-1 text-white/50">{t("investor.admin.body")}</p>
+          </div>
+          <InvestorLanguageToggle />
         </header>
         <div className="mb-6 grid gap-4 md:grid-cols-3">
-          <Metric title="Global pool" value={usd(data?.pool?.poolBalance)} />
-          <Metric title="Active tokens" value={Number(data?.pool?.activeTokens || 0).toFixed(2)} />
-          <Metric title="Token price" value={`$${Number(data?.pool?.tokenPrice || 0).toFixed(4)}`} />
+          <Metric title={t("investor.globalPool")} value={usd(data?.pool?.poolBalance)} />
+          <Metric title={t("investor.admin.activeTokens")} value={Number(data?.pool?.activeTokens || 0).toFixed(2)} />
+          <Metric title={t("investor.tokenPrice")} value={`$${Number(data?.pool?.tokenPrice || 0).toFixed(4)}`} />
         </div>
 
         <Tabs defaultValue="packages">
           <TabsList className="bg-slate-950/80">
-            <TabsTrigger value="packages">Packages</TabsTrigger>
-            <TabsTrigger value="wallet">Wallet</TabsTrigger>
-            <TabsTrigger value="qr">QR Spend</TabsTrigger>
-            <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
-            <TabsTrigger value="pool">Pool</TabsTrigger>
+            <TabsTrigger value="packages">{t("investor.admin.packages")}</TabsTrigger>
+            <TabsTrigger value="wallet">{t("investor.admin.wallet")}</TabsTrigger>
+            <TabsTrigger value="qr">{t("investor.qrSpend")}</TabsTrigger>
+            <TabsTrigger value="withdrawals">{t("investor.admin.withdrawals")}</TabsTrigger>
+            <TabsTrigger value="pool">{t("investor.admin.pool")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="packages" className="mt-5 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-            <Panel title="Create package">
-              <Label>Name</Label>
+            <Panel title={t("investor.admin.createPackage")}>
+              <Label>{t("investor.admin.name")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={pkg.name} onChange={(e) => setPkg({ ...pkg, name: e.target.value })} />
-              <Label className="mt-4 block">Amount USDT</Label>
+              <Label className="mt-4 block">{t("investor.admin.amountUsdt")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={pkg.amountUsdt} onChange={(e) => setPkg({ ...pkg, amountUsdt: e.target.value })} />
-              <Label className="mt-4 block">Description</Label>
+              <Label className="mt-4 block">{t("investor.admin.description")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={pkg.description} onChange={(e) => setPkg({ ...pkg, description: e.target.value })} />
-              <div className="mt-4 flex items-center gap-3"><Switch checked={pkg.isActive} onCheckedChange={(isActive) => setPkg({ ...pkg, isActive })} /> Active</div>
-              <Button className="mt-4 w-full bg-amber-400 text-slate-950 hover:bg-amber-300" onClick={() => packageMutation.mutate()}>Create package</Button>
+              <div className="mt-4 flex items-center gap-3"><Switch checked={pkg.isActive} onCheckedChange={(isActive) => setPkg({ ...pkg, isActive })} /> {t("investor.admin.active")}</div>
+              <Button className="mt-4 w-full bg-amber-400 text-slate-950 hover:bg-amber-300" onClick={() => packageMutation.mutate()}>{t("investor.admin.createPackage")}</Button>
             </Panel>
-            <Panel title="Editable packages">
+            <Panel title={t("investor.admin.editablePackages")}>
               <div className="space-y-3">
                 {(data?.packages || []).map((item: any) => (
                   <div key={item.id} className="grid gap-3 rounded-2xl bg-slate-950/54 p-4 md:grid-cols-[1fr_130px_90px]">
                     <div>
-                      <div className="font-semibold">{item.name}</div>
+                      <div className="font-semibold">{investorPackageName(language, item.name)}</div>
                       <div className="text-xs text-white/45">{item.description}</div>
                     </div>
                     <div className="font-black text-amber-300">{usd(item.amount_usdt)}</div>
                     <Button size="sm" variant="outline" className="border-white/15 bg-white/5 text-white" onClick={() => updatePackageMutation.mutate({ id: item.id, updates: { isActive: !item.is_active } })}>
-                      {item.is_active ? "Disable" : "Enable"}
+                      {item.is_active ? t("investor.admin.disable") : t("investor.admin.enable")}
                     </Button>
                   </div>
                 ))}
@@ -103,30 +111,30 @@ export default function InvestorAdmin() {
           </TabsContent>
 
           <TabsContent value="wallet" className="mt-5">
-            <Panel title="BEP20 admin wallet">
-              <div className="text-sm text-white/45">Current: {data?.adminWallet?.address || "Not set"}</div>
+            <Panel title={t("investor.admin.bep20Wallet")}>
+              <div className="text-sm text-white/45">{t("investor.admin.current")}: {data?.adminWallet?.address || t("investor.admin.notSet")}</div>
               <Input className="mt-3 border-white/10 bg-slate-950/70 text-white" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} placeholder="0x..." />
-              <Button className="mt-4 bg-amber-400 text-slate-950 hover:bg-amber-300" onClick={() => walletMutation.mutate()}>Save wallet</Button>
+              <Button className="mt-4 bg-amber-400 text-slate-950 hover:bg-amber-300" onClick={() => walletMutation.mutate()}>{t("investor.admin.saveWallet")}</Button>
             </Panel>
           </TabsContent>
 
           <TabsContent value="qr" className="mt-5 grid gap-5 lg:grid-cols-2">
-            <Panel title="Merchant scan charge">
-              <Label>Investor QR code</Label>
+            <Panel title={t("investor.admin.merchantCharge")}>
+              <Label>{t("investor.admin.investorQr")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={qr.qrCode} onChange={(e) => setQr({ ...qr, qrCode: e.target.value })} />
-              <Label className="mt-4 block">Amount</Label>
+              <Label className="mt-4 block">{t("investor.amount")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={qr.amountUsdt} onChange={(e) => setQr({ ...qr, amountUsdt: e.target.value })} />
-              <Label className="mt-4 block">Description</Label>
+              <Label className="mt-4 block">{t("investor.admin.description")}</Label>
               <Input className="mt-2 border-white/10 bg-slate-950/70 text-white" value={qr.description} onChange={(e) => setQr({ ...qr, description: e.target.value })} />
-              <Button className="mt-4 bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={() => qrMutation.mutate()}>Charge spending wallet</Button>
+              <Button className="mt-4 bg-cyan-300 text-slate-950 hover:bg-cyan-200" onClick={() => qrMutation.mutate()}>{t("investor.admin.chargeSpending")}</Button>
             </Panel>
-            <Panel title="Recent QR payments">
+            <Panel title={t("investor.admin.recentQr")}>
               <RecordList items={data?.qrPayments || []} primary="description" amount="amount_usdt" />
             </Panel>
           </TabsContent>
 
           <TabsContent value="withdrawals" className="mt-5">
-            <Panel title="Cash wallet withdrawals">
+            <Panel title={t("investor.admin.cashWithdrawals")}>
               <div className="space-y-3">
                 {(data?.withdrawals || []).map((item: any) => (
                   <div key={item.id} className="grid gap-3 rounded-2xl bg-slate-950/54 p-4 md:grid-cols-[1fr_120px_110px_190px]">
@@ -137,8 +145,8 @@ export default function InvestorAdmin() {
                     <div className="font-black text-amber-300">{usd(item.amount_usdt)}</div>
                     <Badge className="w-fit bg-white/10 text-white">{item.status}</Badge>
                     <div className="flex gap-2">
-                      <Button size="sm" className="bg-emerald-500 text-white" onClick={() => withdrawalMutation.mutate({ id: item.id, status: "approved" })}>Approve</Button>
-                      <Button size="sm" variant="outline" className="border-white/15 bg-white/5 text-white" onClick={() => withdrawalMutation.mutate({ id: item.id, status: "rejected" })}>Reject</Button>
+                      <Button size="sm" className="bg-emerald-500 text-white" onClick={() => withdrawalMutation.mutate({ id: item.id, status: "approved" })}>{t("investor.admin.approve")}</Button>
+                      <Button size="sm" variant="outline" className="border-white/15 bg-white/5 text-white" onClick={() => withdrawalMutation.mutate({ id: item.id, status: "rejected" })}>{t("investor.admin.reject")}</Button>
                     </div>
                   </div>
                 ))}
@@ -147,8 +155,8 @@ export default function InvestorAdmin() {
           </TabsContent>
 
           <TabsContent value="pool" className="mt-5 grid gap-5 lg:grid-cols-2">
-            <Panel title="Pool events"><RecordList items={data?.poolEvents || []} primary="description" amount="amount_usdt" /></Panel>
-            <Panel title="Top-ups"><RecordList items={data?.topups || []} primary="tx_hash" amount="amount_usdt" /></Panel>
+            <Panel title={t("investor.admin.poolEvents")}><RecordList items={data?.poolEvents || []} primary="description" amount="amount_usdt" /></Panel>
+            <Panel title={t("investor.topups")}><RecordList items={data?.topups || []} primary="tx_hash" amount="amount_usdt" /></Panel>
           </TabsContent>
         </Tabs>
       </div>

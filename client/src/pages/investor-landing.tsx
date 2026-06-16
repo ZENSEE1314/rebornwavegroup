@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, Gamepad2, Music2, Scissors, PawPrint, WalletCards, ArrowRight, ShieldCheck } from "lucide-react";
 import rwgLogo from "@assets/rwg-logo.png";
 import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
+import { InvestorLanguageToggle } from "@/components/InvestorLanguageToggle";
+import { useTranslation } from "@/lib/i18n";
+import { investorPackageName, investorProjectDescription, investorProjectName, investorT } from "@/lib/investor-copy";
 
 const projectIcons: Record<string, any> = {
   ktv_lounge: Music2,
@@ -17,6 +20,8 @@ const projectIcons: Record<string, any> = {
 
 export default function InvestorLanding() {
   const { data } = useQuery<any>({ queryKey: ["/api/investor/public"] });
+  const { language } = useTranslation();
+  const t = (key: string) => investorT(language, key);
   const projects = data?.projects || [];
   const packages = data?.packages || [];
 
@@ -30,38 +35,41 @@ export default function InvestorLanding() {
               <img src={rwgLogo} alt="Reborn Wave Group" className="h-11 w-11 rounded-lg object-contain" />
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-300">Reborn Wave Group</div>
-                <div className="text-xs text-white/50">Investor Portal</div>
+                <div className="text-xs text-white/50">{t("investor.portal")}</div>
               </div>
             </div>
-            <Link href="/investor/login">
-              <Button className="bg-amber-400 text-slate-950 hover:bg-amber-300">Investor Login</Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <InvestorLanguageToggle />
+              <Link href="/investor/login">
+                <Button className="bg-amber-400 text-slate-950 hover:bg-amber-300">{t("investor.login")}</Button>
+              </Link>
+            </div>
           </header>
 
           <div className="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <h1 className="max-w-3xl text-5xl font-black leading-[0.95] tracking-normal text-white md:text-7xl">
-                Choose the project. Earn the project token.
+                {t("investor.hero.title")}
               </h1>
               <p className="mt-7 max-w-2xl text-lg leading-8 text-white/68">
-                A separate investor system for Reborn Wave Group: BEP20 USDT wallet top-up, editable packages, project allocation units, referral rewards, live pool pricing, and club QR spending.
+                {t("investor.hero.body")}
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link href="/investor/login">
                   <Button size="lg" className="bg-amber-400 text-slate-950 hover:bg-amber-300">
-                    Start investor access <ArrowRight className="ml-2 h-5 w-5" />
+                    {t("investor.start")} <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
                 <Link href="/investor/dashboard">
                   <Button size="lg" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">
-                    Open dashboard
+                    {t("investor.dashboard.open")}
                   </Button>
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-3 text-sm text-white/60">
-                <Badge className="border-emerald-400/25 bg-emerald-400/10 text-emerald-200">USDT BEP20</Badge>
-                <Badge className="border-amber-400/25 bg-amber-400/10 text-amber-200">Global token pool</Badge>
-                <Badge className="border-cyan-400/25 bg-cyan-400/10 text-cyan-200">Admin-controlled withdrawals</Badge>
+                <Badge className="border-emerald-400/25 bg-emerald-400/10 text-emerald-200">{t("investor.badge.usdt")}</Badge>
+                <Badge className="border-amber-400/25 bg-amber-400/10 text-amber-200">{t("investor.badge.pool")}</Badge>
+                <Badge className="border-cyan-400/25 bg-cyan-400/10 text-cyan-200">{t("investor.badge.withdrawals")}</Badge>
               </div>
             </div>
 
@@ -70,7 +78,7 @@ export default function InvestorLanding() {
               <div className="relative overflow-hidden rounded-[2rem] border border-white/12 bg-white/[0.06] p-6 shadow-2xl shadow-black/40">
                 <div className="flex items-center justify-between border-b border-white/10 pb-5">
                   <div>
-                    <div className="text-sm text-white/45">Live pool price</div>
+                    <div className="text-sm text-white/45">{t("investor.livePoolPrice")}</div>
                     <div className="mt-1 text-3xl font-black text-amber-300">
                       ${Number(data?.pool?.tokenPrice || 0).toFixed(4)}
                     </div>
@@ -86,8 +94,8 @@ export default function InvestorLanding() {
                           <Icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <div className="font-semibold">{project.name}</div>
-                          <div className="line-clamp-1 text-xs text-white/45">{project.description}</div>
+                          <div className="font-semibold">{investorProjectName(language, project.code, project.name)}</div>
+                          <div className="line-clamp-1 text-xs text-white/45">{investorProjectDescription(language, project.code, project.description)}</div>
                         </div>
                       </div>
                     );
@@ -97,8 +105,8 @@ export default function InvestorLanding() {
                   <div className="flex items-center gap-3">
                     <img src={doluruuBoy} alt="Doluruu" className="h-16 w-16 object-contain" />
                     <div>
-                      <div className="font-black">Every $500 = 1 project unit</div>
-                      <div className="text-sm text-slate-900/70">Buy packages from cash wallet, then assign units your way.</div>
+                      <div className="font-black">{t("investor.every500")}</div>
+                      <div className="text-sm text-slate-900/70">{t("investor.assignUnits")}</div>
                     </div>
                   </div>
                 </div>
@@ -107,7 +115,7 @@ export default function InvestorLanding() {
           </div>
           <div className="pb-8 text-xs text-white/35">
             <ShieldCheck className="mr-2 inline h-4 w-4" />
-            ROI and profit-pool terms require qualified legal and financial review before public launch.
+            {t("investor.legalNote")}
           </div>
         </div>
       </section>
@@ -115,17 +123,17 @@ export default function InvestorLanding() {
       <section className="mx-auto max-w-7xl px-5 py-16">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-black">Editable investor packages</h2>
-            <p className="mt-2 text-white/55">Admin controls active packages. Investors choose and allocate units themselves.</p>
+            <h2 className="text-3xl font-black">{t("investor.packages.title")}</h2>
+            <p className="mt-2 text-white/55">{t("investor.packages.body")}</p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-5">
           {packages.map((pkg: any) => (
             <Card key={pkg.id} className="border-white/10 bg-white/[0.05] text-white">
               <CardContent className="p-5">
-                <div className="text-sm text-white/45">{pkg.name}</div>
+                <div className="text-sm text-white/45">{investorPackageName(language, pkg.name)}</div>
                 <div className="mt-2 text-3xl font-black text-amber-300">${Number(pkg.amount_usdt).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-white/55">{Math.floor(Number(pkg.amount_usdt) / 500)} allocation units</div>
+                <div className="mt-1 text-sm text-white/55">{Math.floor(Number(pkg.amount_usdt) / 500)} {t("investor.units")}</div>
               </CardContent>
             </Card>
           ))}
