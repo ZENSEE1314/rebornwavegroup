@@ -117,6 +117,17 @@ async function ensureUserAuthColumns() {
   `);
 }
 
+async function ensureDoluruuGameStateTable() {
+  await db.execute(sql.raw(`
+    CREATE TABLE IF NOT EXISTS doluruu_game_states (
+      user_id VARCHAR PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      state JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `));
+}
+
 async function applyOneTimePasswordResetFromEnv() {
   const email = process.env.ZENSEE_RESET_EMAIL;
   const password = process.env.ZENSEE_RESET_PASSWORD;
@@ -330,6 +341,7 @@ const multerStorage = multer.diskStorage({
 export async function registerRoutes(app: Express): Promise<Server> {
   try {
     await ensureUserAuthColumns();
+    await ensureDoluruuGameStateTable();
     await applyOneTimePasswordResetFromEnv();
   } catch (error) {
     console.error("[startup] user auth setup failed:", error);
@@ -7153,6 +7165,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching user scores:", error);
       res.status(500).json({ message: "Failed to fetch user scores" });
+    }
+  });
+
+  app.get('/api/doluruu-game-state', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const result: any = await db.execute(sql`
+        SELECT state, updated_at
+        FROM doluruu_game_states
+        WHERE user_id = ${userId}
+        LIMIT 1
+      `);
+      const row = result?.rows?.[0] || (Array.isArray(result) ? result[0] : undefined);
+
+      res.json({
+        state: row?.state || null,
+        updatedAt: row?.updated_at || null,
+      });
+    } catch (error: any) {
+      console.error("Error loading Doluruu game state:", error);
+      res.status(500).json({ message: "Failed to load Doluruu game state" });
+    }
+  });
+
+  app.put('/api/doluruu-game-state', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const gameState = req.body?.state;
+      if (!gameState || typeof gameState !== "object" || Array.isArray(gameState)) {
+        return res.status(400).json({ message: "Invalid game state" });
+      }
+
+      const result: any = await db.execute(sql`
+        INSERT INTO doluruu_game_states (user_id, state, created_at, updated_at)
+        VALUES (${userId}, ${JSON.stringify(gameState)}::jsonb, NOW(), NOW())
+        ON CONFLICT (user_id)
+        DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
+        RETURNING updated_at
+      `);
+      const row = result?.rows?.[0] || (Array.isArray(result) ? result[0] : undefined);
+
+      res.json({ success: true, updatedAt: row?.updated_at || new Date().toISOString() });
+    } catch (error: any) {
+      console.error("Error saving Doluruu game state:", error);
+      res.status(500).json({ message: "Failed to save Doluruu game state" });
     }
   });
 

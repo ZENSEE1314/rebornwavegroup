@@ -33,6 +33,7 @@ import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import MobileBackButton from "@/components/mobile-back-button";
 import { TooltipGuide, useTooltipGuide } from "@/components/TooltipGuide";
 import { dashboardGuide, guideConfigs } from "@/data/tooltipGuides";
+import DoluruuWonderland from "@/pages/doluruu-wonderland";
 
 // VoterCard Component for displaying individual voters
 function VoterCard({ 
@@ -9021,6 +9022,7 @@ export default function CompleteApp() {
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
               { id: "petcare", label: t('petcare.title'), icon: Heart },
+              { id: "wonderland", label: "Wonderland", icon: Gamepad2 },
               { id: "loyalty", label: t('loyalty.title'), icon: Star },
               { id: "kos", label: "KOS", icon: Crown },
               { id: "bookings", label: t('bookings.title'), icon: Calendar },
@@ -9056,10 +9058,11 @@ export default function CompleteApp() {
       {/* Mobile Bottom Navigation */}
       <div className="rwg-mobile-nav fixed bottom-0 left-0 right-0 md:hidden z-40">
         <div className="safe-area-inset-bottom">
-          <div className="grid grid-cols-5 h-16">
+          <div className="grid grid-cols-6 h-16">
             {[
               { id: "dashboard", label: t('tabs.dashboard'), icon: Home },
               { id: "petcare", label: t('petcare.title'), icon: Heart },
+              { id: "wonderland", label: "Play", icon: Gamepad2 },
               { id: "kos", label: "KOS", icon: Crown },
               { id: "loyalty", label: t('loyalty.title'), icon: Star },
               { id: "profile", label: t('tabs.profile'), icon: User }
@@ -9386,6 +9389,27 @@ export default function CompleteApp() {
               </div>
             </div>
 
+            <div className="rwg-card overflow-hidden border border-violet-400/20">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0">
+                    <Gamepad2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold text-base md:text-lg">Doluruu Wonderland</h3>
+                    <p className="text-white/45 text-sm">Open blind boxes, merge items, and grow your collection.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setActiveTab("wonderland")}
+                  className="w-full md:w-auto bg-violet-600 hover:bg-violet-700 text-white rounded-xl"
+                >
+                  <Gamepad2 className="w-4 h-4 mr-2" />
+                  Play Game
+                </Button>
+              </div>
+            </div>
+
             {/* Promotion Banners - Single Column on Mobile */}
             {activePromotionBanners.length > 0 && (
               <div className="w-full">
@@ -9453,6 +9477,14 @@ export default function CompleteApp() {
                   <span className="text-xs font-medium">Pet Management</span>
                 </Button>
 
+                <Button
+                  onClick={() => setActiveTab("wonderland")}
+                  className="w-full h-20 bg-violet-600 hover:bg-violet-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Gamepad2 className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Play Game</span>
+                </Button>
+
                 <Button 
                   onClick={() => setActiveTab("marketplace")} 
                   className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
@@ -9496,6 +9528,14 @@ export default function CompleteApp() {
                 >
                   <Package className="w-6 h-6 mb-1" />
                   <span className="text-xs font-medium">{t('toys.myCollection')}</span>
+                </Button>
+
+                <Button
+                  onClick={() => setActiveTab("wonderland")}
+                  className="w-full h-20 bg-violet-600 hover:bg-violet-700 text-white rounded-xl flex flex-col items-center justify-center p-2"
+                >
+                  <Gamepad2 className="w-6 h-6 mb-1" />
+                  <span className="text-xs font-medium">Play Game</span>
                 </Button>
 
                 <Button
@@ -12144,6 +12184,11 @@ export default function CompleteApp() {
         {/* KOS (Kings Of Singers) Tab */}
         {activeTab === "kos" && (
           <KOSSection user={user} queryClient={queryClient} onUserSelect={handleUserSelect} />
+        )}
+
+        {/* Doluruu Wonderland Game Tab */}
+        {activeTab === "wonderland" && (
+          <DoluruuWonderland user={user} />
         )}
 
         {/* POS Terminal Tab */}
