@@ -29,12 +29,14 @@ type WonderState = {
     adminShop: MarketListing[];
   };
   nextTokenDrop: number;
+  tokenRefillVersion: number;
 };
 
 const MAX_TOKENS = 100;
 const SLOT_COUNT = 80;
 const TOKEN_DROP_MS = 30 * 60 * 1000;
 const MAX_LOG_ITEMS = 12;
+const TOKEN_REFILL_VERSION = 2;
 
 const WONDER_ITEMS = [
   ["🍎", "Red Apple"], ["🍌", "Banana"], ["🍇", "Grapes"], ["🍒", "Cherry"], ["🍓", "Strawberry"],
@@ -80,6 +82,7 @@ function createDefaultState(): WonderState {
       ],
     },
     nextTokenDrop: Date.now() + TOKEN_DROP_MS,
+    tokenRefillVersion: TOKEN_REFILL_VERSION,
   };
 }
 
@@ -126,6 +129,44 @@ function normalizeState(value: unknown): WonderState {
         : fallback.market.adminShop,
     },
     nextTokenDrop: Number(raw.nextTokenDrop) || fallback.nextTokenDrop,
+    tokenRefillVersion: Number(raw.tokenRefillVersion) || 0,
+  };
+}
+
+function applyTokenCatchup(state: WonderState): WonderState {
+  const now = Date.now();
+
+  if (state.tokenRefillVersion < TOKEN_REFILL_VERSION) {
+    return {
+      ...state,
+      tokens: MAX_TOKENS,
+      nextTokenDrop: now + TOKEN_DROP_MS,
+      tokenRefillVersion: TOKEN_REFILL_VERSION,
+      gameLog: [
+        "Welcome refill: tokens topped up to max.",
+        ...(state.gameLog || []),
+      ].slice(0, MAX_LOG_ITEMS),
+    };
+  }
+
+  if (state.tokens >= MAX_TOKENS || state.nextTokenDrop > now) {
+    return state;
+  }
+
+  const missedDrops = Math.floor((now - state.nextTokenDrop) / TOKEN_DROP_MS) + 1;
+  const gained = Math.min(MAX_TOKENS - state.tokens, missedDrops * 2);
+  if (gained <= 0) return state;
+
+  return {
+    ...state,
+    tokens: state.tokens + gained,
+    nextTokenDrop: state.tokens + gained >= MAX_TOKENS
+      ? now + TOKEN_DROP_MS
+      : state.nextTokenDrop + missedDrops * TOKEN_DROP_MS,
+    gameLog: [
+      `Offline refill: +${gained} tokens.`,
+      ...(state.gameLog || []),
+    ].slice(0, MAX_LOG_ITEMS),
   };
 }
 
@@ -198,10 +239,17 @@ export default function DoluruuWonderland({ user }: { user: any }) {
         const data = response.ok ? await response.json() : null;
         const localSave = localStorage.getItem(`doluruu-wonderland-${user?.id || "guest"}`);
         const nextState = data?.state || (localSave ? JSON.parse(localSave) : undefined);
-        if (!cancelled) setState(normalizeState(nextState));
+        const normalizedState = normalizeState(nextState);
+        const caughtUpState = applyTokenCatchup(normalizedState);
+        if (!cancelled) {
+          setState(caughtUpState);
+          if (caughtUpState.tokens !== normalizedState.tokens || caughtUpState.nextTokenDrop !== normalizedState.nextTokenDrop || caughtUpState.tokenRefillVersion !== normalizedState.tokenRefillVersion) {
+            window.setTimeout(() => saveState(caughtUpState), 100);
+          }
+        }
       } catch {
         const localSave = localStorage.getItem(`doluruu-wonderland-${user?.id || "guest"}`);
-        if (!cancelled && localSave) setState(normalizeState(JSON.parse(localSave)));
+        if (!cancelled && localSave) setState(applyTokenCatchup(normalizeState(JSON.parse(localSave))));
       } finally {
         loaded.current = true;
         if (!cancelled) setIsLoading(false);
