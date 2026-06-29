@@ -23,6 +23,8 @@ type WonderState = {
   gems: number;
   slots: Array<WonderItem | null>;
   index: Array<{ id: number; discovered: boolean; maxLevel: number }>;
+  activeItemTypes: number[];
+  retiredItemTypes: number[];
   gameLog: string[];
   market: {
     playerListings: MarketListing[];
@@ -37,6 +39,7 @@ const SLOT_COUNT = 80;
 const TOKEN_DROP_MS = 30 * 60 * 1000;
 const MAX_LOG_ITEMS = 12;
 const TOKEN_REFILL_VERSION = 2;
+const ACTIVE_ITEM_POOL_SIZE = 10;
 
 const WONDER_ITEMS = [
   ["🍎", "Red Apple"], ["🍌", "Banana"], ["🍇", "Grapes"], ["🍒", "Cherry"], ["🍓", "Strawberry"],
@@ -73,6 +76,8 @@ function createDefaultState(): WonderState {
     gems: 0,
     slots: Array(SLOT_COUNT).fill(null),
     index: Array.from({ length: WONDER_ITEMS.length }, (_, id) => ({ id, discovered: false, maxLevel: 0 })),
+    activeItemTypes: Array.from({ length: ACTIVE_ITEM_POOL_SIZE }, (_, id) => id),
+    retiredItemTypes: [],
     gameLog: [],
     market: {
       playerListings: [],
@@ -84,6 +89,23 @@ function createDefaultState(): WonderState {
     nextTokenDrop: Date.now() + TOKEN_DROP_MS,
     tokenRefillVersion: TOKEN_REFILL_VERSION,
   };
+}
+
+function normalizeTypeList(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0 && item < WONDER_ITEMS.length)));
+}
+
+function fillActivePool(activeTypes: number[], retiredTypes: number[]): number[] {
+  const activeItemTypes = activeTypes.filter((type) => !retiredTypes.includes(type)).slice(0, ACTIVE_ITEM_POOL_SIZE);
+  for (let type = 0; type < WONDER_ITEMS.length && activeItemTypes.length < ACTIVE_ITEM_POOL_SIZE; type += 1) {
+    if (!retiredTypes.includes(type) && !activeItemTypes.includes(type)) {
+      activeItemTypes.push(type);
+    }
+  }
+  return activeItemTypes;
 }
 
 function normalizeListing(item: unknown): MarketListing | null {
@@ -104,6 +126,18 @@ function normalizeState(value: unknown): WonderState {
   const raw = value && typeof value === "object" ? value as Partial<WonderState> : {};
   const slots = Array.isArray(raw.slots) ? raw.slots.slice(0, SLOT_COUNT) : fallback.slots;
   while (slots.length < SLOT_COUNT) slots.push(null);
+  const normalizedIndex = fallback.index.map((entry, id) => {
+    const saved = Array.isArray(raw.index) ? raw.index[id] : undefined;
+    return {
+      id,
+      discovered: Boolean(saved?.discovered),
+      maxLevel: Math.min(8, Math.max(0, Number(saved?.maxLevel) || 0)),
+    };
+  });
+  const completedTypes = normalizedIndex.filter((entry) => entry.maxLevel >= 8).map((entry) => entry.id);
+  const retiredItemTypes = Array.from(new Set([...normalizeTypeList(raw.retiredItemTypes), ...completedTypes]));
+  const savedActiveItemTypes = normalizeTypeList(raw.activeItemTypes).filter((type) => !retiredItemTypes.includes(type));
+  const activeItemTypes = fillActivePool(savedActiveItemTypes.length > 0 ? savedActiveItemTypes : fallback.activeItemTypes, retiredItemTypes);
 
   return {
     tokens: Math.min(MAX_TOKENS, Math.max(0, Number(raw.tokens ?? fallback.tokens))),
@@ -113,14 +147,9 @@ function normalizeState(value: unknown): WonderState {
       level: Math.min(8, Math.max(1, Number((item as WonderItem).level) || 1)),
       qty: Math.max(1, Number((item as WonderItem).qty) || 1),
     } : null),
-    index: fallback.index.map((entry, id) => {
-      const saved = Array.isArray(raw.index) ? raw.index[id] : undefined;
-      return {
-        id,
-        discovered: Boolean(saved?.discovered),
-        maxLevel: Math.min(8, Math.max(0, Number(saved?.maxLevel) || 0)),
-      };
-    }),
+    index: normalizedIndex,
+    activeItemTypes,
+    retiredItemTypes,
     gameLog: Array.isArray(raw.gameLog) ? raw.gameLog.filter((item) => typeof item === "string").slice(0, MAX_LOG_ITEMS) : [],
     market: {
       playerListings: Array.isArray(raw.market?.playerListings) ? raw.market.playerListings.map(normalizeListing).filter(Boolean) as MarketListing[] : [],
@@ -130,6 +159,31 @@ function normalizeState(value: unknown): WonderState {
     },
     nextTokenDrop: Number(raw.nextTokenDrop) || fallback.nextTokenDrop,
     tokenRefillVersion: Number(raw.tokenRefillVersion) || 0,
+  };
+}
+
+function rotateActiveItemPool(state: WonderState, completedType: number): { state: WonderState; unlockedType: number | null } {
+  if (state.retiredItemTypes.includes(completedType)) {
+    return { state, unlockedType: null };
+  }
+
+  const retiredItemTypes = [...state.retiredItemTypes, completedType];
+  const activeWithoutCompleted = state.activeItemTypes.filter((type) => type !== completedType);
+  const unlockedType = WONDER_ITEMS.findIndex((_, type) => (
+    type !== completedType &&
+    !retiredItemTypes.includes(type) &&
+    !activeWithoutCompleted.includes(type)
+  ));
+
+  const activeItemTypes = fillActivePool(unlockedType >= 0 ? [...activeWithoutCompleted, unlockedType] : activeWithoutCompleted, retiredItemTypes);
+
+  return {
+    state: {
+      ...state,
+      activeItemTypes,
+      retiredItemTypes,
+    },
+    unlockedType: unlockedType >= 0 ? unlockedType : null,
   };
 }
 
@@ -193,6 +247,7 @@ export default function DoluruuWonderland({ user }: { user: any }) {
   const discoveredCount = useMemo(() => state.index.filter((item) => item.discovered).length, [state.index]);
   const emptySlots = useMemo(() => state.slots.filter((slot) => slot === null).length, [state.slots]);
   const maxMergedItems = useMemo(() => state.slots.filter((slot) => slot && slot.level >= 8), [state.slots]);
+  const activePoolItems = useMemo(() => state.activeItemTypes.map((type) => WONDER_ITEMS[type]), [state.activeItemTypes]);
 
   const withLog = (current: WonderState, message: string): WonderState => ({
     ...current,
@@ -286,7 +341,10 @@ export default function DoluruuWonderland({ user }: { user: any }) {
       const emptyIdx = current.slots.indexOf(null);
       if (emptyIdx === -1) return withLog(current, "Island is full. Sell, exchange, or merge an item first.");
 
-      const type = Math.floor(Math.random() * WONDER_ITEMS.length);
+      const rollableTypes = current.activeItemTypes.filter((type) => !current.retiredItemTypes.includes(type));
+      if (rollableTypes.length === 0) return withLog(current, "All active blind-box items are complete. More items will unlock when new sets are added.");
+
+      const type = rollableTypes[Math.floor(Math.random() * rollableTypes.length)];
       const nextIndex = current.index.map((entry, id) => id === type
         ? { ...entry, discovered: true, maxLevel: Math.max(entry.maxLevel, 1) }
         : entry);
@@ -350,8 +408,16 @@ export default function DoluruuWonderland({ user }: { user: any }) {
       const index = current.index.map((entry, id) => id === targetItem.type
         ? { ...entry, discovered: true, maxLevel: Math.max(entry.maxLevel, newLevel) }
         : entry);
-      const maxMessage = newLevel >= 8 ? " Max merge reached. Gift Exchange is unlocked for this item." : "";
-      return withLog({ ...current, slots, index }, `${mergeSize}-merge created ${created}x Lv.${newLevel} ${WONDER_ITEMS[targetItem.type][0]}.${maxMessage}`);
+      let nextState = { ...current, slots, index };
+      let maxMessage = "";
+      if (newLevel >= 8 && current.index[targetItem.type].maxLevel < 8) {
+        const rotated = rotateActiveItemPool(nextState, targetItem.type);
+        nextState = rotated.state;
+        maxMessage = rotated.unlockedType !== null
+          ? ` Max merge reached. ${WONDER_ITEMS[targetItem.type][0]} retired from blind boxes and ${WONDER_ITEMS[rotated.unlockedType][0]} ${WONDER_ITEMS[rotated.unlockedType][1]} unlocked.`
+          : " Max merge reached. This item retired from blind boxes.";
+      }
+      return withLog(nextState, `${mergeSize}-merge created ${created}x Lv.${newLevel} ${WONDER_ITEMS[targetItem.type][0]}.${maxMessage}`);
     });
     setDragIndex(null);
   };
@@ -497,7 +563,14 @@ export default function DoluruuWonderland({ user }: { user: any }) {
             <CardContent className="p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h3 className="font-bold text-violet-950 flex items-center gap-2"><Package className="w-4 h-4" /> Blind Box</h3>
-                <p className="text-sm text-slate-600">Drag matching items together. Three merge up, five gives a bonus.</p>
+                <p className="text-sm text-slate-600">Blind boxes roll from 10 active items. When one reaches Lv.8, it retires and unlocks one new item.</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {activePoolItems.map(([emoji, name]) => (
+                    <span key={name} className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-amber-100 px-2 text-xl" title={name}>
+                      {emoji}
+                    </span>
+                  ))}
+                </div>
               </div>
               <Button onClick={buyBox} className="bg-emerald-600 hover:bg-emerald-700">
                 <Sparkles className="w-4 h-4 mr-2" />
