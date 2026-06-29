@@ -69,6 +69,7 @@ const NotFound             = lazy(() => import("@/pages/not-found"));
 const SimplePetCare        = lazy(() => import("@/pages/simple-pet-care"));
 const PetCareWithEnergy    = lazy(() => import("@/pages/pet-care-with-energy"));
 const InvestorLanding      = lazy(() => import("@/pages/investor-landing"));
+const LuxExperience        = lazy(() => import("@/pages/lux-experience"));
 const InvestorLogin        = lazy(() => import("@/pages/investor-login"));
 const InvestorDashboard    = lazy(() => import("@/pages/investor-dashboard"));
 const InvestorAdmin        = lazy(() => import("@/pages/investor-admin"));
@@ -145,6 +146,7 @@ function Router() {
         <Route path="/reset-password" component={Login} />
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
+        <Route path="/lux" component={LuxExperience} />
 
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />
