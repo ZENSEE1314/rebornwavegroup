@@ -108,8 +108,8 @@ export function ScrollVideoLevels({
           {scrollHint ? <p className="mt-8 text-sm text-white/70">{scrollHint}</p> : null}
         </motion.div>
 
-        {/* Vertical floor stepper */}
-        <div className="absolute right-6 top-1/2 z-10 -translate-y-1/2 space-y-3.5">
+        {/* Vertical floor stepper — hidden on small screens to avoid crowding the caption */}
+        <div className="absolute right-6 top-1/2 z-10 hidden -translate-y-1/2 space-y-3.5 sm:block">
           {levels.map((lvl, i) => (
             <div key={lvl.no} className="flex items-center justify-end gap-2.5" style={{ opacity: i === active ? 1 : 0.45 }}>
               <span className="text-xs font-bold tracking-widest">{lvl.no}</span>

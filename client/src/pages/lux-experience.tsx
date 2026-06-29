@@ -4,6 +4,20 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Building2, Gift, HeartHandshake, MapPin, Sparkles } from "lucide-react";
 import { ScrollVideoLevels, type HeroLevel } from "@/components/ScrollVideoLevels";
 import rebornDemoVideo from "@assets/reborn-demo-video.mp4";
+import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
+import doluruuFemale from "@assets/doluruu-female-transparent.png";
+import doluruuBaby from "@assets/Doluruu Baby_1749663725243.png";
+import doluruuBlindboxBox from "@assets/doluruu-blindbox-box.jpeg";
+
+const PETS = [
+  { img: doluruuBoy, name: "Male pet", tag: "1 token daily" },
+  { img: doluruuFemale, name: "Female pet", tag: "1 token daily" },
+  { img: doluruuBaby, name: "Baby pet", tag: "1 token daily" },
+  { img: doluruuBlindboxBox, name: "Blindbox package", tag: "Member reward box" },
+];
+
+const PET_CARD_BG =
+  "radial-gradient(circle at 50% 28%, rgba(252,199,117,0.16), rgba(103,232,249,0.05) 55%, rgba(255,255,255,0.03) 100%)";
 
 const CLUB_ADDRESS =
   "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront - Batam Centre.49 blok A. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
@@ -124,7 +138,28 @@ export default function LuxExperience() {
             exchange prizes, and keep coming back to the club.
           </p>
         </div>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2">
+
+        <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {PETS.map((pet) => (
+            <div
+              key={pet.name}
+              className="overflow-hidden rounded-3xl border border-white/10 p-5 text-center"
+              style={{ background: PET_CARD_BG }}
+            >
+              <div className="flex h-40 items-center justify-center">
+                <img
+                  src={pet.img}
+                  alt={pet.name}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.55)]"
+                />
+              </div>
+              <div className="mt-3 font-extrabold">{pet.name}</div>
+              <div className="mt-1 text-xs font-bold text-amber-300">{pet.tag}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {BLINDBOX_RULES.map(([title, body]) => (
             <div key={title} className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-6">
               <Gift className="h-6 w-6 shrink-0 text-amber-300" />
