@@ -26,11 +26,14 @@ const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
 const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 
 const LEVELS: HeroLevel[] = [
-  { no: "1F", tone: "#22d3ee", title: "Activity Plans", units: "Kids Fun House and KTV lounge", detail: "Open singing, singing competitions, family play, and daily customer traffic from morning to night." },
-  { no: "2F", tone: "#f472b6", title: "Service Plans", units: "Beauty Salon and Private KTV rooms", detail: "Private celebrations, customer hosting, beauty services, and repeat booking packages." },
-  { no: "3F", tone: "#facc15", title: "VIP Plans", units: "Beauty Salon and VIP KTV rooms", detail: "Premium rooms for VIP guests, birthday events, business hosting, and higher spend per visit." },
-  { no: "4F", tone: "#34d399", title: "Pet Cafe", units: "All 3 units connected as a pet cafe", detail: "Food, drinks, pet-themed community, blindbox tie-ins, and content-friendly social traffic." },
-  { no: "5F", tone: "#a78bfa", title: "Sea-View Live House", units: "Live band, audience, dance floor, and sea view", detail: "Nightlife anchor with live music, special events, dance floor energy, and premium table sales." },
+  { no: "1A", tone: "#22d3ee", title: "Kids Fun House", units: "Level 1 · 1 unit", detail: "Children's play, family fun, and daytime tourist traffic from morning to night." },
+  { no: "1B", tone: "#67e8f9", title: "KTV Lounge", units: "Level 1 · 2 units", detail: "Open singing, group seating, and the singing-competition stage." },
+  { no: "2A", tone: "#f472b6", title: "Beauty Salon", units: "Level 2 · 1 unit", detail: "Beauty services, waiting lounge, and repeat appointment packages." },
+  { no: "2B", tone: "#f9a8d4", title: "Private KTV Rooms", units: "Level 2 · 2 units", detail: "Four private rooms for group celebrations and birthdays." },
+  { no: "3A", tone: "#facc15", title: "Beauty Salon", units: "Level 3 · 1 unit", detail: "Beauty service, makeup prep, and premium guest pampering." },
+  { no: "3B", tone: "#fcd34d", title: "VIP KTV Rooms", units: "Level 3 · 2 units", detail: "Two premium private rooms for VIP guests and higher-spend groups." },
+  { no: "4", tone: "#34d399", title: "Pet Cafe", units: "Level 4 · 3 units", detail: "Food, drinks, pet-themed community, blindbox tie-ins, and social content." },
+  { no: "5", tone: "#a78bfa", title: "Sea-View Live House", units: "Level 5 · 3 units", detail: "Live music, special events, dance floor energy, and premium sea-view tables." },
 ];
 
 const AUDIENCE = [

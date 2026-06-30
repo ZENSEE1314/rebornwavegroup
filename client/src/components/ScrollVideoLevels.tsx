@@ -7,8 +7,9 @@ import {
   useTransform,
 } from "framer-motion";
 
-// Scroll track length of the pinned hero — kept short so the pin never feels stuck.
-const SCROLL_TRACK = "420vh";
+// Scroll track length of the pinned hero — long enough that all 8 sectors get
+// room to read, while scrubbing keeps every scroll movement responsive.
+const SCROLL_TRACK = "560vh";
 // Progress at which the intro clip hands off to the scrubbed continuous clip.
 const SCRUB_START = 0.12;
 // Fallback duration until the scrub video reports its real length.
