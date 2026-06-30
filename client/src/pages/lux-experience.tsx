@@ -76,7 +76,8 @@ export default function LuxExperience() {
       </header>
 
       <ScrollVideoLevels
-        videoSrc="/hero-lux.mp4"
+        introVideoSrc="/hero-intro.mp4"
+        scrubVideoSrc="/hero-lux.mp4"
         posterSrc="/hero-lux.jpg"
         eyebrow="Waterfront Lifestyle Club · Batam"
         title={

@@ -7,14 +7,12 @@ import {
   useTransform,
 } from "framer-motion";
 
-// Scroll track length of the pinned hero — ~0.65 viewport per floor. Kept short
-// so the pin never feels stuck while the footage keeps playing.
+// Scroll track length of the pinned hero — kept short so the pin never feels stuck.
 const SCROLL_TRACK = "420vh";
-// Progress at which the intro headline has fully handed off to the level cards.
-const INTRO_END = 0.1;
-// How far the footage zooms across the whole track, giving continuous,
-// scroll-linked motion so every scroll movement visibly changes the frame.
-const MAX_ZOOM = 1.16;
+// Progress at which the intro clip hands off to the scrubbed continuous clip.
+const SCRUB_START = 0.12;
+// Fallback duration until the scrub video reports its real length.
+const FALLBACK_DURATION = 15;
 
 export interface HeroLevel {
   no: string;
@@ -25,7 +23,8 @@ export interface HeroLevel {
 }
 
 interface ScrollVideoLevelsProps {
-  videoSrc: string;
+  introVideoSrc: string;
+  scrubVideoSrc: string;
   posterSrc?: string;
   eyebrow?: string;
   title: ReactNode;
@@ -34,13 +33,16 @@ interface ScrollVideoLevelsProps {
 }
 
 /**
- * Pinned, full-screen video that plays continuously for smooth motion while
- * scroll drives the overlay — fading the intro out and swapping the per-floor
- * caption (1F → 5F) as the viewer ascends. The video's playback is never tied
- * to scroll position, so it stays lively instead of stepping frame to frame.
+ * Pinned hero where the top plays an intro clip, then on scroll crossfades to a
+ * second "continuous" clip that is scrubbed by scroll position — each floor
+ * (1F → 5F) maps to a segment of that clip, so scrolling moves through the video.
+ *
+ * The scrub clip must be encoded all-intra (every frame a keyframe) so seeking
+ * to any scroll position is smooth instead of snapping between keyframes.
  */
 export function ScrollVideoLevels({
-  videoSrc,
+  introVideoSrc,
+  scrubVideoSrc,
   posterSrc,
   eyebrow,
   title,
@@ -48,7 +50,9 @@ export function ScrollVideoLevels({
   levels,
 }: ScrollVideoLevelsProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const introRef = useRef<HTMLVideoElement>(null);
+  const scrubRef = useRef<HTMLVideoElement>(null);
+  const durationRef = useRef(FALLBACK_DURATION);
   const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
 
@@ -57,21 +61,30 @@ export function ScrollVideoLevels({
     offset: ["start start", "end start"],
   });
 
-  const introOpacity = useTransform(scrollYProgress, [0, INTRO_END], [1, 0]);
-  const levelOpacity = useTransform(scrollYProgress, [INTRO_END * 0.8, INTRO_END * 1.4], [0, 1]);
+  const introOpacity = useTransform(scrollYProgress, [0, SCRUB_START], [1, 0]);
+  const scrubOpacity = useTransform(scrollYProgress, [SCRUB_START * 0.4, SCRUB_START], [0, 1]);
+  const levelOpacity = useTransform(scrollYProgress, [SCRUB_START * 0.7, SCRUB_START * 1.3], [0, 1]);
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
-  const videoScale = useTransform(scrollYProgress, [0, 1], [1, MAX_ZOOM]);
 
+  // Scrub the continuous clip and pick the active floor from scroll position.
   useMotionValueEvent(scrollYProgress, "change", (p) => {
-    const idx = Math.min(levels.length - 1, Math.max(0, Math.floor(p * levels.length)));
-    setActive(idx);
+    const sp = Math.min(1, Math.max(0, (p - SCRUB_START) / (1 - SCRUB_START)));
+    const video = scrubRef.current;
+    if (video && !prefersReducedMotion) {
+      try {
+        video.currentTime = sp * (durationRef.current - 0.05);
+      } catch {
+        /* seeking before metadata is ready — ignored */
+      }
+    }
+    setActive(Math.min(levels.length - 1, Math.floor(sp * levels.length)));
   });
 
-  // Keep the footage playing for smooth motion; browsers allow this only muted.
+  // Intro clip plays for lively motion at the top; browsers allow this only muted.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || prefersReducedMotion) return;
-    const play = () => void video.play().catch(() => {});
+    const intro = introRef.current;
+    if (!intro || prefersReducedMotion) return;
+    const play = () => void intro.play().catch(() => {});
     play();
     window.addEventListener("click", play, { once: true });
     return () => window.removeEventListener("click", play);
@@ -85,16 +98,28 @@ export function ScrollVideoLevels({
 
       <div className="sticky top-0 h-screen overflow-hidden">
         <motion.video
-          ref={videoRef}
+          ref={introRef}
           className="absolute inset-0 h-full w-full object-cover"
-          style={prefersReducedMotion ? undefined : { scale: videoScale }}
-          src={videoSrc}
-          poster={posterSrc}
+          style={prefersReducedMotion ? undefined : { opacity: introOpacity }}
+          src={introVideoSrc}
           autoPlay
           muted
           loop
           playsInline
           preload="auto"
+        />
+        <motion.video
+          ref={scrubRef}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={prefersReducedMotion ? undefined : { opacity: scrubOpacity }}
+          src={scrubVideoSrc}
+          poster={posterSrc}
+          muted
+          playsInline
+          preload="auto"
+          onLoadedMetadata={(e) => {
+            durationRef.current = e.currentTarget.duration || FALLBACK_DURATION;
+          }}
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
 
