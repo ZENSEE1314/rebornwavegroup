@@ -12,8 +12,6 @@ import {
 const SCROLL_TRACK = "560vh";
 // Progress at which the intro clip hands off to the scrubbed continuous clip.
 const SCRUB_START = 0.12;
-// Fallback duration until the scrub video reports its real length.
-const FALLBACK_DURATION = 15;
 
 export interface HeroLevel {
   no: string;
@@ -21,6 +19,8 @@ export interface HeroLevel {
   title: string;
   units: string;
   detail: string;
+  /** Timestamp (seconds) in the continuous clip where this sector's scene is on screen. */
+  at: number;
 }
 
 interface ScrollVideoLevelsProps {
@@ -53,7 +53,6 @@ export function ScrollVideoLevels({
   const sectionRef = useRef<HTMLDivElement>(null);
   const introRef = useRef<HTMLVideoElement>(null);
   const scrubRef = useRef<HTMLVideoElement>(null);
-  const durationRef = useRef(FALLBACK_DURATION);
   const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
 
@@ -67,18 +66,22 @@ export function ScrollVideoLevels({
   const levelOpacity = useTransform(scrollYProgress, [SCRUB_START * 0.7, SCRUB_START * 1.3], [0, 1]);
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
-  // Scrub the continuous clip and pick the active floor from scroll position.
+  // Move the camera between each sector's exact moment in the continuous clip,
+  // interpolating between their timestamps, and pick the nearest floor.
   useMotionValueEvent(scrollYProgress, "change", (p) => {
     const sp = Math.min(1, Math.max(0, (p - SCRUB_START) / (1 - SCRUB_START)));
+    const pos = sp * (levels.length - 1);
+    const k = Math.min(levels.length - 2, Math.floor(pos));
+    const frac = pos - k;
     const video = scrubRef.current;
     if (video && !prefersReducedMotion) {
       try {
-        video.currentTime = sp * (durationRef.current - 0.05);
+        video.currentTime = levels[k].at + (levels[k + 1].at - levels[k].at) * frac;
       } catch {
         /* seeking before metadata is ready — ignored */
       }
     }
-    setActive(Math.min(levels.length - 1, Math.floor(sp * levels.length)));
+    setActive(Math.min(levels.length - 1, Math.round(pos)));
   });
 
   // Intro clip plays for lively motion at the top; browsers allow this only muted.
@@ -118,9 +121,6 @@ export function ScrollVideoLevels({
           muted
           playsInline
           preload="auto"
-          onLoadedMetadata={(e) => {
-            durationRef.current = e.currentTarget.duration || FALLBACK_DURATION;
-          }}
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
 
