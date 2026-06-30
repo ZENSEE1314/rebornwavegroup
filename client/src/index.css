@@ -364,12 +364,14 @@ button[class*="dashboard-button"] svg {
 /* Enhanced Scroll Behavior */
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden;
+  /* clip (not hidden) prevents horizontal scroll without creating a scroll
+     container, which would break position: sticky (the hero pin). */
+  overflow-x: clip;
   max-width: 100vw;
 }
 
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
 }
 
@@ -456,7 +458,7 @@ button, .interactive {
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Smooth scrolling */
@@ -479,7 +481,7 @@ button, .interactive {
   /* Mobile optimization and responsiveness */
   @media (max-width: 768px) {
     html, body {
-      overflow-x: hidden;
+      overflow-x: clip;
       width: 100%;
       max-width: 100vw;
     }
