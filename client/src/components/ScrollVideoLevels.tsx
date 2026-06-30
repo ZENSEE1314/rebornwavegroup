@@ -7,11 +7,14 @@ import {
   useTransform,
 } from "framer-motion";
 
-// Scroll track length of the pinned hero. ~1 viewport per floor plus a lead-in
-// so each level has room to be read while the footage keeps playing.
-const SCROLL_TRACK = "560vh";
+// Scroll track length of the pinned hero — ~0.65 viewport per floor. Kept short
+// so the pin never feels stuck while the footage keeps playing.
+const SCROLL_TRACK = "420vh";
 // Progress at which the intro headline has fully handed off to the level cards.
-const INTRO_END = 0.08;
+const INTRO_END = 0.1;
+// How far the footage zooms across the whole track, giving continuous,
+// scroll-linked motion so every scroll movement visibly changes the frame.
+const MAX_ZOOM = 1.16;
 
 export interface HeroLevel {
   no: string;
@@ -55,8 +58,9 @@ export function ScrollVideoLevels({
   });
 
   const introOpacity = useTransform(scrollYProgress, [0, INTRO_END], [1, 0]);
-  const levelOpacity = useTransform(scrollYProgress, [INTRO_END * 0.5, INTRO_END * 1.2], [0, 1]);
+  const levelOpacity = useTransform(scrollYProgress, [INTRO_END * 0.8, INTRO_END * 1.4], [0, 1]);
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const videoScale = useTransform(scrollYProgress, [0, 1], [1, MAX_ZOOM]);
 
   useMotionValueEvent(scrollYProgress, "change", (p) => {
     const idx = Math.min(levels.length - 1, Math.max(0, Math.floor(p * levels.length)));
@@ -80,9 +84,10 @@ export function ScrollVideoLevels({
       <motion.div className="fixed left-0 top-0 z-30 h-[3px] bg-gradient-to-r from-amber-300 to-cyan-300" style={{ width: barWidth }} />
 
       <div className="sticky top-0 h-screen overflow-hidden">
-        <video
+        <motion.video
           ref={videoRef}
           className="absolute inset-0 h-full w-full object-cover"
+          style={prefersReducedMotion ? undefined : { scale: videoScale }}
           src={videoSrc}
           poster={posterSrc}
           autoPlay
