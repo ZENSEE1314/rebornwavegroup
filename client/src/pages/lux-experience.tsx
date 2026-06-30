@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Building2, Gift, HeartHandshake, MapPin, Sparkles } from "lucide-react";
 import { ScrollVideoLevels, type HeroLevel } from "@/components/ScrollVideoLevels";
-import rebornDemoVideo from "@assets/reborn-demo-video.mp4";
 import doluruuBoy from "@assets/Doluruu Boy_1749664545355.png";
 import doluruuFemale from "@assets/doluruu-female-transparent.png";
 import doluruuBaby from "@assets/Doluruu Baby_1749663725243.png";
@@ -102,7 +101,7 @@ export default function LuxExperience() {
           <video
             ref={demoRef}
             className="h-full w-full object-cover"
-            src={rebornDemoVideo}
+            src="/demo.mp4"
             autoPlay
             muted
             loop
