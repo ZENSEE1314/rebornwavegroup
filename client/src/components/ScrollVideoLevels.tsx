@@ -11,9 +11,11 @@ import {
 const SCROLL_TRACK = "880vh";
 // Title overlay fades over the first slice of scroll.
 const INTRO_FADE = 0.05;
-// Scroll progress past which motion begins — below this the hero shows a
-// static poster and every floor clip stays paused (no autoplay on open).
-const MOTION_START = 0.01;
+// Real scroll distance (px) past which motion begins — below this the hero
+// shows a static poster and every floor clip stays paused (no autoplay on
+// open). Tied to window.scrollY rather than the section's scroll progress so
+// mount-time layout noise can never false-trigger it.
+const MOTION_START_PX = 24;
 
 export interface HeroLevel {
   no: string;
@@ -44,8 +46,10 @@ export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels, posterSr
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
-  // Gates autoplay: false until the visitor scrolls past MOTION_START, so the
-  // hero opens on a static photo instead of a looping video.
+  // Gates autoplay: false until the visitor has actually scrolled, so the
+  // hero opens on a static photo instead of a looping video. Tied to a real
+  // window scroll (not scrollYProgress) so mount-time layout noise can't
+  // false-trigger it before the visitor does anything.
   const [started, setStarted] = useState(false);
 
   const { scrollYProgress } = useScroll({
@@ -57,9 +61,22 @@ export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels, posterSr
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   useMotionValueEvent(scrollYProgress, "change", (p) => {
-    if (p > MOTION_START) setStarted(true);
+    // Guard against a transient non-finite progress value (e.g. before the
+    // section has real layout) — without this, an invalid `active` index
+    // makes every clip's "i === active" check fail at once and the hero
+    // goes blank instead of showing any floor.
+    if (!Number.isFinite(p)) return;
     setActive(Math.min(levels.length - 1, Math.max(0, Math.floor(p * levels.length))));
   });
+
+  useEffect(() => {
+    if (started) return;
+    const onScroll = () => {
+      if (window.scrollY > MOTION_START_PX) setStarted(true);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [started]);
 
   // Play only the active floor's clip once motion has started; pause the rest.
   useEffect(() => {
@@ -86,6 +103,7 @@ export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels, posterSr
             className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
             style={{ opacity: i === active ? 1 : 0 }}
             src={lvl.videoSrc}
+            poster={posterSrc}
             muted
             loop
             playsInline
