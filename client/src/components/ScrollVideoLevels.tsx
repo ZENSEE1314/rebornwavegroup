@@ -11,6 +11,9 @@ import {
 const SCROLL_TRACK = "880vh";
 // Title overlay fades over the first slice of scroll.
 const INTRO_FADE = 0.05;
+// Scroll progress past which motion begins — below this the hero shows a
+// static poster and every floor clip stays paused (no autoplay on open).
+const MOTION_START = 0.01;
 
 export interface HeroLevel {
   no: string;
@@ -27,6 +30,8 @@ interface ScrollVideoLevelsProps {
   title: ReactNode;
   scrollHint?: string;
   levels: HeroLevel[];
+  /** Still image shown until the visitor starts scrolling. */
+  posterSrc: string;
 }
 
 /**
@@ -34,11 +39,14 @@ interface ScrollVideoLevelsProps {
  * the active floor; its clip crossfades in and plays while the others pause,
  * with the floor caption and stepper following along.
  */
-export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels }: ScrollVideoLevelsProps) {
+export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels, posterSrc }: ScrollVideoLevelsProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
+  // Gates autoplay: false until the visitor scrolls past MOTION_START, so the
+  // hero opens on a static photo instead of a looping video.
+  const [started, setStarted] = useState(false);
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -49,17 +57,18 @@ export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels }: Scroll
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   useMotionValueEvent(scrollYProgress, "change", (p) => {
+    if (p > MOTION_START) setStarted(true);
     setActive(Math.min(levels.length - 1, Math.max(0, Math.floor(p * levels.length))));
   });
 
-  // Play only the active floor's clip; pause the rest.
+  // Play only the active floor's clip once motion has started; pause the rest.
   useEffect(() => {
     videoRefs.current.forEach((video, i) => {
       if (!video) return;
-      if (i === active) void video.play().catch(() => {});
+      if (started && i === active) void video.play().catch(() => {});
       else video.pause();
     });
-  }, [active]);
+  }, [active, started]);
 
   const level = levels[active];
 
@@ -83,6 +92,13 @@ export function ScrollVideoLevels({ eyebrow, title, scrollHint, levels }: Scroll
             preload={i < 2 ? "auto" : "metadata"}
           />
         ))}
+        {/* Static opener — covers the video stack until the visitor scrolls */}
+        <img
+          src={posterSrc}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+          style={{ opacity: started ? 0 : 1, zIndex: 2 }}
+        />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
 
         <motion.div

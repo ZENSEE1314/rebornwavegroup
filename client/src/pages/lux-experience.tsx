@@ -78,6 +78,7 @@ export default function LuxExperience() {
       </header>
 
       <ScrollVideoLevels
+        posterSrc="/floors/poster.jpg"
         eyebrow="Waterfront Lifestyle Club · Batam"
         title={
           <>
