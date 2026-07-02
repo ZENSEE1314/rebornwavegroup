@@ -5,17 +5,17 @@ import {
   useReducedMotion,
   useScroll,
   useTransform,
+  type MotionValue,
 } from "framer-motion";
 import { useRef, useState } from "react";
 
-// Title overlay fades over the first third of the entrance page's own scroll.
-const INTRO_FADE = 0.35;
-// Still-image pages (the entrance) need a stronger Ken Burns push since they
-// have no motion of their own. Video pages get a much subtler drift — the
-// clip itself already supplies the movement.
-const IMAGE_ZOOM = { from: 1.18, to: 1.0 };
-const VIDEO_ZOOM = { from: 1.06, to: 1.0 };
-const PAN_PERCENT = -5;
+// The image is scaled up so it has vertical headroom, then panned by scroll:
+// scale 1.25 leaves 12.5% overflow top/bottom, and the pan travels 6% -> -10%,
+// staying inside that headroom. All movement is a pure function of scroll
+// position — stop scrolling and everything freezes.
+const IMAGE_SCALE = 1.25;
+const PAN_FROM = "6%";
+const PAN_TO = "-10%";
 
 export interface HeroLevel {
   /** Empty for the entrance page — hides its stepper dot and caption card. */
@@ -24,10 +24,10 @@ export interface HeroLevel {
   title: string;
   units: string;
   detail: string;
-  /** Still image — used alone for the entrance page, or as the video's poster frame. */
+  /** Landscape still for desktop screens. */
   imageSrc: string;
-  /** Looping clip for this floor. Omit for a still-image page (the entrance). */
-  videoSrc?: string;
+  /** 9:16 portrait crop served on portrait (mobile) screens. */
+  portraitSrc: string;
 }
 
 interface ScrollFloorPagesProps {
@@ -38,18 +38,21 @@ interface ScrollFloorPagesProps {
 }
 
 /**
- * Each floor is its own full-screen "page": a `position: sticky` section
- * exactly one viewport tall, stacked in normal document flow. Floor pages
- * play a real looping video (autoplay+muted, so no gesture/JS gating is
- * needed — each page is a persistent DOM node, never conditionally toggled,
- * so there's no opacity-index class of bug to chase). The entrance page is a
- * plain still photo. A slow scroll-linked zoom adds extra drift on top.
+ * Story-telling hero: each floor is a full-screen `position: sticky` page,
+ * stacked in normal flow, so scrolling slides the next floor up over the
+ * previous one — one floor per screen of scroll. While a page is on screen its
+ * image pans vertically, driven ONLY by scroll position (scroll-linked, never
+ * self-playing). Portrait screens get dedicated 9:16 crops via <picture>.
+ *
+ * NOTE: per-page useScroll doesn't work here — a stuck sticky element reports
+ * rect.top = 0 forever, so its own progress never advances. Every page's pan
+ * is therefore derived from the parent track's single scroll progress, each
+ * page mapping its own segment of it.
  */
 export function ScrollFloorPages({ eyebrow, title, scrollHint, levels }: ScrollFloorPagesProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
-  // Whole-track progress, only used to drive the top progress bar + stepper.
   const { scrollYProgress } = useScroll({ target: wrapRef, offset: ["start start", "end end"] });
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
@@ -81,7 +84,9 @@ export function ScrollFloorPages({ eyebrow, title, scrollHint, levels }: ScrollF
         <FloorPage
           key={lvl.imageSrc}
           level={lvl}
-          zIndex={i + 1}
+          index={i}
+          count={levels.length}
+          progress={scrollYProgress}
           eyebrow={i === 0 ? eyebrow : undefined}
           title={i === 0 ? title : undefined}
           scrollHint={i === 0 ? scrollHint : undefined}
@@ -93,48 +98,42 @@ export function ScrollFloorPages({ eyebrow, title, scrollHint, levels }: ScrollF
 
 function FloorPage({
   level,
-  zIndex,
+  index,
+  count,
+  progress,
   eyebrow,
   title,
   scrollHint,
 }: {
   level: HeroLevel;
-  zIndex: number;
+  index: number;
+  count: number;
+  progress: MotionValue<number>;
   eyebrow?: string;
   title?: ReactNode;
   scrollHint?: string;
 }) {
-  const pageRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
-  const zoom = level.videoSrc ? VIDEO_ZOOM : IMAGE_ZOOM;
 
-  const { scrollYProgress } = useScroll({ target: pageRef, offset: ["start start", "end start"] });
-  const scale = useTransform(scrollYProgress, [0, 1], [zoom.from, zoom.to]);
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", `${PAN_PERCENT}%`]);
-  const introOpacity = useTransform(scrollYProgress, [0, INTRO_FADE], [1, 0]);
-  const captionOpacity = useTransform(scrollYProgress, [0, 0.1, 0.85, 1], [0, 1, 1, 0.3]);
+  // This page is on screen from when it starts sliding in (previous segment)
+  // until the next page has fully covered it (its own segment) — pan across
+  // that whole window so the image is always moving while visible.
+  const segStart = Math.max(0, (index - 1) / count);
+  const segEnd = Math.min(1, (index + 1) / count);
+  const y = useTransform(progress, [segStart, segEnd], [PAN_FROM, PAN_TO]);
+  const introOpacity = useTransform(progress, [0, 0.7 / count], [1, 0]);
 
   return (
-    <section ref={pageRef} className="sticky top-0 h-screen overflow-hidden" style={{ zIndex }}>
-      {level.videoSrc ? (
-        <motion.video
-          className="absolute inset-0 h-full w-full object-cover"
-          style={prefersReducedMotion ? undefined : { scale, y }}
-          src={level.videoSrc}
-          poster={level.imageSrc}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-      ) : (
-        <motion.img
-          src={level.imageSrc}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={prefersReducedMotion ? undefined : { scale, y }}
-        />
-      )}
+    <section className="sticky top-0 h-screen overflow-hidden" style={{ zIndex: index + 1 }}>
+      <motion.div
+        className="absolute inset-0"
+        style={prefersReducedMotion ? undefined : { scale: IMAGE_SCALE, y }}
+      >
+        <picture className="block h-full w-full">
+          <source media="(orientation: portrait)" srcSet={level.portraitSrc} />
+          <img src={level.imageSrc} alt="" className="h-full w-full object-cover" />
+        </picture>
+      </motion.div>
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
 
       {title ? (
@@ -155,22 +154,19 @@ function FloorPage({
       ) : null}
 
       {level.no ? (
-        <motion.div
-          className="absolute inset-x-0 bottom-[9vh] flex justify-center px-6"
-          style={prefersReducedMotion ? undefined : { opacity: captionOpacity }}
-        >
+        <div className="absolute inset-x-0 bottom-[7vh] flex justify-center px-4 sm:bottom-[9vh] sm:px-6">
           <div
-            className="w-[min(680px,92vw)] rounded-2xl border border-white/15 bg-[rgba(10,14,20,0.55)] p-6 backdrop-blur"
+            className="w-[min(680px,94vw)] rounded-2xl border border-white/15 bg-[rgba(10,14,20,0.55)] p-4 backdrop-blur sm:p-6"
             style={{ borderLeft: `4px solid ${level.tone}` }}
           >
             <div className="flex items-center gap-3">
               <span className="text-sm font-extrabold tracking-[0.18em]" style={{ color: level.tone }}>{level.no}</span>
-              <span className="text-xl font-extrabold md:text-2xl">{level.title}</span>
+              <span className="text-lg font-extrabold sm:text-xl md:text-2xl">{level.title}</span>
             </div>
             <div className="mt-1 text-sm font-semibold text-amber-200/85">{level.units}</div>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/75">{level.detail}</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/75 sm:text-[15px]">{level.detail}</p>
           </div>
-        </motion.div>
+        </div>
       ) : null}
     </section>
   );
