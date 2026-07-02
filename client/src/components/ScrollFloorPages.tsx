@@ -15,6 +15,10 @@ const PAN_FROM = "4%";
 const PAN_TO = "-8%";
 // Cap canvas backing-store resolution — frames are 840px wide, no point going higher.
 const MAX_DPR = 1.5;
+// Every floor owns 2 viewports of scroll: one pinned alone (pure scrub time)
+// plus one while the next page slides over it. Short clips stretch across the
+// distance so they read clearly; long clips simply advance faster.
+const UNITS_PER_FLOOR = 2;
 
 export interface HeroLevel {
   /** Empty for the entrance page — hides its stepper dot, caption, and layers. */
@@ -40,29 +44,43 @@ interface ScrollFloorPagesProps {
   levels: HeroLevel[];
 }
 
+// Flow position of page j in viewport units: the entrance takes 1 unit, every
+// floor after it takes UNITS_PER_FLOOR (its section + a spacer behind it).
+function unitStart(index: number) {
+  return index === 0 ? 0 : 1 + (index - 1) * UNITS_PER_FLOOR;
+}
+
 /**
- * Layered-parallax, scroll-driven hero. Each floor is a full-screen sticky
- * page; the next floor slides up over it (one floor per screen of scroll).
- * While a floor is pinned, its real footage plays as a scroll-scrubbed frame
- * sequence on a canvas — motion comes from YOUR scroll, frame by frame; stop
- * scrolling and it freezes. On top, independent parallax layers move at
- * different speeds: a giant outlined floor number, a tone-colored glow, and
- * the caption card rising into place — the Slider-Revolution-style depth.
+ * Layered-parallax, scroll-driven hero. Floors are full-screen sticky pages;
+ * a spacer screen after each one means every floor holds for two viewports of
+ * scroll — the first spent alone while the visitor's scroll scrubs its real
+ * footage frame-by-frame on a canvas, the second while the next floor slides
+ * up to cover it. Independent parallax layers (giant outlined floor number,
+ * tone-colored glow, footage pan, rising caption) move at different speeds.
+ * Motion always comes from the scroll itself — stop, and everything freezes.
  *
  * NOTE: per-page useScroll doesn't work with stacked sticky pages (a stuck
  * element reports rect.top = 0 forever), so every layer derives its motion
- * from the parent track's single scroll progress, mapped to its own segment.
+ * from the parent track's single scroll progress, mapped to scroll units.
  */
 export function ScrollFloorPages({ eyebrow, title, scrollHint, levels }: ScrollFloorPagesProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
-  const { scrollYProgress } = useScroll({ target: wrapRef, offset: ["start start", "end end"] });
+  // Total track: 1 unit (entrance) + 2 per floor. Progress runs until the
+  // wrap's bottom reaches the viewport top ("end start") so the LAST floor's
+  // scrub completes while the section after the hero slides up over it.
+  const totalUnits = 1 + (levels.length - 1) * UNITS_PER_FLOOR;
+  const scrollUnits = totalUnits;
+
+  const { scrollYProgress } = useScroll({ target: wrapRef, offset: ["start start", "end start"] });
   const barWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   useMotionValueEvent(scrollYProgress, "change", (p) => {
     if (!Number.isFinite(p)) return;
-    setActive(Math.min(levels.length - 1, Math.max(0, Math.floor(p * levels.length))));
+    const unit = p * scrollUnits;
+    const idx = unit < 1 ? 0 : Math.floor((unit - 1) / UNITS_PER_FLOOR) + 1;
+    setActive(Math.min(levels.length - 1, Math.max(0, idx)));
   });
 
   return (
@@ -89,7 +107,7 @@ export function ScrollFloorPages({ eyebrow, title, scrollHint, levels }: ScrollF
           key={lvl.imageSrc}
           level={lvl}
           index={i}
-          count={levels.length}
+          scrollUnits={scrollUnits}
           progress={scrollYProgress}
           near={Math.abs(active - i) <= 1}
           eyebrow={i === 0 ? eyebrow : undefined}
@@ -111,7 +129,7 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, cw: num
 function FloorPage({
   level,
   index,
-  count,
+  scrollUnits,
   progress,
   near,
   eyebrow,
@@ -120,7 +138,7 @@ function FloorPage({
 }: {
   level: HeroLevel;
   index: number;
-  count: number;
+  scrollUnits: number;
   progress: MotionValue<number>;
   near: boolean;
   eyebrow?: string;
@@ -134,22 +152,26 @@ function FloorPage({
   const loadStartedRef = useRef(false);
   const [seqReady, setSeqReady] = useState(false);
 
-  // On screen from when it slides in (previous segment) until fully covered
-  // (its own segment) — layers travel across that whole window.
-  const segStart = Math.max(0, (index - 1) / count);
-  const segEnd = Math.min(1, (index + 1) / count);
-  const pinStart = index / count;
+  // Everything in scroll units (1 unit = one viewport of scroll), converted to
+  // 0..1 track progress. A floor is on screen from its slide-in (1 unit before
+  // its pin) until fully covered (2 units after pinning).
+  const u = unitStart(index);
+  const T = scrollUnits;
+  const holdUnits = index === 0 ? 1 : UNITS_PER_FLOOR;
+  const segStart = Math.max(0, (u - 1) / T);
+  const pinStart = u / T;
+  const segEnd = Math.min(1, (u + holdUnits) / T);
 
   // Layer speeds: footage slowest, glow mid, giant number fastest.
   const bgY = useTransform(progress, [segStart, segEnd], [PAN_FROM, PAN_TO]);
   const numY = useTransform(progress, [segStart, segEnd], ["36%", "-52%"]);
   const numOpacity = useTransform(progress, [segStart, (segStart + segEnd) / 2, segEnd], [0, 0.5, 0]);
   const glowY = useTransform(progress, [segStart, segEnd], ["22%", "-34%"]);
-  const cardY = useTransform(progress, [pinStart - 0.5 / count, pinStart], ["70px", "0px"]);
-  const cardOpacity = useTransform(progress, [pinStart - 0.45 / count, pinStart], [0, 1]);
-  const introOpacity = useTransform(progress, [0, 0.7 / count], [1, 0]);
-  const introY = useTransform(progress, [0, 1 / count], ["0%", "-45%"]);
-  const eyebrowY = useTransform(progress, [0, 1 / count], ["0%", "-160%"]);
+  const cardY = useTransform(progress, [Math.max(0, pinStart - 0.5 / T), pinStart], ["70px", "0px"]);
+  const cardOpacity = useTransform(progress, [Math.max(0, pinStart - 0.45 / T), pinStart], [0, 1]);
+  const introOpacity = useTransform(progress, [0, 0.9 / T], [1, 0]);
+  const introY = useTransform(progress, [0, 1 / T], ["0%", "-45%"]);
+  const eyebrowY = useTransform(progress, [0, 1 / T], ["0%", "-160%"]);
 
   // Lazily preload this floor's frame sequence once the visitor is near it.
   useEffect(() => {
@@ -190,13 +212,13 @@ function FloorPage({
     return () => window.removeEventListener("resize", resize);
   }, [seqReady]);
 
-  // Scrub the footage with scroll during this floor's pinned phase.
+  // Scrub the footage with scroll across this floor's full 2-viewport hold.
   useMotionValueEvent(progress, "change", (p) => {
     if (!seqReady || prefersReducedMotion) return;
     const seqCount = level.seqCount ?? 0;
     const canvas = canvasRef.current;
     if (!canvas || seqCount === 0) return;
-    const lp = Math.min(1, Math.max(0, (p - pinStart) * count));
+    const lp = Math.min(1, Math.max(0, (p * T - u) / holdUnits));
     const frame = Math.min(seqCount - 1, Math.floor(lp * seqCount));
     if (frame === lastFrameRef.current && lp > 0) return;
     lastFrameRef.current = frame;
@@ -206,97 +228,103 @@ function FloorPage({
   });
 
   return (
-    <section className="sticky top-0 h-screen overflow-hidden" style={{ zIndex: index + 1 }}>
-      {/* Layer 1 — footage: still image backdrop + scroll-scrubbed canvas on top */}
-      <motion.div
-        className="absolute inset-0"
-        style={prefersReducedMotion ? undefined : { scale: IMAGE_SCALE, y: bgY }}
-      >
-        <picture className="block h-full w-full">
-          <source media="(orientation: portrait)" srcSet={level.portraitSrc} />
-          <img src={level.imageSrc} alt="" className="h-full w-full object-cover" />
-        </picture>
-        {level.seqBase ? (
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 h-full w-full transition-opacity duration-300"
-            style={{ opacity: seqReady ? 1 : 0 }}
+    <>
+      <section className="sticky top-0 h-screen overflow-hidden" style={{ zIndex: index + 1 }}>
+        {/* Layer 1 — footage: still image backdrop + scroll-scrubbed canvas on top */}
+        <motion.div
+          className="absolute inset-0"
+          style={prefersReducedMotion ? undefined : { scale: IMAGE_SCALE, y: bgY }}
+        >
+          <picture className="block h-full w-full">
+            <source media="(orientation: portrait)" srcSet={level.portraitSrc} />
+            <img src={level.imageSrc} alt="" className="h-full w-full object-cover" />
+          </picture>
+          {level.seqBase ? (
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 h-full w-full transition-opacity duration-300"
+              style={{ opacity: seqReady ? 1 : 0 }}
+            />
+          ) : null}
+        </motion.div>
+
+        {/* Layer 2 — vignette for text legibility */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
+
+        {/* Layer 3 — tone-colored glow drifting at its own speed */}
+        {level.no ? (
+          <motion.div
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[60vmin] -translate-x-1/2 rounded-full mix-blend-screen"
+            style={{
+              background: `radial-gradient(circle, ${level.tone}33 0%, transparent 65%)`,
+              ...(prefersReducedMotion ? {} : { y: glowY }),
+            }}
           />
         ) : null}
-      </motion.div>
 
-      {/* Layer 2 — vignette for text legibility */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.05)_28%,rgba(0,0,0,0.15)_60%,rgba(9,13,18,0.85)_100%)]" />
-
-      {/* Layer 3 — tone-colored glow drifting at its own speed */}
-      {level.no ? (
-        <motion.div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[60vmin] -translate-x-1/2 rounded-full mix-blend-screen"
-          style={{
-            background: `radial-gradient(circle, ${level.tone}33 0%, transparent 65%)`,
-            ...(prefersReducedMotion ? {} : { y: glowY }),
-          }}
-        />
-      ) : null}
-
-      {/* Layer 4 — giant outlined floor number, fastest parallax layer */}
-      {level.no ? (
-        <motion.div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={prefersReducedMotion ? undefined : { y: numY, opacity: numOpacity }}
-        >
-          <span
-            className="select-none text-[46vw] font-black leading-none tracking-tighter sm:text-[26vw]"
-            style={{ WebkitTextStroke: `2px ${level.tone}55`, color: "transparent" }}
+        {/* Layer 4 — giant outlined floor number, fastest parallax layer */}
+        {level.no ? (
+          <motion.div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            style={prefersReducedMotion ? undefined : { y: numY, opacity: numOpacity }}
           >
-            {level.no}
-          </span>
-        </motion.div>
-      ) : null}
-
-      {/* Entrance page — title layers, each on its own parallax speed */}
-      {title ? (
-        <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-          style={prefersReducedMotion ? undefined : { opacity: introOpacity }}
-        >
-          {eyebrow ? (
-            <motion.span
-              className="mb-5 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-amber-200"
-              style={prefersReducedMotion ? undefined : { y: eyebrowY }}
+            <span
+              className="select-none text-[46vw] font-black leading-none tracking-tighter sm:text-[26vw]"
+              style={{ WebkitTextStroke: `2px ${level.tone}55`, color: "transparent" }}
             >
-              {eyebrow}
-            </motion.span>
-          ) : null}
-          <motion.h1
-            className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.7)] md:text-7xl lg:text-8xl"
-            style={prefersReducedMotion ? undefined : { y: introY }}
-          >
-            {title}
-          </motion.h1>
-          {scrollHint ? <p className="mt-8 text-sm text-white/70">{scrollHint}</p> : null}
-        </motion.div>
-      ) : null}
+              {level.no}
+            </span>
+          </motion.div>
+        ) : null}
 
-      {/* Layer 5 — caption card rising into place */}
-      {level.no ? (
-        <motion.div
-          className="absolute inset-x-0 bottom-[7vh] flex justify-center px-4 sm:bottom-[9vh] sm:px-6"
-          style={prefersReducedMotion ? undefined : { y: cardY, opacity: cardOpacity }}
-        >
-          <div
-            className="w-[min(680px,94vw)] rounded-2xl border border-white/15 bg-[rgba(10,14,20,0.55)] p-4 backdrop-blur sm:p-6"
-            style={{ borderLeft: `4px solid ${level.tone}` }}
+        {/* Entrance page — title layers, each on its own parallax speed */}
+        {title ? (
+          <motion.div
+            className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
+            style={prefersReducedMotion ? undefined : { opacity: introOpacity }}
           >
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-extrabold tracking-[0.18em]" style={{ color: level.tone }}>{level.no}</span>
-              <span className="text-lg font-extrabold sm:text-xl md:text-2xl">{level.title}</span>
+            {eyebrow ? (
+              <motion.span
+                className="mb-5 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-amber-200"
+                style={prefersReducedMotion ? undefined : { y: eyebrowY }}
+              >
+                {eyebrow}
+              </motion.span>
+            ) : null}
+            <motion.h1
+              className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.7)] md:text-7xl lg:text-8xl"
+              style={prefersReducedMotion ? undefined : { y: introY }}
+            >
+              {title}
+            </motion.h1>
+            {scrollHint ? <p className="mt-8 text-sm text-white/70">{scrollHint}</p> : null}
+          </motion.div>
+        ) : null}
+
+        {/* Layer 5 — caption card rising into place */}
+        {level.no ? (
+          <motion.div
+            className="absolute inset-x-0 bottom-[7vh] flex justify-center px-4 sm:bottom-[9vh] sm:px-6"
+            style={prefersReducedMotion ? undefined : { y: cardY, opacity: cardOpacity }}
+          >
+            <div
+              className="w-[min(680px,94vw)] rounded-2xl border border-white/15 bg-[rgba(10,14,20,0.55)] p-4 backdrop-blur sm:p-6"
+              style={{ borderLeft: `4px solid ${level.tone}` }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-extrabold tracking-[0.18em]" style={{ color: level.tone }}>{level.no}</span>
+                <span className="text-lg font-extrabold sm:text-xl md:text-2xl">{level.title}</span>
+              </div>
+              <div className="mt-1 text-sm font-semibold text-amber-200/85">{level.units}</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/75 sm:text-[15px]">{level.detail}</p>
             </div>
-            <div className="mt-1 text-sm font-semibold text-amber-200/85">{level.units}</div>
-            <p className="mt-2 text-sm leading-relaxed text-white/75 sm:text-[15px]">{level.detail}</p>
-          </div>
-        </motion.div>
-      ) : null}
-    </section>
+          </motion.div>
+        ) : null}
+      </section>
+
+      {/* Spacer: gives this floor its second viewport of scroll (pure scrub
+          time while the page above stays pinned) before the next floor enters. */}
+      {level.no ? <div aria-hidden className="h-screen" /> : null}
+    </>
   );
 }
