@@ -15,10 +15,10 @@ const PAN_FROM = "4%";
 const PAN_TO = "-8%";
 // Cap canvas backing-store resolution — frames are 840px wide, no point going higher.
 const MAX_DPR = 1.5;
-// Every floor owns 2 viewports of scroll: one pinned alone (pure scrub time)
-// plus one while the next page slides over it. Short clips stretch across the
-// distance so they read clearly; long clips simply advance faster.
-const UNITS_PER_FLOOR = 2;
+// Every floor owns 4 viewports of scroll: three pinned alone (pure scrub time,
+// so every clip visibly plays to its END) plus one while the next page slides
+// over it. Short clips stretch across the distance so they read clearly.
+const UNITS_PER_FLOOR = 4;
 
 export interface HeroLevel {
   /** Empty for the entrance page — hides its stepper dot, caption, and layers. */
@@ -212,13 +212,16 @@ function FloorPage({
     return () => window.removeEventListener("resize", resize);
   }, [seqReady]);
 
-  // Scrub the footage with scroll across this floor's full 2-viewport hold.
+  // Scrub the footage with scroll across the floor's alone-pinned time only
+  // (holdUnits - 1), so every clip visibly reaches its final frame BEFORE the
+  // next page starts sliding over it.
   useMotionValueEvent(progress, "change", (p) => {
     if (!seqReady || prefersReducedMotion) return;
     const seqCount = level.seqCount ?? 0;
     const canvas = canvasRef.current;
     if (!canvas || seqCount === 0) return;
-    const lp = Math.min(1, Math.max(0, (p * T - u) / holdUnits));
+    const scrubSpan = Math.max(1, holdUnits - 1);
+    const lp = Math.min(1, Math.max(0, (p * T - u) / scrubSpan));
     const frame = Math.min(seqCount - 1, Math.floor(lp * seqCount));
     if (frame === lastFrameRef.current && lp > 0) return;
     lastFrameRef.current = frame;
@@ -322,9 +325,9 @@ function FloorPage({
         ) : null}
       </section>
 
-      {/* Spacer: gives this floor its second viewport of scroll (pure scrub
+      {/* Spacer: gives this floor its extra viewports of scroll (pure scrub
           time while the page above stays pinned) before the next floor enters. */}
-      {level.no ? <div aria-hidden className="h-screen" /> : null}
+      {level.no ? <div aria-hidden style={{ height: `${(UNITS_PER_FLOOR - 1) * 100}vh` }} /> : null}
     </>
   );
 }
