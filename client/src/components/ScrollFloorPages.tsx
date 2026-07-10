@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   motion,
   useMotionValueEvent,
-  useReducedMotion,
   useScroll,
   useTransform,
   type MotionValue,
@@ -145,7 +144,6 @@ function FloorPage({
   title?: ReactNode;
   scrollHint?: string;
 }) {
-  const prefersReducedMotion = useReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const framesRef = useRef<HTMLImageElement[]>([]);
   const lastFrameRef = useRef(0);
@@ -174,26 +172,30 @@ function FloorPage({
   const eyebrowY = useTransform(progress, [0, 1 / T], ["0%", "-160%"]);
 
   // Lazily preload this floor's frame sequence once the visitor is near it.
+  // PROGRESSIVE: the scrub turns on as soon as the FIRST frame arrives (the
+  // draw handler falls back to the nearest loaded frame), instead of waiting
+  // for the whole sequence — critical on mobile connections, where waiting
+  // for all ~24 frames made the hero look frozen.
   useEffect(() => {
-    if (!near || loadStartedRef.current || prefersReducedMotion) return;
+    if (!near || loadStartedRef.current) return;
     const { seqBase, seqCount } = level;
     if (!seqBase || !seqCount) return;
     loadStartedRef.current = true;
-    let loaded = 0;
     const frames: HTMLImageElement[] = [];
+    framesRef.current = frames;
+    let announced = false;
     for (let k = 0; k < seqCount; k++) {
       const img = new Image();
       img.onload = () => {
-        loaded += 1;
-        if (loaded === seqCount) {
-          framesRef.current = frames;
+        if (!announced) {
+          announced = true;
           setSeqReady(true);
         }
       };
       img.src = `${seqBase}/f${String(k + 1).padStart(2, "0")}.jpg`;
       frames.push(img);
     }
-  }, [near, level, prefersReducedMotion]);
+  }, [near, level]);
 
   // Size the canvas to its box (and redraw) on mount + resize.
   useEffect(() => {
@@ -214,20 +216,36 @@ function FloorPage({
 
   // Scrub the footage with scroll across the floor's alone-pinned time only
   // (holdUnits - 1), so every clip visibly reaches its final frame BEFORE the
-  // next page starts sliding over it.
+  // next page starts sliding over it. If the exact frame hasn't downloaded
+  // yet, draw the nearest loaded one — motion degrades gracefully while the
+  // sequence streams in instead of freezing.
   useMotionValueEvent(progress, "change", (p) => {
-    if (!seqReady || prefersReducedMotion) return;
+    if (!seqReady) return;
     const seqCount = level.seqCount ?? 0;
     const canvas = canvasRef.current;
     if (!canvas || seqCount === 0) return;
     const scrubSpan = Math.max(1, holdUnits - 1);
     const lp = Math.min(1, Math.max(0, (p * T - u) / scrubSpan));
-    const frame = Math.min(seqCount - 1, Math.floor(lp * seqCount));
-    if (frame === lastFrameRef.current && lp > 0) return;
+    const want = Math.min(seqCount - 1, Math.floor(lp * seqCount));
+    const isLoaded = (k: number) => {
+      const f = framesRef.current[k];
+      return !!f && f.complete && f.naturalWidth > 0;
+    };
+    let frame = -1;
+    for (let d = 0; d < seqCount; d++) {
+      if (want - d >= 0 && isLoaded(want - d)) {
+        frame = want - d;
+        break;
+      }
+      if (want + d < seqCount && isLoaded(want + d)) {
+        frame = want + d;
+        break;
+      }
+    }
+    if (frame < 0 || (frame === lastFrameRef.current && lp > 0)) return;
     lastFrameRef.current = frame;
-    const img = framesRef.current[frame];
     const ctx = canvas.getContext("2d");
-    if (ctx && img?.complete) drawCover(ctx, img, canvas.width, canvas.height);
+    if (ctx) drawCover(ctx, framesRef.current[frame], canvas.width, canvas.height);
   });
 
   return (
@@ -236,7 +254,7 @@ function FloorPage({
         {/* Layer 1 — footage: still image backdrop + scroll-scrubbed canvas on top */}
         <motion.div
           className="absolute inset-0"
-          style={prefersReducedMotion ? undefined : { scale: IMAGE_SCALE, y: bgY }}
+          style={{ scale: IMAGE_SCALE, y: bgY }}
         >
           <picture className="block h-full w-full">
             <source media="(orientation: portrait)" srcSet={level.portraitSrc} />
@@ -260,7 +278,7 @@ function FloorPage({
             className="pointer-events-none absolute left-1/2 top-1/2 h-[60vmin] w-[60vmin] -translate-x-1/2 rounded-full mix-blend-screen"
             style={{
               background: `radial-gradient(circle, ${level.tone}33 0%, transparent 65%)`,
-              ...(prefersReducedMotion ? {} : { y: glowY }),
+              y: glowY,
             }}
           />
         ) : null}
@@ -269,7 +287,7 @@ function FloorPage({
         {level.no ? (
           <motion.div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            style={prefersReducedMotion ? undefined : { y: numY, opacity: numOpacity }}
+            style={{ y: numY, opacity: numOpacity }}
           >
             <span
               className="select-none text-[46vw] font-black leading-none tracking-tighter sm:text-[26vw]"
@@ -284,19 +302,19 @@ function FloorPage({
         {title ? (
           <motion.div
             className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-            style={prefersReducedMotion ? undefined : { opacity: introOpacity }}
+            style={{ opacity: introOpacity }}
           >
             {eyebrow ? (
               <motion.span
                 className="mb-5 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-amber-200"
-                style={prefersReducedMotion ? undefined : { y: eyebrowY }}
+                style={{ y: eyebrowY }}
               >
                 {eyebrow}
               </motion.span>
             ) : null}
             <motion.h1
               className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.7)] md:text-7xl lg:text-8xl"
-              style={prefersReducedMotion ? undefined : { y: introY }}
+              style={{ y: introY }}
             >
               {title}
             </motion.h1>
@@ -308,7 +326,7 @@ function FloorPage({
         {level.no ? (
           <motion.div
             className="absolute inset-x-0 bottom-[7vh] flex justify-center px-4 sm:bottom-[9vh] sm:px-6"
-            style={prefersReducedMotion ? undefined : { y: cardY, opacity: cardOpacity }}
+            style={{ y: cardY, opacity: cardOpacity }}
           >
             <div
               className="w-[min(680px,94vw)] rounded-2xl border border-white/15 bg-[rgba(10,14,20,0.55)] p-4 backdrop-blur sm:p-6"
