@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+*.tar.gz
+investor-decks
+uploaded-images
+.railwayignore
