@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import rebornDemoVideo from "@assets/reborn-demo-video.mp4";
+import petMale from "@assets/Doluruu Boy_1749664545355.png";
+import petFemale from "@assets/doluruu-female-transparent.png";
+import petBaby from "@assets/Doluruu Baby_1749663725243.png";
+import petBlindbox from "@assets/doluruu-blindbox-box.jpeg";
 
 const HERO_CSS = `
 .rwg-hero {
@@ -15,7 +20,7 @@ const HERO_CSS = `
 }
 .rwg-hero *, .rwg-hero *::before, .rwg-hero *::after { box-sizing:border-box; }
 .rwg-hero img, .rwg-hero video { max-width:100%; display:block; }
-.rwg-hero .stage { height:100dvh; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth; }
+.rwg-hero .stage { height:100dvh; overflow-y:auto; scroll-snap-type:y proximity; scroll-behavior:smooth; }
 .rwg-hero .panel { position:relative; min-height:100dvh; scroll-snap-align:start; display:flex; align-items:center; overflow:hidden; }
 
 .rwg-hero .topbar { position:fixed; inset:0 0 auto 0; z-index:60; display:flex; align-items:center; justify-content:space-between; padding:20px clamp(20px,5vw,60px); background:linear-gradient(to bottom,rgba(8,6,15,0.7),rgba(8,6,15,0)); backdrop-filter:blur(2px); }
@@ -65,7 +70,7 @@ const HERO_CSS = `
 .rwg-hero .tags { display:flex; flex-wrap:wrap; gap:10px; margin-top:30px; }
 .rwg-hero .tags span { font-size:13px; padding:9px 16px; border-radius:999px; border:1px solid var(--line); background:rgba(255,255,255,0.05); color:var(--ink); backdrop-filter:blur(6px); }
 .rwg-hero .reveal { opacity:0; transform:translateY(26px); transition:opacity .8s var(--ease),transform .8s var(--ease); }
-.rwg-hero .panel.in .reveal { opacity:1; transform:none; }
+.rwg-hero .panel.in .reveal, .rwg-hero .info.in .reveal { opacity:1; transform:none; }
 .rwg-hero .panel.in .reveal:nth-child(2) { transition-delay:.08s; }
 .rwg-hero .panel.in .reveal:nth-child(3) { transition-delay:.16s; }
 .rwg-hero .panel.in .reveal:nth-child(4) { transition-delay:.24s; }
@@ -75,6 +80,24 @@ const HERO_CSS = `
 .rwg-hero footer .meta { color:var(--ink-faint); font-size:13px; line-height:1.8; }
 .rwg-hero .cta { display:inline-block; margin-top:20px; text-decoration:none; padding:14px 30px; border-radius:999px; font-weight:700; letter-spacing:0.04em; color:var(--bg); background:linear-gradient(90deg,var(--l1),var(--l5)); transition:transform .3s var(--ease),box-shadow .3s var(--ease); cursor:pointer; border:none; }
 .rwg-hero .cta:hover { transform:translateY(-2px); box-shadow:0 14px 40px rgba(255,107,107,0.35); }
+
+.rwg-hero .info { position:relative; padding:clamp(70px,10vw,130px) clamp(24px,8vw,120px); background:linear-gradient(180deg,var(--bg) 0%,var(--bg-soft) 100%); border-top:1px solid var(--line); }
+.rwg-hero .info-inner { max-width:1100px; margin:0 auto; }
+.rwg-hero .info .eyebrow { display:block; margin-bottom:14px; }
+.rwg-hero .info-h { font-family:var(--display); font-weight:800; font-size:clamp(30px,5vw,58px); line-height:1.05; letter-spacing:-0.01em; margin:0 0 18px; max-width:760px; }
+.rwg-hero .info-lead { color:var(--ink-dim); font-size:clamp(15px,1.9vw,19px); line-height:1.7; max-width:680px; margin:0 0 40px; }
+.rwg-hero .demo { width:100%; max-width:960px; aspect-ratio:16/9; object-fit:cover; border-radius:var(--radius); border:1px solid var(--line); margin:0 0 44px; background:#000; box-shadow:0 30px 80px rgba(0,0,0,0.5); }
+.rwg-hero .info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px; }
+.rwg-hero .info-card { padding:26px; border-radius:var(--radius); border:1px solid var(--line); background:rgba(255,255,255,0.04); backdrop-filter:blur(6px); }
+.rwg-hero .info-card .ic { font-size:30px; display:block; margin-bottom:14px; }
+.rwg-hero .info-card h3 { font-family:var(--display); font-size:21px; font-weight:800; margin:0 0 10px; }
+.rwg-hero .info-card p { color:var(--ink-dim); font-size:14.5px; line-height:1.65; margin:0; }
+.rwg-hero .pet-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px; margin:0 0 26px; }
+.rwg-hero .pet-card { padding:20px 16px; border-radius:var(--radius); border:1px solid var(--line); background:rgba(255,255,255,0.04); text-align:center; }
+.rwg-hero .pet-card img { width:100%; height:120px; object-fit:contain; margin-bottom:14px; filter:drop-shadow(0 10px 24px rgba(0,0,0,0.45)); }
+.rwg-hero .pet-card strong { display:block; font-size:15px; margin-bottom:4px; }
+.rwg-hero .pet-card span { color:var(--l5); font-size:13px; font-weight:700; }
+.rwg-hero .pet-note { color:var(--ink-dim); font-size:15px; line-height:1.6; margin:0 0 40px; max-width:640px; }
 
 .rwg-hero footer { flex-direction:column; align-items:stretch; gap:40px; }
 .rwg-hero .foot-top { display:flex; flex-wrap:wrap; gap:40px 56px; justify-content:space-between; align-items:flex-start; }
@@ -119,6 +142,26 @@ const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
 const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
 
+const AUDIENCE = [
+  { icon: "🧳", title: "Tourists", desc: "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances." },
+  { icon: "👨‍👩‍👧", title: "Families", desc: "Kids game house, daytime KTV, pet cafe visits, beauty services, and safe group activities." },
+  { icon: "🎉", title: "Events", desc: "Singing competitions, live bands, performances, private rooms, birthday parties, and dance floor nights." },
+];
+
+const PETS = [
+  { img: petMale, name: "Male pet", note: "1 token daily" },
+  { img: petFemale, name: "Female pet", note: "1 token daily" },
+  { img: petBaby, name: "Baby pet", note: "1 token daily" },
+  { img: petBlindbox, name: "Blindbox package", note: "Member reward box" },
+  { img: petBlindbox, name: "Member reward", note: "Campaign & event prizes" },
+];
+
+const BENEFITS = [
+  { title: "Male + female = baby", desc: "If a user owns both male and female pets, they receive 1 baby pet free." },
+  { title: "3 pets = 3 daily tokens", desc: "Feeding male, female, and baby pets gives 3 tokens per day for prize exchange." },
+  { title: "Tokens drive repeat visits", desc: "Tokens can be used for rewards, upgrades, prizes, and club spending campaigns." },
+];
+
 export default function Landing() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
@@ -142,7 +185,7 @@ export default function Landing() {
       return () => btn.removeEventListener("click", handler);
     });
 
-    const io = new IntersectionObserver(
+    const panelIO = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           const id = (e.target as HTMLElement).id;
@@ -163,10 +206,27 @@ export default function Landing() {
       },
       { threshold: 0.55 },
     );
-    panels.forEach((p) => io.observe(p));
+    panels.forEach((p) => panelIO.observe(p));
+
+    // Content sections (taller than viewport) reveal at a lower threshold
+    const infoSections = Array.from(root.querySelectorAll<HTMLElement>(".info"));
+    const infoIO = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            const demo = e.target.querySelector<HTMLVideoElement>("video");
+            if (demo && !reduce) demo.play().catch(() => {});
+          }
+        });
+      },
+      { threshold: 0.15 },
+    );
+    infoSections.forEach((s) => infoIO.observe(s));
 
     return () => {
-      io.disconnect();
+      panelIO.disconnect();
+      infoIO.disconnect();
       cleanups.forEach((fn) => fn());
     };
   }, []);
@@ -226,6 +286,52 @@ export default function Landing() {
             </div>
           </section>
         ))}
+
+        {/* DEMO VIDEO / AUDIENCE */}
+        <section className="info" id="experience">
+          <div className="info-inner">
+            <span className="eyebrow reveal">Demo video</span>
+            <h2 className="info-h reveal">See the club in motion</h2>
+            <p className="info-lead reveal">A one-stop club for tourists and families. Built for full-day entertainment: family activities, services, singing competitions, social content, live shows, and evening events in one place.</p>
+            <video className="demo reveal" src={rebornDemoVideo} poster="/videos/live.jpg" muted loop playsInline controls preload="none" />
+            <div className="info-grid reveal">
+              {AUDIENCE.map((a) => (
+                <div className="info-card" key={a.title}>
+                  <span className="ic" aria-hidden="true">{a.icon}</span>
+                  <h3>{a.title}</h3>
+                  <p>{a.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* BLINDBOX PETS */}
+        <section className="info" id="blindbox">
+          <div className="info-inner">
+            <span className="eyebrow reveal">Member rewards</span>
+            <h2 className="info-h reveal">Blindbox pets turn members into daily users</h2>
+            <p className="info-lead reveal">The blindbox is not just a doll. It is a digital pet companion that members feed daily to earn tokens, exchange prizes, and keep coming back to the club.</p>
+            <div className="pet-grid reveal">
+              {PETS.map((p, i) => (
+                <div className="pet-card" key={i}>
+                  <img src={p.img} alt={p.name} loading="lazy" />
+                  <strong>{p.name}</strong>
+                  <span>{p.note}</span>
+                </div>
+              ))}
+            </div>
+            <p className="pet-note reveal">Blindbox pets can be used for club campaigns, member rewards, and event prizes.</p>
+            <div className="info-grid reveal">
+              {BENEFITS.map((b) => (
+                <div className="info-card" key={b.title}>
+                  <h3>{b.title}</h3>
+                  <p>{b.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <footer>
           <div className="foot-top">
