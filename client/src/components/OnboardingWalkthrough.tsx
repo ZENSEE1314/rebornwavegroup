@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  X, ArrowRight, ArrowLeft, Sparkles, Coins, Heart, ShoppingBag,
-  Calendar, Users, Music, Gift, Star, PawPrint, Wallet, Trophy,
+  X, ArrowRight, ArrowLeft, Sparkles, Coins, Calendar, Users, Gift, Star,
+  PawPrint, Wallet, Disc3, Utensils, Clock, Pill, Check, Trophy,
 } from "lucide-react";
 import petGuideImage from "@assets/Doluruu Grandpa_1749903476706.png";
 
@@ -51,25 +51,25 @@ const STEPS: TourStep[] = [
     icon: <PawPrint className="w-6 h-6" />,
     accent: "from-pink-400 to-rose-500",
     title: "Your blindbox pet",
-    intro: "Your blindbox isn't just a toy — it's a digital pet that pays you back.",
+    intro: "Buy a blindbox package at the club, then enter its code in Pet Care to bring your Doluruu to life.",
     items: [
-      { icon: <Heart className="w-5 h-5 text-rose-500" />, title: "Feed it daily", text: "Keep your pet happy and healthy to earn 1 token every day." },
-      { icon: <Sparkles className="w-5 h-5 text-pink-500" />, title: "Male + Female = Baby", text: "Own both and you get a baby pet free — that's 3 pets." },
-      { icon: <Gift className="w-5 h-5 text-emerald-500" />, title: "3 pets = 3 tokens a day", text: "More pets, more daily tokens to spend on prizes." },
+      { icon: <Utensils className="w-5 h-5 text-rose-500" />, title: "Feed 3× a day", text: "Feed your pet three times each day to earn 1 token that day." },
+      { icon: <Clock className="w-5 h-5 text-amber-500" />, title: "Lives 15 days", text: "Your pet earns tokens for 15 days, then it gets sick." },
+      { icon: <Pill className="w-5 h-5 text-emerald-500" />, title: "Revive with a pill", text: "Spend 300,000 RP on a visit and staff give you a free pill — it revives your pet for another 15 days." },
     ],
-    petMessage: "Feed me every day and I'll keep earning tokens for you!",
+    petMessage: "Feed me 3 times a day and I'll give you a token!",
   },
   {
-    icon: <ShoppingBag className="w-6 h-6" />,
+    icon: <Disc3 className="w-6 h-6" />,
     accent: "from-sky-400 to-blue-600",
-    title: "Spend & earn",
-    intro: "Here's where your balances come to life:",
+    title: "Spin & Win",
+    intro: "Spend your tokens on the prize wheel — just 1 token per spin.",
     items: [
-      { icon: <ShoppingBag className="w-5 h-5 text-sky-500" />, title: "Marketplace", text: "Buy and sell collectible toys with other members." },
-      { icon: <Trophy className="w-5 h-5 text-amber-500" />, title: "Loyalty rewards", text: "Redeem your points for gifts, discounts and perks." },
-      { icon: <Music className="w-5 h-5 text-fuchsia-500" />, title: "Kings of Singers", text: "Join singing competitions and vote for your favourites." },
+      { icon: <Gift className="w-5 h-5 text-sky-500" />, title: "Win real prizes", text: "Free drinks, discount vouchers, free dishes, free spins and more." },
+      { icon: <Sparkles className="w-5 h-5 text-fuchsia-500" />, title: "Doluruu egg", text: "Win an egg and it hatches into a brand-new pet after 15 days." },
+      { icon: <Check className="w-5 h-5 text-emerald-500" />, title: "Claim at the club", text: "Prizes are saved under My Prizes — show staff and an admin confirms them." },
     ],
-    petMessage: "Tap the tabs at the bottom to jump between these anytime.",
+    petMessage: "Feed me for tokens, then spin the wheel to win!",
   },
   {
     icon: <Calendar className="w-6 h-6" />,

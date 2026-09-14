@@ -73,6 +73,12 @@ const LuxExperience        = lazy(() => import("@/pages/lux-experience"));
 const InvestorLogin        = lazy(() => import("@/pages/investor-login"));
 const InvestorDashboard    = lazy(() => import("@/pages/investor-dashboard"));
 const InvestorAdmin        = lazy(() => import("@/pages/investor-admin"));
+// ── Reborn Wave member experience (2026 redesign) ──────────────────────────
+const RebornDashboard      = lazy(() => import("@/pages/reborn-dashboard"));
+const RebornPet            = lazy(() => import("@/pages/reborn-pet"));
+const RebornSpin           = lazy(() => import("@/pages/reborn-spin"));
+const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
+const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -152,8 +158,12 @@ function Router() {
           <Route path="/" component={Landing} />
         ) : (
           <>
-            {/* Default route - both admin and regular users can access main app */}
-            <Route path="/" component={CompleteApp} />
+            {/* New member dashboard is the home; full legacy app still at /complete-app */}
+            <Route path="/" component={RebornDashboard} />
+            <Route path="/pet" component={RebornPet} />
+            <Route path="/spin" component={RebornSpin} />
+            <Route path="/support" component={RebornSupport} />
+            <Route path="/reborn-admin" component={RebornAdmin} />
             <Route path="/complete-app" component={CompleteApp} />
             <Route path="/investor/admin" component={InvestorAdmin} />
             <Route path="/investor/dashboard" component={InvestorDashboard} />

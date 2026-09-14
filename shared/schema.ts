@@ -428,6 +428,15 @@ export const pets = pgTable("pets", {
   lastTokenClaim: timestamp("last_token_claim"),
   lastDecayTime: timestamp("last_decay_time"),
   lastEnergyUpdate: timestamp("last_energy_update"),
+  // Reborn Wave pet lifecycle (2026 redesign)
+  activatedAt: timestamp("activated_at"),
+  expiresAt: timestamp("expires_at"), // activatedAt + 15 days; token window end
+  lifeStatus: varchar("life_status").default("active"), // active | sick | dead
+  feedsToday: integer("feeds_today").default(0),
+  lastFeedDay: varchar("last_feed_day"), // YYYY-MM-DD to reset feedsToday
+  isEgg: boolean("is_egg").default(false),
+  hatchAt: timestamp("hatch_at"), // for eggs: when it becomes a pet
+  pillsUsed: integer("pills_used").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -481,6 +490,73 @@ export const dailyCareStatus = pgTable("daily_care_status", {
 }, (table) => [
   index("idx_pet_care_date").on(table.petId, table.careDate)
 ]);
+
+// ── Reborn Wave: pet package activation codes ──────────────────────────────
+export const activationCodes = pgTable("activation_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code").notNull().unique(),
+  petGender: varchar("pet_gender").default("male"), // male | female
+  petName: varchar("pet_name").default("Doluruu"),
+  used: boolean("used").default(false),
+  usedByUserId: varchar("used_by_user_id"),
+  usedAt: timestamp("used_at"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Pills granted by admin (after a 300,000 RP visit) to revive/extend a pet
+export const petPills = pgTable("pet_pills", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: varchar("status").default("available"), // available | used
+  grantedBy: varchar("granted_by"),
+  note: text("note"),
+  grantedAt: timestamp("granted_at").defaultNow(),
+  usedAt: timestamp("used_at"),
+});
+
+// Spin-the-wheel prize configuration (admin editable)
+export const spinPrizes = pgTable("spin_prizes", {
+  id: serial("id").primaryKey(),
+  label: varchar("label").notNull(),
+  description: text("description"),
+  // voucher_percent | voucher_amount | item | egg | free_spin | nothing
+  prizeType: varchar("prize_type").default("item"),
+  value: integer("value").default(0), // percent (10,50) or RP amount (50000)
+  weight: integer("weight").default(10), // relative probability
+  colorHex: varchar("color_hex").default("#c9a84c"),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Every spin result; prizes (except free_spin/nothing) await admin redemption
+export const spinResults = pgTable("spin_results", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  prizeId: integer("prize_id"),
+  prizeLabel: varchar("prize_label"),
+  prizeType: varchar("prize_type"),
+  tokensSpent: integer("tokens_spent").default(1),
+  // won | pending | redeemed | rejected  (won->pending for redeemable prizes)
+  status: varchar("status").default("won"),
+  createdAt: timestamp("created_at").defaultNow(),
+  redeemedAt: timestamp("redeemed_at"),
+  adminId: varchar("admin_id"),
+});
+
+// FAQ / auto-reply knowledge base for Support
+export const faqItems = pgTable("faq_items", {
+  id: serial("id").primaryKey(),
+  question: varchar("question").notNull(),
+  answer: text("answer").notNull(),
+  keywords: text("keywords"), // comma-separated, used for auto-reply matching
+  sortOrder: integer("sort_order").default(0),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Admin action logs table
 export const adminActionLogs = pgTable("admin_action_logs", {
