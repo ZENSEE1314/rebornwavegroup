@@ -1,3 +1,4 @@
+// build cache bust: 2026-09-14 video-hero landing
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
