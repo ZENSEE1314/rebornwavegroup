@@ -149,7 +149,7 @@ function Router() {
         <Route path="/lux" component={LuxExperience} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={LuxExperience} />
+          <Route path="/" component={Landing} />
         ) : (
           <>
             {/* Default route - both admin and regular users can access main app */}
