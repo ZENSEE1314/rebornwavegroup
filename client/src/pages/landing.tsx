@@ -76,6 +76,20 @@ const HERO_CSS = `
 .rwg-hero .cta { display:inline-block; margin-top:20px; text-decoration:none; padding:14px 30px; border-radius:999px; font-weight:700; letter-spacing:0.04em; color:var(--bg); background:linear-gradient(90deg,var(--l1),var(--l5)); transition:transform .3s var(--ease),box-shadow .3s var(--ease); cursor:pointer; border:none; }
 .rwg-hero .cta:hover { transform:translateY(-2px); box-shadow:0 14px 40px rgba(255,107,107,0.35); }
 
+.rwg-hero footer { flex-direction:column; align-items:stretch; gap:40px; }
+.rwg-hero .foot-top { display:flex; flex-wrap:wrap; gap:40px 56px; justify-content:space-between; align-items:flex-start; }
+.rwg-hero .foot-cols { display:flex; flex-wrap:wrap; gap:44px; }
+.rwg-hero .foot-col { max-width:340px; }
+.rwg-hero .foot-col h4 { font-size:12px; letter-spacing:0.24em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 14px; font-weight:700; }
+.rwg-hero .foot-col a.addr { color:var(--ink-dim); font-size:14px; line-height:1.7; text-decoration:none; display:block; }
+.rwg-hero .foot-col a.addr:hover { color:var(--ink); }
+.rwg-hero .foot-col .sub-note { color:var(--ink-faint); font-size:13px; margin-top:12px; letter-spacing:0.06em; }
+.rwg-hero .socials { display:flex; flex-wrap:wrap; gap:12px; }
+.rwg-hero .socials a { display:inline-flex; align-items:center; gap:9px; padding:11px 18px; border:1px solid var(--line); border-radius:999px; font-size:14px; color:var(--ink); text-decoration:none; background:rgba(255,255,255,0.05); transition:border-color .3s,background .3s,transform .3s; }
+.rwg-hero .socials a:hover { border-color:transparent; background:linear-gradient(90deg,var(--l1),var(--l3)); color:#fff; transform:translateY(-1px); }
+.rwg-hero .socials svg { width:18px; height:18px; }
+.rwg-hero .services-line { color:var(--ink-faint); font-size:13px; letter-spacing:0.08em; }
+
 @media (prefers-reduced-motion:reduce) {
   .rwg-hero * { animation:none !important; scroll-behavior:auto !important; transition:none !important; }
   .rwg-hero .reveal { opacity:1; transform:none; }
@@ -98,6 +112,12 @@ const RAIL = [
   { target: "l4", label: "Pet" },
   { target: "l5", label: "Live" },
 ];
+
+const ADDRESS = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Batam Centre, Blok A No. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
+const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(ADDRESS);
+const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
+const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
+const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
 
 export default function Landing() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -208,13 +228,37 @@ export default function Landing() {
         ))}
 
         <footer>
-          <div>
-            <div className="big">Come find<br />your floor.</div>
-            <button className="cta" type="button" onClick={goLogin}>Enter the club →</button>
+          <div className="foot-top">
+            <div>
+              <div className="big">Come find<br />your floor.</div>
+              <button className="cta" type="button" onClick={goLogin}>Enter the club →</button>
+            </div>
+            <div className="foot-cols">
+              <div className="foot-col">
+                <h4>Visit us · Batam</h4>
+                <a className="addr" href={MAPS_URL} target="_blank" rel="noopener noreferrer">
+                  {ADDRESS}
+                </a>
+                <p className="sub-note">Waterfront Lifestyle Club · near Harbourfront, Batam Centre · tap for Google Maps</p>
+              </div>
+              <div className="foot-col">
+                <h4>Follow</h4>
+                <div className="socials">
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
+                    @rebornwavegroup
+                  </a>
+                  <a href={TIKTOK_URL} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 3c.3 2.2 1.7 3.9 3.9 4.2v2.6c-1.4.1-2.7-.3-3.9-1v5.6c0 3.3-2.5 5.6-5.5 5.6-3 0-5.2-2.4-5.2-5.3 0-3 2.4-5.3 5.6-5v2.7c-.4-.1-.9-.2-1.3-.1-1.3.2-2.1 1.2-2 2.6.1 1.3 1.1 2.2 2.4 2.1 1.4-.1 2.2-1.1 2.2-2.6V3h3.3z" /></svg>
+                    @reborn.wave.group
+                  </a>
+                </div>
+                <p className="sub-note">{SERVICES}</p>
+              </div>
+            </div>
           </div>
           <div className="meta">
-            &copy; {year} Reborn Wave Group. All rights reserved.<br />
-            Doloruu is the official mascot of Reborn Wave Group.
+            &copy; {year} Reborn Wave Group. All rights reserved. · Doloruu is our official mascot.
           </div>
         </footer>
       </main>
