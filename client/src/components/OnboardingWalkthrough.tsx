@@ -1,138 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, Star, Gift, DollarSign, Heart, Sparkles, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { useTranslation } from '@/lib/i18n';
-import petGuideImage from '@assets/Doluruu Grandpa_1749903476706.png';
+import { useState, useEffect } from "react";
+import {
+  X, ArrowRight, ArrowLeft, Sparkles, Coins, Heart, ShoppingBag,
+  Calendar, Users, Music, Gift, Star, PawPrint, Wallet, Trophy,
+} from "lucide-react";
+import petGuideImage from "@assets/Doluruu Grandpa_1749903476706.png";
 
-// Finger Pointer Component with Bubble Text
-interface FingerPointerProps {
-  targetElement: string;
-  position: string;
-  bubbleText: string;
-}
-
-function FingerPointer({ targetElement, position, bubbleText }: FingerPointerProps) {
-  const [pointerPosition, setPointerPosition] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    const updatePosition = () => {
-      const element = document.querySelector(targetElement);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        let fingerX = centerX;
-        let fingerY = centerY;
-        
-        // Adjust position based on direction
-        switch (position) {
-          case 'top':
-            fingerY = rect.top - 60;
-            break;
-          case 'bottom':
-            fingerY = rect.bottom + 60;
-            break;
-          case 'left':
-            fingerX = rect.left - 60;
-            break;
-          case 'right':
-            fingerX = rect.right + 60;
-            break;
-        }
-        
-        setPointerPosition({ top: fingerY, left: fingerX });
-      }
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition);
-    
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
-    };
-  }, [targetElement, position]);
-
-  const getFingerDirection = () => {
-    switch (position) {
-      case 'top':
-        return 'rotate-180';
-      case 'bottom':
-        return 'rotate-0';
-      case 'left':
-        return 'rotate-90';
-      case 'right':
-        return '-rotate-90';
-      default:
-        return 'rotate-0';
-    }
-  };
-
-  const getBubblePosition = () => {
-    switch (position) {
-      case 'top':
-        return 'bottom-full mb-2';
-      case 'bottom':
-        return 'top-full mt-2';
-      case 'left':
-        return 'right-full mr-2';
-      case 'right':
-        return 'left-full ml-2';
-      default:
-        return 'top-full mt-2';
-    }
-  };
-
-  return (
-    <div 
-      className="fixed z-45 pointer-events-none"
-      style={{ 
-        top: pointerPosition.top, 
-        left: pointerPosition.left, 
-        transform: 'translate(-50%, -50%)' 
-      }}
-    >
-      <div className="relative flex items-center justify-center">
-        {/* Finger pointing animation */}
-        <div className={`text-4xl sm:text-6xl ${getFingerDirection()} finger-bounce finger-pointer-mobile`}>
-          👆
-        </div>
-        
-        {/* Bubble text */}
-        <div className={`absolute ${getBubblePosition()} z-50`}>
-          <div className="bg-white border-2 border-yellow-400 rounded-lg px-2 sm:px-3 py-1 sm:py-2 shadow-lg bubble-mobile bubble-pop whitespace-nowrap">
-            <div className="text-xs sm:text-sm font-medium text-gray-800 text-center">
-              {bubbleText}
-            </div>
-            {/* Bubble arrow */}
-            <div className={`absolute w-3 h-3 bg-white border-yellow-400 transform rotate-45 ${
-              position === 'top' ? 'top-full left-1/2 -translate-x-1/2 -mt-1.5 border-b-2 border-r-2' :
-              position === 'bottom' ? 'bottom-full left-1/2 -translate-x-1/2 -mb-1.5 border-t-2 border-l-2' :
-              position === 'left' ? 'left-full top-1/2 -translate-y-1/2 -ml-1.5 border-t-2 border-r-2' :
-              'right-full top-1/2 -translate-y-1/2 -mr-1.5 border-b-2 border-l-2'
-            }`}></div>
-          </div>
-        </div>
-        
-        {/* Pulsing glow effect */}
-        <div className="absolute -inset-4 bg-yellow-400 opacity-20 rounded-full animate-ping"></div>
-      </div>
-    </div>
-  );
-}
-
-interface OnboardingStep {
-  id: string;
+interface FeatureItem {
+  icon: React.ReactNode;
   title: string;
-  description: string;
-  targetElement?: string;
-  position: 'top' | 'bottom' | 'left' | 'right' | 'center';
+  text: string;
+}
+
+interface TourStep {
+  icon: React.ReactNode;
+  accent: string; // tailwind gradient classes
+  title: string;
+  intro: string;
+  items?: FeatureItem[];
   petMessage: string;
-  petAnimation: 'idle' | 'excited' | 'pointing' | 'celebrating';
-  bubbleText?: string;
 }
 
 interface OnboardingWalkthroughProps {
@@ -141,303 +26,210 @@ interface OnboardingWalkthroughProps {
   onComplete: () => void;
 }
 
+const STEPS: TourStep[] = [
+  {
+    icon: <Sparkles className="w-6 h-6" />,
+    accent: "from-fuchsia-500 to-purple-600",
+    title: "Welcome to Reborn Wave!",
+    intro:
+      "This is your member app for the club. In 6 quick cards, Doluruu will show you how to earn rewards, care for your pet, and get the most out of every visit.",
+    petMessage: "Hi! I'm Doluruu. Let me give you a quick tour — it takes under a minute.",
+  },
+  {
+    icon: <Wallet className="w-6 h-6" />,
+    accent: "from-amber-400 to-orange-500",
+    title: "Your 3 balances",
+    intro: "At the top of your dashboard you'll always see three numbers:",
+    items: [
+      { icon: <Coins className="w-5 h-5 text-amber-500" />, title: "Credits", text: "Money you top up. Use it to pay at the club and buy items." },
+      { icon: <Star className="w-5 h-5 text-violet-500" />, title: "Loyalty Points", text: "Earned every time you spend. Trade them for rewards and perks." },
+      { icon: <Gift className="w-5 h-5 text-emerald-500" />, title: "Tokens", text: "Earned by feeding your pet daily. Exchange them for prizes." },
+    ],
+    petMessage: "Think of it as: Credits = money, Points = perks, Tokens = pet rewards.",
+  },
+  {
+    icon: <PawPrint className="w-6 h-6" />,
+    accent: "from-pink-400 to-rose-500",
+    title: "Your blindbox pet",
+    intro: "Your blindbox isn't just a toy — it's a digital pet that pays you back.",
+    items: [
+      { icon: <Heart className="w-5 h-5 text-rose-500" />, title: "Feed it daily", text: "Keep your pet happy and healthy to earn 1 token every day." },
+      { icon: <Sparkles className="w-5 h-5 text-pink-500" />, title: "Male + Female = Baby", text: "Own both and you get a baby pet free — that's 3 pets." },
+      { icon: <Gift className="w-5 h-5 text-emerald-500" />, title: "3 pets = 3 tokens a day", text: "More pets, more daily tokens to spend on prizes." },
+    ],
+    petMessage: "Feed me every day and I'll keep earning tokens for you!",
+  },
+  {
+    icon: <ShoppingBag className="w-6 h-6" />,
+    accent: "from-sky-400 to-blue-600",
+    title: "Spend & earn",
+    intro: "Here's where your balances come to life:",
+    items: [
+      { icon: <ShoppingBag className="w-5 h-5 text-sky-500" />, title: "Marketplace", text: "Buy and sell collectible toys with other members." },
+      { icon: <Trophy className="w-5 h-5 text-amber-500" />, title: "Loyalty rewards", text: "Redeem your points for gifts, discounts and perks." },
+      { icon: <Music className="w-5 h-5 text-fuchsia-500" />, title: "Kings of Singers", text: "Join singing competitions and vote for your favourites." },
+    ],
+    petMessage: "Tap the tabs at the bottom to jump between these anytime.",
+  },
+  {
+    icon: <Calendar className="w-6 h-6" />,
+    accent: "from-teal-400 to-emerald-600",
+    title: "Book your visit",
+    intro:
+      "Reserve KTV rooms, beauty services and more before you arrive. Your bookings and appointments live in one place so you never miss a slot.",
+    petMessage: "Booking ahead means your room is ready the moment you walk in.",
+  },
+  {
+    icon: <Users className="w-6 h-6" />,
+    accent: "from-indigo-400 to-violet-600",
+    title: "Invite friends, earn together",
+    intro:
+      "Share your personal referral code. When a friend joins and spends, you both benefit — you earn a 10% referral reward. Find your code in the Referrals tab.",
+    petMessage: "The more friends you bring, the more you both earn. Everybody wins!",
+  },
+  {
+    icon: <Trophy className="w-6 h-6" />,
+    accent: "from-fuchsia-500 to-purple-600",
+    title: "You're all set!",
+    intro:
+      "That's the whole app. Start by feeding your pet and checking your balances — you can replay this tour anytime from your profile.",
+    petMessage: "Have fun exploring the club. See you inside!",
+  },
+];
+
 export function OnboardingWalkthrough({ isOpen, onClose, onComplete }: OnboardingWalkthroughProps) {
-  const { t } = useTranslation();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [petVisible, setPetVisible] = useState(true);
+  const [step, setStep] = useState(0);
+  const total = STEPS.length;
+  const data = STEPS[step];
+  const isFirst = step === 0;
+  const isLast = step === total - 1;
 
-  const onboardingSteps: OnboardingStep[] = [
-    {
-      id: 'welcome',
-      title: t('onboarding.welcome.title'),
-      description: t('onboarding.welcome.description'),
-      position: 'center',
-      petMessage: t('onboarding.welcome.petMessage'),
-      petAnimation: 'excited'
-    },
-    {
-      id: 'dashboard',
-      title: t('onboarding.dashboard.title'),
-      description: t('onboarding.dashboard.description'),
-      targetElement: '.stats-grid',
-      position: 'bottom',
-      petMessage: t('onboarding.dashboard.petMessage'),
-      petAnimation: 'pointing',
-      bubbleText: 'Check your stats here!'
-    },
-    {
-      id: 'credits',
-      title: t('onboarding.credits.title'),
-      description: t('onboarding.credits.description'),
-      targetElement: '.credits-card',
-      position: 'right',
-      petMessage: t('onboarding.credits.petMessage'),
-      petAnimation: 'excited',
-      bubbleText: 'Your credits'
-    },
-    {
-      id: 'loyalty',
-      title: t('onboarding.loyalty.title'),
-      description: t('onboarding.loyalty.description'),
-      targetElement: '.loyalty-card',
-      position: 'right',
-      petMessage: t('onboarding.loyalty.petMessage'),
-      petAnimation: 'pointing',
-      bubbleText: 'Loyalty points'
-    },
-    {
-      id: 'tokens',
-      title: t('onboarding.tokens.title'),
-      description: t('onboarding.tokens.description'),
-      targetElement: '.tokens-card',
-      position: 'right',
-      petMessage: t('onboarding.tokens.petMessage'),
-      petAnimation: 'excited',
-      bubbleText: 'Game tokens'
-    },
-    {
-      id: 'petcare-tab',
-      title: t('onboarding.petcare.title'),
-      description: t('onboarding.petcare.description'),
-      targetElement: '[data-tab="petcare"]',
-      position: 'bottom',
-      petMessage: t('onboarding.petcare.petMessage'),
-      petAnimation: 'pointing',
-      bubbleText: 'Take care of pets'
-    },
-    {
-      id: 'marketplace-tab',
-      title: t('onboarding.marketplace.title'),
-      description: t('onboarding.marketplace.description'),
-      targetElement: '[data-tab="marketplace"]',
-      position: 'bottom',
-      petMessage: t('onboarding.marketplace.petMessage'),
-      petAnimation: 'excited',
-      bubbleText: 'Buy & sell toys'
-    },
-    {
-      id: 'loyalty-tab',
-      title: t('onboarding.loyaltyTab.title'),
-      description: t('onboarding.loyaltyTab.description'),
-      targetElement: '[data-tab="loyalty"]',
-      position: 'bottom',
-      petMessage: t('onboarding.loyaltyTab.petMessage'),
-      petAnimation: 'celebrating',
-      bubbleText: 'Earn rewards'
-    },
-    {
-      id: 'complete',
-      title: t('onboarding.complete.title'),
-      description: t('onboarding.complete.description'),
-      position: 'center',
-      petMessage: t('onboarding.complete.petMessage'),
-      petAnimation: 'celebrating'
-    }
-  ];
-
-  const currentStepData = onboardingSteps[currentStep];
+  const next = () => (isLast ? onComplete() : setStep((s) => s + 1));
+  const back = () => setStep((s) => Math.max(0, s - 1));
 
   useEffect(() => {
-    if (isOpen && currentStepData.targetElement) {
-      const element = document.querySelector(currentStepData.targetElement);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Add highlight effect
-        element.classList.add('onboarding-highlight');
-        // Add pulsing animation
-        element.classList.add('animate-pulse');
-        // Add special glow for tab elements
-        if (currentStepData.targetElement.includes('data-tab')) {
-          element.classList.add('onboarding-tab-highlight');
-        }
-        return () => {
-          element.classList.remove('onboarding-highlight');
-          element.classList.remove('animate-pulse');
-          element.classList.remove('onboarding-tab-highlight');
-        };
-      }
-    }
-  }, [currentStep, isOpen, currentStepData.targetElement]);
-
-
-
-  // Function to get modal position
-  const getModalPosition = () => {
-    if (currentStepData.position === 'center') {
-      return 'items-center justify-center';
-    }
-    if (currentStepData.position === 'top') {
-      return 'items-start justify-center pt-4';
-    }
-    if (currentStepData.position === 'bottom') {
-      return 'items-end justify-center pb-4';
-    }
-    if (currentStepData.position === 'left') {
-      return 'items-center justify-start pl-4';
-    }
-    if (currentStepData.position === 'right') {
-      return 'items-center justify-end pr-4';
-    }
-    return 'items-center justify-center';
-  };
-
-  const nextStep = () => {
-    if (currentStep < onboardingSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      onComplete();
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const skipOnboarding = () => {
-    onClose();
-  };
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "ArrowLeft") back();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, step]);
 
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Lighter Overlay */}
-      <div className="fixed inset-0 bg-black bg-opacity-20 z-40" />
-      
-      {/* Virtual Pet Guide - Mobile Friendly */}
-      {petVisible && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-xs sm:max-w-sm">
-          <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-purple-200 shadow-lg">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-start space-x-2 sm:space-x-3">
-                <div className={`w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center flex-shrink-0 ${
-                  currentStepData.petAnimation === 'excited' ? 'animate-bounce' :
-                  currentStepData.petAnimation === 'pointing' ? 'animate-pulse' :
-                  currentStepData.petAnimation === 'celebrating' ? 'animate-spin' : ''
-                }`}>
-                  <img 
-                    src={petGuideImage} 
-                    alt="Doluruu Grandpa Guide" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="bg-white rounded-lg p-2 sm:p-3 shadow-sm">
-                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed break-words">
-                      {currentStepData.petMessage}
-                    </p>
-                  </div>
-                  <div className="flex justify-end mt-1 sm:mt-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setPetVisible(false)}
-                      className="text-purple-600 hover:text-purple-700 p-1"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Card */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="App tour"
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 sm:zoom-in-95 duration-300 max-h-[92vh] flex flex-col"
+      >
+        {/* Header band */}
+        <div className={`relative bg-gradient-to-br ${data.accent} px-5 pt-5 pb-14 text-white`}>
+          <button
+            onClick={onClose}
+            aria-label="Close tour"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2 text-white/90 text-xs font-semibold uppercase tracking-wider">
+            <span className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center">{data.icon}</span>
+            Step {step + 1} of {total}
+          </div>
+          <h2 className="mt-3 text-2xl font-extrabold leading-tight">{data.title}</h2>
         </div>
-      )}
 
-      {/* Dynamic Finger Pointer with Bubble */}
-      {currentStepData.targetElement && currentStepData.position !== 'center' && currentStepData.bubbleText && (
-        <FingerPointer 
-          targetElement={currentStepData.targetElement}
-          position={currentStepData.position}
-          bubbleText={currentStepData.bubbleText}
-        />
-      )}
+        {/* Mascot overlapping the band */}
+        <div className="relative -mt-12 px-5">
+          <div className="flex items-end gap-3">
+            <img
+              src={petGuideImage}
+              alt="Doluruu, your guide"
+              className="w-20 h-20 object-contain drop-shadow-xl flex-shrink-0"
+            />
+            <div className="mb-2 bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-3 py-2 shadow-sm">
+              <p className="text-[13px] text-slate-600 leading-snug">{data.petMessage}</p>
+            </div>
+          </div>
+        </div>
 
-      {/* Onboarding Modal - Mobile Responsive */}
-      <div className={`fixed inset-0 flex ${getModalPosition()} z-50 p-2 sm:p-4`}>
-        <Card className="bg-white shadow-2xl max-w-sm sm:max-w-lg w-full animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex justify-between items-start mb-3 sm:mb-4">
-              <div className="flex items-center space-x-2 flex-1 min-w-0">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center animate-pulse flex-shrink-0">
-                  <Star className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+        {/* Body */}
+        <div className="px-5 pt-4 pb-2 overflow-y-auto">
+          <p className="text-[15px] text-slate-700 leading-relaxed">{data.intro}</p>
+
+          {data.items && (
+            <div className="mt-4 space-y-2.5">
+              {data.items.map((it, i) => (
+                <div key={i} className="flex gap-3 items-start bg-slate-50 rounded-2xl p-3">
+                  <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                    {it.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800">{it.title}</p>
+                    <p className="text-[13px] text-slate-500 leading-snug">{it.text}</p>
+                  </div>
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{currentStepData.title}</h2>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={skipOnboarding}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0 p-1"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              ))}
             </div>
+          )}
+        </div>
 
-            <div className="mb-4 sm:mb-6">
-              <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{currentStepData.description}</p>
-            </div>
+        {/* Footer */}
+        <div className="px-5 pt-3 pb-5 border-t border-slate-100 mt-2">
+          {/* Progress dots */}
+          <div className="flex items-center justify-center gap-1.5 mb-4">
+            {STEPS.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStep(i)}
+                aria-label={`Go to step ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === step ? "w-6 bg-purple-600" : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                }`}
+              />
+            ))}
+          </div>
 
-            {/* Progress Bar */}
-            <div className="mb-6">
-              <div className="flex justify-between text-xs text-gray-500 mb-2">
-                <span>{t('onboarding.step')} {currentStep + 1}</span>
-                <span>{onboardingSteps.length} {t('onboarding.steps')}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${((currentStep + 1) / onboardingSteps.length) * 100}%` }}
-                />
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={back}
+              disabled={isFirst}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-0 disabled:pointer-events-none transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
 
-            {/* Navigation Buttons - Mobile Responsive */}
-            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={prevStep}
-                disabled={currentStep === 0}
-                className="flex items-center justify-center space-x-2 order-2 sm:order-1"
-                size="sm"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">{t('onboarding.previous')}</span>
-              </Button>
+            <button
+              onClick={onClose}
+              className="ml-auto px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Skip
+            </button>
 
-              <div className="flex space-x-2 order-1 sm:order-2">
-                <Button
-                  variant="ghost"
-                  onClick={skipOnboarding}
-                  className="text-gray-500 flex-1 sm:flex-none"
-                  size="sm"
-                >
-                  <span className="text-sm">{t('onboarding.skip')}</span>
-                </Button>
-                <Button
-                  onClick={nextStep}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 flex items-center justify-center space-x-2 transition-all duration-200 flex-1 sm:flex-none"
-                  size="sm"
-                >
-                  <span className="text-sm">
-                    {currentStep === onboardingSteps.length - 1 
-                      ? 'Complete'
-                      : t('onboarding.next')
-                    }
-                  </span>
-                  {currentStep === onboardingSteps.length - 1 ? (
-                    <Sparkles className="w-4 h-4" />
-                  ) : (
-                    <ArrowRight className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <button
+              onClick={next}
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg bg-gradient-to-r ${data.accent} hover:brightness-105 active:scale-95 transition-all`}
+            >
+              {isLast ? "Let's go!" : "Next"}
+              {isLast ? <Sparkles className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
