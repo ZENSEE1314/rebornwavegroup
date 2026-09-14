@@ -9660,7 +9660,10 @@ export default function CompleteApp() {
                         </div>
                         <span className="text-white font-medium">{t('dashboard.credits')}</span>
                       </div>
-                      <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-300 font-bold">RP {formatRupiah(parseFloat(userStats?.credits || '0'))}</span>
+                        <ChevronDown className="w-4 h-4 text-white/30" />
+                      </div>
                     </div>
                     <div id="credits-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                       <button 
@@ -9714,7 +9717,10 @@ export default function CompleteApp() {
                       </div>
                       <span className="text-white font-medium">{t('dashboard.loyaltyPoints')}</span>
                     </div>
-                    <span className="text-amber-300 font-bold">{loyaltyPoints}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-300 font-bold">{loyaltyPoints}</span>
+                      <ChevronDown className="w-4 h-4 text-white/30" />
+                    </div>
                   </div>
                   <div id="loyalty-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
@@ -9759,7 +9765,10 @@ export default function CompleteApp() {
                       </div>
                       <span className="text-white font-medium">{t('dashboard.tokens')}</span>
                     </div>
-                    <span className="text-amber-300 font-bold">{userTokens}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-300 font-bold">{userTokens}</span>
+                      <ChevronDown className="w-4 h-4 text-white/30" />
+                    </div>
                   </div>
                   <div id="tokens-buttons" className="justify-around pb-4 px-4" style={{ display: 'none' }}>
                     <button 
