@@ -360,35 +360,57 @@ function StockTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [sel, setSel] = useState<number | null>(null);
+  const [dir, setDir] = useState<"add" | "deduct">("add");
   const [qty, setQty] = useState(10);
   const [unitCost, setUnitCost] = useState(0);
+  const [note, setNote] = useState("");
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ["/api/reborn/pos/stock"], queryFn: () => apiRequest("GET", "/api/reborn/pos/stock").then((r) => r.json()) });
-  const stockIn = useMutation({
-    mutationFn: () => post("/api/reborn/pos/stock-in", { productId: sel, qty, unitCost }),
-    onSuccess: (d) => { toast({ title: "Stock updated", description: d.message }); setSel(null); setQty(10); setUnitCost(0); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/stock"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+  const groups = useMemo(() => {
+    const g: Record<string, Product[]> = {};
+    for (const p of products) (g[p.category || "Other"] ||= []).push(p);
+    return Object.entries(g);
+  }, [products]);
+  const adjust = useMutation({
+    mutationFn: () => post("/api/reborn/pos/stock-in", { productId: sel, qty: dir === "add" ? qty : -qty, unitCost: dir === "add" ? unitCost : 0, note: note || (dir === "deduct" ? "Manual deduct" : "Manual add") }),
+    onSuccess: (d) => { toast({ title: "Stock updated", description: d.message }); setSel(null); setQty(10); setUnitCost(0); setNote(""); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/stock"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-      {products.map((p) => (
-        <div key={p.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {p.imageUrl && <img src={p.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />}
-              <div className="min-w-0"><p className="font-semibold text-sm truncate">{p.name}</p><p className={`text-xs ${p.stock <= 5 ? "text-red-400" : "text-white/50"}`}>stock {p.stock}{p.stock <= 5 ? " · low!" : ""}</p></div>
-            </div>
-            <button onClick={() => setSel(sel === p.id ? null : p.id)} className="px-3 py-2 rounded-xl bg-white/10 text-sm font-semibold flex items-center gap-1 flex-shrink-0"><PackagePlus className="w-4 h-4" /></button>
+    <div className="space-y-4">
+      {groups.map(([cat, items]) => (
+        <div key={cat}>
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat}</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {items.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover" />}
+                    <div className="min-w-0"><p className="font-semibold text-sm truncate">{p.name}</p><p className={`text-xs ${p.stock <= 5 ? "text-red-400" : "text-white/50"}`}>stock {p.stock}{p.stock <= 5 ? " · low!" : ""}</p></div>
+                  </div>
+                  <button onClick={() => { setSel(sel === p.id ? null : p.id); setDir("add"); }} className="px-3 py-2 rounded-xl bg-white/10 text-sm font-semibold flex items-center gap-1 flex-shrink-0"><PackagePlus className="w-4 h-4" /></button>
+                </div>
+                {sel === p.id && (
+                  <div className="mt-3">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <button onClick={() => setDir("add")} className={`py-2 rounded-xl border text-sm font-semibold ${dir === "add" ? "border-emerald-400 bg-emerald-400/15 text-emerald-200" : "border-white/10 bg-black/30 text-white/60"}`}>Add</button>
+                      <button onClick={() => setDir("deduct")} className={`py-2 rounded-xl border text-sm font-semibold ${dir === "deduct" ? "border-red-400 bg-red-400/15 text-red-200" : "border-white/10 bg-black/30 text-white/60"}`}>Deduct</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><label className="text-[11px] text-white/50">Quantity</label><input type="number" value={qty} onChange={(e) => setQty(Math.abs(Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></div>
+                      {dir === "add"
+                        ? <div><label className="text-[11px] text-white/50">Unit cost (RP)</label><input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></div>
+                        : <div><label className="text-[11px] text-white/50">Reason</label><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="wastage, spoilage…" className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></div>}
+                      <button onClick={() => adjust.mutate()} disabled={adjust.isPending || qty === 0} className="col-span-2 py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: dir === "add" ? "linear-gradient(90deg,#c9a84c,#f0d787)" : "linear-gradient(90deg,#f87171,#fca5a5)" }}>{dir === "add" ? `Add ${qty} · cost ${rp(qty * unitCost)}` : `Deduct ${qty}`}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-          {sel === p.id && (
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div><label className="text-[11px] text-white/50">Qty to add</label><input type="number" value={qty} onChange={(e) => setQty(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></div>
-              <div><label className="text-[11px] text-white/50">Unit cost (RP)</label><input type="number" value={unitCost} onChange={(e) => setUnitCost(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></div>
-              <button onClick={() => stockIn.mutate()} disabled={stockIn.isPending || qty === 0} className="col-span-2 py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Add {qty} · cost {rp(qty * unitCost)}</button>
-            </div>
-          )}
         </div>
       ))}
-      {products.length === 0 && <p className="text-center text-white/40 py-10 text-sm col-span-full">No products yet. Add them in Admin › Products.</p>}
+      {products.length === 0 && <p className="text-center text-white/40 py-10 text-sm">No products yet. Add them in Admin › Products.</p>}
     </div>
   );
 }

@@ -565,7 +565,7 @@ function ProductRow({ p }: any) {
   );
 }
 
-const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:other": "Other expenses" };
+const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:other": "Other expenses" };
 
 function Accounting() {
   const { toast } = useToast();
@@ -579,6 +579,11 @@ function Accounting() {
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Entry added" }); setE({ kind: "expense", category: "other", amount: 0, note: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const payCommission = useMutation({
+    mutationFn: (v: { staffName: string; amount: number }) => apiRequest("POST", "/api/reborn/admin/accounting/commission/pay", v).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: "Commission paid", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
@@ -608,11 +613,17 @@ function Accounting() {
           </div>
           {commission.staff.length === 0 && <p className="text-xs text-white/40">No paid sales in this period.</p>}
           {commission.staff.map((s: any) => (
-            <div key={s.name} className="flex justify-between text-sm py-1 border-b border-white/5 last:border-0">
-              <span className="text-white/70">{s.name} <span className="text-white/30">· {s.tickets} sale(s)</span></span>
-              <span className="text-white/80">{money(s.sales)} <span className="text-emerald-300 font-semibold">→ {money(s.commission)}</span></span>
+            <div key={s.name} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
+              <span className="text-white/70 min-w-0 truncate">{s.name} <span className="text-white/30">· {s.tickets} sale(s) · {money(s.sales)}</span></span>
+              <span className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-emerald-300 font-semibold">{money(s.commission)}</span>
+                {s.name !== "Unassigned" && s.commission > 0 && (
+                  <button onClick={() => { if (confirm(`Pay RP ${s.commission.toLocaleString()} commission to ${s.name}? This records an RP cash expense.`)) payCommission.mutate({ staffName: s.name, amount: s.commission }); }} disabled={payCommission.isPending} className="px-2.5 py-1.5 rounded-lg bg-emerald-500/90 text-black text-xs font-bold">Pay RP</button>
+                )}
+              </span>
             </div>
           ))}
+          <p className="text-[11px] text-white/40 mt-2">Commission is paid as RP cash (recorded as an expense), not app credits.</p>
         </Card>
       )}
       <Card>

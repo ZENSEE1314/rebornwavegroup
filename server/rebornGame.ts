@@ -1201,6 +1201,8 @@ export function registerRebornRoutes(app: Express) {
     const msgs = await db.select().from(supportMessages).where(eq(supportMessages.ticketId, tid)).orderBy(supportMessages.createdAt);
     res.json(msgs);
   }));
+  // Common words to ignore when turning a question into FAQ keywords.
+  const STOPWORDS = new Set("the a an is are do does can how what when where why who i you my me to of in on for and or it this that with your our can't cannot will would should if at be have has".split(" "));
   app.post("/api/reborn/admin/support/:ticketId", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const tid = Number(req.params.ticketId);
@@ -1208,7 +1210,29 @@ export function registerRebornRoutes(app: Express) {
     if (!content) return res.status(400).json({ message: "Empty message" });
     await db.insert(supportMessages).values({ ticketId: tid, senderType: "staff", senderId: adminId, content });
     await db.update(supportTickets).set({ status: "open", updatedAt: new Date() }).where(eq(supportTickets.id, tid));
-    res.json({ message: "Sent" });
+
+    // Auto-learn: if the customer's last question had no confident FAQ answer, save this reply
+    // as a new FAQ entry (unless learning is turned off) so it auto-answers next time.
+    let learned = false;
+    if (req.body?.learn !== false) {
+      const msgs = await db.select().from(supportMessages).where(eq(supportMessages.ticketId, tid)).orderBy(desc(supportMessages.createdAt));
+      const lastQ = msgs.find((m) => m.senderType === "user")?.content?.trim();
+      if (lastQ && lastQ.length >= 4) {
+        const faqs = await db.select().from(faqItems);
+        const lc = lastQ.toLowerCase();
+        const already = faqs.some((f) => {
+          const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter(Boolean);
+          return kws.some((k) => k.length > 2 && lc.includes(k)) || (f.question || "").toLowerCase() === lc;
+        });
+        if (!already) {
+          const keywords = Array.from(new Set(lc.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 2 && !STOPWORDS.has(w)))).slice(0, 8).join(",");
+          await db.insert(faqItems).values({ question: lastQ.slice(0, 200), answer: content, keywords, active: true, sortOrder: 100 });
+          learned = true;
+          await logAdmin(req, { targetType: "faq", action: "auto_learn", entityType: "faq", description: `Learned FAQ from chat: "${lastQ.slice(0, 60)}"` });
+        }
+      }
+    }
+    res.json({ message: learned ? "Sent · added to auto-replies" : "Sent", learned });
   }));
 
   // ── POS · Inventory · In-app ordering · Accounting ──────────────────────────
@@ -1546,6 +1570,15 @@ export function registerRebornRoutes(app: Express) {
     const list = Object.values(byStaff).sort((a, b) => b.sales - a.sales)
       .map((s) => ({ ...s, commission: Math.round(s.sales * rate / 100) }));
     res.json({ days, rate, staff: list });
+  }));
+  // Record a commission payout as an RP cash expense (not app credits) — tracked in the ledger + admin log.
+  app.post("/api/reborn/admin/accounting/commission/pay", requireAdmin(async (req, res) => {
+    const name = String(req.body?.staffName || "").trim();
+    const amount = Math.round(Number(req.body?.amount) || 0);
+    if (!name || amount <= 0) return res.status(400).json({ message: "Staff and amount required" });
+    const [row] = await db.insert(ledgerEntries).values({ kind: "expense", category: "commission", amount: String(amount), note: `Commission paid to ${name} (RP)`, userId: getUserId(req)! }).returning();
+    await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "pay_commission", entityType: "accounting", description: `Paid commission RP ${amount} to ${name}` });
+    res.json({ message: `Paid RP ${amount.toLocaleString()} commission to ${name}.` });
   }));
   app.post("/api/reborn/admin/accounting/entry", requireAdmin(async (req, res) => {
     const b = req.body || {};
