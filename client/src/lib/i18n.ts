@@ -56,6 +56,8 @@ export const translations: Translations = {
   'prof.username': { en: 'Username', zh: '用户名', id: 'Nama pengguna' },
   'prof.membershipCard': { en: 'Membership card', zh: '会员卡', id: 'Kartu keanggotaan' },
   'logout.confirm': { en: 'Are you sure you want to log out?', zh: '确定要退出登录吗？', id: 'Yakin ingin keluar?' },
+  'nav.bottles': { en: 'Bottle Keep', zh: '寄存酒水', id: 'Simpan Botol' },
+  'dash.bottleReminder': { en: 'bottle(s) expiring soon — come finish them!', zh: '瓶酒即将到期，快来喝完吧！', id: 'botol akan kedaluwarsa — segera habiskan!' },
   // Navigation & Common
   'nav.home': {
     en: 'Home',

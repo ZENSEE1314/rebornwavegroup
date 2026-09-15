@@ -10,7 +10,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1407,6 +1407,54 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "pos_order", targetId: id, action: "cancel", entityType: "order", description: `Cancelled ${o.orderNo}, stock restored` });
     res.json({ message: "Order cancelled, stock restored" });
   }));
+
+  // ── Bottle keep (locker) ────────────────────────────────────────────────
+  const KEEP_DAYS = 30;
+  const bottleView = (b: any) => {
+    const now = Date.now();
+    const exp = b.expiresAt ? new Date(b.expiresAt).getTime() : 0;
+    const daysLeft = exp ? Math.ceil((exp - now) / DAY_MS) : 0;
+    const expired = b.status === "kept" && exp && exp < now;
+    return { ...b, daysLeft, expired, expiringSoon: b.status === "kept" && daysLeft <= 5 && daysLeft > 0 };
+  };
+  // Staff store an unfinished bottle for a member (beer = quantity; whisky = photo of level).
+  app.post("/api/reborn/pos/bottle-keep", requireStaff(async (req, res) => {
+    const b = req.body || {};
+    const u = await findMemberByCode(b.memberCode || "");
+    if (!u) return res.status(404).json({ message: "Enter a valid member (code/card/username/email) to keep a bottle." });
+    const now = new Date();
+    const [row] = await db.insert(bottleKeeps).values({
+      userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
+      memberCode: u.referralCode, type: ["beer", "whisky", "other"].includes(b.type) ? b.type : "beer",
+      name: String(b.name || "").trim() || "Bottle", quantity: Math.max(1, Math.floor(Number(b.quantity) || 1)),
+      photoUrl: b.photoUrl || null, note: b.note || null, storedByStaffId: getUserId(req)!,
+      status: "kept", storedAt: now, expiresAt: addDays(KEEP_DAYS, now),
+    }).returning();
+    await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
+    res.json({ message: `Stored for ${row.memberName} — 30 days to collect.`, bottle: bottleView(row) });
+  }));
+  app.get("/api/reborn/pos/bottle-keeps", requireStaff(async (req, res) => {
+    const q = String(req.query.q || "").trim();
+    let rows = await db.select().from(bottleKeeps).where(eq(bottleKeeps.status, "kept")).orderBy(bottleKeeps.expiresAt).limit(200);
+    if (q) rows = rows.filter((r) => [r.memberName, r.memberCode, r.name].some((v) => (v || "").toLowerCase().includes(q.toLowerCase())));
+    res.json(rows.map(bottleView));
+  }));
+  app.post("/api/reborn/pos/bottle-keeps/:id/collect", requireStaff(async (req, res) => {
+    const id = Number(req.params.id); const take = Math.max(1, Math.floor(Number(req.body?.quantity) || 1));
+    const [b] = await db.select().from(bottleKeeps).where(eq(bottleKeeps.id, id));
+    if (!b || b.status !== "kept") return res.status(400).json({ message: "Not an active kept bottle" });
+    const remaining = (b.quantity || 1) - take;
+    if (remaining > 0) { await db.update(bottleKeeps).set({ quantity: remaining }).where(eq(bottleKeeps.id, id)); }
+    else { await db.update(bottleKeeps).set({ status: "collected", quantity: 0, collectedAt: new Date() }).where(eq(bottleKeeps.id, id)); }
+    await logAdmin(req, { targetUserId: b.userId || undefined, targetType: "bottle_keep", targetId: id, action: "collect", entityType: "bottle", description: `Collected ${take}× ${b.name} (${b.memberName})` });
+    res.json({ message: remaining > 0 ? `Collected ${take}. ${remaining} left in keep.` : "Collected — bottle keep closed." });
+  }));
+  // Member: my kept bottles + reminders.
+  app.get("/api/reborn/bottles", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const rows = await db.select().from(bottleKeeps).where(and(eq(bottleKeeps.userId, userId), eq(bottleKeeps.status, "kept"))).orderBy(bottleKeeps.expiresAt);
+    res.json(rows.map(bottleView));
+  });
 
   // Accounting — money in/out summary + ledger (admin only).
   app.get("/api/reborn/admin/accounting/summary", requireAdmin(async (req, res) => {

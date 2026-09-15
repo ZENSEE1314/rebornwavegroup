@@ -6,12 +6,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
-import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
+import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
 interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; items?: any[]; }
-type Tab = "tables" | "sell" | "stock";
+type Tab = "tables" | "sell" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
 async function post(url: string, body?: any) {
@@ -55,14 +56,15 @@ export default function RebornPos() {
         <h1 className="text-xl font-extrabold">Point of Sale</h1>
         <button onClick={() => setShowDrawer(true)} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70"><Settings className="w-4 h-4" /> Cash drawer</button>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-4 max-w-lg">
-        {([["tables", "Tables", <LayoutGrid className="w-4 h-4" />], ["sell", "Quick sale", <Receipt className="w-4 h-4" />], ["stock", "Stock", <PackagePlus className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
-          <button key={k} onClick={() => setTab(k as Tab)} className={`py-2.5 rounded-xl border font-semibold text-sm flex items-center justify-center gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}{l}</button>
+      <div className="grid grid-cols-4 gap-2 mb-4 max-w-2xl">
+        {([["tables", "Tables", <LayoutGrid className="w-4 h-4" />], ["sell", "Quick sale", <Receipt className="w-4 h-4" />], ["stock", "Stock", <PackagePlus className="w-4 h-4" />], ["bottles", "Bottles", <Wine className="w-4 h-4" />]] as const).map(([k, l, ic]) => (
+          <button key={k} onClick={() => setTab(k as Tab)} className={`py-2.5 rounded-xl border font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 ${tab === k ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-white/60"}`}>{ic}<span className="hidden sm:inline">{l}</span><span className="sm:hidden">{l.split(" ")[0]}</span></button>
         ))}
       </div>
       {tab === "tables" && <TablesTab />}
       {tab === "sell" && <QuickSaleTab />}
       {tab === "stock" && <StockTab />}
+      {tab === "bottles" && <BottlesTab />}
       {showDrawer && <DrawerSetup onClose={() => setShowDrawer(false)} />}
     </RebornLayout>
   );
@@ -113,9 +115,9 @@ function ProductPicker({ label, onCommit, busy }: { label: string; onCommit: (it
             return (
               <div key={id} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 text-sm">{p.name}</span>
-                <button onClick={() => sub(Number(id))} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
-                <span className="w-5 text-center text-sm font-bold">{q}</span>
-                <button onClick={() => add(Number(id))} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                <button onClick={() => sub(Number(id))} style={{ width: 32, height: 32 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-xl leading-none font-bold flex-shrink-0">−</button>
+                <span style={{ minWidth: 20 }} className="text-center text-sm font-bold">{q}</span>
+                <button onClick={() => add(Number(id))} style={{ width: 32, height: 32 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-xl leading-none font-bold flex-shrink-0">+</button>
                 <span className="w-20 text-right text-sm text-amber-300">{rp(Number(p.price) * q)}</span>
               </div>
             );
@@ -356,6 +358,69 @@ function StockTab() {
         </div>
       ))}
       {products.length === 0 && <p className="text-center text-white/40 py-10 text-sm col-span-full">No products yet. Add them in Admin › Products.</p>}
+    </div>
+  );
+}
+
+// ── Bottle keep ─────────────────────────────────────────────────────────────
+function BottlesTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [f, setF] = useState({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+  const [q, setQ] = useState("");
+  const { data: kept = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/pos/bottle-keeps", q],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()),
+    refetchInterval: 20000,
+  });
+  const store = useMutation({
+    mutationFn: () => post("/api/reborn/pos/bottle-keep", f),
+    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const collect = useMutation({
+    mutationFn: (id: number) => post(`/api/reborn/pos/bottle-keeps/${id}/collect`, {}),
+    onSuccess: (d) => { toast({ title: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const inp = "w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm";
+  return (
+    <div className="lg:grid lg:grid-cols-[360px_1fr] lg:gap-6">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 mb-4 lg:mb-0 h-fit">
+        <p className="font-bold mb-2 text-sm flex items-center gap-2"><Wine className="w-4 h-4 text-amber-300" /> Keep a bottle</p>
+        <input value={f.memberCode} onChange={(e) => setF({ ...f, memberCode: e.target.value })} placeholder="Member code / card / username" className={inp + " mb-2"} />
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className={inp}>
+            <option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option>
+          </select>
+          <input type="number" min={1} value={f.quantity} onChange={(e) => setF({ ...f, quantity: Number(e.target.value) })} placeholder="Qty" className={inp} />
+        </div>
+        <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Bottle name (e.g. Chivas 12)" className={inp + " mb-2"} />
+        {f.type !== "beer" && (
+          <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo of remaining level</p><ImageUpload value={f.photoUrl} onChange={(v) => setF({ ...f, photoUrl: v })} label="Take / upload photo" /></div>
+        )}
+        <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="Note (optional)" className={inp + " mb-2"} />
+        <button onClick={() => store.mutate()} disabled={store.isPending || !f.name.trim() || !f.memberCode.trim()} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Keep bottle (30 days)</button>
+      </div>
+      <div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search kept bottles by member or name" className={inp + " mb-3"} />
+        <div className="grid sm:grid-cols-2 gap-2">
+          {kept.map((b) => (
+            <div key={b.id} className={`flex items-center gap-3 rounded-2xl border p-3 ${b.expiringSoon ? "border-amber-400/40 bg-amber-400/5" : "border-white/10 bg-white/5"}`}>
+              {b.photoUrl
+                ? <img src={b.photoUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                : <span className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-6 h-6 text-amber-300" /></span>}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{b.name} <span className="text-white/40">×{b.quantity}</span></p>
+                <p className="text-xs text-white/50 truncate">{b.memberName} · {b.type}</p>
+                <p className={`text-[11px] ${b.daysLeft <= 5 ? "text-amber-300" : "text-white/40"}`}>{b.daysLeft} day(s) left</p>
+              </div>
+              <button onClick={() => collect.mutate(b.id)} disabled={collect.isPending} className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-sm font-semibold flex-shrink-0">Collect</button>
+            </div>
+          ))}
+        </div>
+        {kept.length === 0 && <p className="text-center text-white/40 py-10 text-sm">No bottles in keep.</p>}
+      </div>
     </div>
   );
 }

@@ -10,12 +10,13 @@ import { useTranslation } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
-  Utensils, Store,
+  Utensils, Store, Wine,
 } from "lucide-react";
 
 const TILES = [
   { label: "Pet Care", desc: "Feed your Doluruu", icon: <PawPrint className="w-6 h-6" />, path: "/pet", color: "#fb7185" },
   { label: "Order to Table", desc: "Drinks & food to your seat", icon: <Utensils className="w-6 h-6" />, path: "/order", color: "#4ecdc4" },
+  { label: "Bottle Keep", desc: "Your kept drinks", icon: <Wine className="w-6 h-6" />, path: "/bottles", color: "#c9a84c" },
   { label: "Spin & Win", desc: "Spend tokens for prizes", icon: <Disc3 className="w-6 h-6" />, path: "/spin", color: "#c9a84c" },
   { label: "My Prizes", desc: "Claim what you won", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
   { label: "Bookings", desc: "Reserve your visit", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
@@ -48,6 +49,11 @@ export default function RebornDashboard() {
     queryKey: ["/api/reborn/events"],
     queryFn: () => apiRequest("GET", "/api/reborn/events").then((r) => r.json()),
   });
+  const { data: bottles = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/bottles"],
+    queryFn: () => apiRequest("GET", "/api/reborn/bottles").then((r) => r.json()),
+  });
+  const expiringBottles = bottles.filter((b) => b.expiringSoon).length;
   const livePet = pets.find((p) => !p.isEgg && p.lifeStatus === "active");
   const firstName = (user as any)?.firstName || "there";
 
@@ -76,6 +82,15 @@ export default function RebornDashboard() {
           <Plus className="w-4 h-4" /> {t("dash.topUp")}
         </button>
       </div>
+
+      {/* Bottle-keep reminder */}
+      {expiringBottles > 0 && (
+        <button onClick={() => navigate("/bottles")} className="w-full mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3 flex items-center gap-2 text-left">
+          <Wine className="w-5 h-5 text-amber-300 flex-shrink-0" />
+          <span className="text-sm text-amber-100">{expiringBottles} {t("dash.bottleReminder")}</span>
+          <ChevronRight className="w-4 h-4 text-amber-300/60 ml-auto" />
+        </button>
+      )}
 
       {/* Events */}
       {events.length > 0 && (

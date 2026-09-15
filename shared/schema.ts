@@ -670,6 +670,24 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
 });
 
+// Bottle keep — members leave unfinished bottles; staff store them (beer count / whisky photo of level), 1-month keep
+export const bottleKeeps = pgTable("bottle_keeps", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  memberName: varchar("member_name"),
+  memberCode: varchar("member_code"),
+  type: varchar("type").default("beer").notNull(), // 'beer' | 'whisky' | 'other'
+  name: varchar("name").notNull(),
+  quantity: integer("quantity").default(1).notNull(), // bottles left
+  photoUrl: varchar("photo_url"),                     // whisky: photo of remaining level
+  note: text("note"),
+  storedByStaffId: varchar("stored_by_staff_id"),
+  status: varchar("status").default("kept").notNull(), // 'kept' | 'collected' | 'expired'
+  storedAt: timestamp("stored_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  collectedAt: timestamp("collected_at"),
+});
+
 export const stockMovements = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),

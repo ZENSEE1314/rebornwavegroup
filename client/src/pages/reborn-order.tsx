@@ -85,13 +85,13 @@ export default function RebornOrder() {
                   <p className="text-sm text-amber-300">{rp(Number(p.price))}{p.soldOut && <span className="text-red-400 ml-2">Sold out</span>}</p>
                 </div>
                 {p.soldOut ? null : (cart[p.id] || 0) > 0 ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => sub(p.id)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><Minus className="w-4 h-4" /></button>
-                    <span className="w-5 text-center font-bold">{cart[p.id]}</span>
-                    <button onClick={() => add(p.id)} className="w-8 h-8 rounded-full bg-amber-400 text-black flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => sub(p.id)} style={{ width: 36, height: 36 }} className="rounded-full bg-white/15 text-white flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">−</button>
+                    <span style={{ minWidth: 20 }} className="text-center font-bold">{cart[p.id]}</span>
+                    <button onClick={() => add(p.id)} style={{ width: 36, height: 36 }} className="rounded-full bg-amber-400 text-black flex items-center justify-center text-2xl leading-none font-bold flex-shrink-0">+</button>
                   </div>
                 ) : (
-                  <button onClick={() => add(p.id)} className="px-3 py-2 rounded-xl bg-amber-400 text-black font-semibold text-sm">Add</button>
+                  <button onClick={() => add(p.id)} className="px-4 py-2 rounded-xl bg-amber-400 text-black font-semibold text-sm flex-shrink-0">Add</button>
                 )}
               </div>
             ))}
