@@ -10,9 +10,9 @@ export function useAuth() {
       if (error?.status === 401) return false;
       return failureCount < 2;
     },
-    refetchInterval: false, // Disable auto-refresh for auth
-    refetchOnWindowFocus: false, // Disable refetch on window focus
-    staleTime: 60 * 1000, // 60 seconds stale time for better stability
+    refetchInterval: 15000, // keep balances (points/tokens/KGOLD/credits) fresh
+    refetchOnWindowFocus: true, // refresh when returning to the tab
+    staleTime: 10 * 1000,
     gcTime: 5 * 60 * 1000, // 5 minutes garbage collection time
   });
 

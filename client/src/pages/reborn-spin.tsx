@@ -126,8 +126,9 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
     });
   }, [prizes, n]);
 
-  const fontFor = (len: number) => (len > 24 ? 8 : len > 16 ? 9 : 11);
-  const inner = 34, outer = R - 8;
+  const fontFor = (len: number) => (len > 24 ? 7 : len > 18 ? 8.5 : len > 12 ? 10 : 11);
+  const inner = 30, outer = R - 6;
+  const midR = (inner + outer) / 2; // centre each label on the middle of its slice
 
   return (
     <div className="relative" style={{ width: 320, maxWidth: "88vw" }}>
@@ -139,10 +140,10 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
         {/* labels run ALONG each spoke (radially), from just outside the hub to the rim */}
         {slices.map((s, i) => {
           const t = s.flip
-            ? `translate(${C} ${C}) rotate(${s.mid + 90}) translate(${-outer} 0)`
-            : `translate(${C} ${C}) rotate(${s.mid - 90}) translate(${inner} 0)`;
+            ? `translate(${C} ${C}) rotate(${s.mid + 90}) translate(${-midR} 0)`
+            : `translate(${C} ${C}) rotate(${s.mid - 90}) translate(${midR} 0)`;
           return (
-            <text key={"t" + i} x={0} y={0} transform={t} textAnchor={s.flip ? "end" : "start"} dominantBaseline="central"
+            <text key={"t" + i} x={0} y={0} transform={t} textAnchor="middle" dominantBaseline="central"
               fill="#0a0714" fontSize={fontFor(s.label.length)} fontWeight="700">{s.label}</text>
           );
         })}
@@ -158,6 +159,7 @@ function MyPrizes() {
   const { data } = useQuery<{ prizes: any[]; canUseNow: boolean; cooldownHoursLeft: number }>({
     queryKey: ["/api/reborn/prizes"],
     queryFn: () => apiRequest("GET", "/api/reborn/prizes").then((r) => r.json()),
+    refetchInterval: 10000, refetchOnWindowFocus: true,
   });
   const use = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/reborn/prizes/${id}/use`).then((r) => r.json()),

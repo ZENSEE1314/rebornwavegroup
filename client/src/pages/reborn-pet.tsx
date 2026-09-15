@@ -45,6 +45,7 @@ export default function RebornPet() {
   const { data: pills } = useQuery<{ available: number }>({
     queryKey: ["/api/reborn/pills"],
     queryFn: () => apiRequest("GET", "/api/reborn/pills").then((r) => r.json()),
+    refetchInterval: 15000, refetchOnWindowFocus: true,
   });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["/api/reborn/pets"] });
