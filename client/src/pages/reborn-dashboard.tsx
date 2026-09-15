@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
+import { useTranslation } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
@@ -31,6 +32,7 @@ function formatRp(n: number) { return "RP " + (n || 0).toLocaleString("en-US"); 
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem("onboarding-completed"); } catch { return true; }
@@ -55,13 +57,13 @@ export default function RebornDashboard() {
 
       {/* Welcome + balances */}
       <div className="rounded-3xl p-5 mb-4 border border-white/10" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.25), rgba(201,168,76,0.12))" }}>
-        <p className="text-white/60 text-sm">Welcome back,</p>
+        <p className="text-white/60 text-sm">{t("dash.welcomeBack")}</p>
         <h1 className="text-2xl font-extrabold mb-4">{firstName} 👋</h1>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Credits", value: formatRp(parseFloat((user as any)?.credits || "0")), icon: <DollarSign className="w-4 h-4" />, c: "#22c55e" },
-            { label: "Points", value: (user as any)?.loyaltyPoints ?? 0, icon: <Star className="w-4 h-4" />, c: "#a855f7" },
-            { label: "Tokens", value: (user as any)?.tokens ?? 0, icon: <Coins className="w-4 h-4" />, c: "#c9a84c" },
+            { label: t("dash.credits"), value: formatRp(parseFloat((user as any)?.credits || "0")), icon: <DollarSign className="w-4 h-4" />, c: "#22c55e" },
+            { label: t("dash.points"), value: (user as any)?.loyaltyPoints ?? 0, icon: <Star className="w-4 h-4" />, c: "#a855f7" },
+            { label: t("dash.tokens"), value: (user as any)?.tokens ?? 0, icon: <Coins className="w-4 h-4" />, c: "#c9a84c" },
           ].map((b) => (
             <div key={b.label} className="rounded-2xl bg-black/25 p-3 text-center">
               <span className="inline-flex mb-1" style={{ color: b.c }}>{b.icon}</span>
@@ -71,7 +73,7 @@ export default function RebornDashboard() {
           ))}
         </div>
         <button onClick={() => setShowTopup(true)} className="mt-3 w-full py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
-          <Plus className="w-4 h-4" /> Top up RP credits
+          <Plus className="w-4 h-4" /> {t("dash.topUp")}
         </button>
       </div>
 
@@ -105,8 +107,8 @@ export default function RebornDashboard() {
             </>
           ) : (
             <>
-              <p className="font-bold">Activate your pet</p>
-              <p className="text-sm text-white/60">Enter your package code to bring Doluruu to life</p>
+              <p className="font-bold">{t("dash.activatePet")}</p>
+              <p className="text-sm text-white/60">{t("dash.activatePetDesc")}</p>
             </>
           )}
         </div>
@@ -114,8 +116,8 @@ export default function RebornDashboard() {
       </button>
 
       {/* All feature buttons */}
-      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1">All features</h2>
-      <div className="grid grid-cols-3 gap-3">
+      <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1">{t("nav.allFeatures")}</h2>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
         {TILES.map((t) => (
           <button key={t.label} onClick={() => navigate(t.path)} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">
             <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${t.color}22`, color: t.color }}>{t.icon}</span>
@@ -141,7 +143,7 @@ export default function RebornDashboard() {
 
       {/* Replay guide */}
       <button onClick={() => setShowTour(true)} className="mt-5 w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:text-white flex items-center justify-center gap-2 text-sm">
-        <HelpCircle className="w-4 h-4" /> How it all works — replay the guide
+        <HelpCircle className="w-4 h-4" /> {t("dash.replayGuide")}
       </button>
     </RebornLayout>
   );

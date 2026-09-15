@@ -4,6 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
+import bcrypt from "bcryptjs";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -175,7 +176,7 @@ const DEFAULT_PRIZES = [
   { label: "Free spin", prizeType: "free_spin", value: 0, weight: 15, colorHex: "#45b7d1" },
   { label: "50,000 RP discount voucher", prizeType: "voucher_amount", value: 50000, weight: 6, colorHex: "#22c55e" },
   { label: "100,000 RP discount voucher", prizeType: "voucher_amount", value: 100000, weight: 2, colorHex: "#ec4899" },
-  { label: "Doluruu egg", prizeType: "egg", value: 0, weight: 5, colorHex: "#fb7185" },
+  { label: "Revival pill", prizeType: "pill", value: 0, weight: 5, colorHex: "#fb7185" },
   { label: "Free dish", prizeType: "item", value: 0, weight: 10, colorHex: "#f97316" },
   { label: "Nothing", prizeType: "nothing", value: 0, weight: 35, colorHex: "#64748b" },
 ];
@@ -474,6 +475,8 @@ export function registerRebornRoutes(app: Express) {
       if (picked.prizeType === "free_spin") {
         freeSpin = true;
         await db.update(users).set({ tokens: sql`${users.tokens} + ${SPIN_COST}`, updatedAt: now }).where(eq(users.id, userId));
+      } else if (picked.prizeType === "pill") {
+        await db.insert(petPills).values({ userId, grantedBy: "spin", note: "Won on the wheel" });
       } else if (picked.prizeType === "egg") {
         await db.insert(pets).values({
           userId, toyId: 0, name: "Doluruu Egg", type: "virtual",
@@ -496,6 +499,7 @@ export function registerRebornRoutes(app: Express) {
         message:
           picked.prizeType === "nothing" ? "So close! Better luck next spin." :
           freeSpin ? "Free spin! Go again — this one's on us." :
+          picked.prizeType === "pill" ? "You won a revival pill! Use it to revive or extend a pet." :
           picked.prizeType === "egg" ? "You won a Doluruu egg! It will hatch in 15 days." :
           `You won ${picked.label}! Show it to staff to redeem.`,
       });
@@ -954,14 +958,14 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/songs", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!; const b = req.body || {};
     const [row] = await db.insert(songs).values({
-      title: b.title || "New song", artist: b.artist || "", spotifyUrl: b.spotifyUrl || null,
-      artistPhoto: b.artistPhoto || null, isHit: b.isHit !== false, requestCount: Number(b.requestCount) || 0, createdBy: adminId,
+      title: b.title || "New song", titlePinyin: b.titlePinyin || "", artist: b.artist || "", artistPinyin: b.artistPinyin || "",
+      spotifyUrl: b.spotifyUrl || null, artistPhoto: b.artistPhoto || null, isHit: b.isHit !== false, requestCount: Number(b.requestCount) || 0, createdBy: adminId,
     }).returning();
     res.json(row);
   }));
   app.put("/api/reborn/admin/songs/:id", requireStaff(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
-    for (const k of ["title", "artist", "spotifyUrl", "artistPhoto"]) if (b[k] !== undefined) patch[k] = b[k];
+    for (const k of ["title", "titlePinyin", "artist", "artistPinyin", "spotifyUrl", "artistPhoto"]) if (b[k] !== undefined) patch[k] = b[k];
     if (b.isHit !== undefined) patch.isHit = !!b.isHit;
     if (b.requestCount !== undefined) patch.requestCount = Number(b.requestCount);
     const [row] = await db.update(songs).set(patch).where(eq(songs.id, id)).returning();
@@ -1014,7 +1018,7 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin: manage members (search, edit balances, change role)
-  const userCols = { id: users.id, firstName: users.firstName, username: users.username, email: users.email, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold };
+  const userCols = { id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phoneNumber: users.phoneNumber, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold, referralCode: users.referralCode };
   app.get("/api/reborn/admin/users", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
     const rows = q.length >= 1
@@ -1032,10 +1036,36 @@ export function registerRebornRoutes(app: Express) {
     if (b.tokens !== undefined) patch.tokens = Number(b.tokens);
     if (b.kgold !== undefined) patch.kgold = Number(b.kgold);
     if (b.role !== undefined && ["admin", "staff", "user"].includes(b.role)) patch.role = b.role;
+    if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
+    if (b.firstName !== undefined) patch.firstName = b.firstName;
+    if (b.lastName !== undefined) patch.lastName = b.lastName;
+    if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
-    await logAdmin(req, { targetUserId: id, targetType: "user", action: "update", entityType: "profile", oldValues: { credits: old.credits, loyaltyPoints: old.loyaltyPoints, tokens: old.tokens, kgold: old.kgold, role: old.role }, newValues: patch, description: `Edited member ${old.username || old.email || id}` });
-    res.json(row);
+    const changed = Object.keys(patch).filter((k) => k !== "updatedAt");
+    await logAdmin(req, { targetUserId: id, targetType: "user", action: "update", entityType: "profile", oldValues: { credits: old.credits, loyaltyPoints: old.loyaltyPoints, tokens: old.tokens, kgold: old.kgold, role: old.role, email: old.email }, newValues: { ...patch, password: patch.password ? "***reset***" : undefined }, description: `Edited member ${old.username || old.email || id}: ${changed.join(", ")}` });
+    res.json({ ...row, password: undefined });
   }));
+
+  // Member self-service profile: name, image, phone, address, DOB, country, language, password.
+  app.post("/api/reborn/profile", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const b = req.body || {};
+    const patch: any = { updatedAt: new Date() };
+    for (const k of ["firstName", "lastName", "phoneNumber", "profileImageUrl", "address", "country"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.dateOfBirth !== undefined) patch.dateOfBirth = b.dateOfBirth ? new Date(b.dateOfBirth) : null;
+    if (b.preferredLanguage !== undefined && ["en", "zh", "id"].includes(b.preferredLanguage)) patch.preferredLanguage = b.preferredLanguage;
+    if (b.newPassword) {
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      if (u?.password) {
+        const ok = await bcrypt.compare(String(b.currentPassword || ""), u.password);
+        if (!ok) return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      if (String(b.newPassword).length < 6) return res.status(400).json({ message: "New password must be at least 6 characters" });
+      patch.password = await bcrypt.hash(String(b.newPassword), 12);
+    }
+    const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
+    res.json({ ...row, password: undefined });
+  });
 
   // Member RP top-up requests (approved by staff/admin → credits added)
   app.post("/api/reborn/topup", requireAuth, async (req, res) => {

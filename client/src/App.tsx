@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { setLanguage } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useEffect, Component, lazy, Suspense, type ReactNode } from "react";
@@ -84,6 +85,7 @@ const RebornSong           = lazy(() => import("@/pages/reborn-song"));
 const RebornChat           = lazy(() => import("@/pages/reborn-chat"));
 const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
 const RebornPos            = lazy(() => import("@/pages/reborn-pos"));
+const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -100,6 +102,14 @@ function PageLoader() {
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+
+  // Adopt the member's saved language on a fresh device (unless they already picked one here).
+  useEffect(() => {
+    const pref = (user as any)?.preferredLanguage;
+    let hasLocal = false;
+    try { hasLocal = !!localStorage.getItem("language"); } catch {}
+    if (pref && !hasLocal && ["en", "zh", "id"].includes(pref)) setLanguage(pref);
+  }, [(user as any)?.preferredLanguage]);
 
   // Handle OAuth referral code processing
   useEffect(() => {
@@ -188,7 +198,8 @@ function Router() {
             <Route path="/my-referral" component={MyReferral} />
             <Route path="/loyalty-program" component={LoyaltyProgram} />
             <Route path="/seasonal-collections" component={SimpleCollections} />
-            <Route path="/profile" component={Profile} />
+            <Route path="/profile" component={RebornProfile} />
+            <Route path="/profile-legacy" component={Profile} />
             <Route path="/checkout" component={Checkout} />
             <Route path="/payment-success" component={PaymentSuccess} />
           </>

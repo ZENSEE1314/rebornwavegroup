@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Home, PawPrint, Disc3, Headphones, Menu as MenuIcon, X, Gift, Coins,
@@ -8,32 +9,33 @@ import {
   Utensils, Store,
 } from "lucide-react";
 
-interface NavItem { label: string; icon: ReactNode; path: string; }
+interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; }
 
 const MAIN_NAV: NavItem[] = [
-  { label: "Home", icon: <Home className="w-5 h-5" />, path: "/" },
-  { label: "Pet", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
-  { label: "KOS", icon: <Music className="w-5 h-5" />, path: "/kos" },
-  { label: "Chat", icon: <MessageCircle className="w-5 h-5" />, path: "/chat" },
+  { label: "Home", tkey: "nav.home", icon: <Home className="w-5 h-5" />, path: "/" },
+  { label: "Pet", tkey: "nav.pet", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
+  { label: "KOS", tkey: "nav.kos", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "Chat", tkey: "nav.chat", icon: <MessageCircle className="w-5 h-5" />, path: "/chat" },
 ];
 
 export const MENU_ITEMS: NavItem[] = [
-  { label: "Pet Care", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
-  { label: "Spin & Win", icon: <Disc3 className="w-5 h-5" />, path: "/spin" },
-  { label: "My Prizes", icon: <Gift className="w-5 h-5" />, path: "/spin?tab=prizes" },
-  { label: "Order to Table", icon: <Utensils className="w-5 h-5" />, path: "/order" },
-  { label: "Bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
-  { label: "Loyalty Program", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
-  { label: "Kings of Singers", icon: <Music className="w-5 h-5" />, path: "/kos" },
-  { label: "Song Request", icon: <Music className="w-5 h-5" />, path: "/songs" },
-  { label: "Referrals", icon: <Users className="w-5 h-5" />, path: "/my-referral" },
-  { label: "Support & FAQ", icon: <Headphones className="w-5 h-5" />, path: "/support" },
-  { label: "Profile", icon: <User className="w-5 h-5" />, path: "/profile" },
+  { label: "Pet Care", tkey: "nav.petCare", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
+  { label: "Spin & Win", tkey: "nav.spin", icon: <Disc3 className="w-5 h-5" />, path: "/spin" },
+  { label: "My Prizes", tkey: "nav.myPrizes", icon: <Gift className="w-5 h-5" />, path: "/spin?tab=prizes" },
+  { label: "Order to Table", tkey: "nav.order", icon: <Utensils className="w-5 h-5" />, path: "/order" },
+  { label: "Bookings", tkey: "nav.bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
+  { label: "Loyalty Program", tkey: "nav.loyalty", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
+  { label: "Kings of Singers", tkey: "nav.kingsOfSingers", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "Song Request", tkey: "nav.songRequest", icon: <Music className="w-5 h-5" />, path: "/songs" },
+  { label: "Referrals", tkey: "nav.referrals", icon: <Users className="w-5 h-5" />, path: "/my-referral" },
+  { label: "Support & FAQ", tkey: "nav.support", icon: <Headphones className="w-5 h-5" />, path: "/support" },
+  { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
 
 export function RebornLayout({ children, title, active }: { children: ReactNode; title?: string; active?: string }) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
   const tokens = (user as any)?.tokens ?? 0;
@@ -59,8 +61,11 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold text-amber-300">{tokens}</span>
           </div>
-          <button onClick={() => go("/profile")} aria-label="Profile" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10">
-            <User className="w-4 h-4 text-white/70" />
+          <button onClick={() => go("/profile")} aria-label="Profile" className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 max-w-[9rem]">
+            {(user as any)?.profileImageUrl
+              ? <img src={(user as any).profileImageUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+              : <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-purple-500 flex items-center justify-center text-[11px] font-bold text-black">{((user as any)?.firstName || "U").slice(0, 1).toUpperCase()}</span>}
+            <span className="text-xs font-semibold text-white/80 truncate">{(user as any)?.firstName || "Profile"}</span>
           </button>
         </div>
       </header>
@@ -76,13 +81,13 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
             return (
               <button key={it.path} onClick={() => go(it.path)} className={`flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? "text-amber-300" : "text-white/50 hover:text-white/80"}`}>
                 {it.icon}
-                <span className="text-[11px] font-medium">{it.label}</span>
+                <span className="text-[11px] font-medium">{t(it.tkey)}</span>
               </button>
             );
           })}
           <button onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-1 py-2.5 text-white/50 hover:text-white/80">
             <MenuIcon className="w-5 h-5" />
-            <span className="text-[11px] font-medium">Menu</span>
+            <span className="text-[11px] font-medium">{t("nav.menu")}</span>
           </button>
         </div>
       </nav>
@@ -93,31 +98,31 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative w-full sm:max-w-md bg-[#120c22] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">All features</h3>
+              <h3 className="text-lg font-bold">{t("nav.allFeatures")}</h3>
               <button onClick={() => setMenuOpen(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {MENU_ITEMS.map((it) => (
                 <button key={it.path} onClick={() => go(it.path)} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                   <span className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-300" style={{ background: "rgba(201,168,76,0.12)" }}>{it.icon}</span>
-                  <span className="text-xs text-center text-white/80 leading-tight">{it.label}</span>
+                  <span className="text-xs text-center text-white/80 leading-tight">{t(it.tkey)}</span>
                 </button>
               ))}
               {isAdmin && (
                 <button onClick={() => go("/pos")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10">
                   <span className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-300" style={{ background: "rgba(201,168,76,0.15)" }}><Store className="w-5 h-5" /></span>
-                  <span className="text-xs text-center text-white/80">POS</span>
+                  <span className="text-xs text-center text-white/80">{t("nav.pos")}</span>
                 </button>
               )}
               {isAdmin && (
                 <button onClick={() => go("/reborn-admin")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10">
                   <span className="w-10 h-10 rounded-xl flex items-center justify-center text-purple-300" style={{ background: "rgba(168,85,247,0.15)" }}><Shield className="w-5 h-5" /></span>
-                  <span className="text-xs text-center text-white/80">Admin</span>
+                  <span className="text-xs text-center text-white/80">{t("nav.admin")}</span>
                 </button>
               )}
             </div>
             <button onClick={logout} className="mt-4 w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:text-white flex items-center justify-center gap-2">
-              <LogOut className="w-4 h-4" /> Log out
+              <LogOut className="w-4 h-4" /> {t("nav.logout")}
             </button>
           </div>
         </div>

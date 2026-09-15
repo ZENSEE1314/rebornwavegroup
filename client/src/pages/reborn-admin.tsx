@@ -64,6 +64,12 @@ function MemberRow({ u, editable, onSave }: any) {
       <p className="text-[11px] text-white/40 mb-2">id {u.id}</p>
       {editable ? (
         <>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <label className="text-xs text-white/50">First name<input value={e.firstName || ""} onChange={(x) => setE({ ...e, firstName: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Last name<input value={e.lastName || ""} onChange={(x) => setE({ ...e, lastName: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">Email<input value={e.email || ""} onChange={(x) => setE({ ...e, email: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">Reset password (leave blank to keep)<input type="text" value={e.password || ""} onChange={(x) => setE({ ...e, password: x.target.value })} placeholder="New password" className={inp + " w-full"} /></label>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-white/50">Credits (RP)<input type="number" value={e.credits} onChange={(x) => setE({ ...e, credits: x.target.value })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Points<input type="number" value={e.loyaltyPoints} onChange={(x) => setE({ ...e, loyaltyPoints: Number(x.target.value) })} className={inp + " w-full"} /></label>
@@ -98,8 +104,8 @@ function TopUps() {
           <div className="flex items-center gap-3">
             <Coins className="w-5 h-5 text-amber-300" />
             <div className="flex-1 min-w-0"><p className="font-semibold text-sm">RP {Number(r.amount).toLocaleString()}</p><p className="text-xs text-white/40 truncate">{r.paymentMethod} · user {r.userId?.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}</p></div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnSm + " text-red-400"}><X className="w-4 h-4" /></button>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Approve</button>
+            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
           </div>
         </Card>
       ))}
@@ -131,8 +137,10 @@ function EventRow({ ev, onSave, onDelete }: any) {
       <div className="flex items-center gap-3">
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> show at login</label>
-        <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400 ml-auto"}><Check className="w-4 h-4" /></button>
-        <button onClick={() => onDelete(ev.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
+        <button onClick={() => onDelete(ev.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
       </div>
     </Card>
   );
@@ -181,8 +189,10 @@ function GiftRow({ g, onSave, onDelete }: any) {
         <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgoldCost} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
         <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{a}</option>)}</select>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
-        <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-        <button onClick={() => onDelete(g.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
+        <button onClick={() => onDelete(g.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
       </div>
     </Card>
   );
@@ -230,16 +240,18 @@ function SongRow({ s, onSave, onDelete }: any) {
   const [e, setE] = useState(s);
   return (
     <Card>
-      <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Song title" className={inp + " w-full mb-2"} />
-      <input value={e.artist || ""} onChange={(x) => setE({ ...e, artist: x.target.value })} placeholder="Artist / singer" className={inp + " w-full mb-2"} />
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Song name 中文" className={inp} />
+        <input value={e.titlePinyin || ""} onChange={(x) => setE({ ...e, titlePinyin: x.target.value })} placeholder="Song pinyin" className={inp} />
+        <input value={e.artist || ""} onChange={(x) => setE({ ...e, artist: x.target.value })} placeholder="Singer 中文" className={inp} />
+        <input value={e.artistPinyin || ""} onChange={(x) => setE({ ...e, artistPinyin: x.target.value })} placeholder="Singer pinyin" className={inp} />
+      </div>
       <input value={e.spotifyUrl || ""} onChange={(x) => setE({ ...e, spotifyUrl: x.target.value })} placeholder="Spotify link" className={inp + " w-full mb-2"} />
-      <input value={e.artistPhoto || ""} onChange={(x) => setE({ ...e, artistPhoto: x.target.value })} placeholder="Artist photo URL" className={inp + " w-full mb-2"} />
-      <div className="flex items-center gap-3 justify-between">
-        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song</label>
-        <div className="flex gap-2">
-          <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-          <button onClick={() => onDelete(s.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
-        </div>
+      <input value={e.artistPhoto || ""} onChange={(x) => setE({ ...e, artistPhoto: x.target.value })} placeholder="Singer photo URL" className={inp + " w-full mb-2"} />
+      <label className="text-xs text-white/50 flex items-center gap-1 mb-2"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song (Top list)</label>
+      <div className="flex gap-2">
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
+        <button onClick={() => onDelete(s.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
       </div>
     </Card>
   );
@@ -257,8 +269,8 @@ function SongRequests() {
           <div className="flex items-center gap-3">
             <Music2 className="w-5 h-5 text-amber-300" />
             <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · user {r.userId?.slice(0, 8)}</p></div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnSm + " text-red-400"}><X className="w-4 h-4" /></button>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Confirm</button>
+            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
           </div>
         </Card>
       ))}
@@ -318,7 +330,7 @@ function Prizes() {
       <div className="space-y-3">
         {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
       </div>
-      <p className="text-xs text-white/40 mt-3">Win rate = the chance each prize is won (higher = more often). Set big prizes low so members can't keep winning them. Types: item, voucher_percent, voucher_amount, egg, free_spin, nothing.</p>
+      <p className="text-xs text-white/40 mt-3">Win rate = the chance each prize is won (higher = more often). Set big prizes low so members can't keep winning them. Types: item, voucher_percent, voucher_amount, pill (revives a pet), free_spin, nothing.</p>
     </div>
   );
 }
@@ -333,14 +345,16 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
       </div>
       <div className="flex flex-wrap gap-2 items-center mt-2">
         <select value={e.prizeType} onChange={(x) => setE({ ...e, prizeType: x.target.value })} className={inp}>
-          {["item", "voucher_percent", "voucher_amount", "egg", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
+          {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <label className="text-xs text-white/50">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
         <label className="text-xs text-white/50">win rate<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
         <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
-        <button onClick={() => onSave(e)} className={btnSm}><Check className="w-4 h-4" /></button>
-        <button onClick={() => onDelete(p.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
+        <button onClick={() => onDelete(p.id)} className={btnDel}><Trash2 className="w-4 h-4" /> Delete</button>
       </div>
     </Card>
   );
@@ -361,8 +375,8 @@ function Redemptions() {
               <p className="font-semibold text-sm">{r.prizeLabel}</p>
               <p className="text-xs text-white/40">user {r.userId?.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}</p>
             </div>
-            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnSm + " text-red-400"}><X className="w-4 h-4" /></button>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Approve</button>
+            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
           </div>
         </Card>
       ))}
@@ -423,6 +437,8 @@ function FaqRow({ f, onSave, onDelete }: any) {
 const inp = "px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60";
 const btn = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-black text-sm bg-amber-400 hover:bg-amber-300";
 const btnSm = "inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10";
+const btnSave = "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold bg-emerald-500 text-black hover:bg-emerald-400";
+const btnDel = "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-red-200 bg-red-500/15 border border-red-400/40 hover:bg-red-500/25";
 function Card({ children }: any) { return <div className="rounded-2xl bg-white/5 border border-white/10 p-4">{children}</div>; }
 function Empty({ text }: any) { return <div className="text-center py-12 text-white/40">{text}</div>; }
 

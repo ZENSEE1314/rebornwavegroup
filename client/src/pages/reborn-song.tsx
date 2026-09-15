@@ -29,8 +29,8 @@ function SongRow({ s, onRequest, pending }: any) {
       {s.artistPhoto ? <img src={s.artistPhoto} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
         : <span className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Music2 className="w-5 h-5 text-amber-300" /></span>}
       <div className="flex-1 min-w-0">
-        <p className="font-semibold truncate flex items-center gap-1">{s.title}{s.isHit && <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded">HIT</span>}</p>
-        <p className="text-xs text-white/50 truncate">{s.artist || "Unknown artist"}{s.spotifyUrl && <a href={s.spotifyUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 text-emerald-400"><ExternalLink className="w-3 h-3" /> Spotify</a>}</p>
+        <p className="font-semibold truncate flex items-center gap-1">{s.title}{s.titlePinyin && <span className="text-[11px] font-normal text-white/40">{s.titlePinyin}</span>}{s.isHit && <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded">HIT</span>}</p>
+        <p className="text-xs text-white/50 truncate">{s.artist || "Unknown artist"}{s.artistPinyin && <span className="text-white/30"> · {s.artistPinyin}</span>}{s.spotifyUrl && <a href={s.spotifyUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 text-emerald-400"><ExternalLink className="w-3 h-3" /> Spotify</a>}</p>
       </div>
       <button onClick={() => onRequest(s)} disabled={pending} className="px-3 py-1.5 rounded-full text-xs font-bold text-black flex-shrink-0" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Request</button>
     </div>
@@ -47,7 +47,7 @@ function TopList() {
     onSuccess: (d) => { toast({ title: "Requested!", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
-  const filtered = songs.filter((s) => !q.trim() || (s.title + " " + (s.artist || "")).toLowerCase().includes(q.toLowerCase()));
+  const filtered = songs.filter((s) => !q.trim() || [s.title, s.titlePinyin, s.artist, s.artistPinyin].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase()));
   return (
     <div>
       <div className="relative mb-4">

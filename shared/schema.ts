@@ -41,6 +41,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   gender: varchar("gender"),
   dateOfBirth: timestamp("date_of_birth"),
+  address: text("address"),
+  country: varchar("country"),
+  preferredLanguage: varchar("preferred_language").default("en"), // 'en' | 'zh' | 'id'
   role: varchar("role").default("user").notNull(), // 'user' | 'admin'
   credits: decimal("credits", { precision: 10, scale: 2 }).default("0.00").notNull(),
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
@@ -583,8 +586,10 @@ export const kosGifts = pgTable("kos_gifts", {
 // Song library (hit songs + previously requested), shown as a Top 500 list
 export const songs = pgTable("songs", {
   id: serial("id").primaryKey(),
-  title: varchar("title").notNull(),
-  artist: varchar("artist").default(""),
+  title: varchar("title").notNull(), // song name (Chinese characters)
+  titlePinyin: varchar("title_pinyin").default(""), // song name in pinyin for search
+  artist: varchar("artist").default(""), // singer (Chinese characters)
+  artistPinyin: varchar("artist_pinyin").default(""), // singer in pinyin for search
   spotifyUrl: varchar("spotify_url"),
   artistPhoto: varchar("artist_photo"),
   isHit: boolean("is_hit").default(false),
