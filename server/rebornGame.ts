@@ -56,7 +56,8 @@ const MAX_PETS = 2;                 // living pets a member can hold at once
 const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
 const ENERGY_REGEN_PER_MIN = 0.1;   // sleeping: +1 energy per 10 min
 const ACTION_ENERGY_COST = 10;      // feed/play/clean each cost energy
-const STAT_GAIN = 30;               // each action raises its bar by 30%
+const STAT_GAIN = 30;               // play/clean raise their bar by 30%
+const FEED_GAIN = 50;               // each feed raises hunger by 50% (feed to full any time)
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
 // Day string in Indonesia time (WIB, UTC+7) so daily resets align with the club.
@@ -163,7 +164,9 @@ function petView(pet: any) {
     feedsInCycle, feedsNeeded: FEEDS_PER_DAY, tokenEarnedToday: tokenEarnedThisCycle,
     cycleActive, cycleHoursLeft: Math.ceil(cycleMsLeft / 3600000),
     nextFeedMinutes: Math.ceil(nextFeedMs / 60000),
-    canFeed: active && nextFeedMs === 0 && !(cycleActive && feedsInCycle >= FEEDS_PER_DAY),
+    // Feed whenever the belly isn't full; nextFeedMinutes just tells when the next feed will COUNT toward the token.
+    canFeed: active && clamp(pet.hunger ?? 60) < 100,
+    tokenFeedReady: active && nextFeedMs === 0 && !(cycleActive && feedsInCycle >= FEEDS_PER_DAY),
     totalTokensEarned: pet.totalTokensEarned || 0,
   };
 }
@@ -377,27 +380,30 @@ export function registerRebornRoutes(app: Express) {
         message = "Rise and shine! ☀️"; // isSleeping already cleared via update default
       } else if (action === "feed") {
         const nowMs = now.getTime();
-        const lastFed = pet.lastFedAt ? new Date(pet.lastFedAt).getTime() : 0;
-        if (lastFed && nowMs - lastFed < FEED_GAP_MS) {
-          const h = Math.ceil((lastFed + FEED_GAP_MS - nowMs) / 3600000);
-          return res.status(400).json({ message: `Your pet isn't hungry yet — feed again in ~${h}h.` });
-        }
+        if (hunger >= 100) return res.status(400).json({ message: "Your pet is full — no need to feed right now." });
         if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
-        let cycleStart = pet.lastFeedDay ? new Date(pet.lastFeedDay).getTime() : 0;
-        let feeds = (cycleStart && nowMs - cycleStart < TOKEN_CYCLE_MS) ? (pet.feedsToday || 0) : 0;
-        if (!cycleStart || nowMs - cycleStart >= TOKEN_CYCLE_MS) { cycleStart = nowMs; feeds = 0; }
-        feeds += 1;
-        hunger = clamp(hunger + STAT_GAIN); energy = clamp(energy - ACTION_ENERGY_COST);
-        update.feedsToday = feeds; update.lastFeedDay = new Date(cycleStart).toISOString(); update.lastFedAt = now;
-        const earned = pet.lastTokenClaim ? new Date(pet.lastTokenClaim).getTime() >= cycleStart : false;
-        if (feeds >= FEEDS_PER_DAY && !earned) {
-          update.lastTokenClaim = now; update.totalTokensEarned = (pet.totalTokensEarned || 0) + 1;
-          await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
-          await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
-          tokenAwarded = true;
-          message = "Full belly! You earned today's token 🎉";
+        // Feed the belly any time it's hungry (+50%); the token still needs 3 feeds spaced ~4h apart within 24h.
+        hunger = clamp(hunger + FEED_GAIN); energy = clamp(energy - ACTION_ENERGY_COST);
+        const lastCounted = pet.lastFedAt ? new Date(pet.lastFedAt).getTime() : 0; // last feed that counted toward a token
+        const spaced = !lastCounted || nowMs - lastCounted >= FEED_GAP_MS;
+        if (spaced) {
+          let cycleStart = pet.lastFeedDay ? new Date(pet.lastFeedDay).getTime() : 0;
+          let feeds = (cycleStart && nowMs - cycleStart < TOKEN_CYCLE_MS) ? (pet.feedsToday || 0) : 0;
+          if (!cycleStart || nowMs - cycleStart >= TOKEN_CYCLE_MS) { cycleStart = nowMs; feeds = 0; }
+          feeds += 1;
+          update.feedsToday = feeds; update.lastFeedDay = new Date(cycleStart).toISOString(); update.lastFedAt = now;
+          const earned = pet.lastTokenClaim ? new Date(pet.lastTokenClaim).getTime() >= cycleStart : false;
+          if (feeds >= FEEDS_PER_DAY && !earned) {
+            update.lastTokenClaim = now; update.totalTokensEarned = (pet.totalTokensEarned || 0) + 1;
+            await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
+            await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
+            tokenAwarded = true;
+            message = "Full belly! You earned today's token 🎉";
+          } else {
+            message = `Yum! +50% hunger · ${Math.max(0, FEEDS_PER_DAY - feeds)} more spaced feed(s) for today's token.`;
+          }
         } else {
-          message = `Fed! ${Math.max(0, FEEDS_PER_DAY - feeds)} more feed(s) within 24h for your token.`;
+          message = "Yum! +50% hunger. (Feed ~4h apart to count toward your token.)";
         }
       } else if (action === "play" || action === "clean") {
         if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
@@ -1039,7 +1045,14 @@ export function registerRebornRoutes(app: Express) {
     if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
     if (b.firstName !== undefined) patch.firstName = b.firstName;
     if (b.lastName !== undefined) patch.lastName = b.lastName;
-    if (b.username !== undefined) patch.username = String(b.username).trim() || null;
+    if (b.username !== undefined) {
+      const uname = String(b.username).trim();
+      if (uname) {
+        const [taken] = await db.select({ id: users.id }).from(users).where(and(ilike(users.username, uname), sql`${users.id} <> ${id}`)).limit(1);
+        if (taken) return res.status(400).json({ message: "That username is already taken" });
+      }
+      patch.username = uname || null;
+    }
     if (b.membershipCardNumber !== undefined) patch.membershipCardNumber = String(b.membershipCardNumber).trim() || null;
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
@@ -1263,6 +1276,19 @@ export function registerRebornRoutes(app: Express) {
   }
   const memberTag = (u: any) => u ? { memberId: u.id, memberCode: u.referralCode, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email } : {};
 
+  // Staff accounts (for the salesperson / commission dropdown)
+  app.get("/api/reborn/pos/staff", requireStaff(async (_req, res) => {
+    const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, role: users.role })
+      .from(users).where(or(eq(users.role, "staff"), eq(users.role, "admin"))).orderBy(users.firstName).limit(200);
+    res.json(rows.map((u) => ({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, role: u.role })));
+  }));
+  async function salesTag(body: any) {
+    if (!body?.salesStaffId) return {};
+    const [s] = await db.select().from(users).where(eq(users.id, String(body.salesStaffId))).limit(1);
+    if (!s) return {};
+    return { salesStaffId: s.id, salesStaffName: [s.firstName, s.lastName].filter(Boolean).join(" ") || s.username || s.email };
+  }
+
   // Staff opens a running tab for a table (optionally tagged to a member). One open ticket per table.
   app.post("/api/reborn/pos/orders", requireStaff(async (req, res) => {
     const tableNumber = String(req.body?.tableNumber || "").trim();
@@ -1272,7 +1298,7 @@ export function registerRebornRoutes(app: Express) {
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
       orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open",
-      ...memberTag(u), tableNumber, subtotal: "0", total: "0", staffId: getUserId(req)!,
+      ...memberTag(u), ...(await salesTag(req.body)), tableNumber, subtotal: "0", total: "0", staffId: getUserId(req)!,
     }).returning();
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "open_ticket", entityType: "order", description: `Opened ticket ${row.orderNo} for table ${tableNumber}` });
     res.json({ message: `Opened ticket for table ${tableNumber}`, order: row });
@@ -1311,7 +1337,7 @@ export function registerRebornRoutes(app: Express) {
     const points = u ? Math.floor(total / POINTS_PER_RP) : 0;
     const [row] = await db.insert(posTickets).values({
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
-      ...memberTag(u), tableNumber: req.body?.tableNumber || null, subtotal: String(total), total: String(total),
+      ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null, subtotal: String(total), total: String(total),
       paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
     }).returning();
     await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
@@ -1360,7 +1386,8 @@ export function registerRebornRoutes(app: Express) {
     if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
     const total = Number(o.total);
     const points = o.memberId ? Math.floor(total / POINTS_PER_RP) : 0;
-    await db.update(posTickets).set({ status: "paid", paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date() }).where(eq(posTickets.id, id));
+    const sales = await salesTag(req.body); // optional salesperson override at checkout
+    await db.update(posTickets).set({ status: "paid", paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
@@ -1398,6 +1425,22 @@ export function registerRebornRoutes(app: Express) {
   app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
     const limit = Math.min(500, Number(req.query.limit) || 100);
     res.json(await db.select().from(ledgerEntries).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
+  }));
+  // Commission: paid sales grouped by salesperson (staff credited on each ticket).
+  app.get("/api/reborn/admin/accounting/commission", requireAdmin(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * DAY_MS);
+    const rate = Number(req.query.rate) || 0; // optional commission % for a quick payout estimate
+    const rows = await db.select().from(posTickets).where(and(eq(posTickets.status, "paid"), sql`${posTickets.paidAt} >= ${since}`));
+    const byStaff: Record<string, { name: string; sales: number; tickets: number }> = {};
+    for (const t of rows) {
+      const key = t.salesStaffName || "Unassigned";
+      byStaff[key] ||= { name: key, sales: 0, tickets: 0 };
+      byStaff[key].sales += Number(t.total); byStaff[key].tickets += 1;
+    }
+    const list = Object.values(byStaff).sort((a, b) => b.sales - a.sales)
+      .map((s) => ({ ...s, commission: Math.round(s.sales * rate / 100) }));
+    res.json({ days, rate, staff: list });
   }));
   app.post("/api/reborn/admin/accounting/entry", requireAdmin(async (req, res) => {
     const b = req.body || {};

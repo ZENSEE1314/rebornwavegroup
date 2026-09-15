@@ -34,7 +34,7 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
 
-export function RebornLayout({ children, title, active }: { children: ReactNode; title?: string; active?: string }) {
+export function RebornLayout({ children, title, active, wide }: { children: ReactNode; title?: string; active?: string; wide?: boolean }) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -70,7 +70,7 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
       </header>
 
       {/* Content */}
-      <main className="max-w-2xl mx-auto px-4 pt-4 pb-28">{children}</main>
+      <main className={`${wide ? "max-w-6xl" : "max-w-2xl"} mx-auto px-4 pt-4 pb-28`}>{children}</main>
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 backdrop-blur-md" style={{ background: "rgba(10,7,20,0.9)" }}>

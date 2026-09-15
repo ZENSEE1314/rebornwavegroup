@@ -119,10 +119,10 @@ export default function RebornProfile() {
         <label className="text-xs text-white/50 block mb-2">{t("prof.username")}<input value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} placeholder="e.g. wave_king" className={inp} /></label>
         <label className="text-xs text-white/50 block mb-1">{t("prof.phone")}</label>
         <div className="flex gap-2 mb-2">
-          <select value={f.dialCode} onChange={(e) => setF({ ...f, dialCode: e.target.value })} className={inp + " w-24 flex-shrink-0"}>
+          <select value={f.dialCode} onChange={(e) => setF({ ...f, dialCode: e.target.value })} className="w-24 flex-shrink-0 px-2 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60">
             {DIAL_CODES.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="812 3456 7890" className={inp} />
+          <input type="tel" inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="812 3456 7890" className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
         </div>
         <label className="text-xs text-white/50 block mb-2">{t("prof.address")}<input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className={inp} /></label>
         <div className="grid grid-cols-2 gap-2 mb-3">

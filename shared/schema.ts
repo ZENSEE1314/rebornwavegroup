@@ -653,6 +653,8 @@ export const posTickets = pgTable("pos_tickets", {
   paymentMethod: varchar("payment_method"), // 'cash' | 'card'
   pointsEarned: integer("points_earned").default(0).notNull(),
   staffId: varchar("staff_id"),
+  salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)
+  salesStaffName: varchar("sales_staff_name"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow(),
   paidAt: timestamp("paid_at"),

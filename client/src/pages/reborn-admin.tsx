@@ -524,7 +524,9 @@ function Accounting() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [days, setDays] = useState(30);
+  const [rate, setRate] = useState(10);
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
+  const { data: commission } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/commission", days, rate], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/commission?days=${days}&rate=${rate}`).then((r) => r.json()) });
   const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger"], queryFn: () => apiRequest("GET", "/api/reborn/admin/accounting/ledger?limit=100").then((r) => r.json()) });
   const [e, setE] = useState({ kind: "expense", category: "other", amount: 0, note: "" });
   const addEntry = useMutation({
@@ -548,6 +550,21 @@ function Accounting() {
           <p className="font-bold mb-2 text-sm">Breakdown</p>
           {Object.entries(sum.byCategory).map(([k, v]: any) => (
             <div key={k} className="flex justify-between text-sm py-0.5"><span className="text-white/60">{CAT_LABEL[k] || k}</span><span className={k.startsWith("income") ? "text-emerald-300" : "text-red-300"}>{money(v)}</span></div>
+          ))}
+        </Card>
+      )}
+      {commission?.staff && (
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-bold text-sm">Sales by staff (commission)</p>
+            <label className="text-xs text-white/50 flex items-center gap-1">rate <input type="number" value={rate} onChange={(e) => setRate(Number(e.target.value))} className={inp + " w-14"} />%</label>
+          </div>
+          {commission.staff.length === 0 && <p className="text-xs text-white/40">No paid sales in this period.</p>}
+          {commission.staff.map((s: any) => (
+            <div key={s.name} className="flex justify-between text-sm py-1 border-b border-white/5 last:border-0">
+              <span className="text-white/70">{s.name} <span className="text-white/30">· {s.tickets} sale(s)</span></span>
+              <span className="text-white/80">{money(s.sales)} <span className="text-emerald-300 font-semibold">→ {money(s.commission)}</span></span>
+            </div>
           ))}
         </Card>
       )}
