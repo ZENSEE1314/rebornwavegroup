@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Crown, Star, Trophy, Gift, Zap, Diamond, Award, Medal } from "lucide-react";
+import { RebornLayout } from "@/components/RebornLayout";
 
 export default function LoyaltyProgram() {
   const { toast } = useToast();
@@ -147,7 +148,7 @@ export default function LoyaltyProgram() {
   };
 
   return (
-    <div className="rwg-page-bg min-h-screen pb-20 md:pb-0">
+    <RebornLayout active="/loyalty-program" title="LOYALTY"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 relative z-10">
@@ -312,6 +313,6 @@ export default function LoyaltyProgram() {
           </div>
         </div>
       </div>
-    </div>
+    </div></RebornLayout>
   );
 }

@@ -63,21 +63,26 @@ function TopList() {
 function NewRequest() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [f, setF] = useState({ title: "", artist: "", spotifyUrl: "" });
+  const [f, setF] = useState({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "" });
   const req = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/songs/request", f).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Request sent!", description: d.message }); setF({ title: "", artist: "", spotifyUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
+    onSuccess: (d) => { toast({ title: "Request sent!", description: d.message }); setF({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
-  const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60 mb-3";
+  const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60";
+  const canSend = f.title.trim() || f.titlePinyin.trim();
   return (
     <div className="rounded-3xl p-5 border border-white/10 bg-white/5">
       <h3 className="font-bold mb-1 flex items-center gap-2"><Mic2 className="w-5 h-5 text-amber-300" /> Request a song</h3>
-      <p className="text-sm text-white/60 mb-4">Can't find it in the Top 500? Request it here — staff will confirm and it's added to the library.</p>
-      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Song title *" className={inp} />
-      <input value={f.artist} onChange={(e) => setF({ ...f, artist: e.target.value })} placeholder="Artist / singer" className={inp} />
-      <input value={f.spotifyUrl} onChange={(e) => setF({ ...f, spotifyUrl: e.target.value })} placeholder="Spotify link (optional)" className={inp} />
-      <button onClick={() => req.mutate()} disabled={!f.title.trim() || req.isPending} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> Send request</button>
+      <p className="text-sm text-white/60 mb-4">Can't find it in the Top 500? Request it here — staff confirm it and it's added to the library. Already there? Your request just gets logged.</p>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Song name 中文" className={inp} />
+        <input value={f.titlePinyin} onChange={(e) => setF({ ...f, titlePinyin: e.target.value })} placeholder="Song pinyin" className={inp} />
+        <input value={f.artist} onChange={(e) => setF({ ...f, artist: e.target.value })} placeholder="Singer 中文" className={inp} />
+        <input value={f.artistPinyin} onChange={(e) => setF({ ...f, artistPinyin: e.target.value })} placeholder="Singer pinyin" className={inp} />
+      </div>
+      <input value={f.spotifyUrl} onChange={(e) => setF({ ...f, spotifyUrl: e.target.value })} placeholder="Spotify link (optional)" className={inp + " mb-3"} />
+      <button onClick={() => req.mutate()} disabled={!canSend || req.isPending} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}><Plus className="w-4 h-4" /> Send request</button>
     </div>
   );
 }

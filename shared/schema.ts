@@ -649,7 +649,10 @@ export const posTickets = pgTable("pos_tickets", {
   memberName: varchar("member_name"),
   tableNumber: varchar("table_number"),
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).default("0").notNull(),
+  discount: decimal("discount", { precision: 10, scale: 2 }).default("0").notNull(),
+  tax: decimal("tax", { precision: 10, scale: 2 }).default("0").notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).default("0").notNull(),
+  orderMode: varchar("order_mode").default("dine_in"), // 'dine_in' | 'take_away'
   paymentMethod: varchar("payment_method"), // 'cash' | 'card'
   pointsEarned: integer("points_earned").default(0).notNull(),
   staffId: varchar("staff_id"),

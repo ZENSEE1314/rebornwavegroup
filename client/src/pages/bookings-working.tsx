@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { RebornLayout } from "@/components/RebornLayout";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Plus, CheckCircle, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -93,7 +94,7 @@ export default function Bookings() {
   };
 
   return (
-    <div className="rwg-page-bg min-h-screen pb-20 md:pb-0">
+    <RebornLayout active="/bookings" title="BOOKINGS"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
       <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
@@ -283,6 +284,6 @@ export default function Bookings() {
           </div>
         )}
       </div>
-    </div>
+    </div></RebornLayout>
   );
 }

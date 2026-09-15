@@ -6,8 +6,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RebornLayout } from "@/components/RebornLayout";
 import { openCashDrawer, connectDrawerSerial, getDrawerUrl, setDrawerUrl, serialSupported, drawerConfigured } from "@/lib/cashDrawer";
+import { printReceipt, printKitchen } from "@/lib/receipt";
 import { ImageUpload } from "@/components/ImageUpload";
-import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine } from "lucide-react";
+import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt, LayoutGrid, ChevronLeft, Bell, Settings, Wine, Printer } from "lucide-react";
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
@@ -90,23 +91,33 @@ function ProductPicker({ label, onCommit, busy }: { label: string; onCommit: (it
   const add = (id: number) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
   const sub = (id: number) => setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) - 1) }));
   const commit = () => { onCommit(lines.map(([id, q]) => { const p = byId.get(Number(id))!; return { productId: p.id, name: p.name, price: Number(p.price), qty: q }; })); setCart({}); };
+  const groups = useMemo(() => {
+    const g: Record<string, Product[]> = {};
+    for (const p of products) (g[p.category || "Other"] ||= []).push(p);
+    return Object.entries(g);
+  }, [products]);
   return (
     <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
-        {products.map((p) => (
-          <button key={p.id} onClick={() => add(p.id)} disabled={p.stock <= 0} className="rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
-            {p.imageUrl
-              ? <img src={p.imageUrl} alt="" className="w-full h-20 object-cover" />
-              : <div className="w-full h-20 flex items-center justify-center text-2xl bg-white/5">🍸</div>}
-            <div className="p-2">
-              <p className="text-sm font-semibold leading-tight line-clamp-1">{p.name}</p>
-              <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
-              <p className="text-[10px] text-white/40">stock {p.stock}</p>
-            </div>
-            {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
-          </button>
-        ))}
-      </div>
+      {groups.map(([cat, items]) => (
+        <div key={cat} className="mb-4">
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 px-1">{cat}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {items.map((p) => (
+              <button key={p.id} onClick={() => add(p.id)} disabled={p.stock <= 0} className="rounded-2xl border border-white/10 bg-white/5 text-left active:scale-95 transition-all disabled:opacity-40 relative overflow-hidden">
+                {p.imageUrl
+                  ? <img src={p.imageUrl} alt="" className="w-full aspect-square object-cover" />
+                  : <div className="w-full aspect-square flex items-center justify-center text-2xl bg-white/5">🍸</div>}
+                <div className="p-2">
+                  <p className="text-sm font-semibold leading-tight line-clamp-1">{p.name}</p>
+                  <p className="text-xs text-amber-300">{rp(Number(p.price))}</p>
+                  <p className="text-[10px] text-white/40">stock {p.stock}</p>
+                </div>
+                {(cart[p.id] || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">{cart[p.id]}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
       {products.length === 0 && <p className="text-center text-white/40 py-6 text-sm">No products yet — add them in Admin › Products.</p>}
       {lines.length > 0 && (
         <div className="rounded-2xl border border-amber-400/30 bg-[#160f2a] p-3 mb-3">
@@ -202,6 +213,8 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [pay, setPay] = useState<"cash" | "card">("cash");
   const [code, setCode] = useState("");
   const [sales, setSales] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
     mutationFn: (items: any[]) => post(`/api/reborn/pos/orders/${order.id}/items`, { items }),
@@ -214,9 +227,10 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: "Not found", description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, salesStaffId: sales || undefined }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: "Drawer not opened", description: "Check Cash drawer setup." }); }
+      if (d.order) printReceipt(d.order, d.receipt || {});
       toast({ title: "Paid", description: d.message }); invalidate(); onBack();
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -256,15 +270,22 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               </div>
             )}
           </div>
+          <button onClick={() => printKitchen({ ...order })} className="w-full py-2.5 rounded-xl bg-white/10 border border-white/10 text-sm font-semibold mb-3 flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Print kitchen ticket</button>
           <div className="rounded-2xl border border-white/10 bg-[#160f2a] p-3">
             <p className="font-bold text-sm mb-2">Take payment · {rp(total)}</p>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {(["dine_in", "take_away"] as const).map((m) => (
+                <button key={m} onClick={() => setOrderMode(m)} className={`py-2 rounded-xl border font-semibold text-xs ${orderMode === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m === "dine_in" ? "Dine in" : "Take away"}</button>
+              ))}
+            </div>
             <div className="mb-2"><SalesPicker value={sales} onChange={setSales} /></div>
+            <label className="text-xs text-white/50 block mb-2">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
             <div className="grid grid-cols-2 gap-2 mb-2">
               {(["cash", "card"] as const).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
               ))}
             </div>
-            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(total)} {pay}</button>
+            <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay} · print</button>
             <button onClick={() => { if (confirm("Cancel this ticket and restore stock?")) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">Cancel ticket</button>
           </div>
         </div>
@@ -281,15 +302,18 @@ function QuickSaleTab() {
   const [member, setMember] = useState<any>(null);
   const [pay, setPay] = useState<"cash" | "card">("cash");
   const [sales, setSales] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">("dine_in");
   const lookup = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: "Member found", description: d.name }); } else toast({ title: "Not found", description: d.message, variant: "destructive" }); },
   });
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, salesStaffId: sales || undefined, items }),
+    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, items }),
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
-      toast({ title: "Sale complete", description: d.message }); setMember(null); setCode(""); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      if (d.order) printReceipt(d.order, d.receipt || {});
+      toast({ title: "Sale complete", description: d.message }); setMember(null); setCode(""); setDiscount(0); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -313,12 +337,19 @@ function QuickSaleTab() {
             </div>
           )}
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          {(["dine_in", "take_away"] as const).map((m) => (
+            <button key={m} onClick={() => setOrderMode(m)} className={`py-2 rounded-xl border font-semibold text-xs ${orderMode === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m === "dine_in" ? "Dine in" : "Take away"}</button>
+          ))}
+        </div>
         <SalesPicker value={sales} onChange={setSales} />
+        <label className="text-xs text-white/50 block">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
         <div className="grid grid-cols-2 gap-2">
           {(["cash", "card"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
           ))}
         </div>
+        <p className="text-[11px] text-white/40 text-center">A receipt prints automatically on charge.</p>
       </div>
     </div>
   );

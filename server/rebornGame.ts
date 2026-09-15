@@ -20,6 +20,10 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   kgoldPerRp: "100",        // 100 KGOLD = 1 RP
   minBuyKgold: "1000000",   // minimum KGOLD purchase
   minCashoutRp: "1000",     // minimum RP a member can cash out
+  taxPercent: "0",          // POS sales tax %
+  clubName: "Reborn Wave Group",
+  receiptLogoUrl: "",       // data URL / image for receipts
+  receiptFooter: "Thank you — see you again!",
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -30,6 +34,10 @@ async function getSettings() {
     kgoldPerRp: Number(map.kgoldPerRp) || 100,
     minBuyKgold: Number(map.minBuyKgold) || 1000000,
     minCashoutRp: Number(map.minCashoutRp) || 1000,
+    taxPercent: Number(map.taxPercent) || 0,
+    clubName: map.clubName || "Reborn Wave Group",
+    receiptLogoUrl: map.receiptLogoUrl || "",
+    receiptFooter: map.receiptFooter || "",
   };
 }
 const DEFAULT_GIFT_TYPES = [
@@ -825,7 +833,7 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/songs/request", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      let { songId, title, artist, spotifyUrl, artistPhoto } = req.body || {};
+      let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto } = req.body || {};
       let song: any = null;
       if (songId) {
         [song] = await db.select().from(songs).where(eq(songs.id, Number(songId)));
@@ -833,8 +841,23 @@ export function registerRebornRoutes(app: Express) {
         await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
         title = song.title; artist = song.artist;
       } else {
-        if (!title || !String(title).trim()) return res.status(400).json({ message: "Enter a song title" });
-        [song] = await db.insert(songs).values({ title: String(title).trim(), artist: artist || "", spotifyUrl: spotifyUrl || null, artistPhoto: artistPhoto || null, isHit: false, requestCount: 1, createdBy: userId }).returning();
+        title = String(title || "").trim();
+        if (!title && titlePinyin) title = String(titlePinyin).trim();
+        if (!title) return res.status(400).json({ message: "Enter the song name" });
+        // Don't duplicate: reuse an existing song matching the title or its pinyin.
+        const tp = String(titlePinyin || "").trim();
+        const existing = await db.select().from(songs).where(
+          or(ilike(songs.title, title), tp ? ilike(songs.titlePinyin, tp) : ilike(songs.title, title))
+        ).limit(1);
+        if (existing[0]) {
+          song = existing[0];
+          await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
+        } else {
+          [song] = await db.insert(songs).values({
+            title, titlePinyin: tp, artist: String(artist || "").trim(), artistPinyin: String(artistPinyin || "").trim(),
+            spotifyUrl: spotifyUrl || null, artistPhoto: artistPhoto || null, isHit: false, requestCount: 1, createdBy: userId,
+          }).returning();
+        }
         songId = song.id;
       }
       const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", status: "pending" }).returning();
@@ -1013,7 +1036,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         await db.insert(appSettings).values({ key: k, value: String(req.body[k]), updatedAt: new Date() })
@@ -1140,6 +1163,24 @@ export function registerRebornRoutes(app: Express) {
     res.json(row);
   }));
   app.delete("/api/reborn/admin/events/:id", requireStaff(async (req, res) => { await db.delete(events).where(eq(events.id, Number(req.params.id))); res.json({ message: "Deleted" }); }));
+
+  // Admin overview — counts for the admin home dashboard
+  app.get("/api/reborn/admin/overview", requireStaff(async (_req, res) => {
+    const n = async (q: any) => { const [r] = await q; return Number((r as any)?.c || 0); };
+    const cnt = (tbl: any, where?: any) => n((where ? db.select({ c: sql`count(*)` }).from(tbl).where(where) : db.select({ c: sql`count(*)` }).from(tbl)));
+    const [songReq, redemptions, topups, openTickets, appOrders, bottles, users_, products, lowStock] = await Promise.all([
+      cnt(songRequests, eq(songRequests.status, "pending")),
+      cnt(spinResults, eq(spinResults.status, "unused")),
+      cnt(topUpRequests, eq(topUpRequests.status, "pending")),
+      cnt(posTickets, eq(posTickets.status, "open")),
+      cnt(posTickets, and(eq(posTickets.status, "open"), eq(posTickets.source, "app"))),
+      cnt(bottleKeeps, eq(bottleKeeps.status, "kept")),
+      cnt(users),
+      cnt(posProducts),
+      n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5`)),
+    ]);
+    res.json({ songRequests: songReq, redemptions, topups, openTickets, appOrders, bottles, users: users_, products, lowStock });
+  }));
 
   // Admin activity log (full admin only) — resolves which admin account did each action
   app.get("/api/reborn/admin/logs", requireAdmin(async (_req, res) => {
@@ -1298,7 +1339,8 @@ export function registerRebornRoutes(app: Express) {
     const u = await findMemberByCode(req.body?.memberCode || "");
     const [row] = await db.insert(posTickets).values({
       orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open",
-      ...memberTag(u), ...(await salesTag(req.body)), tableNumber, subtotal: "0", total: "0", staffId: getUserId(req)!,
+      ...memberTag(u), ...(await salesTag(req.body)), tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in",
+      subtotal: "0", total: "0", staffId: getUserId(req)!,
     }).returning();
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "open_ticket", entityType: "order", description: `Opened ticket ${row.orderNo} for table ${tableNumber}` });
     res.json({ message: `Opened ticket for table ${tableNumber}`, order: row });
@@ -1333,18 +1375,26 @@ export function registerRebornRoutes(app: Express) {
     if (!clean!.length) return res.status(400).json({ message: "No items" });
     const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
     const u = await findMemberByCode(req.body?.memberCode || "");
-    const total = clean!.reduce((s, it) => s + it.price * it.qty, 0);
+    const settings = await getSettings();
+    const subtotal = clean!.reduce((s, it) => s + it.price * it.qty, 0);
+    const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
+    const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
+    const total = subtotal - discount + tax;
     const points = u ? Math.floor(total / POINTS_PER_RP) : 0;
+    const orderMode = req.body?.orderMode === "take_away" ? "take_away" : "dine_in";
     const [row] = await db.insert(posTickets).values({
       orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
-      ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null, subtotal: String(total), total: String(total),
+      ...memberTag(u), ...(await salesTag(req.body)), tableNumber: req.body?.tableNumber || null,
+      subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode,
       paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
     }).returning();
     await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
+    await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: row });
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -1362,7 +1412,7 @@ export function registerRebornRoutes(app: Express) {
         orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open",
         memberId: userId, memberCode: u?.referralCode || null,
         memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
-        tableNumber, subtotal: "0", total: "0",
+        tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in", subtotal: "0", total: "0",
       }).returning();
     }
     await appendItems(order.id, order.orderNo, clean!, userId);
@@ -1384,15 +1434,22 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.params.id); const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
-    const total = Number(o.total);
+    const settings = await getSettings();
+    const subtotal = Number(o.subtotal || o.total);
+    const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
+    const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
+    const total = subtotal - discount + tax;
     const points = o.memberId ? Math.floor(total / POINTS_PER_RP) : 0;
     const sales = await salesTag(req.body); // optional salesperson override at checkout
-    await db.update(posTickets).set({ status: "paid", paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
+    const orderMode = req.body?.orderMode === "take_away" ? "take_away" : (o.orderMode || "dine_in");
+    await db.update(posTickets).set({ status: "paid", paymentMethod, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), orderMode, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(), ...sales }).where(eq(posTickets.id, id));
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}` });
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);

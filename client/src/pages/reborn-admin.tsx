@@ -9,14 +9,14 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const STAFF_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
+const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
   const TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
-  const [tab, setTab] = useState<string>("Requests");
+  const [tab, setTab] = useState<string>("Overview");
   return (
     <RebornLayout active="/reborn-admin" title="ADMIN">
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
@@ -24,6 +24,7 @@ export default function RebornAdmin() {
           <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[80px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t}</button>
         ))}
       </div>
+      {tab === "Overview" && <Overview onGo={setTab} />}
       {tab === "Codes" && <Codes />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
@@ -40,6 +41,41 @@ export default function RebornAdmin() {
       {tab === "Accounting" && <Accounting />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
+  );
+}
+
+function Overview({ onGo }: { onGo: (tab: string) => void }) {
+  const { user } = useAuth();
+  const isFullAdmin = (user as any)?.role === "admin";
+  const { data: o } = useQuery<any>({ queryKey: ["/api/reborn/admin/overview"], queryFn: () => apiRequest("GET", "/api/reborn/admin/overview").then((r) => r.json()), refetchInterval: 15000 });
+  const cards = [
+    { tab: "Requests", label: "Song requests", count: o?.songRequests, hot: true },
+    { tab: "Redemptions", label: "Prize redemptions", count: o?.redemptions, hot: true },
+    { tab: "Top-ups", label: "RP top-ups", count: o?.topups, hot: true },
+    { tab: "Users", label: "Members", count: o?.users },
+    { tab: "Products", label: "Products", count: o?.products, admin: true },
+    { tab: "Products", label: "Low stock", count: o?.lowStock, warn: true, admin: true },
+  ];
+  return (
+    <div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+        {cards.filter((c) => !c.admin || isFullAdmin).map((c, i) => (
+          <button key={i} onClick={() => onGo(c.tab)} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10 active:scale-95 transition-all">
+            <div className="flex items-center justify-between">
+              <span className={`text-3xl font-extrabold ${c.warn && c.count > 0 ? "text-red-400" : c.hot && c.count > 0 ? "text-amber-300" : "text-white"}`}>{c.count ?? "—"}</span>
+              {c.hot && c.count > 0 && <span className="text-[10px] font-bold text-black bg-amber-300 px-1.5 py-0.5 rounded-full">TO DO</span>}
+            </div>
+            <p className="text-sm text-white/60 mt-1">{c.label}</p>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-white/40 mb-2 px-1">Open a section</p>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((t) => t !== "Overview").map((t) => (
+          <button key={t} onClick={() => onGo(t)} className="py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white/70 hover:bg-white/10">{t}</button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -211,15 +247,26 @@ function Settings() {
   const save = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/settings", cur).then((r) => r.json()), onSuccess: () => { toast({ title: "Settings saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/settings"] }); } });
   if (!cur) return <Empty text="Loading…" />;
   const set = (k: string, v: any) => setE({ ...cur, [k]: Number(v) });
+  const setStr = (k: string, v: any) => setE({ ...cur, [k]: v });
   return (
-    <Card>
-      <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> KGOLD economy</h3>
-      <Field label="Gift fee % (kept by club; receiver gets the rest)" value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />
-      <Field label="KGOLD per 1 RP" value={cur.kgoldPerRp} onChange={(v: any) => set("kgoldPerRp", v)} />
-      <Field label="Minimum KGOLD purchase" value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
-      <Field label="Minimum RP to cash out" value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
-      <button onClick={() => save.mutate()} className={btn + " mt-2"}>Save settings</button>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> KGOLD economy</h3>
+        <Field label="Gift fee % (kept by club; receiver gets the rest)" value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />
+        <Field label="KGOLD per 1 RP" value={cur.kgoldPerRp} onChange={(v: any) => set("kgoldPerRp", v)} />
+        <Field label="Minimum KGOLD purchase" value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
+        <Field label="Minimum RP to cash out" value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
+      </Card>
+      <Card>
+        <h3 className="font-bold mb-3 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> POS & receipts</h3>
+        <Field label="Sales tax % (applied at checkout)" value={cur.taxPercent} onChange={(v: any) => set("taxPercent", v)} />
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Club name (on receipt)</span><input value={cur.clubName || ""} onChange={(e) => setStr("clubName", e.target.value)} className={inp + " w-full"} /></label>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Receipt footer</span><input value={cur.receiptFooter || ""} onChange={(e) => setStr("receiptFooter", e.target.value)} className={inp + " w-full"} /></label>
+        <p className="text-xs text-white/60 mb-1">Receipt logo</p>
+        <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
+      </Card>
+      <button onClick={() => save.mutate()} className={btn}>Save settings</button>
+    </div>
   );
 }
 function Field({ label, value, onChange }: any) {

@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { RebornLayout } from "@/components/RebornLayout";
 import { Copy, Share2, Users, DollarSign, Gift, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,7 +34,7 @@ export default function MyReferral() {
   };
 
   return (
-    <div className="rwg-page-bg min-h-screen pb-20 md:pb-0">
+    <RebornLayout active="/my-referral" title="REFERRALS"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
       <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
@@ -156,6 +157,6 @@ export default function MyReferral() {
           </div>
         </div>
       </div>
-    </div>
+    </div></RebornLayout>
   );
 }
