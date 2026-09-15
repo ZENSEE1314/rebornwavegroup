@@ -9,6 +9,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1041,7 +1042,8 @@ export function registerRebornRoutes(app: Express) {
     const userId = getUserId(req)!;
     const amount = Number(req.body?.amount) || 0;
     if (amount <= 0) return res.status(400).json({ message: "Enter an amount" });
-    const [row] = await db.insert(topUpRequests).values({ userId, amount: String(amount), paymentMethod: req.body?.paymentMethod || "bank_transfer", paymentProof: req.body?.paymentProof || null, status: "pending" }).returning();
+    const method = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const [row] = await db.insert(topUpRequests).values({ userId, amount: String(amount), paymentMethod: method, paymentProof: req.body?.paymentProof || null, status: "pending" }).returning();
     res.json({ message: "Top-up request sent. Staff will confirm and add your credits.", request: row });
   });
   app.get("/api/reborn/topup/mine", requireAuth, async (req, res) => {
@@ -1056,7 +1058,10 @@ export function registerRebornRoutes(app: Express) {
     const [t] = await db.select().from(topUpRequests).where(eq(topUpRequests.id, id));
     if (!t || t.status !== "pending") return res.status(400).json({ message: "Not pending" });
     await db.update(topUpRequests).set({ status: approve ? "approved" : "rejected", adminId, adminNotes: req.body?.notes || null, processedAt: new Date(), updatedAt: new Date() }).where(eq(topUpRequests.id, id));
-    if (approve) await db.update(users).set({ credits: sql`${users.credits} + ${Number(t.amount)}`, updatedAt: new Date() }).where(eq(users.id, t.userId));
+    if (approve) {
+      await db.update(users).set({ credits: sql`${users.credits} + ${Number(t.amount)}`, updatedAt: new Date() }).where(eq(users.id, t.userId));
+      await db.insert(ledgerEntries).values({ kind: "income", category: "topup", amount: String(t.amount), note: `Top-up (${t.paymentMethod || "cash"})`, refType: "topup", refId: String(id), userId: t.userId });
+    }
     await logAdmin(req, { targetUserId: t.userId, targetType: "topup", targetId: id, action: approve ? "approve" : "reject", entityType: "credits", description: `${approve ? "Approved" : "Rejected"} RP ${t.amount} top-up` });
     res.json({ message: approve ? "Approved — credits added." : "Rejected." });
   }));
@@ -1106,5 +1111,256 @@ export function registerRebornRoutes(app: Express) {
     await db.insert(supportMessages).values({ ticketId: tid, senderType: "staff", senderId: adminId, content });
     await db.update(supportTickets).set({ status: "open", updatedAt: new Date() }).where(eq(supportTickets.id, tid));
     res.json({ message: "Sent" });
+  }));
+
+  // ── POS · Inventory · In-app ordering · Accounting ──────────────────────────
+  const POINTS_PER_RP = 1000; // 1 loyalty point per RP 1,000 spent (house convention)
+
+  // Products — staff can read (to sell); admin manages catalogue/prices/stock.
+  app.get("/api/reborn/pos/products", requireStaff(async (_req, res) => {
+    res.json(await db.select().from(posProducts).orderBy(posProducts.sortOrder, posProducts.name));
+  }));
+  // Members browse the active menu to order in-app.
+  app.get("/api/reborn/shop/products", requireAuth, async (_req, res) => {
+    const rows = await db.select().from(posProducts).where(eq(posProducts.active, true)).orderBy(posProducts.sortOrder, posProducts.name);
+    res.json(rows.map((p) => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock, imageUrl: p.imageUrl, soldOut: (p.stock ?? 0) <= 0 })));
+  });
+  app.post("/api/reborn/admin/pos/products", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    if (!String(b.name || "").trim()) return res.status(400).json({ message: "Name required" });
+    const [row] = await db.insert(posProducts).values({
+      name: String(b.name).trim(), category: b.category || "General", price: String(Number(b.price) || 0),
+      cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
+      active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
+    }).returning();
+    if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", note: "Initial stock", userId: getUserId(req)! });
+    await logAdmin(req, { targetType: "pos_product", targetId: row.id, action: "create", entityType: "product", description: `Added product "${row.name}" @ RP ${row.price}` });
+    res.json(row);
+  }));
+  app.patch("/api/reborn/admin/pos/products/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {};
+    const [prev] = await db.select().from(posProducts).where(eq(posProducts.id, id));
+    if (!prev) return res.status(404).json({ message: "Not found" });
+    const patch: any = {};
+    for (const k of ["name", "category", "imageUrl"]) if (b[k] !== undefined) patch[k] = b[k];
+    for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
+    if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
+    if (b.active !== undefined) patch.active = !!b.active;
+    const [row] = await db.update(posProducts).set(patch).where(eq(posProducts.id, id)).returning();
+    if (b.price !== undefined && String(prev.price) !== String(row.price))
+      await logAdmin(req, { targetType: "pos_product", targetId: id, action: "edit_price", entityType: "product", oldValues: { price: prev.price }, newValues: { price: row.price }, description: `Price of "${row.name}" RP ${prev.price} → RP ${row.price}` });
+    res.json(row);
+  }));
+
+  // Stock-in — receive inventory. Records a movement and (if unit cost given) a purchase expense.
+  app.post("/api/reborn/pos/stock-in", requireStaff(async (req, res) => {
+    const id = Number(req.body?.productId); const qty = Math.floor(Number(req.body?.qty) || 0);
+    const unitCost = Number(req.body?.unitCost);
+    if (!id || qty === 0) return res.status(400).json({ message: "Product and quantity required" });
+    const [p] = await db.select().from(posProducts).where(eq(posProducts.id, id));
+    if (!p) return res.status(404).json({ message: "Product not found" });
+    await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${qty}` }).where(eq(posProducts.id, id));
+    await db.insert(stockMovements).values({ productId: id, delta: qty, reason: qty > 0 ? "stock_in" : "adjustment", note: req.body?.note || null, userId: getUserId(req)! });
+    if (qty > 0 && unitCost > 0)
+      await db.insert(ledgerEntries).values({ kind: "expense", category: "purchase", amount: String(qty * unitCost), note: `Stock in: ${qty} × ${p.name} @ RP ${unitCost}`, refType: "stock_movement", refId: String(id), userId: getUserId(req)! });
+    await logAdmin(req, { targetType: "pos_product", targetId: id, action: "stock_in", entityType: "stock", description: `Stock ${qty > 0 ? "+" : ""}${qty} for "${p.name}"` });
+    res.json({ message: "Stock updated" });
+  }));
+  app.get("/api/reborn/pos/stock", requireStaff(async (_req, res) => {
+    res.json(await db.select().from(posProducts).orderBy(posProducts.stock));
+  }));
+
+  // Member lookup by member code (referral code), email, or phone — for POS key-in.
+  app.get("/api/reborn/pos/member/:code", requireStaff(async (req, res) => {
+    const code = String(req.params.code || "").trim();
+    if (!code) return res.status(400).json({ message: "Enter a member code" });
+    const [u] = await db.select().from(users).where(
+      or(ilike(users.referralCode, code), ilike(users.email, code), eq(users.phoneNumber, code))
+    ).limit(1);
+    if (!u) return res.status(404).json({ message: "Member not found" });
+    res.json({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email, code: u.referralCode, credits: u.credits, loyaltyPoints: u.loyaltyPoints, tokens: u.tokens });
+  }));
+
+  // Deduct stock for a set of items, append them to an order, and re-total the ticket.
+  async function appendItems(orderId: number, orderNo: string, items: any[], userId: string) {
+    for (const it of items) {
+      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty) });
+      if (it.productId) {
+        await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(eq(posProducts.id, it.productId));
+        await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
+      }
+    }
+    const rows = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
+    const total = rows.reduce((s, r) => s + Number(r.lineTotal), 0);
+    await db.update(posTickets).set({ subtotal: String(total), total: String(total) }).where(eq(posTickets.id, orderId));
+    return total;
+  }
+
+  // Validate requested items against the live catalogue + stock.
+  async function resolveItems(items: any[]): Promise<{ clean?: any[]; error?: string }> {
+    const ids = items.map((it) => Number(it.productId)).filter(Boolean);
+    const products = ids.length ? await db.select().from(posProducts).where(or(...ids.map((i: number) => eq(posProducts.id, i)))) : [];
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const clean: any[] = [];
+    for (const it of items) {
+      const p = byId.get(Number(it.productId));
+      if (!p || !p.active) return { error: "An item is no longer available" };
+      const qty = Math.max(1, Math.floor(Number(it.qty) || 1));
+      if ((p.stock ?? 0) < qty) return { error: `${p.name} is sold out` };
+      clean.push({ productId: p.id, name: p.name, price: Number(p.price), qty });
+    }
+    return { clean };
+  }
+  async function findMemberByCode(code: string) {
+    if (!code?.trim()) return null;
+    const [u] = await db.select().from(users).where(or(ilike(users.referralCode, code.trim()), ilike(users.email, code.trim()))).limit(1);
+    return u || null;
+  }
+  const memberTag = (u: any) => u ? { memberId: u.id, memberCode: u.referralCode, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email } : {};
+
+  // Staff opens a running tab for a table (optionally tagged to a member). One open ticket per table.
+  app.post("/api/reborn/pos/orders", requireStaff(async (req, res) => {
+    const tableNumber = String(req.body?.tableNumber || "").trim();
+    if (!tableNumber) return res.status(400).json({ message: "Enter a table number" });
+    const [existing] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    if (existing) return res.json({ message: `Table ${tableNumber} already has an open ticket`, order: existing });
+    const u = await findMemberByCode(req.body?.memberCode || "");
+    const [row] = await db.insert(posTickets).values({
+      orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open",
+      ...memberTag(u), tableNumber, subtotal: "0", total: "0", staffId: getUserId(req)!,
+    }).returning();
+    await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "open_ticket", entityType: "order", description: `Opened ticket ${row.orderNo} for table ${tableNumber}` });
+    res.json({ message: `Opened ticket for table ${tableNumber}`, order: row });
+  }));
+
+  // Staff adds items to an open ticket (accumulate over the night).
+  app.post("/api/reborn/pos/orders/:id/items", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Ticket not open" });
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    if (error) return res.status(400).json({ message: error });
+    if (!clean!.length) return res.status(400).json({ message: "No items" });
+    const total = await appendItems(id, o.orderNo, clean!, getUserId(req)!);
+    res.json({ message: "Added to ticket", total });
+  }));
+  // Tag / change the member on an open ticket (so points go to the right person).
+  app.post("/api/reborn/pos/orders/:id/member", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Ticket not open" });
+    const u = await findMemberByCode(req.body?.memberCode || "");
+    if (!u) return res.status(404).json({ message: "Member not found" });
+    await db.update(posTickets).set(memberTag(u)).where(eq(posTickets.id, id));
+    res.json({ message: `Tagged to ${memberTag(u).memberName}` });
+  }));
+
+  // Quick walk-in sale: open, fill, and close in one step.
+  app.post("/api/reborn/pos/sale", requireStaff(async (req, res) => {
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    if (error) return res.status(400).json({ message: error });
+    if (!clean!.length) return res.status(400).json({ message: "No items" });
+    const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const u = await findMemberByCode(req.body?.memberCode || "");
+    const total = clean!.reduce((s, it) => s + it.price * it.qty, 0);
+    const points = u ? Math.floor(total / POINTS_PER_RP) : 0;
+    const [row] = await db.insert(posTickets).values({
+      orderNo: "R" + Date.now().toString(36).toUpperCase(), source: "pos", status: "paid",
+      ...memberTag(u), tableNumber: req.body?.tableNumber || null, subtotal: String(total), total: String(total),
+      paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date(),
+    }).returning();
+    await appendItems(row.id, row.orderNo, clean!, getUserId(req)!);
+    if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
+    await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: row });
+  }));
+
+  // Member orders from the app — merges into their table's open ticket (or opens one).
+  app.post("/api/reborn/shop/order", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const tableNumber = String(req.body?.tableNumber || "").trim();
+    if (!tableNumber) return res.status(400).json({ message: "Enter your table number" });
+    const { clean, error } = await resolveItems(Array.isArray(req.body?.items) ? req.body.items : []);
+    if (error) return res.status(400).json({ message: error });
+    if (!clean!.length) return res.status(400).json({ message: "Your order is empty" });
+    const [u] = await db.select().from(users).where(eq(users.id, userId));
+    let [order] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, tableNumber))).limit(1);
+    if (!order) {
+      [order] = await db.insert(posTickets).values({
+        orderNo: "A" + Date.now().toString(36).toUpperCase(), source: "app", status: "open",
+        memberId: userId, memberCode: u?.referralCode || null,
+        memberName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email || null,
+        tableNumber, subtotal: "0", total: "0",
+      }).returning();
+    }
+    await appendItems(order.id, order.orderNo, clean!, userId);
+    res.json({ message: "Order sent to the floor — staff will bring it to your table.", order });
+  });
+  app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    res.json(await db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(20));
+  });
+
+  // Open tickets (app orders awaiting payment) for staff to close.
+  app.get("/api/reborn/pos/orders", requireStaff(async (req, res) => {
+    const status = String(req.query.status || "open");
+    const rows = await db.select().from(posTickets).where(eq(posTickets.status, status)).orderBy(desc(posTickets.createdAt)).limit(100);
+    const withItems = await Promise.all(rows.map(async (o) => ({ ...o, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
+    res.json(withItems);
+  }));
+  app.post("/api/reborn/pos/orders/:id/pay", requireStaff(async (req, res) => {
+    const id = Number(req.params.id); const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
+    const total = Number(o.total);
+    const points = o.memberId ? Math.floor(total / POINTS_PER_RP) : 0;
+    await db.update(posTickets).set({ status: "paid", paymentMethod, pointsEarned: points, staffId: getUserId(req)!, paidAt: new Date() }).where(eq(posTickets.id, id));
+    if (o.memberId && points > 0)
+      await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
+    await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}` });
+  }));
+  app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
+    const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
+    for (const it of items) if (it.productId) {
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+      await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_cancel", note: `Cancelled ${o.orderNo}`, userId: getUserId(req)! });
+    }
+    await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
+    await logAdmin(req, { targetType: "pos_order", targetId: id, action: "cancel", entityType: "order", description: `Cancelled ${o.orderNo}, stock restored` });
+    res.json({ message: "Order cancelled, stock restored" });
+  }));
+
+  // Accounting — money in/out summary + ledger (admin only).
+  app.get("/api/reborn/admin/accounting/summary", requireAdmin(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * DAY_MS);
+    const rows = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.createdAt} >= ${since}`);
+    const byCat: Record<string, number> = {};
+    let income = 0, expense = 0;
+    for (const r of rows) {
+      const amt = Number(r.amount);
+      if (r.kind === "income") income += amt; else expense += amt;
+      byCat[r.kind + ":" + r.category] = (byCat[r.kind + ":" + r.category] || 0) + amt;
+    }
+    res.json({ days, income, expense, net: income - expense, byCategory: byCat, count: rows.length });
+  }));
+  app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
+    const limit = Math.min(500, Number(req.query.limit) || 100);
+    res.json(await db.select().from(ledgerEntries).orderBy(desc(ledgerEntries.createdAt)).limit(limit));
+  }));
+  app.post("/api/reborn/admin/accounting/entry", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    const amount = Number(b.amount) || 0;
+    if (amount <= 0) return res.status(400).json({ message: "Enter an amount" });
+    const kind = b.kind === "expense" ? "expense" : "income";
+    const [row] = await db.insert(ledgerEntries).values({ kind, category: b.category || "other", amount: String(amount), note: b.note || null, userId: getUserId(req)! }).returning();
+    await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
+    res.json(row);
   }));
 }

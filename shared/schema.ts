@@ -619,6 +619,72 @@ export const events = pgTable("events", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// POS / inventory
+export const posProducts = pgTable("pos_products", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  category: varchar("category").default("General").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).default("0").notNull(),
+  cost: decimal("cost", { precision: 10, scale: 2 }).default("0").notNull(), // unit cost for accounting
+  stock: integer("stock").default(0).notNull(),
+  imageUrl: varchar("image_url"),
+  active: boolean("active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Reborn POS tickets (separate from the legacy posOrders table above)
+export const posTickets = pgTable("pos_tickets", {
+  id: serial("id").primaryKey(),
+  orderNo: varchar("order_no").notNull(),
+  source: varchar("source").default("pos").notNull(), // 'pos' | 'app'
+  status: varchar("status").default("open").notNull(), // 'open' | 'paid' | 'cancelled'
+  memberId: varchar("member_id"),
+  memberCode: varchar("member_code"),
+  memberName: varchar("member_name"),
+  tableNumber: varchar("table_number"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).default("0").notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).default("0").notNull(),
+  paymentMethod: varchar("payment_method"), // 'cash' | 'card'
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  staffId: varchar("staff_id"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+});
+
+export const posTicketItems = pgTable("pos_ticket_items", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull(),
+  productId: integer("product_id"),
+  name: varchar("name").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  qty: integer("qty").default(1).notNull(),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+});
+
+export const stockMovements = pgTable("stock_movements", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  delta: integer("delta").notNull(), // + in, - out
+  reason: varchar("reason").notNull(), // 'stock_in' | 'sale' | 'adjustment' | 'order_cancel'
+  note: text("note"),
+  userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const ledgerEntries = pgTable("ledger_entries", {
+  id: serial("id").primaryKey(),
+  kind: varchar("kind").notNull(), // 'income' | 'expense'
+  category: varchar("category").notNull(), // 'product_sale' | 'service' | 'topup' | 'purchase' | 'other'
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  note: text("note"),
+  refType: varchar("ref_type"), // 'pos_order' | 'topup' | 'stock_movement'
+  refId: varchar("ref_id"),
+  userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // FAQ / auto-reply knowledge base for Support
 export const faqItems = pgTable("faq_items", {
   id: serial("id").primaryKey(),

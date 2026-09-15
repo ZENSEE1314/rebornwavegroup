@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -34,6 +34,8 @@ export default function RebornAdmin() {
       {tab === "Users" && <Members />}
       {tab === "Top-ups" && <TopUps />}
       {tab === "Events" && <Events />}
+      {tab === "Products" && <Products />}
+      {tab === "Accounting" && <Accounting />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
   );
@@ -423,6 +425,130 @@ const btn = "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold tex
 const btnSm = "inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10";
 function Card({ children }: any) { return <div className="rounded-2xl bg-white/5 border border-white/10 p-4">{children}</div>; }
 function Empty({ text }: any) { return <div className="text-center py-12 text-white/40">{text}</div>; }
+
+function Products() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
+  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0 });
+  const create = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Add product</p>
+        <input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="Name" className={inp + " w-full mb-2"} />
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Category" className={inp} />
+          <input type="number" value={n.stock} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} placeholder="Stock" className={inp} />
+          <input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} placeholder="Sell price (RP)" className={inp} />
+          <input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} placeholder="Unit cost (RP)" className={inp} />
+        </div>
+        <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
+      </Card>
+      {products.map((p) => <ProductRow key={p.id} p={p} />)}
+      {products.length === 0 && <Empty text="No products yet." />}
+    </div>
+  );
+}
+
+function ProductRow({ p }: any) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [edit, setEdit] = useState(false);
+  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active });
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <Card>
+      {!edit ? (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>}</p>
+            <p className="text-xs text-white/50">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
+          </div>
+          <button onClick={() => setEdit(true)} className={btnSm}><Pencil className="w-4 h-4" /></button>
+        </div>
+      ) : (
+        <div>
+          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} />
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} placeholder="Category" className={inp} />
+            <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
+            <input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} placeholder="Sell price" className={inp} />
+            <input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} placeholder="Unit cost" className={inp} />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => save.mutate()} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
+            <button onClick={() => setEdit(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button>
+          </div>
+          <p className="text-[11px] text-white/40 mt-1">Adjust stock quantities from POS › Stock.</p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:other": "Other expenses" };
+
+function Accounting() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [days, setDays] = useState(30);
+  const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
+  const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger"], queryFn: () => apiRequest("GET", "/api/reborn/admin/accounting/ledger?limit=100").then((r) => r.json()) });
+  const [e, setE] = useState({ kind: "expense", category: "other", amount: 0, note: "" });
+  const addEntry = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Entry added" }); setE({ kind: "expense", category: "other", amount: 0, note: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{d}d</button>)}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Income</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
+        <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Expense</p><p className="text-base font-extrabold text-red-300">{money(sum?.expense || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Net</p><p className={`text-base font-extrabold ${(sum?.net || 0) >= 0 ? "text-amber-300" : "text-red-300"}`}>{money(sum?.net || 0)}</p></div>
+      </div>
+      {sum?.byCategory && Object.keys(sum.byCategory).length > 0 && (
+        <Card>
+          <p className="font-bold mb-2 text-sm">Breakdown</p>
+          {Object.entries(sum.byCategory).map(([k, v]: any) => (
+            <div key={k} className="flex justify-between text-sm py-0.5"><span className="text-white/60">{CAT_LABEL[k] || k}</span><span className={k.startsWith("income") ? "text-emerald-300" : "text-red-300"}>{money(v)}</span></div>
+          ))}
+        </Card>
+      )}
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> Add manual entry</p>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select value={e.kind} onChange={(x) => setE({ ...e, kind: x.target.value })} className={inp}><option value="expense">Expense</option><option value="income">Income</option></select>
+          <select value={e.category} onChange={(x) => setE({ ...e, category: x.target.value })} className={inp}><option value="other">Other</option><option value="service">Service</option><option value="purchase">Purchase</option></select>
+          <input type="number" value={e.amount} onChange={(x) => setE({ ...e, amount: Number(x.target.value) })} placeholder="Amount (RP)" className={inp} />
+          <input value={e.note} onChange={(x) => setE({ ...e, note: x.target.value })} placeholder="Note" className={inp} />
+        </div>
+        <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add entry</button>
+      </Card>
+      <p className="text-xs text-white/40 px-1">Recent ledger</p>
+      {ledger.map((l) => (
+        <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm">
+          <div className="min-w-0"><p className="truncate">{l.note || CAT_LABEL[l.kind + ":" + l.category] || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString()}</p></div>
+          <span className={l.kind === "income" ? "text-emerald-300 font-semibold" : "text-red-300 font-semibold"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
+        </div>
+      ))}
+      {ledger.length === 0 && <Empty text="No transactions yet." />}
+    </div>
+  );
+}
 
 // apply gold gradient to primary buttons via style since Tailwind class can't hold gradient var here
 // (btn uses text-black; background set inline where used would be ideal, but keep simple)

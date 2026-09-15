@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   Home, PawPrint, Disc3, Headphones, Menu as MenuIcon, X, Gift, Coins,
   Calendar, Trophy, Users, User, Music, LogOut, Shield, Sparkles, MessageCircle,
+  Utensils, Store,
 } from "lucide-react";
 
 interface NavItem { label: string; icon: ReactNode; path: string; }
@@ -20,6 +21,7 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Pet Care", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
   { label: "Spin & Win", icon: <Disc3 className="w-5 h-5" />, path: "/spin" },
   { label: "My Prizes", icon: <Gift className="w-5 h-5" />, path: "/spin?tab=prizes" },
+  { label: "Order to Table", icon: <Utensils className="w-5 h-5" />, path: "/order" },
   { label: "Bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
   { label: "Loyalty Program", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
   { label: "Kings of Singers", icon: <Music className="w-5 h-5" />, path: "/kos" },
@@ -101,6 +103,12 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
                   <span className="text-xs text-center text-white/80 leading-tight">{it.label}</span>
                 </button>
               ))}
+              {isAdmin && (
+                <button onClick={() => go("/pos")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10">
+                  <span className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-300" style={{ background: "rgba(201,168,76,0.15)" }}><Store className="w-5 h-5" /></span>
+                  <span className="text-xs text-center text-white/80">POS</span>
+                </button>
+              )}
               {isAdmin && (
                 <button onClick={() => go("/reborn-admin")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10">
                   <span className="w-10 h-10 rounded-xl flex items-center justify-center text-purple-300" style={{ background: "rgba(168,85,247,0.15)" }}><Shield className="w-5 h-5" /></span>

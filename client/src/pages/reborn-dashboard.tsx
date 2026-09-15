@@ -9,10 +9,12 @@ import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
+  Utensils, Store,
 } from "lucide-react";
 
 const TILES = [
   { label: "Pet Care", desc: "Feed your Doluruu", icon: <PawPrint className="w-6 h-6" />, path: "/pet", color: "#fb7185" },
+  { label: "Order to Table", desc: "Drinks & food to your seat", icon: <Utensils className="w-6 h-6" />, path: "/order", color: "#4ecdc4" },
   { label: "Spin & Win", desc: "Spend tokens for prizes", icon: <Disc3 className="w-6 h-6" />, path: "/spin", color: "#c9a84c" },
   { label: "My Prizes", desc: "Claim what you won", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
   { label: "Bookings", desc: "Reserve your visit", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
@@ -122,6 +124,13 @@ export default function RebornDashboard() {
           </button>
         ))}
         {isAdmin && (
+          <button onClick={() => navigate("/pos")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10 active:scale-95 transition-all">
+            <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(201,168,76,0.15)", color: "#f0d787" }}><Store className="w-6 h-6" /></span>
+            <span className="text-xs font-semibold text-center">POS</span>
+            <span className="text-[10px] text-white/40 text-center">Ring up sales</span>
+          </button>
+        )}
+        {isAdmin && (
           <button onClick={() => navigate("/reborn-admin")} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10 active:scale-95 transition-all">
             <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)", color: "#c084fc" }}><Shield className="w-6 h-6" /></span>
             <span className="text-xs font-semibold text-center">Admin</span>
@@ -142,7 +151,7 @@ function TopupModal({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [amount, setAmount] = useState(100000);
-  const [method, setMethod] = useState("bank_transfer");
+  const [method, setMethod] = useState("cash");
   const submit = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/topup", { amount, paymentMethod: method }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: "Request sent", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/topup/mine"] }); onClose(); },
@@ -159,9 +168,11 @@ function TopupModal({ onClose }: { onClose: () => void }) {
         <label className="text-xs text-white/60 block mb-1">Amount (RP)</label>
         <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-3" />
         <label className="text-xs text-white/60 block mb-1">Payment method</label>
-        <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-4">
-          <option value="bank_transfer">Bank transfer</option><option value="cash_deposit">Cash at club</option><option value="paypal">PayPal</option>
-        </select>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {[{ v: "cash", l: "Cash" }, { v: "card", l: "Card" }].map((m) => (
+            <button key={m.v} type="button" onClick={() => setMethod(m.v)} className={`py-3 rounded-xl border font-semibold ${method === m.v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/70"}`}>{m.l}</button>
+          ))}
+        </div>
         <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Send request</button>
         {mine.length > 0 && (
           <div className="mt-4 space-y-1">
