@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2 } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins } from "lucide-react";
 
-const TABS = ["Codes", "Prizes", "Redemptions", "Pills", "FAQ", "Songs", "Requests"] as const;
+const TABS = ["Codes", "Prizes", "Redemptions", "Pills", "FAQ", "Songs", "Requests", "Gifts", "Settings"] as const;
 
 export default function RebornAdmin() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Codes");
@@ -23,8 +23,69 @@ export default function RebornAdmin() {
       {tab === "FAQ" && <Faq />}
       {tab === "Songs" && <Songs />}
       {tab === "Requests" && <SongRequests />}
+      {tab === "Gifts" && <GiftTypes />}
+      {tab === "Settings" && <Settings />}
     </RebornLayout>
   );
+}
+
+function GiftTypes() {
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/gifttypes"], queryFn: () => apiRequest("GET", "/api/reborn/admin/gifttypes").then((r) => r.json()) });
+  const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/gifttypes"] });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/gifttypes", { name: "New gift", emoji: "🎁", kgoldCost: 1000 }).then((r) => r.json()), onSuccess: inv });
+  const save = useMutation({ mutationFn: (g: any) => apiRequest("PUT", `/api/reborn/admin/gifttypes/${g.id}`, g).then((r) => r.json()), onSuccess: inv });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/gifttypes/${id}`), onSuccess: inv });
+  return (
+    <div>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add gift</button>
+      <div className="space-y-3">{rows.map((g) => <GiftRow key={g.id} g={g} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+      <p className="text-xs text-white/40 mt-3">Set the KGOLD cost per gift. Animation: pop, float, zoom, or rain. Image URL is optional (falls back to the emoji).</p>
+    </div>
+  );
+}
+function GiftRow({ g, onSave, onDelete }: any) {
+  const [e, setE] = useState(g);
+  return (
+    <Card>
+      <div className="flex gap-2 items-center mb-2">
+        <input value={e.emoji || ""} onChange={(x) => setE({ ...e, emoji: x.target.value })} className={inp + " w-14 text-center"} />
+        <input value={e.name} onChange={(x) => setE({ ...e, name: x.target.value })} placeholder="Gift name" className={inp + " flex-1"} />
+      </div>
+      <input value={e.imageUrl || ""} onChange={(x) => setE({ ...e, imageUrl: x.target.value })} placeholder="Image URL (optional)" className={inp + " w-full mb-2"} />
+      <div className="flex flex-wrap gap-2 items-center">
+        <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgoldCost} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
+        <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
+        <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
+        <button onClick={() => onDelete(g.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      </div>
+    </Card>
+  );
+}
+
+function Settings() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/settings"], queryFn: () => apiRequest("GET", "/api/reborn/admin/settings").then((r) => r.json()) });
+  const [e, setE] = useState<any>(null);
+  const cur = e || data;
+  const save = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/settings", cur).then((r) => r.json()), onSuccess: () => { toast({ title: "Settings saved" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/settings"] }); } });
+  if (!cur) return <Empty text="Loading…" />;
+  const set = (k: string, v: any) => setE({ ...cur, [k]: Number(v) });
+  return (
+    <Card>
+      <h3 className="font-bold mb-3 flex items-center gap-2"><Coins className="w-4 h-4 text-amber-300" /> KGOLD economy</h3>
+      <Field label="Gift fee % (kept by club; receiver gets the rest)" value={cur.giftFeePercent} onChange={(v: any) => set("giftFeePercent", v)} />
+      <Field label="KGOLD per 1 RP" value={cur.kgoldPerRp} onChange={(v: any) => set("kgoldPerRp", v)} />
+      <Field label="Minimum KGOLD purchase" value={cur.minBuyKgold} onChange={(v: any) => set("minBuyKgold", v)} />
+      <Field label="Minimum RP to cash out" value={cur.minCashoutRp} onChange={(v: any) => set("minCashoutRp", v)} />
+      <button onClick={() => save.mutate()} className={btn + " mt-2"}>Save settings</button>
+    </Card>
+  );
+}
+function Field({ label, value, onChange }: any) {
+  return <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{label}</span><input type="number" value={value} onChange={(e) => onChange(e.target.value)} className={inp + " w-full"} /></label>;
 }
 
 function Songs() {

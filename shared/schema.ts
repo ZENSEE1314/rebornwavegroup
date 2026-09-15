@@ -46,6 +46,7 @@ export const users = pgTable("users", {
   loyaltyPoints: integer("loyalty_points").default(0).notNull(),
   lifetimePoints: integer("lifetime_points").default(0).notNull(),
   tokens: integer("tokens").default(0).notNull(), // Physical tokens that can be claimed
+  kgold: integer("kgold").default(0).notNull(), // KOS gifting currency (100 KGOLD = 1 RP)
   level: integer("level").default(1).notNull(),
   referralCode: varchar("referral_code").unique().notNull(),
   referredById: varchar("referred_by_id"),
@@ -546,13 +547,36 @@ export const spinResults = pgTable("spin_results", {
   adminId: varchar("admin_id"),
 });
 
-// KOS (Kings of Singers) — TikTok-style gifting between members
+// Simple key/value store for admin-configurable settings (gift fee %, mins…)
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key").primaryKey(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin-managed KOS gift catalog (name, KGOLD cost, image, animation)
+export const kosGiftTypes = pgTable("kos_gift_types", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  emoji: varchar("emoji").default("🎁"),
+  imageUrl: varchar("image_url"),
+  animation: varchar("animation").default("pop"), // pop | float | rain | zoom
+  kgoldCost: integer("kgold_cost").default(100),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// KOS (Kings of Singers) — KGOLD gifting between members
 export const kosGifts = pgTable("kos_gifts", {
   id: serial("id").primaryKey(),
   fromUserId: varchar("from_user_id").notNull(),
   toUserId: varchar("to_user_id").notNull(),
-  giftType: varchar("gift_type").default("rose"), // rose | heart | diamond | crown
-  amount: integer("amount").default(1), // stars given
+  giftTypeId: integer("gift_type_id"),
+  giftName: varchar("gift_name").default("Gift"),
+  kgoldCost: integer("kgold_cost").default(0),      // charged to sender
+  recipientKgold: integer("recipient_kgold").default(0), // credited to recipient (after fee)
+  seen: boolean("seen").default(false),             // notification read?
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -126,7 +126,8 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
     });
   }, [prizes, n]);
 
-  const fontFor = (len: number) => (len > 22 ? 8 : len > 15 ? 9 : 10.5);
+  const fontFor = (len: number) => (len > 24 ? 8 : len > 16 ? 9 : 11);
+  const inner = 34, outer = R - 8;
 
   return (
     <div className="relative" style={{ width: 320, maxWidth: "88vw" }}>
@@ -135,12 +136,16 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
       <svg viewBox="0 0 320 320" className="w-full" style={{ transform: `rotate(${rotation}deg)`, transition: spinning ? "transform 4s cubic-bezier(0.15,0.9,0.25,1)" : "none" }}>
         <circle cx={C} cy={C} r={R + 6} fill="#0a0714" stroke="#c9a84c" strokeWidth="4" />
         {slices.map((s, i) => <path key={"p" + i} d={s.path} fill={s.color} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />)}
-        {/* radial labels: rotate to the slice spoke; flip bottom half so words stay upright and readable end-to-end */}
-        {slices.map((s, i) => (
-          <g key={"t" + i} transform={`rotate(${s.mid} ${C} ${C})${s.flip ? ` rotate(180 ${C} ${C - R * 0.55})` : ""}`}>
-            <text x={C} y={C - R * 0.55} fill="#0a0714" fontSize={fontFor(s.label.length)} fontWeight="700" textAnchor="middle" dominantBaseline="middle">{s.label}</text>
-          </g>
-        ))}
+        {/* labels run ALONG each spoke (radially), from just outside the hub to the rim */}
+        {slices.map((s, i) => {
+          const t = s.flip
+            ? `translate(${C} ${C}) rotate(${s.mid + 90}) translate(${-outer} 0)`
+            : `translate(${C} ${C}) rotate(${s.mid - 90}) translate(${inner} 0)`;
+          return (
+            <text key={"t" + i} x={0} y={0} transform={t} textAnchor={s.flip ? "end" : "start"} dominantBaseline="central"
+              fill="#0a0714" fontSize={fontFor(s.label.length)} fontWeight="700">{s.label}</text>
+          );
+        })}
         <circle cx={C} cy={C} r="26" fill="#140d26" stroke="#c9a84c" strokeWidth="3" />
       </svg>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"><Disc3 className="w-7 h-7 text-amber-300" /></div>

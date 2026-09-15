@@ -57,8 +57,8 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold text-amber-300">{tokens}</span>
           </div>
-          <button onClick={logout} aria-label="Log out" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10">
-            <LogOut className="w-4 h-4 text-white/70" />
+          <button onClick={() => go("/profile")} aria-label="Profile" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10">
+            <User className="w-4 h-4 text-white/70" />
           </button>
         </div>
       </header>

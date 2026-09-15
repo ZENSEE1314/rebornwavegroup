@@ -20,8 +20,8 @@ const HERO_CSS = `
 }
 .rwg-hero *, .rwg-hero *::before, .rwg-hero *::after { box-sizing:border-box; }
 .rwg-hero img, .rwg-hero video { max-width:100%; display:block; }
-.rwg-hero .stage { height:100dvh; overflow-y:auto; scroll-snap-type:y proximity; scroll-behavior:smooth; }
-.rwg-hero .panel { position:relative; min-height:100dvh; scroll-snap-align:start; display:flex; align-items:center; overflow:hidden; }
+.rwg-hero .stage { height:100dvh; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; }
+.rwg-hero .panel { position:relative; min-height:100dvh; scroll-snap-align:start; scroll-snap-stop:always; display:flex; align-items:center; overflow:hidden; }
 
 .rwg-hero .topbar { position:fixed; inset:0 0 auto 0; z-index:60; display:flex; align-items:center; justify-content:space-between; padding:20px clamp(20px,5vw,60px); background:linear-gradient(to bottom,rgba(8,6,15,0.7),rgba(8,6,15,0)); backdrop-filter:blur(2px); }
 .rwg-hero .brand { display:flex; align-items:center; gap:12px; font-weight:800; letter-spacing:0.28em; font-size:14px; text-transform:uppercase; }
@@ -81,7 +81,7 @@ const HERO_CSS = `
 .rwg-hero .cta { display:inline-block; margin-top:20px; text-decoration:none; padding:14px 30px; border-radius:999px; font-weight:700; letter-spacing:0.04em; color:var(--bg); background:linear-gradient(90deg,var(--l1),var(--l5)); transition:transform .3s var(--ease),box-shadow .3s var(--ease); cursor:pointer; border:none; }
 .rwg-hero .cta:hover { transform:translateY(-2px); box-shadow:0 14px 40px rgba(255,107,107,0.35); }
 
-.rwg-hero .info { position:relative; padding:clamp(70px,10vw,130px) clamp(24px,8vw,120px); background:linear-gradient(180deg,var(--bg) 0%,var(--bg-soft) 100%); border-top:1px solid var(--line); }
+.rwg-hero .info { position:relative; scroll-snap-align:start; padding:clamp(70px,10vw,130px) clamp(24px,8vw,120px); background:linear-gradient(180deg,var(--bg) 0%,var(--bg-soft) 100%); border-top:1px solid var(--line); }
 .rwg-hero .info-inner { max-width:1100px; margin:0 auto; }
 .rwg-hero .info .eyebrow { display:block; margin-bottom:14px; }
 .rwg-hero .info-h { font-family:var(--display); font-weight:800; font-size:clamp(30px,5vw,58px); line-height:1.05; letter-spacing:-0.01em; margin:0 0 18px; max-width:760px; }

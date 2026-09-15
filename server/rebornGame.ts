@@ -8,16 +8,48 @@ import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
+  appSettings, kosGiftTypes,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
-const GIFT_TYPES: Record<string, number> = { rose: 1, heart: 5, diamond: 20, crown: 50 };
+// KGOLD economy defaults (admin-editable via app_settings)
+const SETTINGS_DEFAULTS: Record<string, string> = {
+  giftFeePercent: "30",     // % kept by the club; recipient gets the rest
+  kgoldPerRp: "100",        // 100 KGOLD = 1 RP
+  minBuyKgold: "1000000",   // minimum KGOLD purchase
+  minCashoutRp: "1000",     // minimum RP a member can cash out
+};
+async function getSettings() {
+  const rows = await db.select().from(appSettings);
+  const map: Record<string, string> = { ...SETTINGS_DEFAULTS };
+  for (const r of rows) if (r.key in map || true) map[r.key] = r.value ?? map[r.key];
+  return {
+    giftFeePercent: Number(map.giftFeePercent) || 30,
+    kgoldPerRp: Number(map.kgoldPerRp) || 100,
+    minBuyKgold: Number(map.minBuyKgold) || 1000000,
+    minCashoutRp: Number(map.minCashoutRp) || 1000,
+  };
+}
+const DEFAULT_GIFT_TYPES = [
+  { name: "Rose", emoji: "🌹", animation: "float", kgoldCost: 100, sortOrder: 0 },
+  { name: "Heart", emoji: "❤️", animation: "pop", kgoldCost: 500, sortOrder: 1 },
+  { name: "Fireworks", emoji: "🎆", animation: "rain", kgoldCost: 5000, sortOrder: 2 },
+  { name: "Diamond", emoji: "💎", animation: "zoom", kgoldCost: 20000, sortOrder: 3 },
+  { name: "Crown", emoji: "👑", animation: "zoom", kgoldCost: 100000, sortOrder: 4 },
+  { name: "Sports Car", emoji: "🏎️", animation: "float", kgoldCost: 500000, sortOrder: 5 },
+];
+async function seedGiftTypesIfEmpty() {
+  const existing = await db.select({ id: kosGiftTypes.id }).from(kosGiftTypes).limit(1);
+  if (existing.length === 0) await db.insert(kosGiftTypes).values(DEFAULT_GIFT_TYPES);
+}
 
 const LIFE_DAYS = 15;
 const FEEDS_PER_DAY = 3;
 const EGG_HATCH_DAYS = 15;
 const SPIN_COST = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FEED_GAP_MS = 4 * 60 * 60 * 1000;    // pet gets hungry ~every 4h; feeds must be spaced
+const TOKEN_CYCLE_MS = 24 * 60 * 60 * 1000; // 3 feeds within this rolling window = 1 token
 const MAX_PETS = 2;                 // living pets a member can hold at once
 const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
 const ENERGY_REGEN_PER_MIN = 0.1;   // sleeping: +1 energy per 10 min
@@ -84,9 +116,16 @@ async function refreshPet(pet: any) {
 }
 
 function petView(pet: any) {
-  const today = wibDay();
-  const feedsToday = pet.lastFeedDay === today ? (pet.feedsToday || 0) : 0;
-  const tokenEarnedToday = pet.lastTokenClaim ? wibDay(new Date(pet.lastTokenClaim)) === today : false;
+  const now = Date.now();
+  // lastFeedDay stores the current token-cycle start (ISO); feedsToday = feeds in cycle
+  const cycleStart = pet.lastFeedDay ? new Date(pet.lastFeedDay).getTime() : 0;
+  const cycleActive = !!cycleStart && now - cycleStart < TOKEN_CYCLE_MS;
+  const feedsInCycle = cycleActive ? (pet.feedsToday || 0) : 0;
+  const cycleMsLeft = cycleActive ? Math.max(0, cycleStart + TOKEN_CYCLE_MS - now) : 0;
+  const lastFed = pet.lastFedAt ? new Date(pet.lastFedAt).getTime() : 0;
+  const nextFeedMs = lastFed ? Math.max(0, lastFed + FEED_GAP_MS - now) : 0;
+  const tokenEarnedThisCycle = cycleActive && pet.lastTokenClaim ? new Date(pet.lastTokenClaim).getTime() >= cycleStart : false;
+  const active = !pet.isEgg && pet.lifeStatus === "active";
   return {
     id: pet.id, name: pet.name, gender: pet.gender,
     isEgg: pet.isEgg, lifeStatus: pet.lifeStatus, isSleeping: !!pet.isSleeping,
@@ -94,8 +133,10 @@ function petView(pet: any) {
     daysLeft: pet.isEgg ? 0 : daysLeft(pet.expiresAt),
     happiness: clamp(pet.happiness ?? 60), hunger: clamp(pet.hunger ?? 60),
     cleanliness: clamp(pet.cleanliness ?? 60), energy: clamp(pet.energy ?? 60),
-    feedsToday, feedsNeeded: FEEDS_PER_DAY, tokenEarnedToday,
-    canFeed: !pet.isEgg && pet.lifeStatus === "active" && feedsToday < FEEDS_PER_DAY,
+    feedsInCycle, feedsNeeded: FEEDS_PER_DAY, tokenEarnedToday: tokenEarnedThisCycle,
+    cycleActive, cycleHoursLeft: Math.ceil(cycleMsLeft / 3600000),
+    nextFeedMinutes: Math.ceil(nextFeedMs / 60000),
+    canFeed: active && nextFeedMs === 0 && !(cycleActive && feedsInCycle >= FEEDS_PER_DAY),
     totalTokensEarned: pet.totalTokensEarned || 0,
   };
 }
@@ -131,6 +172,79 @@ async function seedFaqIfEmpty() {
   const existing = await db.select({ id: faqItems.id }).from(faqItems).limit(1);
   if (existing.length === 0) {
     await db.insert(faqItems).values(DEFAULT_FAQ.map((f, i) => ({ ...f, sortOrder: i })));
+  }
+}
+
+// Curated Chinese/Mandopop hits [chinese title, pinyin, singer]
+const DEFAULT_SONGS: [string, string, string][] = [
+  ["月亮代表我的心", "Yuè Liàng Dài Biǎo Wǒ De Xīn", "邓丽君 Teresa Teng"],
+  ["甜蜜蜜", "Tián Mì Mì", "邓丽君 Teresa Teng"],
+  ["吻别", "Wěn Bié", "张学友 Jacky Cheung"],
+  ["七里香", "Qī Lǐ Xiāng", "周杰伦 Jay Chou"],
+  ["晴天", "Qíng Tiān", "周杰伦 Jay Chou"],
+  ["稻香", "Dào Xiāng", "周杰伦 Jay Chou"],
+  ["青花瓷", "Qīng Huā Cí", "周杰伦 Jay Chou"],
+  ["告白气球", "Gào Bái Qì Qiú", "周杰伦 Jay Chou"],
+  ["简单爱", "Jiǎn Dān Ài", "周杰伦 Jay Chou"],
+  ["夜曲", "Yè Qǔ", "周杰伦 Jay Chou"],
+  ["菊花台", "Jú Huā Tái", "周杰伦 Jay Chou"],
+  ["说好不哭", "Shuō Hǎo Bù Kū", "周杰伦 Jay Chou"],
+  ["江南", "Jiāng Nán", "林俊杰 JJ Lin"],
+  ["修炼爱情", "Xiū Liàn Ài Qíng", "林俊杰 JJ Lin"],
+  ["曹操", "Cáo Cāo", "林俊杰 JJ Lin"],
+  ["她说", "Tā Shuō", "林俊杰 JJ Lin"],
+  ["十年", "Shí Nián", "陈奕迅 Eason Chan"],
+  ["浮夸", "Fú Kuā", "陈奕迅 Eason Chan"],
+  ["富士山下", "Fù Shì Shān Xià", "陈奕迅 Eason Chan"],
+  ["泡沫", "Pào Mò", "邓紫棋 G.E.M."],
+  ["光年之外", "Guāng Nián Zhī Wài", "邓紫棋 G.E.M."],
+  ["喜欢你", "Xǐ Huān Nǐ", "邓紫棋 G.E.M."],
+  ["遇见", "Yù Jiàn", "孙燕姿 Stefanie Sun"],
+  ["天黑黑", "Tiān Hēi Hēi", "孙燕姿 Stefanie Sun"],
+  ["我怀念的", "Wǒ Huái Niàn De", "孙燕姿 Stefanie Sun"],
+  ["听海", "Tīng Hǎi", "张惠妹 A-Mei"],
+  ["温柔", "Wēn Róu", "五月天 Mayday"],
+  ["突然好想你", "Tū Rán Hǎo Xiǎng Nǐ", "五月天 Mayday"],
+  ["童话", "Tóng Huà", "光良 Michael Wong"],
+  ["至少还有你", "Zhì Shǎo Hái Yǒu Nǐ", "林忆莲 Sandy Lam"],
+  ["红豆", "Hóng Dòu", "王菲 Faye Wong"],
+  ["我愿意", "Wǒ Yuàn Yì", "王菲 Faye Wong"],
+  ["传奇", "Chuán Qí", "王菲 Faye Wong"],
+  ["挪威的森林", "Nuó Wēi De Sēn Lín", "伍佰 Wu Bai"],
+  ["龙的传人", "Lóng De Chuán Rén", "王力宏 Leehom Wang"],
+  ["你不知道的事", "Nǐ Bù Zhī Dào De Shì", "王力宏 Leehom Wang"],
+  ["日不落", "Rì Bù Luò", "蔡依林 Jolin Tsai"],
+  ["倒带", "Dào Dài", "蔡依林 Jolin Tsai"],
+  ["崇拜", "Chóng Bài", "梁静茹 Fish Leong"],
+  ["勇气", "Yǒng Qì", "梁静茹 Fish Leong"],
+  ["小酒窝", "Xiǎo Jiǔ Wō", "林俊杰 JJ Lin & 蔡卓妍 Charlene Choi"],
+  ["忽然之间", "Hū Rán Zhī Jiān", "莫文蔚 Karen Mok"],
+  ["因为爱情", "Yīn Wèi Ài Qíng", "陈奕迅 & 王菲"],
+  ["后来", "Hòu Lái", "刘若英 Rene Liu"],
+  ["情非得已", "Qíng Fēi Dé Yǐ", "庾澄庆 Harlem Yu"],
+  ["对面的女孩看过来", "Duì Miàn De Nǚ Hái Kàn Guò Lái", "任贤齐 Richie Jen"],
+  ["死了都要爱", "Sǐ Le Dōu Yào Ài", "信乐团 Shin"],
+  ["小幸运", "Xiǎo Xìng Yùn", "田馥甄 Hebe Tien"],
+  ["演员", "Yǎn Yuán", "薛之谦 Joker Xue"],
+  ["丑八怪", "Chǒu Bā Guài", "薛之谦 Joker Xue"],
+  ["平凡之路", "Píng Fán Zhī Lù", "朴树 Pu Shu"],
+  ["成都", "Chéng Dū", "赵雷 Zhao Lei"],
+  ["海阔天空", "Hǎi Kuò Tiān Kōng", "Beyond"],
+  ["光辉岁月", "Guāng Huī Suì Yuè", "Beyond"],
+  ["月半小夜曲", "Yuè Bàn Xiǎo Yè Qǔ", "李克勤 Hacken Lee"],
+  ["爱如潮水", "Ài Rú Cháo Shuǐ", "张信哲 Jeff Chang"],
+  ["味道", "Wèi Dào", "辛晓琪 Winnie Hsin"],
+  ["天涯", "Tiān Yá", "任贤齐 Richie Jen"],
+  ["约定", "Yuē Dìng", "周蕙 Where Chou"],
+  ["征服", "Zhēng Fú", "那英 Na Ying"],
+];
+async function seedSongsIfEmpty() {
+  const existing = await db.select({ id: songs.id }).from(songs).limit(1);
+  if (existing.length === 0) {
+    await db.insert(songs).values(DEFAULT_SONGS.map(([zh, py, artist], i) => ({
+      title: `${zh} (${py})`, artist, isHit: true, requestCount: DEFAULT_SONGS.length - i,
+      spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(zh + " " + artist.split(" ")[0])}`,
+    })));
   }
 }
 
@@ -232,22 +346,36 @@ export function registerRebornRoutes(app: Express) {
       if (action === "sleep") {
         update.isSleeping = true; update.sleepStartTime = now;
         message = "Zzz… your pet is sleeping and will regain energy over time.";
-      } else if (action === "feed" || action === "play" || action === "clean") {
+      } else if (action === "wake") {
+        message = "Rise and shine! ☀️"; // isSleeping already cleared via update default
+      } else if (action === "feed") {
+        const nowMs = now.getTime();
+        const lastFed = pet.lastFedAt ? new Date(pet.lastFedAt).getTime() : 0;
+        if (lastFed && nowMs - lastFed < FEED_GAP_MS) {
+          const h = Math.ceil((lastFed + FEED_GAP_MS - nowMs) / 3600000);
+          return res.status(400).json({ message: `Your pet isn't hungry yet — feed again in ~${h}h.` });
+        }
+        if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
+        let cycleStart = pet.lastFeedDay ? new Date(pet.lastFeedDay).getTime() : 0;
+        let feeds = (cycleStart && nowMs - cycleStart < TOKEN_CYCLE_MS) ? (pet.feedsToday || 0) : 0;
+        if (!cycleStart || nowMs - cycleStart >= TOKEN_CYCLE_MS) { cycleStart = nowMs; feeds = 0; }
+        feeds += 1;
+        hunger = clamp(hunger + STAT_GAIN); energy = clamp(energy - ACTION_ENERGY_COST);
+        update.feedsToday = feeds; update.lastFeedDay = new Date(cycleStart).toISOString(); update.lastFedAt = now;
+        const earned = pet.lastTokenClaim ? new Date(pet.lastTokenClaim).getTime() >= cycleStart : false;
+        if (feeds >= FEEDS_PER_DAY && !earned) {
+          update.lastTokenClaim = now; update.totalTokensEarned = (pet.totalTokensEarned || 0) + 1;
+          await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
+          await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
+          tokenAwarded = true;
+          message = "Full belly! You earned today's token 🎉";
+        } else {
+          message = `Fed! ${Math.max(0, FEEDS_PER_DAY - feeds)} more feed(s) within 24h for your token.`;
+        }
+      } else if (action === "play" || action === "clean") {
         if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
         energy = clamp(energy - ACTION_ENERGY_COST);
-        if (action === "feed") {
-          hunger = clamp(hunger + STAT_GAIN);
-          let feeds = pet.lastFeedDay === today ? (pet.feedsToday || 0) : 0;
-          feeds += 1; update.feedsToday = feeds; update.lastFeedDay = today; update.lastFedAt = now;
-          const earnedToday = pet.lastTokenClaim ? wibDay(new Date(pet.lastTokenClaim)) === today : false;
-          if (feeds >= FEEDS_PER_DAY && !earnedToday) {
-            update.lastTokenClaim = now; update.totalTokensEarned = (pet.totalTokensEarned || 0) + 1;
-            await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
-            await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
-            tokenAwarded = true;
-          }
-          message = tokenAwarded ? "Full belly! You earned 1 token 🎉" : "Yum! Hunger +30";
-        } else if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! Joy +30"; }
+        if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! Joy +30"; }
         else { cleanliness = clamp(cleanliness + STAT_GAIN); message = "Squeaky clean! +30"; }
       } else {
         return res.status(400).json({ message: "Unknown action" });
@@ -449,15 +577,15 @@ export function registerRebornRoutes(app: Express) {
     } catch (e) { console.error("support ask", e); res.status(500).json({ message: "Send failed" }); }
   });
 
-  // ── KOS (Kings of Singers) — gifting + leaderboard ───────────────────────
+  // ── KOS (Kings of Singers) — KGOLD gifting + leaderboard ─────────────────
   app.get("/api/reborn/kos/leaderboard", async (_req, res) => {
     try {
       const rows = await db.select({
         id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl,
-        stars: sql<number>`coalesce(sum(${kosGifts.amount}),0)`,
+        stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)`,
       }).from(kosGifts).innerJoin(users, eq(users.id, kosGifts.toUserId))
         .groupBy(users.id, users.firstName, users.username, users.profileImageUrl)
-        .orderBy(desc(sql`sum(${kosGifts.amount})`)).limit(100);
+        .orderBy(desc(sql`sum(${kosGifts.recipientKgold})`)).limit(100);
       res.json(rows);
     } catch (e) { console.error("kos leaderboard", e); res.status(500).json({ message: "Failed to load leaderboard" }); }
   });
@@ -472,31 +600,105 @@ export function registerRebornRoutes(app: Express) {
     } catch { res.json([]); }
   });
 
+  app.get("/api/reborn/kos/gifttypes", async (_req, res) => {
+    try {
+      await seedGiftTypesIfEmpty();
+      const rows = await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.active, true)).orderBy(kosGiftTypes.sortOrder);
+      res.json(rows);
+    } catch (e) { console.error("gifttypes", e); res.status(500).json({ message: "Failed" }); }
+  });
+
+  app.get("/api/reborn/kos/wallet", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const u = await storage.getUser(userId);
+      const s = await getSettings();
+      const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)` }).from(kosGifts).where(eq(kosGifts.toUserId, userId));
+      res.json({
+        kgold: u?.kgold ?? 0, credits: Number(u?.credits || 0), starsReceived: Number(got?.stars || 0),
+        kgoldPerRp: s.kgoldPerRp, minBuyKgold: s.minBuyKgold, minCashoutRp: s.minCashoutRp, feePercent: s.giftFeePercent,
+      });
+    } catch (e) { console.error("kos wallet", e); res.status(500).json({ message: "Failed" }); }
+  });
+
+  app.post("/api/reborn/kos/buy", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const kgold = Math.floor(Number(req.body?.kgold) || 0);
+      const s = await getSettings();
+      if (kgold < s.minBuyKgold) return res.status(400).json({ message: `Minimum purchase is ${s.minBuyKgold.toLocaleString()} KGOLD.` });
+      const rpCost = kgold / s.kgoldPerRp;
+      const u = await storage.getUser(userId);
+      if (!u || Number(u.credits || 0) < rpCost) return res.status(400).json({ message: `Not enough credits. This costs RP ${rpCost.toLocaleString()}.` });
+      const now = new Date();
+      await db.update(users).set({ credits: sql`${users.credits} - ${rpCost}`, kgold: sql`${users.kgold} + ${kgold}`, updatedAt: now }).where(eq(users.id, userId));
+      const fresh = await storage.getUser(userId);
+      res.json({ message: `Bought ${kgold.toLocaleString()} KGOLD.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
+    } catch (e) { console.error("kos buy", e); res.status(500).json({ message: "Purchase failed" }); }
+  });
+
+  app.post("/api/reborn/kos/cashout", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const s = await getSettings();
+      const u = await storage.getUser(userId);
+      const kgoldBal = u?.kgold ?? 0;
+      const kgold = Math.floor(Number(req.body?.kgold) || kgoldBal);
+      const rp = kgold / s.kgoldPerRp;
+      if (rp < s.minCashoutRp) return res.status(400).json({ message: `You need at least ${(s.minCashoutRp * s.kgoldPerRp).toLocaleString()} KGOLD (RP ${s.minCashoutRp.toLocaleString()}) to cash out.` });
+      if (kgold > kgoldBal) return res.status(400).json({ message: "Not enough KGOLD." });
+      const now = new Date();
+      await db.update(users).set({ kgold: sql`${users.kgold} - ${kgold}`, credits: sql`${users.credits} + ${rp}`, updatedAt: now }).where(eq(users.id, userId));
+      const fresh = await storage.getUser(userId);
+      res.json({ message: `Cashed out ${kgold.toLocaleString()} KGOLD → RP ${rp.toLocaleString()} credits.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
+    } catch (e) { console.error("kos cashout", e); res.status(500).json({ message: "Cash out failed" }); }
+  });
+
   app.post("/api/reborn/kos/gift", requireAuth, async (req, res) => {
     try {
       const fromUserId = getUserId(req)!;
       const toUserId = String(req.body?.toUserId || "");
-      const giftType = String(req.body?.giftType || "rose");
-      const amount = GIFT_TYPES[giftType] || 1;
+      const giftTypeId = Number(req.body?.giftTypeId);
       if (!toUserId) return res.status(400).json({ message: "Choose someone to gift" });
       if (toUserId === fromUserId) return res.status(400).json({ message: "You can't gift yourself" });
+      const [gt] = await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.id, giftTypeId));
+      if (!gt || !gt.active) return res.status(404).json({ message: "Gift not found" });
       const giver = await storage.getUser(fromUserId);
-      if (!giver || (giver.tokens || 0) < amount) return res.status(400).json({ message: `Need ${amount} tokens for a ${giftType}. Feed your pet to earn more.` });
+      const cost = gt.kgoldCost || 0;
+      if (!giver || (giver.kgold || 0) < cost) return res.status(400).json({ message: `Need ${cost.toLocaleString()} KGOLD for a ${gt.name}. Buy more KGOLD first.` });
+      const s = await getSettings();
+      const recipientKgold = Math.floor(cost * (100 - s.giftFeePercent) / 100);
       const now = new Date();
-      await db.update(users).set({ tokens: sql`${users.tokens} - ${amount}`, updatedAt: now }).where(eq(users.id, fromUserId));
-      await db.insert(tokenTransactions).values({ userId: fromUserId, tokens: -amount, type: "spent", status: "completed", description: `KOS ${giftType} gift` });
-      await db.insert(kosGifts).values({ fromUserId, toUserId, giftType, amount });
+      await db.update(users).set({ kgold: sql`${users.kgold} - ${cost}`, updatedAt: now }).where(eq(users.id, fromUserId));
+      await db.update(users).set({ kgold: sql`${users.kgold} + ${recipientKgold}`, updatedAt: now }).where(eq(users.id, toUserId));
+      await db.insert(kosGifts).values({ fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false });
       const fresh = await storage.getUser(fromUserId);
-      res.json({ message: `Sent a ${giftType}! ⭐ +${amount}`, tokens: fresh?.tokens ?? 0 });
+      res.json({ message: `Sent a ${gt.name}!`, kgold: fresh?.kgold ?? 0 });
     } catch (e) { console.error("kos gift", e); res.status(500).json({ message: "Gift failed" }); }
   });
 
-  app.get("/api/reborn/kos/me", requireAuth, async (req, res) => {
+  // Notifications: unseen gifts received (with gift image/animation + sender)
+  app.get("/api/reborn/kos/notifications", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.amount}),0)` }).from(kosGifts).where(eq(kosGifts.toUserId, userId));
-      res.json({ starsReceived: Number(got?.stars || 0) });
-    } catch { res.json({ starsReceived: 0 }); }
+      const rows = await db.select({
+        id: kosGifts.id, giftName: kosGifts.giftName, recipientKgold: kosGifts.recipientKgold, createdAt: kosGifts.createdAt,
+        fromName: users.firstName, fromUsername: users.username,
+        emoji: kosGiftTypes.emoji, imageUrl: kosGiftTypes.imageUrl, animation: kosGiftTypes.animation,
+      }).from(kosGifts)
+        .leftJoin(users, eq(users.id, kosGifts.fromUserId))
+        .leftJoin(kosGiftTypes, eq(kosGiftTypes.id, kosGifts.giftTypeId))
+        .where(and(eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)))
+        .orderBy(desc(kosGifts.createdAt)).limit(20);
+      res.json(rows);
+    } catch { res.json([]); }
+  });
+  app.post("/api/reborn/kos/notifications/seen", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      await db.update(kosGifts).set({ seen: true }).where(and(eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)));
+      res.json({ ok: true });
+    } catch { res.json({ ok: false }); }
   });
 
   // ── Chat: friend requests + member-to-member messaging ───────────────────
@@ -578,6 +780,7 @@ export function registerRebornRoutes(app: Express) {
   // ── Song requests + Top 500 library ──────────────────────────────────────
   app.get("/api/reborn/songs", async (_req, res) => {
     try {
+      await seedSongsIfEmpty();
       const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(500);
       res.json(rows);
     } catch (e) { console.error("songs", e); res.status(500).json({ message: "Failed to load songs" }); }
@@ -737,6 +940,47 @@ export function registerRebornRoutes(app: Express) {
   app.delete("/api/reborn/admin/songs/:id", requireAdmin(async (req, res) => {
     await db.delete(songs).where(eq(songs.id, Number(req.params.id)));
     res.json({ message: "Deleted" });
+  }));
+
+  // Admin: KOS gift catalog + KGOLD settings
+  app.get("/api/reborn/admin/gifttypes", requireAdmin(async (_req, res) => {
+    await seedGiftTypesIfEmpty();
+    res.json(await db.select().from(kosGiftTypes).orderBy(kosGiftTypes.sortOrder));
+  }));
+  app.post("/api/reborn/admin/gifttypes", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    const [row] = await db.insert(kosGiftTypes).values({
+      name: b.name || "New gift", emoji: b.emoji || "🎁", imageUrl: b.imageUrl || null,
+      animation: b.animation || "pop", kgoldCost: Number(b.kgoldCost) || 100, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
+    }).returning();
+    res.json(row);
+  }));
+  app.put("/api/reborn/admin/gifttypes/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
+    for (const k of ["name", "emoji", "imageUrl", "animation"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.kgoldCost !== undefined) patch.kgoldCost = Number(b.kgoldCost);
+    if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
+    if (b.active !== undefined) patch.active = !!b.active;
+    const [row] = await db.update(kosGiftTypes).set(patch).where(eq(kosGiftTypes.id, id)).returning();
+    res.json(row);
+  }));
+  app.delete("/api/reborn/admin/gifttypes/:id", requireAdmin(async (req, res) => {
+    await db.delete(kosGiftTypes).where(eq(kosGiftTypes.id, Number(req.params.id)));
+    res.json({ message: "Deleted" });
+  }));
+
+  app.get("/api/reborn/admin/settings", requireAdmin(async (_req, res) => {
+    res.json(await getSettings());
+  }));
+  app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp"];
+    for (const k of allowed) {
+      if (req.body?.[k] !== undefined) {
+        await db.insert(appSettings).values({ key: k, value: String(req.body[k]), updatedAt: new Date() })
+          .onConflictDoUpdate({ target: appSettings.key, set: { value: String(req.body[k]), updatedAt: new Date() } });
+      }
+    }
+    res.json(await getSettings());
   }));
 
   // Admin support: list open tickets + reply as staff
