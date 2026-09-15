@@ -46,7 +46,7 @@ export default function Bookings() {
       appointmentDate: "",
       appointmentTime: "",
       duration: "60",
-      cost: "",
+      cost: "0",
       service: "",
     },
   });
@@ -202,18 +202,7 @@ export default function Bookings() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="cost"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-white/70">Cost ($)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" className="rwg-input" placeholder="0.00" {...field} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    {/* Cost hidden from members — bookings are free to request */}
                   </div>
                   <div className="flex justify-end space-x-3 pt-2">
                     <Button type="button" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/10 rounded-xl" onClick={() => setIsDialogOpen(false)}>
@@ -254,7 +243,6 @@ export default function Bookings() {
                 </div>
 
                 <div className="text-right space-y-2 flex-shrink-0 ml-4">
-                  <div className="text-2xl font-bold text-white">${appointment.cost.toFixed(2)}</div>
                   <span className={`text-xs px-2.5 py-1 rounded-full inline-block ${getStatusStyle(appointment.status)}`}>
                     {appointment.status}
                   </span>

@@ -120,13 +120,13 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
       const x0 = C + R * Math.cos(a0), y0 = C + R * Math.sin(a0);
       const x1 = C + R * Math.cos(a1), y1 = C + R * Math.sin(a1);
       const large = seg > 180 ? 1 : 0;
-      const mid = ((i + 0.5) * seg - 90) * (Math.PI / 180);
-      const lx = C + R * 0.62 * Math.cos(mid), ly = C + R * 0.62 * Math.sin(mid);
-      const labelRot = (i + 0.5) * seg;
-      const short = (p.label || "").length > 16 ? (p.label.split(" ")[0] + "…") : p.label;
-      return { path: `M${C},${C} L${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} Z`, color: p.colorHex || "#c9a84c", lx, ly, labelRot, short };
+      const mid = (i + 0.5) * seg; // degrees clockwise from top
+      const flip = mid > 90 && mid < 270; // bottom half → keep text upright
+      return { path: `M${C},${C} L${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} Z`, color: p.colorHex || "#c9a84c", mid, flip, label: p.label || "" };
     });
   }, [prizes, n]);
+
+  const fontFor = (len: number) => (len > 22 ? 8 : len > 15 ? 9 : 10.5);
 
   return (
     <div className="relative" style={{ width: 320, maxWidth: "88vw" }}>
@@ -134,10 +134,11 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
       <div className="absolute left-1/2 -translate-x-1/2 -top-1 z-10" style={{ width: 0, height: 0, borderLeft: "14px solid transparent", borderRight: "14px solid transparent", borderTop: "24px solid #f0d787", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }} />
       <svg viewBox="0 0 320 320" className="w-full" style={{ transform: `rotate(${rotation}deg)`, transition: spinning ? "transform 4s cubic-bezier(0.15,0.9,0.25,1)" : "none" }}>
         <circle cx={C} cy={C} r={R + 6} fill="#0a0714" stroke="#c9a84c" strokeWidth="4" />
+        {slices.map((s, i) => <path key={"p" + i} d={s.path} fill={s.color} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />)}
+        {/* radial labels: rotate to the slice spoke; flip bottom half so words stay upright and readable end-to-end */}
         {slices.map((s, i) => (
-          <g key={i}>
-            <path d={s.path} fill={s.color} stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
-            <text x={s.lx} y={s.ly} fill="#0a0714" fontSize="11" fontWeight="700" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${s.labelRot} ${s.lx} ${s.ly})`}>{s.short}</text>
+          <g key={"t" + i} transform={`rotate(${s.mid} ${C} ${C})${s.flip ? ` rotate(180 ${C} ${C - R * 0.55})` : ""}`}>
+            <text x={C} y={C - R * 0.55} fill="#0a0714" fontSize={fontFor(s.label.length)} fontWeight="700" textAnchor="middle" dominantBaseline="middle">{s.label}</text>
           </g>
         ))}
         <circle cx={C} cy={C} r="26" fill="#140d26" stroke="#c9a84c" strokeWidth="3" />

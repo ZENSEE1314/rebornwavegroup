@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Disc3, Gift, Pill, HelpCircle } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2 } from "lucide-react";
 
-const TABS = ["Codes", "Prizes", "Redemptions", "Pills", "FAQ"] as const;
+const TABS = ["Codes", "Prizes", "Redemptions", "Pills", "FAQ", "Songs", "Requests"] as const;
 
 export default function RebornAdmin() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Codes");
@@ -21,7 +21,63 @@ export default function RebornAdmin() {
       {tab === "Redemptions" && <Redemptions />}
       {tab === "Pills" && <Pills />}
       {tab === "FAQ" && <Faq />}
+      {tab === "Songs" && <Songs />}
+      {tab === "Requests" && <SongRequests />}
     </RebornLayout>
+  );
+}
+
+function Songs() {
+  const qc = useQueryClient();
+  const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()) });
+  const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/songs", { title: "New hit song", isHit: true }).then((r) => r.json()), onSuccess: inv });
+  const save = useMutation({ mutationFn: (s: any) => apiRequest("PUT", `/api/reborn/admin/songs/${s.id}`, s).then((r) => r.json()), onSuccess: inv });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/songs/${id}`), onSuccess: inv });
+  return (
+    <div>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add hit song</button>
+      <div className="space-y-3">{songs.map((s) => <SongRow key={s.id} s={s} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+    </div>
+  );
+}
+function SongRow({ s, onSave, onDelete }: any) {
+  const [e, setE] = useState(s);
+  return (
+    <Card>
+      <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Song title" className={inp + " w-full mb-2"} />
+      <input value={e.artist || ""} onChange={(x) => setE({ ...e, artist: x.target.value })} placeholder="Artist / singer" className={inp + " w-full mb-2"} />
+      <input value={e.spotifyUrl || ""} onChange={(x) => setE({ ...e, spotifyUrl: x.target.value })} placeholder="Spotify link" className={inp + " w-full mb-2"} />
+      <input value={e.artistPhoto || ""} onChange={(x) => setE({ ...e, artistPhoto: x.target.value })} placeholder="Artist photo URL" className={inp + " w-full mb-2"} />
+      <div className="flex items-center gap-3 justify-between">
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song</label>
+        <div className="flex gap-2">
+          <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
+          <button onClick={() => onDelete(s.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SongRequests() {
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()) });
+  const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
+  if (rows.length === 0) return <Empty text="No pending song requests." />;
+  return (
+    <div className="space-y-2">
+      {rows.map((r) => (
+        <Card key={r.id}>
+          <div className="flex items-center gap-3">
+            <Music2 className="w-5 h-5 text-amber-300" />
+            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · user {r.userId?.slice(0, 8)}</p></div>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
+            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnSm + " text-red-400"}><X className="w-4 h-4" /></button>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }
 

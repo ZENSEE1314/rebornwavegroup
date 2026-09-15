@@ -546,6 +546,42 @@ export const spinResults = pgTable("spin_results", {
   adminId: varchar("admin_id"),
 });
 
+// KOS (Kings of Singers) — TikTok-style gifting between members
+export const kosGifts = pgTable("kos_gifts", {
+  id: serial("id").primaryKey(),
+  fromUserId: varchar("from_user_id").notNull(),
+  toUserId: varchar("to_user_id").notNull(),
+  giftType: varchar("gift_type").default("rose"), // rose | heart | diamond | crown
+  amount: integer("amount").default(1), // stars given
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Song library (hit songs + previously requested), shown as a Top 500 list
+export const songs = pgTable("songs", {
+  id: serial("id").primaryKey(),
+  title: varchar("title").notNull(),
+  artist: varchar("artist").default(""),
+  spotifyUrl: varchar("spotify_url"),
+  artistPhoto: varchar("artist_photo"),
+  isHit: boolean("is_hit").default(false),
+  requestCount: integer("request_count").default(0),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// A member's request to sing a song; admin confirms → member sees a tick
+export const songRequests = pgTable("song_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  songId: integer("song_id"),
+  title: varchar("title").notNull(),
+  artist: varchar("artist").default(""),
+  status: varchar("status").default("pending"), // pending | confirmed | rejected
+  createdAt: timestamp("created_at").defaultNow(),
+  confirmedAt: timestamp("confirmed_at"),
+  adminId: varchar("admin_id"),
+});
+
 // FAQ / auto-reply knowledge base for Support
 export const faqItems = pgTable("faq_items", {
   id: serial("id").primaryKey(),

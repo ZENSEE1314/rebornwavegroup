@@ -79,6 +79,9 @@ const RebornPet            = lazy(() => import("@/pages/reborn-pet"));
 const RebornSpin           = lazy(() => import("@/pages/reborn-spin"));
 const RebornSupport        = lazy(() => import("@/pages/reborn-support"));
 const RebornAdmin          = lazy(() => import("@/pages/reborn-admin"));
+const RebornKos            = lazy(() => import("@/pages/reborn-kos"));
+const RebornSong           = lazy(() => import("@/pages/reborn-song"));
+const RebornChat           = lazy(() => import("@/pages/reborn-chat"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -163,6 +166,9 @@ function Router() {
             <Route path="/pet" component={RebornPet} />
             <Route path="/spin" component={RebornSpin} />
             <Route path="/support" component={RebornSupport} />
+            <Route path="/kos" component={RebornKos} />
+            <Route path="/songs" component={RebornSong} />
+            <Route path="/chat" component={RebornChat} />
             <Route path="/reborn-admin" component={RebornAdmin} />
             <Route path="/complete-app" component={CompleteApp} />
             <Route path="/investor/admin" component={InvestorAdmin} />

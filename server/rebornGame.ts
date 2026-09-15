@@ -7,7 +7,11 @@ import { requireAuth, getUserId } from "./multiAuth";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
+  kosGifts, songs, songRequests, friendships, chatMessages,
 } from "@shared/schema";
+import { ilike, or } from "drizzle-orm";
+
+const GIFT_TYPES: Record<string, number> = { rose: 1, heart: 5, diamond: 20, crown: 50 };
 
 const LIFE_DAYS = 15;
 const FEEDS_PER_DAY = 3;
@@ -354,6 +358,168 @@ export function registerRebornRoutes(app: Express) {
     } catch (e) { console.error("support ask", e); res.status(500).json({ message: "Send failed" }); }
   });
 
+  // ── KOS (Kings of Singers) — gifting + leaderboard ───────────────────────
+  app.get("/api/reborn/kos/leaderboard", async (_req, res) => {
+    try {
+      const rows = await db.select({
+        id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl,
+        stars: sql<number>`coalesce(sum(${kosGifts.amount}),0)`,
+      }).from(kosGifts).innerJoin(users, eq(users.id, kosGifts.toUserId))
+        .groupBy(users.id, users.firstName, users.username, users.profileImageUrl)
+        .orderBy(desc(sql`sum(${kosGifts.amount})`)).limit(100);
+      res.json(rows);
+    } catch (e) { console.error("kos leaderboard", e); res.status(500).json({ message: "Failed to load leaderboard" }); }
+  });
+
+  app.get("/api/reborn/kos/search", requireAuth, async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim();
+      if (q.length < 2) return res.json([]);
+      const rows = await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl })
+        .from(users).where(or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`))).limit(20);
+      res.json(rows);
+    } catch { res.json([]); }
+  });
+
+  app.post("/api/reborn/kos/gift", requireAuth, async (req, res) => {
+    try {
+      const fromUserId = getUserId(req)!;
+      const toUserId = String(req.body?.toUserId || "");
+      const giftType = String(req.body?.giftType || "rose");
+      const amount = GIFT_TYPES[giftType] || 1;
+      if (!toUserId) return res.status(400).json({ message: "Choose someone to gift" });
+      if (toUserId === fromUserId) return res.status(400).json({ message: "You can't gift yourself" });
+      const giver = await storage.getUser(fromUserId);
+      if (!giver || (giver.tokens || 0) < amount) return res.status(400).json({ message: `Need ${amount} tokens for a ${giftType}. Feed your pet to earn more.` });
+      const now = new Date();
+      await db.update(users).set({ tokens: sql`${users.tokens} - ${amount}`, updatedAt: now }).where(eq(users.id, fromUserId));
+      await db.insert(tokenTransactions).values({ userId: fromUserId, tokens: -amount, type: "spent", status: "completed", description: `KOS ${giftType} gift` });
+      await db.insert(kosGifts).values({ fromUserId, toUserId, giftType, amount });
+      const fresh = await storage.getUser(fromUserId);
+      res.json({ message: `Sent a ${giftType}! ⭐ +${amount}`, tokens: fresh?.tokens ?? 0 });
+    } catch (e) { console.error("kos gift", e); res.status(500).json({ message: "Gift failed" }); }
+  });
+
+  app.get("/api/reborn/kos/me", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const [got] = await db.select({ stars: sql<number>`coalesce(sum(${kosGifts.amount}),0)` }).from(kosGifts).where(eq(kosGifts.toUserId, userId));
+      res.json({ starsReceived: Number(got?.stars || 0) });
+    } catch { res.json({ starsReceived: 0 }); }
+  });
+
+  // ── Chat: friend requests + member-to-member messaging ───────────────────
+  app.post("/api/reborn/chat/request", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const toUserId = String(req.body?.toUserId || "");
+      if (!toUserId || toUserId === me) return res.status(400).json({ message: "Pick a member to add" });
+      const existing = await db.select().from(friendships).where(or(
+        and(eq(friendships.requesterId, me), eq(friendships.addresseeId, toUserId)),
+        and(eq(friendships.requesterId, toUserId), eq(friendships.addresseeId, me)),
+      ));
+      if (existing.length) return res.json({ message: existing[0].status === "accepted" ? "You're already friends" : "Request already pending" });
+      await db.insert(friendships).values({ requesterId: me, addresseeId: toUserId, status: "pending" });
+      res.json({ message: "Friend request sent!" });
+    } catch (e) { console.error("chat req", e); res.status(500).json({ message: "Request failed" }); }
+  });
+
+  app.post("/api/reborn/chat/respond", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const id = Number(req.body?.id);
+      const accept = req.body?.accept !== false;
+      const [f] = await db.select().from(friendships).where(eq(friendships.id, id));
+      if (!f || f.addresseeId !== me) return res.status(404).json({ message: "Request not found" });
+      if (accept) await db.update(friendships).set({ status: "accepted", updatedAt: new Date() }).where(eq(friendships.id, id));
+      else await db.delete(friendships).where(eq(friendships.id, id));
+      res.json({ message: accept ? "You're now friends!" : "Request declined" });
+    } catch (e) { console.error("chat respond", e); res.status(500).json({ message: "Failed" }); }
+  });
+
+  app.get("/api/reborn/chat/friends", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const all = await db.select().from(friendships).where(or(eq(friendships.requesterId, me), eq(friendships.addresseeId, me)));
+      const otherIds = Array.from(new Set(all.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId))));
+      const userRows = otherIds.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl }).from(users).where(sql`${users.id} in (${sql.join(otherIds.map((i) => sql`${i}`), sql`, `)})`) : [];
+      const umap = Object.fromEntries(userRows.map((u) => [u.id, u]));
+      const friends = all.filter((f) => f.status === "accepted").map((f) => { const oid = f.requesterId === me ? f.addresseeId : f.requesterId; return { friendshipId: f.id, user: umap[oid] || { id: oid } }; });
+      const incoming = all.filter((f) => f.status === "pending" && f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: umap[f.requesterId] || { id: f.requesterId } }));
+      const outgoing = all.filter((f) => f.status === "pending" && f.requesterId === me).map((f) => ({ friendshipId: f.id, user: umap[f.addresseeId] || { id: f.addresseeId } }));
+      res.json({ friends, incoming, outgoing });
+    } catch (e) { console.error("chat friends", e); res.status(500).json({ message: "Failed" }); }
+  });
+
+  async function areFriends(a: string, b: string) {
+    const rows = await db.select().from(friendships).where(and(eq(friendships.status, "accepted"), or(
+      and(eq(friendships.requesterId, a), eq(friendships.addresseeId, b)),
+      and(eq(friendships.requesterId, b), eq(friendships.addresseeId, a)),
+    )));
+    return rows.length > 0;
+  }
+
+  app.get("/api/reborn/chat/messages/:otherId", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const other = req.params.otherId;
+      if (!(await areFriends(me, other))) return res.status(403).json({ message: "You're not friends yet" });
+      const msgs = await db.select().from(chatMessages).where(or(
+        and(eq(chatMessages.senderId, me), eq(chatMessages.receiverId, other)),
+        and(eq(chatMessages.senderId, other), eq(chatMessages.receiverId, me)),
+      )).orderBy(chatMessages.createdAt).limit(200);
+      res.json(msgs);
+    } catch (e) { console.error("chat msgs", e); res.status(500).json({ message: "Failed" }); }
+  });
+
+  app.post("/api/reborn/chat/send", requireAuth, async (req, res) => {
+    try {
+      const me = getUserId(req)!;
+      const toUserId = String(req.body?.toUserId || "");
+      const content = String(req.body?.content || "").trim();
+      if (!content) return res.status(400).json({ message: "Empty message" });
+      if (!(await areFriends(me, toUserId))) return res.status(403).json({ message: "You're not friends yet" });
+      await db.insert(chatMessages).values({ senderId: me, receiverId: toUserId, content });
+      res.json({ message: "sent" });
+    } catch (e) { console.error("chat send", e); res.status(500).json({ message: "Send failed" }); }
+  });
+
+  // ── Song requests + Top 500 library ──────────────────────────────────────
+  app.get("/api/reborn/songs", async (_req, res) => {
+    try {
+      const rows = await db.select().from(songs).orderBy(desc(songs.isHit), desc(songs.requestCount), songs.title).limit(500);
+      res.json(rows);
+    } catch (e) { console.error("songs", e); res.status(500).json({ message: "Failed to load songs" }); }
+  });
+
+  app.post("/api/reborn/songs/request", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      let { songId, title, artist, spotifyUrl, artistPhoto } = req.body || {};
+      let song: any = null;
+      if (songId) {
+        [song] = await db.select().from(songs).where(eq(songs.id, Number(songId)));
+        if (!song) return res.status(404).json({ message: "Song not found" });
+        await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
+        title = song.title; artist = song.artist;
+      } else {
+        if (!title || !String(title).trim()) return res.status(400).json({ message: "Enter a song title" });
+        [song] = await db.insert(songs).values({ title: String(title).trim(), artist: artist || "", spotifyUrl: spotifyUrl || null, artistPhoto: artistPhoto || null, isHit: false, requestCount: 1, createdBy: userId }).returning();
+        songId = song.id;
+      }
+      const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", status: "pending" }).returning();
+      res.json({ message: "Request sent! Staff will confirm it shortly.", request: reqRow });
+    } catch (e) { console.error("song request", e); res.status(500).json({ message: "Request failed" }); }
+  });
+
+  app.get("/api/reborn/songs/my-requests", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const rows = await db.select().from(songRequests).where(eq(songRequests.userId, userId)).orderBy(desc(songRequests.createdAt)).limit(100);
+      res.json(rows);
+    } catch { res.json([]); }
+  });
+
   // ── Admin ────────────────────────────────────────────────────────────────
   app.post("/api/reborn/admin/codes", requireAdmin(async (req, res) => {
     const adminId = getUserId(req)!;
@@ -447,6 +613,38 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.delete("/api/reborn/admin/faq/:id", requireAdmin(async (req, res) => {
     await db.delete(faqItems).where(eq(faqItems.id, Number(req.params.id)));
+    res.json({ message: "Deleted" });
+  }));
+
+  // Admin: song requests + song library
+  app.get("/api/reborn/admin/song-requests", requireAdmin(async (_req, res) => {
+    const rows = await db.select().from(songRequests).where(eq(songRequests.status, "pending")).orderBy(desc(songRequests.createdAt)).limit(200);
+    res.json(rows);
+  }));
+  app.post("/api/reborn/admin/song-requests/:id", requireAdmin(async (req, res) => {
+    const adminId = getUserId(req)!;
+    const approve = req.body?.approve !== false;
+    const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId }).where(eq(songRequests.id, Number(req.params.id))).returning();
+    res.json(row);
+  }));
+  app.post("/api/reborn/admin/songs", requireAdmin(async (req, res) => {
+    const adminId = getUserId(req)!; const b = req.body || {};
+    const [row] = await db.insert(songs).values({
+      title: b.title || "New song", artist: b.artist || "", spotifyUrl: b.spotifyUrl || null,
+      artistPhoto: b.artistPhoto || null, isHit: b.isHit !== false, requestCount: Number(b.requestCount) || 0, createdBy: adminId,
+    }).returning();
+    res.json(row);
+  }));
+  app.put("/api/reborn/admin/songs/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
+    for (const k of ["title", "artist", "spotifyUrl", "artistPhoto"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.isHit !== undefined) patch.isHit = !!b.isHit;
+    if (b.requestCount !== undefined) patch.requestCount = Number(b.requestCount);
+    const [row] = await db.update(songs).set(patch).where(eq(songs.id, id)).returning();
+    res.json(row);
+  }));
+  app.delete("/api/reborn/admin/songs/:id", requireAdmin(async (req, res) => {
+    await db.delete(songs).where(eq(songs.id, Number(req.params.id)));
     res.json({ message: "Deleted" });
   }));
 

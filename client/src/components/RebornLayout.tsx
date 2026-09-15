@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Home, PawPrint, Disc3, Headphones, Menu as MenuIcon, X, Gift, Coins,
-  Calendar, Trophy, Users, User, Music, LogOut, Shield, Sparkles,
+  Calendar, Trophy, Users, User, Music, LogOut, Shield, Sparkles, MessageCircle,
 } from "lucide-react";
 
 interface NavItem { label: string; icon: ReactNode; path: string; }
@@ -12,8 +12,8 @@ interface NavItem { label: string; icon: ReactNode; path: string; }
 const MAIN_NAV: NavItem[] = [
   { label: "Home", icon: <Home className="w-5 h-5" />, path: "/" },
   { label: "Pet", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
-  { label: "Spin", icon: <Disc3 className="w-5 h-5" />, path: "/spin" },
-  { label: "Support", icon: <Headphones className="w-5 h-5" />, path: "/support" },
+  { label: "KOS", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "Chat", icon: <MessageCircle className="w-5 h-5" />, path: "/chat" },
 ];
 
 export const MENU_ITEMS: NavItem[] = [
@@ -22,7 +22,8 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "My Prizes", icon: <Gift className="w-5 h-5" />, path: "/spin?tab=prizes" },
   { label: "Bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
   { label: "Loyalty Program", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
-  { label: "Kings of Singers", icon: <Music className="w-5 h-5" />, path: "/complete-app" },
+  { label: "Kings of Singers", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "Song Request", icon: <Music className="w-5 h-5" />, path: "/songs" },
   { label: "Referrals", icon: <Users className="w-5 h-5" />, path: "/my-referral" },
   { label: "Support & FAQ", icon: <Headphones className="w-5 h-5" />, path: "/support" },
   { label: "Profile", icon: <User className="w-5 h-5" />, path: "/profile" },
