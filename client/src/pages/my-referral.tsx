@@ -109,9 +109,9 @@ export default function MyReferral() {
                   <div className="w-9 h-9 bg-emerald-500/15 border border-emerald-500/25 rounded-xl flex items-center justify-center">
                     <DollarSign className="w-4 h-4 text-emerald-400" />
                   </div>
-                  <span className="text-white/70">Credits</span>
+                  <span className="text-white/70">Referral earnings</span>
                 </div>
-                <span className="font-bold text-white">$350.00</span>
+                <span className="font-bold text-white">RP {Number(typedUser?.referralEarnings || 0).toLocaleString("en-US")}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -120,7 +120,7 @@ export default function MyReferral() {
                   </div>
                   <span className="text-white/70">Loyalty Points</span>
                 </div>
-                <span className="font-bold text-violet-400">125</span>
+                <span className="font-bold text-violet-400">{typedUser?.loyaltyPoints ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -129,7 +129,7 @@ export default function MyReferral() {
                   </div>
                   <span className="text-white/70">Level</span>
                 </div>
-                <span className="text-sm bg-white/10 border border-white/20 text-white/70 px-3 py-1 rounded-full">Level 1</span>
+                <span className="text-sm bg-white/10 border border-white/20 text-white/70 px-3 py-1 rounded-full">Level {typedUser?.level ?? 1}</span>
               </div>
             </div>
           </div>

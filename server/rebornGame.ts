@@ -5,6 +5,7 @@ import { db } from "./db";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "./emailService";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -1180,6 +1181,38 @@ export function registerRebornRoutes(app: Express) {
       n(db.select({ c: sql`count(*)` }).from(posProducts).where(sql`${posProducts.stock} <= 5`)),
     ]);
     res.json({ songRequests: songReq, redemptions, topups, openTickets, appOrders, bottles, users: users_, products, lowStock });
+  }));
+
+  // Broadcast a message + email to all members (admin only)
+  app.post("/api/reborn/admin/broadcast", requireAdmin(async (req, res) => {
+    const subject = String(req.body?.subject || "").trim();
+    const body = String(req.body?.body || "").trim();
+    const channel = ["email", "inapp", "both"].includes(req.body?.channel) ? req.body.channel : "both";
+    if (!subject || !body) return res.status(400).json({ message: "Subject and message are required" });
+    const everyone = await db.select({ id: users.id, email: users.email, firstName: users.firstName }).from(users);
+    let inapp = 0, emails = 0, emailFail = 0;
+
+    if (channel === "inapp" || channel === "both") {
+      for (const u of everyone) {
+        try {
+          const [existing] = await db.select().from(supportTickets).where(and(eq(supportTickets.userId, u.id), sql`${supportTickets.status} != 'closed'`)).orderBy(desc(supportTickets.createdAt)).limit(1);
+          const ticket = existing || (await db.insert(supportTickets).values({ userId: u.id, subject: "Announcement", category: "broadcast", status: "open", priority: "normal" }).returning())[0];
+          await db.insert(supportMessages).values({ ticketId: ticket.id, senderType: "staff", senderId: getUserId(req)!, content: `📢 ${subject}\n\n${body}` });
+          await db.update(supportTickets).set({ status: "open", updatedAt: new Date() }).where(eq(supportTickets.id, ticket.id));
+          inapp++;
+        } catch (e) { console.error("broadcast inapp", e); }
+      }
+    }
+    if (channel === "email" || channel === "both") {
+      const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto"><h2 style="color:#c9a84c">${subject}</h2><p style="white-space:pre-line;color:#333;line-height:1.6">${body.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!))}</p><p style="color:#999;font-size:12px;margin-top:24px">Reborn Wave Group</p></div>`;
+      for (const u of everyone) {
+        if (!u.email) continue;
+        try { const ok = await sendEmail({ to: u.email, subject, text: body, html }); ok ? emails++ : emailFail++; }
+        catch (e) { emailFail++; console.error("broadcast email", e); }
+      }
+    }
+    await logAdmin(req, { targetType: "broadcast", action: "send", entityType: "broadcast", description: `Broadcast "${subject}" · ${inapp} in-app, ${emails} emails${emailFail ? `, ${emailFail} failed` : ""}` });
+    res.json({ message: `Sent — ${inapp} in-app message(s), ${emails} email(s)${emailFail ? `, ${emailFail} email(s) failed` : ""}.`, inapp, emails, emailFail });
   }));
 
   // Admin activity log (full admin only) — resolves which admin account did each action

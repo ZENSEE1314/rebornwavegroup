@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -37,10 +37,35 @@ export default function RebornAdmin() {
       {tab === "Users" && <Members />}
       {tab === "Top-ups" && <TopUps />}
       {tab === "Events" && <Events />}
+      {tab === "Broadcast" && <Broadcast />}
       {tab === "Products" && <Products />}
       {tab === "Accounting" && <Accounting />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
+  );
+}
+
+function Broadcast() {
+  const { toast } = useToast();
+  const [f, setF] = useState({ subject: "", body: "", channel: "both" });
+  const send = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/broadcast", f).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Broadcast sent", description: d.message }); setF({ subject: "", body: "", channel: "both" }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <Card>
+      <h3 className="font-bold mb-1 flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> Message all members</h3>
+      <p className="text-xs text-white/50 mb-3">Send an announcement to every member — in their in-app chat, by email, or both.</p>
+      <input value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} placeholder="Subject / title" className={inp + " w-full mb-2"} />
+      <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="Your message…" rows={5} className={inp + " w-full mb-3"} />
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {[["both", "Chat + Email"], ["inapp", "In-app only"], ["email", "Email only"]].map(([v, l]) => (
+          <button key={v} onClick={() => setF({ ...f, channel: v })} className={`py-2.5 rounded-xl border text-sm font-semibold ${f.channel === v ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{l}</button>
+        ))}
+      </div>
+      <button onClick={() => { if (confirm("Send this to ALL members?")) send.mutate(); }} disabled={send.isPending || !f.subject.trim() || !f.body.trim()} className={btn + " disabled:opacity-50"}>{send.isPending ? "Sending…" : "Send to all members"}</button>
+    </Card>
   );
 }
 
