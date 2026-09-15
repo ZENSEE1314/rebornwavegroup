@@ -9,14 +9,14 @@ import petFemale from "@assets/doluruu-female-transparent.png";
 import eggImg from "@assets/doluruu-blindbox-box.jpeg";
 
 const WALK_CSS = `
-@keyframes rwpetWalk{0%{left:8%}50%{left:60%}100%{left:8%}}
+@keyframes rwpetWalk{0%{left:6%}50%{left:52%}100%{left:6%}}
 @keyframes rwpetFace{0%,49%{transform:scaleX(1)}50%,100%{transform:scaleX(-1)}}
 @keyframes rwpetHop{0%,100%{transform:translateY(0) scaleY(1) scaleX(1)}20%{transform:translateY(-12px) scaleY(1.08) scaleX(.96)}45%{transform:translateY(0) scaleY(.9) scaleX(1.08)}60%{transform:translateY(-7px) scaleY(1.04)}}
 @keyframes rwpetBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 @keyframes rwpetPop{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.22) rotate(-9deg)}70%{transform:scale(.94) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes rwpetShadow{0%,100%{transform:translateX(-50%) scaleX(1);opacity:.4}30%{transform:translateX(-50%) scaleX(.6);opacity:.18}}
-.rwpet-walker{position:absolute;bottom:26px;width:78px;height:78px;animation:rwpetWalk 9s ease-in-out infinite;cursor:pointer;}
-.rwpet-shadow{position:absolute;left:50%;bottom:-8px;width:52px;height:11px;border-radius:50%;background:#000;filter:blur(3px);animation:rwpetShadow 1s ease-in-out infinite;}
+.rwpet-walker{position:absolute;bottom:30px;width:124px;height:124px;animation:rwpetWalk 9s ease-in-out infinite;cursor:pointer;}
+.rwpet-shadow{position:absolute;left:50%;bottom:-8px;width:82px;height:15px;border-radius:50%;background:#000;filter:blur(3px);animation:rwpetShadow 1s ease-in-out infinite;}
 .rwpet-face{width:100%;height:100%;animation:rwpetFace 9s steps(1) infinite;}
 .rwpet-hop{width:100%;height:100%;animation:rwpetHop 1s ease-in-out infinite;transform-origin:bottom center;}
 .rwpet-pop{animation:rwpetPop .55s ease !important;}
@@ -124,8 +124,8 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable }: any) 
         {!pet.isEgg && <span className="text-xs text-white/50 flex items-center gap-1"><Clock className="w-3 h-3" /> {pet.daysLeft}d left</span>}
       </div>
 
-      {/* the room */}
-      <div className="relative mx-4 mt-3 rounded-2xl overflow-hidden" style={{ height: 172, background: "linear-gradient(180deg,#2a1f4d 0%,#1d1436 60%,#140d26 100%)" }}>
+      {/* the room — compact square box, bigger Doluruu */}
+      <div className="relative mx-auto mt-3 rounded-2xl overflow-hidden w-full max-w-[300px] aspect-square" style={{ background: "linear-gradient(180deg,#2a1f4d 0%,#1d1436 60%,#140d26 100%)" }}>
         {/* wall décor */}
         <div className="absolute left-4 top-4 w-16 h-14 rounded-lg border-2 border-white/15 overflow-hidden" style={{ background: "linear-gradient(180deg,#3b2f7a,#1b2a5a)" }}>
           <span className="absolute right-1 top-0.5 text-sm">🌙</span>
@@ -141,7 +141,7 @@ function PetCard({ pet, onAction, busy, onPill, pilling, pillsAvailable }: any) 
         <div className="rwpet-glow" />
         {pet.isEgg ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <img src={img} alt="egg" className="w-20 h-20 object-contain" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
+            <img src={img} alt="egg" className="w-28 h-28 object-contain" style={{ animation: "rwpetBreathe 2.4s ease-in-out infinite" }} />
             <p className="text-xs text-white/70 flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" /> Hatches in {pet.hatchDaysLeft} day(s)</p>
           </div>
         ) : (

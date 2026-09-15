@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
@@ -68,7 +70,9 @@ function MemberRow({ u, editable, onSave }: any) {
             <label className="text-xs text-white/50">First name<input value={e.firstName || ""} onChange={(x) => setE({ ...e, firstName: x.target.value })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50">Last name<input value={e.lastName || ""} onChange={(x) => setE({ ...e, lastName: x.target.value })} className={inp + " w-full"} /></label>
             <label className="text-xs text-white/50 col-span-2">Email<input value={e.email || ""} onChange={(x) => setE({ ...e, email: x.target.value })} className={inp + " w-full"} /></label>
-            <label className="text-xs text-white/50 col-span-2">Reset password (leave blank to keep)<input type="text" value={e.password || ""} onChange={(x) => setE({ ...e, password: x.target.value })} placeholder="New password" className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">Username<input value={e.username || ""} onChange={(x) => setE({ ...e, username: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50 col-span-2">Membership card no. (add when they buy membership)<input value={e.membershipCardNumber || ""} onChange={(x) => setE({ ...e, membershipCardNumber: x.target.value })} placeholder="e.g. RWG-00123" className={inp + " w-full"} /></label>
+            <div className="col-span-2"><span className="text-xs text-white/50">Reset password (leave blank to keep)</span><PasswordInput value={e.password || ""} onChange={(v) => setE({ ...e, password: v })} placeholder="New password" className={inp + " w-full"} /></div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-white/50">Credits (RP)<input type="number" value={e.credits} onChange={(x) => setE({ ...e, credits: x.target.value })} className={inp + " w-full"} /></label>
@@ -133,7 +137,7 @@ function EventRow({ ev, onSave, onDelete }: any) {
     <Card>
       <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Event title" className={inp + " w-full mb-2"} />
       <textarea value={e.body || ""} onChange={(x) => setE({ ...e, body: x.target.value })} placeholder="Details" rows={2} className={inp + " w-full mb-2"} />
-      <input value={e.imageUrl || ""} onChange={(x) => setE({ ...e, imageUrl: x.target.value })} placeholder="Image URL (optional)" className={inp + " w-full mb-2"} />
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Event image (optional)</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label="Upload image" /></div>
       <div className="flex items-center gap-3">
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> show at login</label>
@@ -154,7 +158,7 @@ function Logs() {
       {rows.map((l) => (
         <div key={l.id} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
           <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString()}</span></div>
-          <span className="text-white/40">{l.action} · {l.entityType} · by {l.adminUserId?.slice(0, 8)}</span>
+          <span className="text-white/40">{l.action} · {l.entityType} · by <span className="text-amber-300/80">{l.adminName || l.adminUserId?.slice(0, 8)}</span></span>
         </div>
       ))}
     </div>
@@ -184,7 +188,7 @@ function GiftRow({ g, onSave, onDelete }: any) {
         <input value={e.emoji || ""} onChange={(x) => setE({ ...e, emoji: x.target.value })} className={inp + " w-14 text-center"} />
         <input value={e.name} onChange={(x) => setE({ ...e, name: x.target.value })} placeholder="Gift name" className={inp + " flex-1"} />
       </div>
-      <input value={e.imageUrl || ""} onChange={(x) => setE({ ...e, imageUrl: x.target.value })} placeholder="Image URL (optional)" className={inp + " w-full mb-2"} />
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Gift image (optional — falls back to emoji)</p><ImageUpload value={e.imageUrl} onChange={(v) => setE({ ...e, imageUrl: v })} label="Upload image" /></div>
       <div className="flex flex-wrap gap-2 items-center">
         <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgoldCost} onChange={(x) => setE({ ...e, kgoldCost: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
         <select value={e.animation} onChange={(x) => setE({ ...e, animation: x.target.value })} className={inp}>{["pop", "float", "zoom", "rain"].map((a) => <option key={a} value={a}>{a}</option>)}</select>
@@ -247,7 +251,7 @@ function SongRow({ s, onSave, onDelete }: any) {
         <input value={e.artistPinyin || ""} onChange={(x) => setE({ ...e, artistPinyin: x.target.value })} placeholder="Singer pinyin" className={inp} />
       </div>
       <input value={e.spotifyUrl || ""} onChange={(x) => setE({ ...e, spotifyUrl: x.target.value })} placeholder="Spotify link" className={inp + " w-full mb-2"} />
-      <input value={e.artistPhoto || ""} onChange={(x) => setE({ ...e, artistPhoto: x.target.value })} placeholder="Singer photo URL" className={inp + " w-full mb-2"} />
+      <div className="mb-2"><p className="text-xs text-white/50 mb-1">Singer photo</p><ImageUpload value={e.artistPhoto} onChange={(v) => setE({ ...e, artistPhoto: v })} shape="circle" label="Upload photo" /></div>
       <label className="text-xs text-white/50 flex items-center gap-1 mb-2"><input type="checkbox" checked={e.isHit} onChange={(x) => setE({ ...e, isHit: x.target.checked })} /> hit song (Top list)</label>
       <div className="flex gap-2">
         <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
@@ -446,23 +450,24 @@ function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0 });
+  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "" });
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0 }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
     <div className="space-y-3">
       <Card>
         <p className="font-bold mb-2 flex items-center gap-2"><Package className="w-4 h-4 text-amber-300" /> Add product</p>
-        <input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="Name" className={inp + " w-full mb-2"} />
+        <label className="text-xs text-white/50 block mb-2">Product name<input value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} placeholder="e.g. Heineken" className={inp + " w-full"} /></label>
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Category" className={inp} />
-          <input type="number" value={n.stock} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} placeholder="Stock" className={inp} />
-          <input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} placeholder="Sell price (RP)" className={inp} />
-          <input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} placeholder="Unit cost (RP)" className={inp} />
+          <label className="text-xs text-white/50">Category<input value={n.category} onChange={(e) => setN({ ...n, category: e.target.value })} placeholder="Drinks" className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Stock quantity<input type="number" value={n.stock} onChange={(e) => setN({ ...n, stock: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+          <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
+        <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
       </Card>
       {products.map((p) => <ProductRow key={p.id} p={p} />)}
@@ -475,7 +480,7 @@ function ProductRow({ p }: any) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active });
+  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, imageUrl: p.imageUrl || "" });
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -485,6 +490,7 @@ function ProductRow({ p }: any) {
     <Card>
       {!edit ? (
         <div className="flex items-center gap-3">
+          {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />}
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>}</p>
             <p className="text-xs text-white/50">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
@@ -493,13 +499,14 @@ function ProductRow({ p }: any) {
         </div>
       ) : (
         <div>
-          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} />
+          <label className="text-xs text-white/50">Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp + " w-full mb-2"} /></label>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} placeholder="Category" className={inp} />
-            <label className="flex items-center gap-2 text-sm text-white/70"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
-            <input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} placeholder="Sell price" className={inp} />
-            <input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} placeholder="Unit cost" className={inp} />
+            <label className="text-xs text-white/50">Category<input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp + " w-full"} /></label>
+            <label className="flex items-center gap-2 text-sm text-white/70 mt-4"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active</label>
+            <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={f.cost} onChange={(e) => setF({ ...f, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
           </div>
+          <div className="mb-2"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={f.imageUrl} onChange={(v) => setF({ ...f, imageUrl: v })} label="Upload photo" /></div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => save.mutate()} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
             <button onClick={() => setEdit(false)} className={btnSm + " text-white/60"}><X className="w-4 h-4" /></button>

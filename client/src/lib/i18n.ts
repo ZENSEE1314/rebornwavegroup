@@ -53,6 +53,9 @@ export const translations: Translations = {
   'prof.memberCode': { en: 'Your member code', zh: '你的会员码', id: 'Kode anggota Anda' },
   'prof.saved': { en: 'Profile saved', zh: '资料已保存', id: 'Profil disimpan' },
   'prof.pwUpdated': { en: 'Password updated', zh: '密码已更新', id: 'Kata sandi diperbarui' },
+  'prof.username': { en: 'Username', zh: '用户名', id: 'Nama pengguna' },
+  'prof.membershipCard': { en: 'Membership card', zh: '会员卡', id: 'Kartu keanggotaan' },
+  'logout.confirm': { en: 'Are you sure you want to log out?', zh: '确定要退出登录吗？', id: 'Yakin ingin keluar?' },
   // Navigation & Common
   'nav.home': {
     en: 'Home',

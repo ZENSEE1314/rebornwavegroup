@@ -4,9 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  Home, PawPrint, Disc3, Headphones, Menu as MenuIcon, X, Gift, Coins,
-  Calendar, Trophy, Users, User, Music, LogOut, Shield, Sparkles, MessageCircle,
-  Utensils, Store,
+  Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
+  Calendar, Trophy, Users, User, Music, LogOut, Sparkles, MessageCircle,
+  Utensils,
 } from "lucide-react";
 
 interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; }
@@ -16,8 +16,10 @@ const MAIN_NAV: NavItem[] = [
   { label: "Pet", tkey: "nav.pet", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
   { label: "KOS", tkey: "nav.kos", icon: <Music className="w-5 h-5" />, path: "/kos" },
   { label: "Chat", tkey: "nav.chat", icon: <MessageCircle className="w-5 h-5" />, path: "/chat" },
+  { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
 
+// All features live on the home page grid; this list is still exported for reference.
 export const MENU_ITEMS: NavItem[] = [
   { label: "Pet Care", tkey: "nav.petCare", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
   { label: "Spin & Win", tkey: "nav.spin", icon: <Disc3 className="w-5 h-5" />, path: "/spin" },
@@ -36,15 +38,14 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const tokens = (user as any)?.tokens ?? 0;
 
   const logout = async () => {
     try { await apiRequest("POST", "/api/auth/logout"); } catch {}
     window.location.href = "/";
   };
-  const go = (p: string) => { setMenuOpen(false); navigate(p); };
+  const go = (p: string) => navigate(p);
 
   return (
     <div className="min-h-screen text-white" style={{ background: "radial-gradient(120% 100% at 50% 0%, #1a1030 0%, #0a0714 60%)" }}>
@@ -61,11 +62,9 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
             <Coins className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-bold text-amber-300">{tokens}</span>
           </div>
-          <button onClick={() => go("/profile")} aria-label="Profile" className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 max-w-[9rem]">
-            {(user as any)?.profileImageUrl
-              ? <img src={(user as any).profileImageUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
-              : <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-purple-500 flex items-center justify-center text-[11px] font-bold text-black">{((user as any)?.firstName || "U").slice(0, 1).toUpperCase()}</span>}
-            <span className="text-xs font-semibold text-white/80 truncate">{(user as any)?.firstName || "Profile"}</span>
+          <button onClick={() => setConfirmLogout(true)} aria-label={t("nav.logout")} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white">
+            <LogOut className="w-4 h-4" />
+            <span className="text-xs font-semibold">{t("nav.logout")}</span>
           </button>
         </div>
       </header>
@@ -85,45 +84,21 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
               </button>
             );
           })}
-          <button onClick={() => setMenuOpen(true)} className="flex flex-col items-center gap-1 py-2.5 text-white/50 hover:text-white/80">
-            <MenuIcon className="w-5 h-5" />
-            <span className="text-[11px] font-medium">{t("nav.menu")}</span>
-          </button>
         </div>
       </nav>
 
-      {/* Menu drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full sm:max-w-md bg-[#120c22] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">{t("nav.allFeatures")}</h3>
-              <button onClick={() => setMenuOpen(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
+      {/* Logout confirm */}
+      {confirmLogout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setConfirmLogout(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative w-full max-w-xs bg-[#160f2a] border border-white/10 rounded-3xl p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <span className="w-12 h-12 rounded-full bg-red-500/15 border border-red-400/30 flex items-center justify-center mx-auto mb-3"><LogOut className="w-5 h-5 text-red-300" /></span>
+            <h3 className="text-lg font-extrabold mb-1">{t("nav.logout")}?</h3>
+            <p className="text-sm text-white/50 mb-5">{t("logout.confirm")}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmLogout(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-semibold">{t("common.cancel")}</button>
+              <button onClick={logout} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold flex items-center justify-center gap-1.5"><LogOut className="w-4 h-4" /> {t("nav.logout")}</button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {MENU_ITEMS.map((it) => (
-                <button key={it.path} onClick={() => go(it.path)} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-300" style={{ background: "rgba(201,168,76,0.12)" }}>{it.icon}</span>
-                  <span className="text-xs text-center text-white/80 leading-tight">{t(it.tkey)}</span>
-                </button>
-              ))}
-              {isAdmin && (
-                <button onClick={() => go("/pos")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-amber-500/30 hover:bg-white/10">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-300" style={{ background: "rgba(201,168,76,0.15)" }}><Store className="w-5 h-5" /></span>
-                  <span className="text-xs text-center text-white/80">{t("nav.pos")}</span>
-                </button>
-              )}
-              {isAdmin && (
-                <button onClick={() => go("/reborn-admin")} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-white/10">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center text-purple-300" style={{ background: "rgba(168,85,247,0.15)" }}><Shield className="w-5 h-5" /></span>
-                  <span className="text-xs text-center text-white/80">{t("nav.admin")}</span>
-                </button>
-              )}
-            </div>
-            <button onClick={logout} className="mt-4 w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:text-white flex items-center justify-center gap-2">
-              <LogOut className="w-4 h-4" /> {t("nav.logout")}
-            </button>
           </div>
         </div>
       )}

@@ -125,7 +125,7 @@ function TablesTab() {
       <div className="rounded-2xl border border-white/10 bg-white/5 p-3 mb-4">
         <p className="font-bold mb-2 text-sm">Open a new table ticket</p>
         <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="Table number" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
-        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Member code / email (optional)" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code / card / username / email" className="w-full px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
         <button onClick={() => openTicket.mutate()} disabled={!table.trim() || openTicket.isPending} className="w-full py-2.5 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Open ticket</button>
       </div>
       <p className="text-xs text-white/40 px-1 mb-2">Open tickets — tap to add items or take payment</p>
@@ -188,7 +188,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
         )}
         {!order.memberName && (
           <div className="flex gap-2 mt-3">
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Tag member (code/email)" className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code / card / username / email" className="flex-1 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
             <button onClick={() => tagMember.mutate()} disabled={!code.trim() || tagMember.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><UserCheck className="w-4 h-4" /></button>
           </div>
         )}
@@ -238,7 +238,7 @@ function QuickSaleTab() {
           </div>
         ) : (
           <div className="flex gap-2">
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Member code / email (optional)" className="flex-1 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code / card / username / email" className="flex-1 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
             <button onClick={() => lookup.mutate()} disabled={!code.trim() || lookup.isPending} className="px-4 rounded-xl bg-white/10 disabled:opacity-50"><Search className="w-4 h-4" /></button>
           </div>
         )}

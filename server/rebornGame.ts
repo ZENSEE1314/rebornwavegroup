@@ -1018,11 +1018,11 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin: manage members (search, edit balances, change role)
-  const userCols = { id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phoneNumber: users.phoneNumber, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold, referralCode: users.referralCode };
+  const userCols = { id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phoneNumber: users.phoneNumber, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold, referralCode: users.referralCode, membershipCardNumber: users.membershipCardNumber };
   app.get("/api/reborn/admin/users", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
     const rows = q.length >= 1
-      ? await db.select(userCols).from(users).where(or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`), ilike(users.email, `%${q}%`))).limit(40)
+      ? await db.select(userCols).from(users).where(or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`))).orderBy(users.firstName).limit(40)
       : await db.select(userCols).from(users).orderBy(desc(users.createdAt)).limit(40);
     res.json(rows);
   }));
@@ -1039,6 +1039,8 @@ export function registerRebornRoutes(app: Express) {
     if (b.email !== undefined) patch.email = String(b.email).trim().toLowerCase() || null;
     if (b.firstName !== undefined) patch.firstName = b.firstName;
     if (b.lastName !== undefined) patch.lastName = b.lastName;
+    if (b.username !== undefined) patch.username = String(b.username).trim() || null;
+    if (b.membershipCardNumber !== undefined) patch.membershipCardNumber = String(b.membershipCardNumber).trim() || null;
     if (b.password) patch.password = await bcrypt.hash(String(b.password), 12);
     const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
     const changed = Object.keys(patch).filter((k) => k !== "updatedAt");
@@ -1052,6 +1054,14 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const patch: any = { updatedAt: new Date() };
     for (const k of ["firstName", "lastName", "phoneNumber", "profileImageUrl", "address", "country"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.username !== undefined) {
+      const uname = String(b.username).trim();
+      if (uname) {
+        const [taken] = await db.select({ id: users.id }).from(users).where(and(ilike(users.username, uname), sql`${users.id} <> ${userId}`)).limit(1);
+        if (taken) return res.status(400).json({ message: "That username is already taken" });
+      }
+      patch.username = uname || null;
+    }
     if (b.dateOfBirth !== undefined) patch.dateOfBirth = b.dateOfBirth ? new Date(b.dateOfBirth) : null;
     if (b.preferredLanguage !== undefined && ["en", "zh", "id"].includes(b.preferredLanguage)) patch.preferredLanguage = b.preferredLanguage;
     if (b.newPassword) {
@@ -1118,9 +1128,13 @@ export function registerRebornRoutes(app: Express) {
   }));
   app.delete("/api/reborn/admin/events/:id", requireStaff(async (req, res) => { await db.delete(events).where(eq(events.id, Number(req.params.id))); res.json({ message: "Deleted" }); }));
 
-  // Admin activity log (full admin only)
+  // Admin activity log (full admin only) — resolves which admin account did each action
   app.get("/api/reborn/admin/logs", requireAdmin(async (_req, res) => {
-    res.json(await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(200));
+    const rows = await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(200);
+    const adminIds = Array.from(new Set(rows.map((r) => r.adminUserId).filter(Boolean))) as string[];
+    const admins = adminIds.length ? await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email }).from(users).where(or(...adminIds.map((i) => eq(users.id, i)))) : [];
+    const nameOf = new Map(admins.map((a) => [a.id, [a.firstName, a.lastName].filter(Boolean).join(" ") || a.username || a.email || a.id]));
+    res.json(rows.map((r) => ({ ...r, adminName: nameOf.get(r.adminUserId) || r.adminUserId })));
   }));
 
   // Admin support: list open tickets + reply as staff
@@ -1205,10 +1219,10 @@ export function registerRebornRoutes(app: Express) {
     const code = String(req.params.code || "").trim();
     if (!code) return res.status(400).json({ message: "Enter a member code" });
     const [u] = await db.select().from(users).where(
-      or(ilike(users.referralCode, code), ilike(users.email, code), eq(users.phoneNumber, code))
+      or(ilike(users.referralCode, code), ilike(users.membershipCardNumber, code), ilike(users.username, code), ilike(users.email, code), eq(users.phoneNumber, code), eq(users.id, code))
     ).limit(1);
     if (!u) return res.status(404).json({ message: "Member not found" });
-    res.json({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email, code: u.referralCode, credits: u.credits, loyaltyPoints: u.loyaltyPoints, tokens: u.tokens });
+    res.json({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, code: u.referralCode, membershipCardNumber: u.membershipCardNumber, credits: u.credits, loyaltyPoints: u.loyaltyPoints, tokens: u.tokens });
   }));
 
   // Deduct stock for a set of items, append them to an order, and re-total the ticket.
@@ -1243,7 +1257,8 @@ export function registerRebornRoutes(app: Express) {
   }
   async function findMemberByCode(code: string) {
     if (!code?.trim()) return null;
-    const [u] = await db.select().from(users).where(or(ilike(users.referralCode, code.trim()), ilike(users.email, code.trim()))).limit(1);
+    const c = code.trim();
+    const [u] = await db.select().from(users).where(or(ilike(users.referralCode, c), ilike(users.membershipCardNumber, c), ilike(users.username, c), ilike(users.email, c), eq(users.id, c))).limit(1);
     return u || null;
   }
   const memberTag = (u: any) => u ? { memberId: u.id, memberCode: u.referralCode, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email } : {};
