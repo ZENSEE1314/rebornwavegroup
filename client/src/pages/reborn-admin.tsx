@@ -126,18 +126,20 @@ function Prizes() {
   const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/prizes", { label: "New prize", prizeType: "item", weight: 10 }).then((r) => r.json()), onSuccess: inv });
   const save = useMutation({ mutationFn: (p: any) => apiRequest("PUT", `/api/reborn/admin/prizes/${p.id}`, p).then((r) => r.json()), onSuccess: () => { toast({ title: "Saved" }); inv(); } });
   const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/prizes/${id}`), onSuccess: inv });
+  const totalWeight = prizes.reduce((s, p) => s + (p.active ? Number(p.weight) || 0 : 0), 0) || 1;
   return (
     <div>
       <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Add prize</button>
       <div className="space-y-3">
-        {prizes.map((p) => <PrizeRow key={p.id} p={p} onSave={save.mutate} onDelete={del.mutate} />)}
+        {prizes.map((p) => <PrizeRow key={p.id} p={p} totalWeight={totalWeight} onSave={save.mutate} onDelete={del.mutate} />)}
       </div>
-      <p className="text-xs text-white/40 mt-3">Weight = chance (higher wins more often). Type: item, voucher_percent, voucher_amount, egg, free_spin, nothing.</p>
+      <p className="text-xs text-white/40 mt-3">Win rate = the chance each prize is won (higher = more often). Set big prizes low so members can't keep winning them. Types: item, voucher_percent, voucher_amount, egg, free_spin, nothing.</p>
     </div>
   );
 }
-function PrizeRow({ p, onSave, onDelete }: any) {
+function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
   const [e, setE] = useState(p);
+  const pct = e.active ? Math.round(((Number(e.weight) || 0) / totalWeight) * 100) : 0;
   return (
     <Card>
       <div className="flex flex-wrap gap-2 items-center">
@@ -149,7 +151,8 @@ function PrizeRow({ p, onSave, onDelete }: any) {
           {["item", "voucher_percent", "voucher_amount", "egg", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <label className="text-xs text-white/50">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
-        <label className="text-xs text-white/50">weight<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
+        <label className="text-xs text-white/50">win rate<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
+        <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
         <button onClick={() => onSave(e)} className={btnSm}><Check className="w-4 h-4" /></button>
         <button onClick={() => onDelete(p.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>

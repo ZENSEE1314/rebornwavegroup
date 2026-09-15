@@ -18,6 +18,12 @@ const FEEDS_PER_DAY = 3;
 const EGG_HATCH_DAYS = 15;
 const SPIN_COST = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_PETS = 2;                 // living pets a member can hold at once
+const DECAY_PER_MIN = 100 / 240;    // stats fall 100 → 0 over 4 hours
+const ENERGY_REGEN_PER_MIN = 0.1;   // sleeping: +1 energy per 10 min
+const ACTION_ENERGY_COST = 10;      // feed/play/clean each cost energy
+const STAT_GAIN = 30;               // each action raises its bar by 30%
+const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
 // Day string in Indonesia time (WIB, UTC+7) so daily resets align with the club.
 function wibDay(d: Date = new Date()): string {
@@ -40,26 +46,41 @@ function requireAdmin(handler: (req: Request, res: Response) => Promise<any>) {
   };
 }
 
-// Resolve a pet's live status, hatching eggs and marking expired pets sick (persisted).
+// Resolve a pet's live state: hatch eggs, mark expired pets sick, and apply
+// Tamagotchi stat decay (hunger/joy/cleanliness fall to 0 over 4h; energy
+// regenerates while sleeping, otherwise decays). Persists the computed values.
 async function refreshPet(pet: any) {
   const now = new Date();
-  // Hatch eggs
   if (pet.isEgg) {
     if (pet.hatchAt && new Date(pet.hatchAt).getTime() <= now.getTime()) {
-      await db.update(pets).set({
+      const patch = {
         isEgg: false, name: "Doluruu", activatedAt: now, expiresAt: addDays(LIFE_DAYS, now),
-        lifeStatus: "active", feedsToday: 0, lastFeedDay: null, updatedAt: now,
-      }).where(eq(pets.id, pet.id));
-      return { ...pet, isEgg: false, activatedAt: now, expiresAt: addDays(LIFE_DAYS, now), lifeStatus: "active" };
+        lifeStatus: "active", feedsToday: 0, lastFeedDay: null,
+        hunger: 70, happiness: 70, cleanliness: 70, energy: 70, isSleeping: false,
+        lastDecayTime: now, updatedAt: now,
+      };
+      await db.update(pets).set(patch).where(eq(pets.id, pet.id));
+      return { ...pet, ...patch };
     }
     return pet;
   }
-  // Mark sick when the 15-day window has passed
-  if (pet.expiresAt && new Date(pet.expiresAt).getTime() < now.getTime() && pet.lifeStatus === "active") {
-    await db.update(pets).set({ lifeStatus: "sick", updatedAt: now }).where(eq(pets.id, pet.id));
-    return { ...pet, lifeStatus: "sick" };
+
+  let lifeStatus = pet.lifeStatus || "active";
+  if (pet.expiresAt && new Date(pet.expiresAt).getTime() < now.getTime() && lifeStatus === "active") lifeStatus = "sick";
+
+  const anchor = pet.lastDecayTime ? new Date(pet.lastDecayTime) : new Date(pet.updatedAt || now);
+  const mins = Math.max(0, (now.getTime() - anchor.getTime()) / 60000);
+  let hunger = pet.hunger ?? 60, happiness = pet.happiness ?? 60, cleanliness = pet.cleanliness ?? 60, energy = pet.energy ?? 60;
+  if (mins >= 1) {
+    hunger = clamp(hunger - mins * DECAY_PER_MIN);
+    happiness = clamp(happiness - mins * DECAY_PER_MIN);
+    cleanliness = clamp(cleanliness - mins * DECAY_PER_MIN);
+    energy = pet.isSleeping ? clamp(energy + mins * ENERGY_REGEN_PER_MIN) : clamp(energy - mins * DECAY_PER_MIN);
+    await db.update(pets).set({ hunger, happiness, cleanliness, energy, lifeStatus, lastDecayTime: now, updatedAt: now }).where(eq(pets.id, pet.id));
+  } else if (lifeStatus !== pet.lifeStatus) {
+    await db.update(pets).set({ lifeStatus, updatedAt: now }).where(eq(pets.id, pet.id));
   }
-  return pet;
+  return { ...pet, hunger, happiness, cleanliness, energy, lifeStatus };
 }
 
 function petView(pet: any) {
@@ -68,12 +89,12 @@ function petView(pet: any) {
   const tokenEarnedToday = pet.lastTokenClaim ? wibDay(new Date(pet.lastTokenClaim)) === today : false;
   return {
     id: pet.id, name: pet.name, gender: pet.gender,
-    isEgg: pet.isEgg, lifeStatus: pet.lifeStatus,
+    isEgg: pet.isEgg, lifeStatus: pet.lifeStatus, isSleeping: !!pet.isSleeping,
     hatchDaysLeft: pet.isEgg ? daysLeft(pet.hatchAt) : 0,
     daysLeft: pet.isEgg ? 0 : daysLeft(pet.expiresAt),
-    happiness: pet.happiness, hunger: pet.hunger, cleanliness: pet.cleanliness, energy: pet.energy,
-    feedsToday, feedsNeeded: FEEDS_PER_DAY,
-    tokenEarnedToday,
+    happiness: clamp(pet.happiness ?? 60), hunger: clamp(pet.hunger ?? 60),
+    cleanliness: clamp(pet.cleanliness ?? 60), energy: clamp(pet.energy ?? 60),
+    feedsToday, feedsNeeded: FEEDS_PER_DAY, tokenEarnedToday,
     canFeed: !pet.isEgg && pet.lifeStatus === "active" && feedsToday < FEEDS_PER_DAY,
     totalTokensEarned: pet.totalTokensEarned || 0,
   };
@@ -135,6 +156,8 @@ export function registerRebornRoutes(app: Express) {
       const [row] = await db.select().from(activationCodes).where(eq(activationCodes.code, code));
       if (!row) return res.status(404).json({ message: "Code not found. Check the code on your package." });
       if (row.used) return res.status(400).json({ message: "This code has already been used." });
+      const living = await db.select({ id: pets.id }).from(pets).where(and(eq(pets.userId, userId), eq(pets.isActive, true), sql`${pets.lifeStatus} != 'dead'`));
+      if (living.length >= MAX_PETS) return res.status(400).json({ message: `You can only have ${MAX_PETS} pets at a time.` });
       const now = new Date();
       const [pet] = await db.insert(pets).values({
         userId, toyId: 0, name: row.petName || "Doluruu", type: "virtual",
@@ -188,6 +211,52 @@ export function registerRebornRoutes(app: Express) {
         tokenAwarded, pet: petView(fresh),
       });
     } catch (e) { console.error("reborn feed", e); res.status(500).json({ message: "Feeding failed" }); }
+  });
+
+  app.post("/api/reborn/action", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const petId = Number(req.body?.petId);
+      const action = String(req.body?.action || "");
+      const [petRow] = await db.select().from(pets).where(and(eq(pets.id, petId), eq(pets.userId, userId)));
+      if (!petRow) return res.status(404).json({ message: "Pet not found" });
+      const pet = await refreshPet(petRow);
+      if (pet.isEgg) return res.status(400).json({ message: "This is still an egg — it needs to hatch first." });
+      if (pet.lifeStatus !== "active") return res.status(400).json({ message: "Your pet is sick. Get a revival pill from staff after a 300,000 RP visit." });
+
+      const now = new Date(); const today = wibDay();
+      let hunger = pet.hunger, happiness = pet.happiness, cleanliness = pet.cleanliness, energy = pet.energy;
+      const update: any = { updatedAt: now, lastDecayTime: now, isSleeping: false };
+      let tokenAwarded = false; let message = "";
+
+      if (action === "sleep") {
+        update.isSleeping = true; update.sleepStartTime = now;
+        message = "Zzz… your pet is sleeping and will regain energy over time.";
+      } else if (action === "feed" || action === "play" || action === "clean") {
+        if (energy <= 0) return res.status(400).json({ message: "Too tired! Tap Sleep to recover energy first." });
+        energy = clamp(energy - ACTION_ENERGY_COST);
+        if (action === "feed") {
+          hunger = clamp(hunger + STAT_GAIN);
+          let feeds = pet.lastFeedDay === today ? (pet.feedsToday || 0) : 0;
+          feeds += 1; update.feedsToday = feeds; update.lastFeedDay = today; update.lastFedAt = now;
+          const earnedToday = pet.lastTokenClaim ? wibDay(new Date(pet.lastTokenClaim)) === today : false;
+          if (feeds >= FEEDS_PER_DAY && !earnedToday) {
+            update.lastTokenClaim = now; update.totalTokensEarned = (pet.totalTokensEarned || 0) + 1;
+            await db.update(users).set({ tokens: sql`${users.tokens} + 1`, updatedAt: now }).where(eq(users.id, userId));
+            await db.insert(tokenTransactions).values({ userId, tokens: 1, type: "earned", status: "completed", description: `Daily care token from ${pet.name}`, relatedId: pet.id });
+            tokenAwarded = true;
+          }
+          message = tokenAwarded ? "Full belly! You earned 1 token 🎉" : "Yum! Hunger +30";
+        } else if (action === "play") { happiness = clamp(happiness + STAT_GAIN); message = "So much fun! Joy +30"; }
+        else { cleanliness = clamp(cleanliness + STAT_GAIN); message = "Squeaky clean! +30"; }
+      } else {
+        return res.status(400).json({ message: "Unknown action" });
+      }
+      update.hunger = hunger; update.happiness = happiness; update.cleanliness = cleanliness; update.energy = energy;
+      await db.update(pets).set(update).where(eq(pets.id, petId));
+      const [fresh] = await db.select().from(pets).where(eq(pets.id, petId));
+      res.json({ message, tokenAwarded, pet: petView(fresh) });
+    } catch (e) { console.error("reborn action", e); res.status(500).json({ message: "Action failed" }); }
   });
 
   app.post("/api/reborn/use-pill", requireAuth, async (req, res) => {
@@ -258,7 +327,7 @@ export function registerRebornRoutes(app: Express) {
           hatchAt: addDays(EGG_HATCH_DAYS, now), lifeStatus: "active",
         });
       } else if (picked.prizeType !== "nothing") {
-        status = "pending"; // redeemable prize awaiting admin confirmation
+        status = "unused"; // won; member must "Use" it (max 1 per 24h) before staff confirm
       }
 
       const [result] = await db.insert(spinResults).values({
@@ -287,15 +356,37 @@ export function registerRebornRoutes(app: Express) {
     } catch { res.json([]); }
   });
 
-  // My redeemable prizes (pending confirmation or redeemed)
+  // My redeemable prizes + whether the once-per-24h "use" is available
   app.get("/api/reborn/prizes", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
       const rows = await db.select().from(spinResults)
-        .where(and(eq(spinResults.userId, userId), sql`${spinResults.status} in ('pending','redeemed')`))
+        .where(and(eq(spinResults.userId, userId), sql`${spinResults.status} in ('unused','redeeming','redeemed')`))
         .orderBy(desc(spinResults.createdAt));
-      res.json(rows);
-    } catch { res.json([]); }
+      const last = rows.filter((r) => r.redeemedAt).sort((a, b) => new Date(b.redeemedAt!).getTime() - new Date(a.redeemedAt!).getTime())[0];
+      const lastUsedMs = last?.redeemedAt ? new Date(last.redeemedAt).getTime() : 0;
+      const cooldownLeftMs = Math.max(0, lastUsedMs + DAY_MS - Date.now());
+      res.json({ prizes: rows, canUseNow: cooldownLeftMs === 0, cooldownHoursLeft: Math.ceil(cooldownLeftMs / (60 * 60 * 1000)) });
+    } catch { res.json({ prizes: [], canUseNow: true, cooldownHoursLeft: 0 }); }
+  });
+
+  // Use a prize (max 1 per 24 hours) → goes to staff for confirmation
+  app.post("/api/reborn/prizes/:id/use", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req)!;
+      const id = Number(req.params.id);
+      const [prize] = await db.select().from(spinResults).where(and(eq(spinResults.id, id), eq(spinResults.userId, userId)));
+      if (!prize) return res.status(404).json({ message: "Prize not found" });
+      if (prize.status !== "unused") return res.status(400).json({ message: "This prize can't be used." });
+      const recent = await db.select().from(spinResults).where(and(eq(spinResults.userId, userId), sql`${spinResults.status} in ('redeeming','redeemed')`, sql`${spinResults.redeemedAt} > ${new Date(Date.now() - DAY_MS)}`));
+      if (recent.length > 0) {
+        const last = recent.sort((a, b) => new Date(b.redeemedAt!).getTime() - new Date(a.redeemedAt!).getTime())[0];
+        const hrs = Math.ceil((new Date(last.redeemedAt!).getTime() + DAY_MS - Date.now()) / (60 * 60 * 1000));
+        return res.status(400).json({ message: `You can only use 1 prize per day. Try again in ~${hrs}h.` });
+      }
+      const [row] = await db.update(spinResults).set({ status: "redeeming", redeemedAt: new Date() }).where(eq(spinResults.id, id)).returning();
+      res.json({ message: "Prize activated! Show it to staff to receive it.", prize: row });
+    } catch (e) { console.error("use prize", e); res.status(500).json({ message: "Failed" }); }
   });
 
   // ── Support + FAQ ────────────────────────────────────────────────────────
@@ -576,7 +667,7 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   app.get("/api/reborn/admin/redemptions", requireAdmin(async (_req, res) => {
-    const rows = await db.select().from(spinResults).where(eq(spinResults.status, "pending")).orderBy(desc(spinResults.createdAt)).limit(200);
+    const rows = await db.select().from(spinResults).where(eq(spinResults.status, "redeeming")).orderBy(desc(spinResults.createdAt)).limit(200);
     res.json(rows);
   }));
   app.post("/api/reborn/admin/redemptions/:id", requireAdmin(async (req, res) => {

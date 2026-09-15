@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { RebornLayout } from "@/components/RebornLayout";
@@ -93,7 +93,7 @@ export default function RebornSpin() {
                 <div className="text-5xl mb-3">{result.prize?.prizeType === "nothing" ? "🎯" : result.freeSpin ? "🔄" : result.prize?.prizeType === "egg" ? "🥚" : "🎉"}</div>
                 <h3 className="text-xl font-extrabold mb-1">{result.prize?.label}</h3>
                 <p className="text-white/60 text-sm">{result.message}</p>
-                {result.status === "pending" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">Saved to “My Prizes” — claim it at the club.</p>}
+                {result.status === "unused" && <p className="mt-3 text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3">Saved to “My Prizes”. Tap “Use” there when you're at the club — 1 prize per day.</p>}
                 {result.freeSpin ? (
                   <button onClick={() => { setResult(null); doSpin(); }} className="mt-4 w-full py-3 rounded-xl font-bold text-black" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Spin again free</button>
                 ) : (
@@ -149,13 +149,21 @@ function Wheel({ prizes, rotation, spinning }: { prizes: any[]; rotation: number
 }
 
 function MyPrizes() {
-  const { data: prizes = [] } = useQuery<any[]>({
+  const qc = useQueryClient();
+  const { data } = useQuery<{ prizes: any[]; canUseNow: boolean; cooldownHoursLeft: number }>({
     queryKey: ["/api/reborn/prizes"],
     queryFn: () => apiRequest("GET", "/api/reborn/prizes").then((r) => r.json()),
   });
+  const use = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/prizes/${id}/use`).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/prizes"] }),
+  });
+  const prizes = data?.prizes || [];
+  const canUseNow = data?.canUseNow ?? true;
   if (prizes.length === 0) return <Empty icon={<Gift className="w-10 h-10" />} text="No prizes yet. Spin the wheel to win!" />;
   return (
     <div className="space-y-2">
+      {!canUseNow && <p className="text-xs text-amber-300 bg-amber-400/10 rounded-xl py-2 px-3 mb-1">You can use 1 prize per day — next in ~{data?.cooldownHoursLeft}h.</p>}
       {prizes.map((p) => (
         <div key={p.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(201,168,76,0.15)" }}><Gift className="w-5 h-5 text-amber-300" /></span>
@@ -163,9 +171,9 @@ function MyPrizes() {
             <p className="font-semibold truncate">{p.prizeLabel}</p>
             <p className="text-xs text-white/40">{new Date(p.createdAt).toLocaleDateString()}</p>
           </div>
-          {p.status === "redeemed"
-            ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-3 h-3" /> Claimed</span>
-            : <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300"><Clock className="w-3 h-3" /> Claim at club</span>}
+          {p.status === "redeemed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-3 h-3" /> Claimed</span>
+            : p.status === "redeeming" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-400"><Clock className="w-3 h-3" /> With staff</span>
+            : <button onClick={() => use.mutate(p.id)} disabled={!canUseNow || use.isPending} className="px-4 py-2 rounded-full text-xs font-bold text-black disabled:opacity-40" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Use</button>}
         </div>
       ))}
     </div>
