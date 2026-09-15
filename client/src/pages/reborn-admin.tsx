@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +21,7 @@ export default function RebornAdmin() {
     <RebornLayout active="/reborn-admin" title="ADMIN">
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[80px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[t]}{t}</button>
         ))}
       </div>
       {tab === "Overview" && <Overview onGo={setTab} />}
@@ -69,6 +69,15 @@ function Broadcast() {
   );
 }
 
+const TAB_ICON: Record<string, JSX.Element> = {
+  Overview: <LayoutGrid className="w-4 h-4" />, Requests: <Music2 className="w-4 h-4" />, Redemptions: <Gift className="w-4 h-4" />,
+  "Top-ups": <Coins className="w-4 h-4" />, Codes: <Ticket className="w-4 h-4" />, Pills: <Pill className="w-4 h-4" />,
+  Songs: <Music2 className="w-4 h-4" />, Events: <Megaphone className="w-4 h-4" />, Broadcast: <Send className="w-4 h-4" />,
+  Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
+  Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
+  Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
+};
+
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
@@ -97,7 +106,9 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
       <p className="text-xs text-white/40 mb-2 px-1">Open a section</p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((t) => t !== "Overview").map((t) => (
-          <button key={t} onClick={() => onGo(t)} className="py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white/70 hover:bg-white/10">{t}</button>
+          <button key={t} onClick={() => onGo(t)} className="py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-1.5">
+            <span className="text-amber-300">{TAB_ICON[t]}</span>{t}
+          </button>
         ))}
       </div>
     </div>
