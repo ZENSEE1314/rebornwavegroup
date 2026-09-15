@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { RebornLayout, MENU_ITEMS } from "@/components/RebornLayout";
 import { OnboardingWalkthrough } from "@/components/OnboardingWalkthrough";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
-  Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight,
+  Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
 } from "lucide-react";
 
 const TILES = [
@@ -28,15 +29,20 @@ function formatRp(n: number) { return "RP " + (n || 0).toLocaleString("en-US"); 
 export default function RebornDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const isAdmin = (user as any)?.role === "admin";
+  const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
   const [showTour, setShowTour] = useState(() => {
     try { return !localStorage.getItem("onboarding-completed"); } catch { return true; }
   });
   const closeTour = () => { try { localStorage.setItem("onboarding-completed", "true"); } catch {} setShowTour(false); };
+  const [showTopup, setShowTopup] = useState(false);
 
   const { data: pets = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/pets"],
     queryFn: () => apiRequest("GET", "/api/reborn/pets").then((r) => r.json()),
+  });
+  const { data: events = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/events"],
+    queryFn: () => apiRequest("GET", "/api/reborn/events").then((r) => r.json()),
   });
   const livePet = pets.find((p) => !p.isEgg && p.lifeStatus === "active");
   const firstName = (user as any)?.firstName || "there";
@@ -62,7 +68,27 @@ export default function RebornDashboard() {
             </div>
           ))}
         </div>
+        <button onClick={() => setShowTopup(true)} className="mt-3 w-full py-2.5 rounded-xl font-bold text-black flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>
+          <Plus className="w-4 h-4" /> Top up RP credits
+        </button>
       </div>
+
+      {/* Events */}
+      {events.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {events.map((ev) => (
+            <div key={ev.id} className="rounded-2xl border border-amber-400/25 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(201,168,76,0.18), rgba(236,72,153,0.12))" }}>
+              {ev.imageUrl && <img src={ev.imageUrl} alt="" className="w-full h-32 object-cover" />}
+              <div className="p-4">
+                <p className="font-bold flex items-center gap-2"><Megaphone className="w-4 h-4 text-amber-300" /> {ev.title}</p>
+                {ev.body && <p className="text-sm text-white/70 mt-1 whitespace-pre-line">{ev.body}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showTopup && <TopupModal onClose={() => setShowTopup(false)} />}
 
       {/* Pet quick status / CTA */}
       <button onClick={() => navigate("/pet")} className="w-full rounded-2xl p-4 mb-4 border border-white/10 bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-3 text-left">
@@ -109,5 +135,44 @@ export default function RebornDashboard() {
         <HelpCircle className="w-4 h-4" /> How it all works — replay the guide
       </button>
     </RebornLayout>
+  );
+}
+
+function TopupModal({ onClose }: { onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [amount, setAmount] = useState(100000);
+  const [method, setMethod] = useState("bank_transfer");
+  const submit = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/topup", { amount, paymentMethod: method }).then((r) => r.json()),
+    onSuccess: (d) => { toast({ title: "Request sent", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/topup/mine"] }); onClose(); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const { data: mine = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/topup/mine"], queryFn: () => apiRequest("GET", "/api/reborn/topup/mine").then((r) => r.json()), refetchInterval: 12000 });
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="relative w-full sm:max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><X className="w-4 h-4" /></button>
+        <h3 className="text-xl font-extrabold mb-1">Top up RP</h3>
+        <p className="text-sm text-white/60 mb-4">Request to add RP credits (use them to buy KGOLD or pay in-app). Staff will confirm your payment.</p>
+        <label className="text-xs text-white/60 block mb-1">Amount (RP)</label>
+        <input type="number" min={10000} step={10000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-3" />
+        <label className="text-xs text-white/60 block mb-1">Payment method</label>
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-4">
+          <option value="bank_transfer">Bank transfer</option><option value="cash_deposit">Cash at club</option><option value="paypal">PayPal</option>
+        </select>
+        <button onClick={() => submit.mutate()} disabled={submit.isPending || amount < 10000} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Send request</button>
+        {mine.length > 0 && (
+          <div className="mt-4 space-y-1">
+            <p className="text-xs text-white/40">Recent requests</p>
+            {mine.slice(0, 4).map((r) => (
+              <div key={r.id} className="flex justify-between text-xs"><span>RP {Number(r.amount).toLocaleString()}</span>
+                <span className={r.status === "approved" ? "text-emerald-400" : r.status === "rejected" ? "text-red-400" : "text-amber-300"}>{r.status}</span></div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

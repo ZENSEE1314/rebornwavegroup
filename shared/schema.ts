@@ -606,6 +606,19 @@ export const songRequests = pgTable("song_requests", {
   adminId: varchar("admin_id"),
 });
 
+// Admin-posted events shown on the homepage / at login
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  title: varchar("title").notNull(),
+  body: text("body"),
+  imageUrl: varchar("image_url"),
+  showOnLogin: boolean("show_on_login").default(true),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // FAQ / auto-reply knowledge base for Support
 export const faqItems = pgTable("faq_items", {
   id: serial("id").primaryKey(),

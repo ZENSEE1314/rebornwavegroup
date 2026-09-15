@@ -8,7 +8,7 @@ import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
-  appSettings, kosGiftTypes,
+  appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -76,6 +76,31 @@ function requireAdmin(handler: (req: Request, res: Response) => Promise<any>) {
     if (!(await isAdmin(uid))) return res.status(403).json({ message: "Admin only" });
     return handler(req, res);
   };
+}
+// Staff (sub-admin) OR full admin — for day-to-day approvals
+async function isStaff(userId: string | null): Promise<boolean> {
+  if (!userId) return false;
+  const u = await storage.getUser(userId);
+  return u?.role === "admin" || u?.role === "staff";
+}
+function requireStaff(handler: (req: Request, res: Response) => Promise<any>) {
+  return async (req: Request, res: Response) => {
+    const uid = getUserId(req);
+    if (!(await isStaff(uid))) return res.status(403).json({ message: "Staff only" });
+    return handler(req, res);
+  };
+}
+// Audit log: who did what
+async function logAdmin(req: Request, o: { targetUserId?: string; targetType: string; targetId?: string; action: string; entityType: string; oldValues?: any; newValues?: any; description: string }) {
+  try {
+    await db.insert(adminLogs).values({
+      adminUserId: getUserId(req)!, targetUserId: o.targetUserId || null, targetType: o.targetType,
+      targetId: o.targetId ? String(o.targetId) : null, action: o.action, entityType: o.entityType,
+      oldValues: o.oldValues ?? null, newValues: o.newValues ?? null, description: o.description,
+      ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.ip || null,
+      userAgent: req.headers["user-agent"] || null,
+    });
+  } catch (e) { console.error("logAdmin", e); }
 }
 
 // Resolve a pet's live state: hatch eggs, mark expired pets sick, and apply
@@ -815,7 +840,7 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── Admin ────────────────────────────────────────────────────────────────
-  app.post("/api/reborn/admin/codes", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/codes", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const count = Math.min(200, Math.max(1, Number(req.body?.count) || 1));
     const gender = req.body?.gender === "female" ? "female" : "male";
@@ -825,19 +850,21 @@ export function registerRebornRoutes(app: Express) {
       await db.insert(activationCodes).values({ code, petGender: gender, createdBy: adminId });
       made.push(code);
     }
+    await logAdmin(req, { targetType: "activation_code", action: "create", entityType: "activation_code", description: `Generated ${count} ${gender} pet code(s)` });
     res.json({ codes: made });
   }));
 
-  app.get("/api/reborn/admin/codes", requireAdmin(async (_req, res) => {
+  app.get("/api/reborn/admin/codes", requireStaff(async (_req, res) => {
     const rows = await db.select().from(activationCodes).orderBy(desc(activationCodes.createdAt)).limit(300);
     res.json(rows);
   }));
 
-  app.post("/api/reborn/admin/grant-pill", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/grant-pill", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const targetUserId = String(req.body?.userId || "");
     if (!targetUserId) return res.status(400).json({ message: "userId required" });
     await db.insert(petPills).values({ userId: targetUserId, grantedBy: adminId, note: req.body?.note || "300,000 RP visit reward" });
+    await logAdmin(req, { targetUserId, targetType: "user", action: "create", entityType: "pill", description: `Granted a revival pill to ${targetUserId}` });
     res.json({ message: "Pill granted" });
   }));
 
@@ -869,17 +896,18 @@ export function registerRebornRoutes(app: Express) {
     res.json({ message: "Deleted" });
   }));
 
-  app.get("/api/reborn/admin/redemptions", requireAdmin(async (_req, res) => {
+  app.get("/api/reborn/admin/redemptions", requireStaff(async (_req, res) => {
     const rows = await db.select().from(spinResults).where(eq(spinResults.status, "redeeming")).orderBy(desc(spinResults.createdAt)).limit(200);
     res.json(rows);
   }));
-  app.post("/api/reborn/admin/redemptions/:id", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/redemptions/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const id = Number(req.params.id);
     const approve = req.body?.approve !== false;
     const [row] = await db.update(spinResults).set({
       status: approve ? "redeemed" : "rejected", redeemedAt: new Date(), adminId,
     }).where(eq(spinResults.id, id)).returning();
+    await logAdmin(req, { targetUserId: row?.userId, targetType: "prize", targetId: id, action: approve ? "approve" : "reject", entityType: "redemption", description: `${approve ? "Approved" : "Rejected"} prize "${row?.prizeLabel}"` });
     res.json(row);
   }));
 
@@ -911,17 +939,18 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Admin: song requests + song library
-  app.get("/api/reborn/admin/song-requests", requireAdmin(async (_req, res) => {
+  app.get("/api/reborn/admin/song-requests", requireStaff(async (_req, res) => {
     const rows = await db.select().from(songRequests).where(eq(songRequests.status, "pending")).orderBy(desc(songRequests.createdAt)).limit(200);
     res.json(rows);
   }));
-  app.post("/api/reborn/admin/song-requests/:id", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const approve = req.body?.approve !== false;
     const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId }).where(eq(songRequests.id, Number(req.params.id))).returning();
+    await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"` });
     res.json(row);
   }));
-  app.post("/api/reborn/admin/songs", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/songs", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!; const b = req.body || {};
     const [row] = await db.insert(songs).values({
       title: b.title || "New song", artist: b.artist || "", spotifyUrl: b.spotifyUrl || null,
@@ -929,7 +958,7 @@ export function registerRebornRoutes(app: Express) {
     }).returning();
     res.json(row);
   }));
-  app.put("/api/reborn/admin/songs/:id", requireAdmin(async (req, res) => {
+  app.put("/api/reborn/admin/songs/:id", requireStaff(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
     for (const k of ["title", "artist", "spotifyUrl", "artistPhoto"]) if (b[k] !== undefined) patch[k] = b[k];
     if (b.isHit !== undefined) patch.isHit = !!b.isHit;
@@ -937,7 +966,7 @@ export function registerRebornRoutes(app: Express) {
     const [row] = await db.update(songs).set(patch).where(eq(songs.id, id)).returning();
     res.json(row);
   }));
-  app.delete("/api/reborn/admin/songs/:id", requireAdmin(async (req, res) => {
+  app.delete("/api/reborn/admin/songs/:id", requireStaff(async (req, res) => {
     await db.delete(songs).where(eq(songs.id, Number(req.params.id)));
     res.json({ message: "Deleted" });
   }));
@@ -983,17 +1012,93 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
 
+  // Admin: manage members (search, edit balances, change role)
+  const userCols = { id: users.id, firstName: users.firstName, username: users.username, email: users.email, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold };
+  app.get("/api/reborn/admin/users", requireStaff(async (req, res) => {
+    const q = String(req.query.q || "").trim();
+    const rows = q.length >= 1
+      ? await db.select(userCols).from(users).where(or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`), ilike(users.email, `%${q}%`))).limit(40)
+      : await db.select(userCols).from(users).orderBy(desc(users.createdAt)).limit(40);
+    res.json(rows);
+  }));
+  app.post("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
+    const id = req.params.id; const b = req.body || {};
+    const [old] = await db.select().from(users).where(eq(users.id, id));
+    if (!old) return res.status(404).json({ message: "User not found" });
+    const patch: any = { updatedAt: new Date() };
+    if (b.credits !== undefined) patch.credits = String(Number(b.credits));
+    if (b.loyaltyPoints !== undefined) patch.loyaltyPoints = Number(b.loyaltyPoints);
+    if (b.tokens !== undefined) patch.tokens = Number(b.tokens);
+    if (b.kgold !== undefined) patch.kgold = Number(b.kgold);
+    if (b.role !== undefined && ["admin", "staff", "user"].includes(b.role)) patch.role = b.role;
+    const [row] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
+    await logAdmin(req, { targetUserId: id, targetType: "user", action: "update", entityType: "profile", oldValues: { credits: old.credits, loyaltyPoints: old.loyaltyPoints, tokens: old.tokens, kgold: old.kgold, role: old.role }, newValues: patch, description: `Edited member ${old.username || old.email || id}` });
+    res.json(row);
+  }));
+
+  // Member RP top-up requests (approved by staff/admin → credits added)
+  app.post("/api/reborn/topup", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const amount = Number(req.body?.amount) || 0;
+    if (amount <= 0) return res.status(400).json({ message: "Enter an amount" });
+    const [row] = await db.insert(topUpRequests).values({ userId, amount: String(amount), paymentMethod: req.body?.paymentMethod || "bank_transfer", paymentProof: req.body?.paymentProof || null, status: "pending" }).returning();
+    res.json({ message: "Top-up request sent. Staff will confirm and add your credits.", request: row });
+  });
+  app.get("/api/reborn/topup/mine", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    res.json(await db.select().from(topUpRequests).where(eq(topUpRequests.userId, userId)).orderBy(desc(topUpRequests.createdAt)).limit(50));
+  });
+  app.get("/api/reborn/admin/topups", requireStaff(async (_req, res) => {
+    res.json(await db.select().from(topUpRequests).where(eq(topUpRequests.status, "pending")).orderBy(desc(topUpRequests.createdAt)).limit(200));
+  }));
+  app.post("/api/reborn/admin/topups/:id", requireStaff(async (req, res) => {
+    const adminId = getUserId(req)!; const id = Number(req.params.id); const approve = req.body?.approve !== false;
+    const [t] = await db.select().from(topUpRequests).where(eq(topUpRequests.id, id));
+    if (!t || t.status !== "pending") return res.status(400).json({ message: "Not pending" });
+    await db.update(topUpRequests).set({ status: approve ? "approved" : "rejected", adminId, adminNotes: req.body?.notes || null, processedAt: new Date(), updatedAt: new Date() }).where(eq(topUpRequests.id, id));
+    if (approve) await db.update(users).set({ credits: sql`${users.credits} + ${Number(t.amount)}`, updatedAt: new Date() }).where(eq(users.id, t.userId));
+    await logAdmin(req, { targetUserId: t.userId, targetType: "topup", targetId: id, action: approve ? "approve" : "reject", entityType: "credits", description: `${approve ? "Approved" : "Rejected"} RP ${t.amount} top-up` });
+    res.json({ message: approve ? "Approved — credits added." : "Rejected." });
+  }));
+
+  // Events (homepage / login announcements)
+  app.get("/api/reborn/events", async (_req, res) => {
+    res.json(await db.select().from(events).where(eq(events.active, true)).orderBy(desc(events.sortOrder), desc(events.createdAt)).limit(20));
+  });
+  app.get("/api/reborn/admin/events", requireStaff(async (_req, res) => { res.json(await db.select().from(events).orderBy(desc(events.createdAt))); }));
+  app.post("/api/reborn/admin/events", requireStaff(async (req, res) => {
+    const b = req.body || {};
+    const [row] = await db.insert(events).values({ title: b.title || "New event", body: b.body || "", imageUrl: b.imageUrl || null, showOnLogin: b.showOnLogin !== false, active: b.active !== false, sortOrder: Number(b.sortOrder) || 0, createdBy: getUserId(req)! }).returning();
+    await logAdmin(req, { targetType: "event", targetId: row.id, action: "create", entityType: "event", description: `Posted event "${row.title}"` });
+    res.json(row);
+  }));
+  app.put("/api/reborn/admin/events/:id", requireStaff(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {}; const patch: any = {};
+    for (const k of ["title", "body", "imageUrl"]) if (b[k] !== undefined) patch[k] = b[k];
+    if (b.showOnLogin !== undefined) patch.showOnLogin = !!b.showOnLogin;
+    if (b.active !== undefined) patch.active = !!b.active;
+    if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
+    const [row] = await db.update(events).set(patch).where(eq(events.id, id)).returning();
+    res.json(row);
+  }));
+  app.delete("/api/reborn/admin/events/:id", requireStaff(async (req, res) => { await db.delete(events).where(eq(events.id, Number(req.params.id))); res.json({ message: "Deleted" }); }));
+
+  // Admin activity log (full admin only)
+  app.get("/api/reborn/admin/logs", requireAdmin(async (_req, res) => {
+    res.json(await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(200));
+  }));
+
   // Admin support: list open tickets + reply as staff
-  app.get("/api/reborn/admin/support", requireAdmin(async (_req, res) => {
+  app.get("/api/reborn/admin/support", requireStaff(async (_req, res) => {
     const tickets = await db.select().from(supportTickets).where(sql`${supportTickets.status} != 'closed'`).orderBy(desc(supportTickets.updatedAt)).limit(100);
     res.json(tickets);
   }));
-  app.get("/api/reborn/admin/support/:ticketId", requireAdmin(async (req, res) => {
+  app.get("/api/reborn/admin/support/:ticketId", requireStaff(async (req, res) => {
     const tid = Number(req.params.ticketId);
     const msgs = await db.select().from(supportMessages).where(eq(supportMessages.ticketId, tid)).orderBy(supportMessages.createdAt);
     res.json(msgs);
   }));
-  app.post("/api/reborn/admin/support/:ticketId", requireAdmin(async (req, res) => {
+  app.post("/api/reborn/admin/support/:ticketId", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const tid = Number(req.params.ticketId);
     const content = String(req.body?.message || "").trim();

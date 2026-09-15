@@ -3,12 +3,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-const TABS = ["Codes", "Prizes", "Redemptions", "Pills", "FAQ", "Songs", "Requests", "Gifts", "Settings"] as const;
+// Tabs staff (sub-admin) can use; the rest are full-admin only
+const STAFF_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
+const ADMIN_TABS = ["Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Codes");
+  const { user } = useAuth();
+  const isFullAdmin = (user as any)?.role === "admin";
+  const TABS = (isFullAdmin ? ADMIN_TABS : STAFF_TABS) as readonly string[];
+  const [tab, setTab] = useState<string>("Requests");
   return (
     <RebornLayout active="/reborn-admin" title="ADMIN">
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
@@ -25,7 +31,123 @@ export default function RebornAdmin() {
       {tab === "Requests" && <SongRequests />}
       {tab === "Gifts" && <GiftTypes />}
       {tab === "Settings" && <Settings />}
+      {tab === "Users" && <Members />}
+      {tab === "Top-ups" && <TopUps />}
+      {tab === "Events" && <Events />}
+      {tab === "Logs" && <Logs />}
     </RebornLayout>
+  );
+}
+
+function Members() {
+  const { toast } = useToast();
+  const [q, setQ] = useState("");
+  const { data: users = [], refetch } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/users", q], queryFn: () => apiRequest("GET", `/api/reborn/admin/users${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
+  const { user } = useAuth();
+  const isFullAdmin = (user as any)?.role === "admin";
+  const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: "Member updated" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  return (
+    <div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name / username / email" className={inp + " w-full mb-4"} />
+      {!isFullAdmin && <p className="text-xs text-white/40 mb-3">Only full admins can edit balances and roles.</p>}
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} editable={isFullAdmin} onSave={save.mutate} />)}</div>
+    </div>
+  );
+}
+function MemberRow({ u, editable, onSave }: any) {
+  const [e, setE] = useState(u);
+  return (
+    <Card>
+      <p className="font-semibold text-sm">{u.firstName || u.username || "Member"} <span className="text-white/40">· {u.email}</span></p>
+      <p className="text-[11px] text-white/40 mb-2">id {u.id}</p>
+      {editable ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-white/50">Credits (RP)<input type="number" value={e.credits} onChange={(x) => setE({ ...e, credits: x.target.value })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Points<input type="number" value={e.loyaltyPoints} onChange={(x) => setE({ ...e, loyaltyPoints: Number(x.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">Tokens<input type="number" value={e.tokens} onChange={(x) => setE({ ...e, tokens: Number(x.target.value) })} className={inp + " w-full"} /></label>
+            <label className="text-xs text-white/50">KGOLD<input type="number" value={e.kgold} onChange={(x) => setE({ ...e, kgold: Number(x.target.value) })} className={inp + " w-full"} /></label>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <label className="text-xs text-white/50">Role
+              <select value={e.role || "user"} onChange={(x) => setE({ ...e, role: x.target.value })} className={inp + " ml-1"}>
+                <option value="user">user</option><option value="staff">staff (sub-admin)</option><option value="admin">admin</option>
+              </select>
+            </label>
+            <button onClick={() => onSave(e)} className={btn + " ml-auto"}>Save</button>
+          </div>
+        </>
+      ) : (
+        <p className="text-xs text-white/60">RP {u.credits} · {u.loyaltyPoints} pts · {u.tokens} tokens · {u.kgold} KGOLD · <b>{u.role}</b></p>
+      )}
+    </Card>
+  );
+}
+
+function TopUps() {
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/topups"], queryFn: () => apiRequest("GET", "/api/reborn/admin/topups").then((r) => r.json()), refetchInterval: 15000 });
+  const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/topups/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/topups"] }) });
+  if (rows.length === 0) return <Empty text="No pending top-up requests." />;
+  return (
+    <div className="space-y-2">
+      {rows.map((r) => (
+        <Card key={r.id}>
+          <div className="flex items-center gap-3">
+            <Coins className="w-5 h-5 text-amber-300" />
+            <div className="flex-1 min-w-0"><p className="font-semibold text-sm">RP {Number(r.amount).toLocaleString()}</p><p className="text-xs text-white/40 truncate">{r.paymentMethod} · user {r.userId?.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}</p></div>
+            <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
+            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnSm + " text-red-400"}><X className="w-4 h-4" /></button>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function Events() {
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/events"], queryFn: () => apiRequest("GET", "/api/reborn/admin/events").then((r) => r.json()) });
+  const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/events"] });
+  const add = useMutation({ mutationFn: () => apiRequest("POST", "/api/reborn/admin/events", { title: "New event", body: "" }).then((r) => r.json()), onSuccess: inv });
+  const save = useMutation({ mutationFn: (ev: any) => apiRequest("PUT", `/api/reborn/admin/events/${ev.id}`, ev).then((r) => r.json()), onSuccess: inv });
+  const del = useMutation({ mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/events/${id}`), onSuccess: inv });
+  return (
+    <div>
+      <button onClick={() => add.mutate()} className={btn + " mb-4"}><Plus className="w-4 h-4" /> Post event</button>
+      <div className="space-y-3">{rows.map((ev) => <EventRow key={ev.id} ev={ev} onSave={save.mutate} onDelete={del.mutate} />)}</div>
+    </div>
+  );
+}
+function EventRow({ ev, onSave, onDelete }: any) {
+  const [e, setE] = useState(ev);
+  return (
+    <Card>
+      <input value={e.title} onChange={(x) => setE({ ...e, title: x.target.value })} placeholder="Event title" className={inp + " w-full mb-2"} />
+      <textarea value={e.body || ""} onChange={(x) => setE({ ...e, body: x.target.value })} placeholder="Details" rows={2} className={inp + " w-full mb-2"} />
+      <input value={e.imageUrl || ""} onChange={(x) => setE({ ...e, imageUrl: x.target.value })} placeholder="Image URL (optional)" className={inp + " w-full mb-2"} />
+      <div className="flex items-center gap-3">
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
+        <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.showOnLogin} onChange={(x) => setE({ ...e, showOnLogin: x.target.checked })} /> show at login</label>
+        <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400 ml-auto"}><Check className="w-4 h-4" /></button>
+        <button onClick={() => onDelete(ev.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      </div>
+    </Card>
+  );
+}
+
+function Logs() {
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/logs"], queryFn: () => apiRequest("GET", "/api/reborn/admin/logs").then((r) => r.json()), refetchInterval: 20000 });
+  if (rows.length === 0) return <Empty text="No admin activity yet." />;
+  return (
+    <div className="space-y-1.5">
+      {rows.map((l) => (
+        <div key={l.id} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
+          <div className="flex justify-between"><span className="font-semibold">{l.description}</span><span className="text-white/30">{new Date(l.createdAt).toLocaleString()}</span></div>
+          <span className="text-white/40">{l.action} · {l.entityType} · by {l.adminUserId?.slice(0, 8)}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

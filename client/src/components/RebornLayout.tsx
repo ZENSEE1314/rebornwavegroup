@@ -33,7 +33,7 @@ export function RebornLayout({ children, title, active }: { children: ReactNode;
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const isAdmin = (user as any)?.role === "admin";
+  const isAdmin = (user as any)?.role === "admin" || (user as any)?.role === "staff";
   const tokens = (user as any)?.tokens ?? 0;
 
   const logout = async () => {
