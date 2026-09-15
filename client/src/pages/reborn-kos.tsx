@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Crown, X, Music, UserPlus, Bell, Plus, ArrowDownToLine, Coins } from "lucide-react";
+import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins } from "lucide-react";
 
 const ANIM_CSS = `
 @keyframes kgPop{0%{transform:scale(.2);opacity:0}40%{transform:scale(1.25);opacity:1}70%{transform:scale(.95)}100%{transform:scale(1);opacity:1}}
@@ -91,7 +91,7 @@ export default function RebornKos() {
 
       {/* Leaderboard */}
       <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3 px-1 flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> Ranking (KGOLD received)</h2>
-      {board.length === 0 && <div className="text-center py-10 text-white/40"><Music className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No gifts yet. Be the first!</p></div>}
+      {board.length === 0 && <div className="text-center py-10 text-white/40"><Mic2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No gifts yet. Be the first!</p></div>}
       <div className="space-y-2">
         {board.map((u, i) => (
           <div key={u.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">

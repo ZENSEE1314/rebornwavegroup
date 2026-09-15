@@ -10,7 +10,7 @@ import { useTranslation } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
-  Utensils, Store, Wine,
+  Utensils, Store, Wine, Mic2,
 } from "lucide-react";
 
 const TILES = [
@@ -21,7 +21,7 @@ const TILES = [
   { label: "My Prizes", desc: "Claim what you won", icon: <Gift className="w-6 h-6" />, path: "/spin?tab=prizes", color: "#22c55e" },
   { label: "Bookings", desc: "Reserve your visit", icon: <Calendar className="w-6 h-6" />, path: "/bookings", color: "#4ecdc4" },
   { label: "Loyalty", desc: "Rewards & perks", icon: <Trophy className="w-6 h-6" />, path: "/loyalty-program", color: "#a855f7" },
-  { label: "Kings of Singers", desc: "Gift & rank", icon: <Music className="w-6 h-6" />, path: "/kos", color: "#ec4899" },
+  { label: "Kings of Singers", desc: "Gift & rank", icon: <Mic2 className="w-6 h-6" />, path: "/kos", color: "#ec4899" },
   { label: "Song Request", desc: "Request & Top 500", icon: <Music className="w-6 h-6" />, path: "/songs", color: "#8b5cf6" },
   { label: "Referrals", desc: "Invite friends", icon: <Users className="w-6 h-6" />, path: "/my-referral", color: "#6366f1" },
   { label: "Support", desc: "Chat & FAQ", icon: <Headphones className="w-6 h-6" />, path: "/support", color: "#45b7d1" },

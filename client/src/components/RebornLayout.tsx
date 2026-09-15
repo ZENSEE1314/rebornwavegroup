@@ -5,7 +5,7 @@ import { useTranslation } from "@/lib/i18n";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
-  Calendar, Trophy, Users, User, Music, LogOut, Sparkles, MessageCircle,
+  Calendar, Trophy, Users, User, Music, Mic2, LogOut, Sparkles, MessageCircle,
   Utensils,
 } from "lucide-react";
 
@@ -14,7 +14,7 @@ interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; 
 const MAIN_NAV: NavItem[] = [
   { label: "Home", tkey: "nav.home", icon: <Home className="w-5 h-5" />, path: "/" },
   { label: "Pet", tkey: "nav.pet", icon: <PawPrint className="w-5 h-5" />, path: "/pet" },
-  { label: "KOS", tkey: "nav.kos", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "KOS", tkey: "nav.kos", icon: <Mic2 className="w-5 h-5" />, path: "/kos" },
   { label: "Chat", tkey: "nav.chat", icon: <MessageCircle className="w-5 h-5" />, path: "/chat" },
   { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
@@ -27,7 +27,7 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Order to Table", tkey: "nav.order", icon: <Utensils className="w-5 h-5" />, path: "/order" },
   { label: "Bookings", tkey: "nav.bookings", icon: <Calendar className="w-5 h-5" />, path: "/bookings" },
   { label: "Loyalty Program", tkey: "nav.loyalty", icon: <Trophy className="w-5 h-5" />, path: "/loyalty-program" },
-  { label: "Kings of Singers", tkey: "nav.kingsOfSingers", icon: <Music className="w-5 h-5" />, path: "/kos" },
+  { label: "Kings of Singers", tkey: "nav.kingsOfSingers", icon: <Mic2 className="w-5 h-5" />, path: "/kos" },
   { label: "Song Request", tkey: "nav.songRequest", icon: <Music className="w-5 h-5" />, path: "/songs" },
   { label: "Referrals", tkey: "nav.referrals", icon: <Users className="w-5 h-5" />, path: "/my-referral" },
   { label: "Support & FAQ", tkey: "nav.support", icon: <Headphones className="w-5 h-5" />, path: "/support" },
