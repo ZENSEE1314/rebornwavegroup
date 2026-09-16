@@ -151,15 +151,15 @@ export default function LoyaltyProgram() {
     <RebornLayout active="/loyalty-program" title="LOYALTY"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 relative z-10">
+      <div className="max-w-3xl mx-auto py-2 space-y-6 relative z-10">
 
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Loyalty Program</h1>
-          <p className="text-white/50">Earn points, unlock levels, and claim amazing rewards</p>
+        <div className="text-center mb-2">
+          <h1 className="text-2xl font-bold text-white mb-2">Loyalty Program</h1>
+          <p className="text-white/50 text-sm">Earn points, unlock levels, and claim amazing rewards</p>
         </div>
 
         {/* Current Status */}
-        <div className="rwg-card p-8">
+        <div className="rwg-card p-5">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <div className={`w-16 h-16 bg-gradient-to-br ${currentLevelInfo.color} rounded-2xl flex items-center justify-center`}>
@@ -190,16 +190,16 @@ export default function LoyaltyProgram() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Available Rewards */}
           <div className="lg:col-span-2">
-            <div className="rwg-card p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="rwg-card p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                 <h3 className="text-lg font-bold text-white">Available Rewards</h3>
                 <Button
                   onClick={earnBonusPoints}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 rounded-xl"
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white border-0 rounded-xl"
                 >
                   <Zap className="w-4 h-4 mr-2" />
                   Earn 50 Bonus Points

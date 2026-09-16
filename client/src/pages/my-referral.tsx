@@ -37,14 +37,14 @@ export default function MyReferral() {
     <RebornLayout active="/my-referral" title="REFERRALS"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
-      <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+      <div className="max-w-3xl mx-auto py-2 relative z-10">
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">My Referral Code</h1>
-          <p className="text-white/50">Share your code and earn 10% commission on all verified purchases!</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white mb-2">My Referral Code</h1>
+          <p className="text-white/50 text-sm">Share your code and earn 10% commission on all verified purchases!</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Referral Code Card */}
           <div className="bg-gradient-to-br from-emerald-500/20 to-blue-600/20 border border-emerald-500/30 rounded-2xl p-6">

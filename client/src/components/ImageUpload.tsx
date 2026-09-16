@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, X, Loader2 } from "lucide-react";
+import { ImagePlus, Loader2 } from "lucide-react";
 
 // Reads an image file, resizes it to fit maxDim, and returns a compressed WebP data URL.
 async function toWebp(file: File, maxDim = 640, quality = 0.82): Promise<string> {
@@ -45,7 +45,15 @@ export function ImageUpload({ value, onChange, shape = "square", label = "Upload
       {value ? (
         <div className="relative">
           <img src={value} alt="" className={`w-16 h-16 object-cover ${rounded} border border-white/10`} />
-          <button type="button" onClick={() => onChange("")} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center"><X className="w-3 h-3 text-white" /></button>
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            aria-label="Remove image"
+            className="absolute rounded-full bg-red-500 text-white flex items-center justify-center leading-none font-bold"
+            style={{ top: -6, right: -6, width: 20, height: 20, fontSize: 13 }}
+          >
+            ×
+          </button>
         </div>
       ) : (
         <span className={`w-16 h-16 ${rounded} bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-white/30`}><ImagePlus className="w-6 h-6" /></span>

@@ -97,18 +97,18 @@ export default function Bookings() {
     <RebornLayout active="/bookings" title="BOOKINGS"><div>
       <div className="rwg-orb-1" />
       <div className="rwg-orb-2" />
-      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
+      <div className="max-w-3xl mx-auto py-2 relative z-10">
         <MobileBackButton className="mb-4" />
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">My Appointments</h1>
-            <p className="text-white/50 mt-1">Manage your beauty, fun & entertainment bookings</p>
+            <h1 className="text-2xl font-bold text-white">My Appointments</h1>
+            <p className="text-white/50 mt-1 text-sm">Manage your beauty, fun & entertainment bookings</p>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
+              <Button className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
                 <Plus className="w-5 h-5 mr-2" />
                 Book Appointment
               </Button>
@@ -221,34 +221,31 @@ export default function Bookings() {
 
         <div className="grid grid-cols-1 gap-5">
           {appointments.map((appointment) => (
-            <div key={appointment.id} className="rwg-card p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4 flex-1">
-                  <div className="text-3xl mt-1">{getServiceIcon(appointment.service)}</div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-white mb-1">{appointment.title}</h3>
-                    <p className="text-white/50 text-sm mb-3">{appointment.description}</p>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-white/40">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>{appointment.appointmentDate}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>{appointment.appointmentTime}</span>
-                      </div>
-                      <span className="text-white/30">·</span>
-                      <span>{appointment.duration}</span>
-                    </div>
+            <div key={appointment.id} className="rwg-card p-5">
+              <div className="flex items-start gap-3">
+                <div className="text-3xl mt-0.5 flex-shrink-0">{getServiceIcon(appointment.service)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h3 className="text-base font-semibold text-white leading-snug">{appointment.title}</h3>
+                    <span className={`text-xs px-2.5 py-1 rounded-full inline-block flex-shrink-0 ${getStatusStyle(appointment.status)}`}>
+                      {appointment.status}
+                    </span>
                   </div>
-                </div>
-
-                <div className="text-right space-y-2 flex-shrink-0 ml-4">
-                  <span className={`text-xs px-2.5 py-1 rounded-full inline-block ${getStatusStyle(appointment.status)}`}>
-                    {appointment.status}
-                  </span>
+                  <p className="text-white/50 text-sm mb-3">{appointment.description}</p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/40 mb-3">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-4 h-4" />
+                      <span>{appointment.appointmentDate}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{appointment.appointmentTime}</span>
+                    </div>
+                    <span className="text-white/30">·</span>
+                    <span>{appointment.duration}</span>
+                  </div>
                   {appointment.status === 'pending' && (
-                    <div className="flex space-x-2 justify-end">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg">
                         <CheckCircle className="w-4 h-4 mr-1" />
                         Confirm
