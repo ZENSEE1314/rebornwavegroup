@@ -44,7 +44,7 @@ export default function MyReferral() {
           <p className="text-white/50 text-sm">Share your code and earn 10% commission on all verified purchases!</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
 
           {/* Referral Code Card */}
           <div className="bg-gradient-to-br from-emerald-500/20 to-blue-600/20 border border-emerald-500/30 rounded-2xl p-6">

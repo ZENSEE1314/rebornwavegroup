@@ -190,10 +190,10 @@ export default function LoyaltyProgram() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
 
           {/* Available Rewards */}
-          <div className="lg:col-span-2">
+          <div>
             <div className="rwg-card p-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                 <h3 className="text-lg font-bold text-white">Available Rewards</h3>
@@ -205,22 +205,20 @@ export default function LoyaltyProgram() {
                   Earn 50 Bonus Points
                 </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {rewards.filter(r => !r.claimed).map((reward) => (
                   <div key={reward.id} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/8 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{getCategoryIcon(reward.category)}</span>
-                        <div>
-                          <h3 className="font-semibold text-white text-sm">{reward.name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(reward.category)}`}>
-                            {reward.category}
-                          </span>
-                        </div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl flex-shrink-0">{getCategoryIcon(reward.category)}</span>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-white text-sm">{reward.name}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(reward.category)}`}>
+                          {reward.category}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-violet-400">{reward.pointsCost} pts</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-base font-bold text-violet-400 flex-shrink-0">{reward.pointsCost} pts</span>
                       <Button
                         size="sm"
                         onClick={() => redeemReward(reward)}
