@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "Users", "Products", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -39,7 +39,9 @@ export default function RebornAdmin() {
       {tab === "Events" && <Events />}
       {tab === "Broadcast" && <Broadcast />}
       {tab === "Products" && <Products />}
+      {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
+      {tab === "CRM" && <Crm />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
   );
@@ -76,6 +78,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
+  Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -623,10 +626,19 @@ function Accounting() {
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
   const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
+  const exportCsv = () => {
+    const rows = [["Date", "Type", "Category", "Amount (RP)", "Note"], ...ledger.map((l) => [
+      new Date(l.createdAt).toISOString(), l.kind, l.category, String(Math.round(Number(l.amount))), (l.note || "").replace(/"/g, "'"),
+    ])];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = `accounting-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         {[7, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${days === d ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{d}d</button>)}
+        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Income</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
@@ -680,6 +692,99 @@ function Accounting() {
         </div>
       ))}
       {ledger.length === 0 && <Empty text="No transactions yet." />}
+    </div>
+  );
+}
+
+function Inventory() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/inventory"], queryFn: () => apiRequest("GET", "/api/reborn/admin/inventory").then((r) => r.json()) });
+  const adjust = useMutation({
+    mutationFn: (v: { productId: number; qty: number; unitCost?: number }) => apiRequest("POST", "/api/reborn/pos/stock-in", v).then((r) => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/reborn/admin/inventory"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
+  const items: any[] = data?.items || [];
+  const cats = Array.from(new Set(items.map((i) => i.category)));
+  const step = (it: any, delta: number) => {
+    if (delta > 0) { const c = prompt(`Add how many "${it.name}"?`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; const uc = prompt("Unit cost (RP) — leave blank to skip expense", ""); adjust.mutate({ productId: it.id, qty: q, unitCost: uc ? Number(uc) : undefined }); }
+    else { const c = prompt(`Deduct how many "${it.name}"? (spoilage / adjustment)`, "1"); if (!c) return; const q = Math.floor(Number(c)); if (!q) return; adjust.mutate({ productId: it.id, qty: -Math.abs(q) }); }
+  };
+  const exportCsv = () => {
+    const rows = [["Category", "Item", "Stock", "Unit cost", "Stock value", "Retail value"], ...items.map((i) => [i.category, i.name, String(i.stock), String(i.cost), String(i.stockValue), String(i.retailValue)])];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Units</p><p className="text-base font-extrabold">{(data?.totals?.units || 0).toLocaleString()}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Stock value</p><p className="text-base font-extrabold text-amber-300">{money(data?.totals?.cost || 0)}</p></div>
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Retail value</p><p className="text-base font-extrabold text-emerald-300">{money(data?.totals?.retail || 0)}</p></div>
+      </div>
+      <div className="flex items-center gap-2">
+        {(data?.totals?.low || 0) > 0 && <span className="inline-flex items-center gap-1 text-xs text-red-300 bg-red-500/10 border border-red-400/30 rounded-lg px-2.5 py-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {data.totals.low} low-stock item(s)</span>}
+        <button onClick={exportCsv} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/70 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Export CSV</button>
+      </div>
+      {cats.map((cat) => (
+        <Card key={cat}>
+          <p className="font-bold mb-2 text-sm flex items-center gap-2"><Boxes className="w-4 h-4 text-amber-300" /> {cat}</p>
+          {items.filter((i) => i.category === cat).map((it) => (
+            <div key={it.id} className="flex items-center gap-2 py-2 border-b border-white/5 last:border-0">
+              {it.imageUrl ? <img src={it.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" /> : <span className="w-9 h-9 rounded-lg bg-white/5 flex-shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate flex items-center gap-1.5">{it.name}{it.low && <span className="text-[10px] text-red-300 bg-red-500/15 rounded px-1.5 py-0.5">LOW</span>}</p>
+                <p className="text-[11px] text-white/40">cost {money(it.cost)} · value {money(it.stockValue)}</p>
+              </div>
+              <button onClick={() => step(it, -1)} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white font-bold flex items-center justify-center" style={{ fontSize: 16 }}>−</button>
+              <span className={`w-10 text-center font-extrabold ${it.low ? "text-red-300" : "text-white"}`}>{it.stock}</span>
+              <button onClick={() => step(it, 1)} className="w-8 h-8 rounded-lg bg-amber-400 text-black font-bold flex items-center justify-center" style={{ fontSize: 16 }}>+</button>
+            </div>
+          ))}
+        </Card>
+      ))}
+      {items.length === 0 && <Empty text="No products yet. Add products in the Products tab." />}
+    </div>
+  );
+}
+
+function Crm() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/crm"], queryFn: () => apiRequest("GET", "/api/reborn/admin/crm").then((r) => r.json()) });
+  const { data: wa } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/status"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/status").then((r) => r.json()) });
+  const runReminders = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/run-reminders", {}).then((r) => r.json()),
+    onSuccess: (d: any) => toast({ title: d.configured ? "Reminders sent" : "WhatsApp not connected", description: `${d.bottles} bottle · ${d.comeback} comeback · ${d.feedback} feedback` }),
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const contacts: any[] = data?.contacts || [];
+  const stageColor: Record<string, string> = { new: "text-white/50", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
+  return (
+    <div className="space-y-3">
+      <div className={`rounded-2xl border p-3 ${wa?.configured ? "bg-emerald-500/10 border-emerald-400/30" : "bg-amber-500/10 border-amber-400/30"}`}>
+        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> WhatsApp {wa?.configured ? "connected" : "not connected"}</p>
+        <p className="text-[11px] text-white/50 mt-1">{wa?.configured ? "The bot auto-captures leads, creates member accounts and books appointments. Reminders run hourly." : "Set WHATSAPP_TOKEN, WHATSAPP_PHONE_ID and WHATSAPP_VERIFY_TOKEN on the server to activate the bot. The homepage WhatsApp button already works."}</p>
+        <button onClick={() => runReminders.mutate()} disabled={runReminders.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Run reminders now</button>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Contacts</p><p className="text-base font-extrabold">{data?.count || 0}</p></div>
+        <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Members</p><p className="text-base font-extrabold text-emerald-300">{data?.stages?.member || 0}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">In progress</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0)}</p></div>
+      </div>
+      {contacts.map((c) => (
+        <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">{c.name || "Unknown"} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {c.stage}</span></p>
+            <p className="text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · last visit ${new Date(c.lastVisitAt).toLocaleDateString()}` : ""}</p>
+          </div>
+          <a href={`https://wa.me/${String(c.phone).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#25D366" }}><MessageCircle className="w-4 h-4 text-white" /></a>
+        </div>
+      ))}
+      {contacts.length === 0 && <Empty text="No contacts yet. Leads captured by the WhatsApp bot appear here." />}
     </div>
   );
 }

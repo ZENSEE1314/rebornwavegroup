@@ -6,12 +6,13 @@ import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
+import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1450,6 +1451,7 @@ export function registerRebornRoutes(app: Express) {
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
+    if (u) crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
@@ -1504,6 +1506,7 @@ export function registerRebornRoutes(app: Express) {
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
+    if (o.memberId) crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
@@ -1621,5 +1624,55 @@ export function registerRebornRoutes(app: Express) {
     const [row] = await db.insert(ledgerEntries).values({ kind, category: b.category || "other", amount: String(amount), note: b.note || null, userId: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
     res.json(row);
+  }));
+
+  // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
+  app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {
+    const lowAt = Math.max(0, Number(req.query.lowAt) || 5);
+    const rows = await db.select().from(posProducts).orderBy(posProducts.category, posProducts.name);
+    const items = rows.map((p) => {
+      const stock = p.stock ?? 0;
+      const cost = Number(p.cost) || 0;
+      const price = Number(p.price) || 0;
+      return {
+        id: p.id, name: p.name, category: p.category, active: p.active,
+        stock, cost, price, imageUrl: p.imageUrl,
+        stockValue: Math.round(stock * cost),
+        retailValue: Math.round(stock * price),
+        low: stock <= lowAt,
+      };
+    });
+    const totals = items.reduce((a, it) => ({
+      units: a.units + it.stock,
+      cost: a.cost + it.stockValue,
+      retail: a.retail + it.retailValue,
+      low: a.low + (it.low ? 1 : 0),
+    }), { units: 0, cost: 0, retail: 0, low: 0 });
+    const byCategory: Record<string, { units: number; cost: number; retail: number }> = {};
+    for (const it of items) {
+      byCategory[it.category] ||= { units: 0, cost: 0, retail: 0 };
+      byCategory[it.category].units += it.stock;
+      byCategory[it.category].cost += it.stockValue;
+      byCategory[it.category].retail += it.retailValue;
+    }
+    res.json({ lowAt, items, totals, byCategory });
+  }));
+
+  // CRM — WhatsApp/POS contacts captured by the bot.
+  app.get("/api/reborn/admin/crm", requireAdmin(async (_req, res) => {
+    const rows = await db.select().from(crmContacts).orderBy(desc(crmContacts.updatedAt)).limit(500);
+    const stages: Record<string, number> = {};
+    for (const c of rows) stages[c.stage] = (stages[c.stage] || 0) + 1;
+    res.json({ contacts: rows, stages, count: rows.length });
+  }));
+
+  // WhatsApp status + manual reminder trigger.
+  app.get("/api/reborn/admin/whatsapp/status", requireAdmin(async (_req, res) => {
+    res.json({ configured: whatsappConfigured(), adminNumber: Boolean(process.env.WA_ADMIN_NUMBER) });
+  }));
+  app.post("/api/reborn/admin/whatsapp/run-reminders", requireAdmin(async (req, res) => {
+    const out = await runReminders();
+    await logAdmin(req, { targetType: "whatsapp", action: "run_reminders", entityType: "whatsapp", description: `Reminders: ${out.bottles} bottle, ${out.comeback} comeback, ${out.feedback} feedback` });
+    res.json({ ...out, configured: whatsappConfigured() });
   }));
 }

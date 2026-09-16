@@ -689,6 +689,26 @@ export const bottleKeeps = pgTable("bottle_keeps", {
   storedAt: timestamp("stored_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
   collectedAt: timestamp("collected_at"),
+  lastReminderAt: timestamp("last_reminder_at"), // last WhatsApp "come finish your drink" nudge
+});
+
+// WhatsApp CRM — contacts captured by the bot / POS, and their conversation state.
+export const crmContacts = pgTable("crm_contacts", {
+  id: serial("id").primaryKey(),
+  phone: varchar("phone").notNull().unique(),   // digits only, e.g. 6281336361314
+  name: varchar("name"),
+  email: varchar("email"),
+  userId: varchar("user_id"),                   // linked member account once created
+  source: varchar("source").default("whatsapp"),
+  stage: varchar("stage").default("new").notNull(), // new | await_name | await_email | active | member
+  waState: jsonb("wa_state"),                   // bot scratchpad (pending booking, etc.)
+  notes: text("notes"),
+  lastVisitAt: timestamp("last_visit_at"),
+  lastInboundAt: timestamp("last_inbound_at"),
+  lastComebackReminderAt: timestamp("last_comeback_reminder_at"),
+  lastFeedbackReminderAt: timestamp("last_feedback_reminder_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const stockMovements = pgTable("stock_movements", {

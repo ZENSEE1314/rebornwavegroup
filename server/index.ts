@@ -3,6 +3,7 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
 import { registerRebornRoutes } from "./rebornGame";
+import { registerWhatsAppBot } from "./whatsappBot";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -85,6 +86,9 @@ app.use((req, res, next) => {
 
   // Reborn game routes need the session/passport middleware that registerRoutes sets up
   registerRebornRoutes(app);
+
+  // WhatsApp CRM bot + reminder scheduler (activates when WHATSAPP_* env vars are set)
+  registerWhatsAppBot(app);
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {
