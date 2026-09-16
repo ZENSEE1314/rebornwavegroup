@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { WhatsAppFab } from "@/components/WhatsAppFab";
 import rebornDemoVideo from "@assets/reborn-demo-video.mp4";
 import petMale from "@assets/Doluruu Boy_1749664545355.png";
 import petFemale from "@assets/doluruu-female-transparent.png";
@@ -368,6 +369,7 @@ export default function Landing() {
           </div>
         </footer>
       </main>
+      <WhatsAppFab />
     </div>
   );
 }

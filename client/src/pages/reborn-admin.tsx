@@ -755,19 +755,58 @@ function Crm() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/crm"], queryFn: () => apiRequest("GET", "/api/reborn/admin/crm").then((r) => r.json()) });
-  const { data: wa } = useQuery<any>({ queryKey: ["/api/reborn/admin/whatsapp/status"], queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/status").then((r) => r.json()) });
+  const { data: wa } = useQuery<any>({
+    queryKey: ["/api/reborn/admin/whatsapp/status"],
+    queryFn: () => apiRequest("GET", "/api/reborn/admin/whatsapp/status").then((r) => r.json()),
+    refetchInterval: (q: any) => { const s = q?.state?.data?.web?.status; return (s === "qr" || s === "connecting") ? 3000 : false; },
+  });
+  const webStatus = wa?.web?.status || "idle";
+  const connect = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/web/connect", {}).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }),
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const logout = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/web/logout", {}).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "WhatsApp unlinked" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/whatsapp/status"] }); },
+  });
   const runReminders = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/whatsapp/run-reminders", {}).then((r) => r.json()),
-    onSuccess: (d: any) => toast({ title: d.configured ? "Reminders sent" : "WhatsApp not connected", description: `${d.bottles} bottle · ${d.comeback} comeback · ${d.feedback} feedback` }),
+    onSuccess: (d: any) => toast({ title: d.configured ? "Reminders sent" : "Reminders run", description: `${d.bottles} bottle · ${d.comeback} comeback · ${d.feedback} feedback` }),
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
   const contacts: any[] = data?.contacts || [];
   const stageColor: Record<string, string> = { new: "text-white/50", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
+  const live = webStatus === "connected" || wa?.configured;
   return (
     <div className="space-y-3">
-      <div className={`rounded-2xl border p-3 ${wa?.configured ? "bg-emerald-500/10 border-emerald-400/30" : "bg-amber-500/10 border-amber-400/30"}`}>
-        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> WhatsApp {wa?.configured ? "connected" : "not connected"}</p>
-        <p className="text-[11px] text-white/50 mt-1">{wa?.configured ? "The bot auto-captures leads, creates member accounts and books appointments. Reminders run hourly." : "Set WHATSAPP_TOKEN, WHATSAPP_PHONE_ID and WHATSAPP_VERIFY_TOKEN on the server to activate the bot. The homepage WhatsApp button already works."}</p>
+      {/* QR login — link an existing WhatsApp number */}
+      <div className={`rounded-2xl border p-4 ${webStatus === "connected" ? "bg-emerald-500/10 border-emerald-400/30" : "bg-white/5 border-white/10"}`}>
+        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-300" /> Connect WhatsApp by QR</p>
+        {webStatus === "connected" ? (
+          <div className="mt-2">
+            <p className="text-sm text-emerald-300 font-semibold">Linked{wa?.web?.number ? ` · +${wa.web.number}` : ""}</p>
+            <p className="text-[11px] text-white/50 mt-1">The bot now auto-replies, captures leads, creates accounts, books appointments and sends reminders on this number.</p>
+            <button onClick={() => { if (confirm("Unlink this WhatsApp number?")) logout.mutate(); }} disabled={logout.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-400/40 text-red-200">Unlink</button>
+          </div>
+        ) : webStatus === "qr" && wa?.web?.qr ? (
+          <div className="mt-3 text-center">
+            <p className="text-[11px] text-white/60 mb-2">On your phone: WhatsApp → <b>Settings → Linked devices → Link a device</b>, then scan:</p>
+            <img src={wa.web.qr} alt="WhatsApp QR" className="mx-auto rounded-xl bg-white p-2" style={{ width: 240, height: 240 }} />
+            <p className="text-[11px] text-white/40 mt-2">Waiting for scan… the code refreshes automatically.</p>
+          </div>
+        ) : (
+          <div className="mt-2">
+            <p className="text-[11px] text-white/50">Link your existing WhatsApp number (like WhatsApp Web) so the bot runs without the Meta Business API.</p>
+            <p className="text-[11px] text-amber-300/90 mt-1">⚠️ Uses WhatsApp's unofficial web protocol — against WhatsApp's Terms; the number can be banned. Use a dedicated business line, not personal.</p>
+            <button onClick={() => connect.mutate()} disabled={connect.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-black inline-flex items-center gap-1.5">{connect.isPending || webStatus === "connecting" ? "Starting…" : "Show QR to link"}</button>
+          </div>
+        )}
+      </div>
+
+      <div className={`rounded-2xl border p-3 ${live ? "bg-emerald-500/10 border-emerald-400/30" : "bg-amber-500/10 border-amber-400/30"}`}>
+        <p className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4" /> Bot status: {live ? "active" : "inactive"}</p>
+        <p className="text-[11px] text-white/50 mt-1">{live ? "Auto-captures leads, creates member accounts and books appointments. Reminders run hourly." : "Link a number by QR above, or set WHATSAPP_* env vars for the Meta Business API. The homepage WhatsApp button already works."}</p>
         <button onClick={() => runReminders.mutate()} disabled={runReminders.isPending} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 inline-flex items-center gap-1.5"><Send className="w-3.5 h-3.5" /> Run reminders now</button>
       </div>
       <div className="grid grid-cols-3 gap-2">

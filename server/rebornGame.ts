@@ -7,6 +7,7 @@ import { requireAuth, getUserId } from "./multiAuth";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
+import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -1668,7 +1669,20 @@ export function registerRebornRoutes(app: Express) {
 
   // WhatsApp status + manual reminder trigger.
   app.get("/api/reborn/admin/whatsapp/status", requireAdmin(async (_req, res) => {
-    res.json({ configured: whatsappConfigured(), adminNumber: Boolean(process.env.WA_ADMIN_NUMBER) });
+    res.json({ configured: whatsappConfigured(), adminNumber: Boolean(process.env.WA_ADMIN_NUMBER), web: getWaWebStatus() });
+  }));
+  // QR login (WhatsApp Web / Linked Devices).
+  app.post("/api/reborn/admin/whatsapp/web/connect", requireAdmin(async (_req, res) => {
+    await startWhatsAppWeb();
+    res.json(getWaWebStatus());
+  }));
+  app.get("/api/reborn/admin/whatsapp/web/qr", requireAdmin(async (_req, res) => {
+    res.json(getWaWebStatus());
+  }));
+  app.post("/api/reborn/admin/whatsapp/web/logout", requireAdmin(async (req, res) => {
+    await logoutWhatsAppWeb();
+    await logAdmin(req, { targetType: "whatsapp", action: "web_logout", entityType: "whatsapp", description: "Unlinked WhatsApp Web session" });
+    res.json(getWaWebStatus());
   }));
   app.post("/api/reborn/admin/whatsapp/run-reminders", requireAdmin(async (req, res) => {
     const out = await runReminders();

@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
 import { registerRebornRoutes } from "./rebornGame";
 import { registerWhatsAppBot } from "./whatsappBot";
+import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -89,6 +90,8 @@ app.use((req, res, next) => {
 
   // WhatsApp CRM bot + reminder scheduler (activates when WHATSAPP_* env vars are set)
   registerWhatsAppBot(app);
+  // Resume a previously QR-linked WhatsApp Web session if one exists.
+  resumeWhatsAppWebIfLinked().catch(() => {});
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {

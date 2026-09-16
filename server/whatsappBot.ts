@@ -34,11 +34,22 @@ export function whatsappConfigured(): boolean {
   const c = cfg();
   return Boolean(c.token && c.phoneId);
 }
+// True when we can actually send — either Cloud API is configured or a QR-linked
+// WhatsApp Web session is connected.
+export async function whatsappAvailable(): Promise<boolean> {
+  if (whatsappConfigured()) return true;
+  try { const web = await import("./whatsappWeb"); return web.isWebConnected(); } catch { return false; }
+}
 
 // --- Sending -------------------------------------------------------------
 export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
   const c = cfg();
   const num = String(to).replace(/\D/g, "");
+  // Prefer a linked WhatsApp Web session (QR login) when available.
+  try {
+    const web = await import("./whatsappWeb");
+    if (web.isWebConnected()) return await web.sendWhatsAppWeb(num, text);
+  } catch { /* whatsappWeb not ready */ }
   if (!whatsappConfigured()) {
     console.log(`[wa] (not configured) would send to ${num}: ${text.slice(0, 80)}`);
     return false;
@@ -148,6 +159,11 @@ async function bookFromMessage(c: Contact, text: string): Promise<string> {
   return `Got it, ${c.name || "there"}! I've created a booking request for you. Our team will confirm the exact time shortly. You can view it in the app: ${APP_BASE_URL}/bookings`;
 }
 
+// Public entry used by both the Cloud API webhook and the QR-linked Web session.
+export async function handleInboundText(from: string, text: string, profileName?: string) {
+  return handleInbound(from, text, profileName);
+}
+
 async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
   const c = await getOrCreateContact(from, profileName);
@@ -226,7 +242,7 @@ export function registerWhatsAppBot(app: Express) {
 // 3) Feedback: contacts who visited earlier today, once that evening.
 export async function runReminders(): Promise<{ bottles: number; comeback: number; feedback: number }> {
   const out = { bottles: 0, comeback: 0, feedback: 0 };
-  if (!whatsappConfigured()) return out;
+  if (!(await whatsappAvailable())) return out;
   const now = Date.now();
 
   // 1) Leftover drinks
