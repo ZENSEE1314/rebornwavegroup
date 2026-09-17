@@ -25,6 +25,7 @@ let qrDataUrl: string | null = null;
 let sock: ReturnType<typeof makeWASocket> | null = null;
 let starting = false;
 let selfNumber: string | null = null;
+const jidForPhone = new Map<string, string>(); // phone digits -> chat JID (handles LID)
 
 export function getWaWebStatus() {
   return { status, qr: status === "qr" ? qrDataUrl : null, number: selfNumber };
@@ -131,16 +132,21 @@ export async function startWhatsAppWeb(): Promise<void> {
       if (type !== "notify") return;
       for (const m of messages) {
         if (m.key.fromMe || !m.message) continue;
-        const jid = m.key.remoteJid || "";
-        if (jid.endsWith("@g.us") || jid === "status@broadcast") continue; // skip groups/status
-        const from = jid.split("@")[0];
+        const chatJid = m.key.remoteJid || "";                 // reply here (works for @lid too)
+        if (chatJid.endsWith("@g.us") || chatJid === "status@broadcast") continue; // groups/status: no reply
+        // Resolve the real phone number. With WhatsApp LID, remoteJid can be "<id>@lid"
+        // and the phone lives in remoteJidAlt (or vice-versa). Pick the @s.whatsapp.net one.
+        const alt = (m.key as any).remoteJidAlt as string | undefined;
+        const phoneJid = [chatJid, alt].find((j) => j && j.endsWith("@s.whatsapp.net"));
+        const phone = (phoneJid ? phoneJid.split("@")[0] : chatJid.split("@")[0]).replace(/\D/g, "");
+        if (phone) jidForPhone.set(phone, chatJid);            // remember how to reach them
         const text = m.message.conversation
           || m.message.extendedTextMessage?.text
           || m.message.imageMessage?.caption
           || m.message.videoMessage?.caption
           || "";
         const name = m.pushName || undefined;
-        if (from && text) { try { await handleInboundText(from, text, name); } catch (e) { console.error("[wa-web] inbound", e); } }
+        if (phone && text) { try { await handleInboundText(phone, text, name); } catch (e) { console.error("[wa-web] inbound", e); } }
       }
     });
   } catch (e) {
@@ -153,9 +159,17 @@ export async function startWhatsAppWeb(): Promise<void> {
 
 export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean> {
   if (!isWebConnected() || !sock) return false;
-  const jid = `${String(to).replace(/\D/g, "")}@s.whatsapp.net`;
-  try { await sock.sendMessage(jid, { text }); return true; }
-  catch (e) { console.error("[wa-web] send error", e); return false; }
+  const digits = String(to).replace(/\D/g, "");
+  // Reply to the exact chat JID we last heard from (handles LID); else resolve the phone.
+  let jid = jidForPhone.get(digits);
+  try {
+    if (!jid) {
+      const res = await sock.onWhatsApp(digits).catch(() => null);
+      jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`;
+    }
+    await sock.sendMessage(jid, { text });
+    return true;
+  } catch (e) { console.error("[wa-web] send error", e); return false; }
 }
 
 export async function logoutWhatsAppWeb(): Promise<void> {
