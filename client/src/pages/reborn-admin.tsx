@@ -107,9 +107,9 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
         ))}
       </div>
       <p className="text-xs text-white/40 mb-2 px-1">Open a section</p>
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {(isFullAdmin ? ADMIN_TABS : STAFF_TABS).filter((t) => t !== "Overview").map((t) => (
-          <button key={t} onClick={() => onGo(t)} className="py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-1.5">
+          <button key={t} onClick={() => onGo(t)} className="py-4 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white/70 hover:bg-white/10 hover:border-amber-400/40 flex flex-col items-center gap-2">
             <span className="text-amber-300">{TAB_ICON[t]}</span>{t}
           </button>
         ))}
