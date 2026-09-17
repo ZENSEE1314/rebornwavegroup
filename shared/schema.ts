@@ -700,7 +700,8 @@ export const crmContacts = pgTable("crm_contacts", {
   email: varchar("email"),
   userId: varchar("user_id"),                   // linked member account once created
   source: varchar("source").default("whatsapp"),
-  stage: varchar("stage").default("new").notNull(), // new | await_name | await_email | active | member
+  stage: varchar("stage").default("new").notNull(), // new | await_lang | await_name | await_email | active | member
+  lang: varchar("lang").default("en").notNull(),    // preferred language: en | zh | id
   botReplies: integer("bot_replies").default(0).notNull(), // auto-replies sent; bot stops after 10 / once a member
   waState: jsonb("wa_state"),                   // bot scratchpad (pending booking, etc.)
   notes: text("notes"),
