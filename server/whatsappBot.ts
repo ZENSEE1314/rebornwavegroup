@@ -14,7 +14,7 @@ import type { Express, Request, Response } from "express";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, appointments, bottleKeeps, users } from "@shared/schema";
+import { crmContacts, bottleKeeps, users } from "@shared/schema";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -117,9 +117,6 @@ function looksLikeName(s: string): boolean {
   const t = s.trim();
   return t.length >= 2 && t.length <= 40 && /[a-zA-Z一-鿿]/.test(t) && !EMAIL_RE.test(t);
 }
-function isBookingIntent(s: string): boolean {
-  return /\b(book|booking|reserve|appointment|reservation|table)\b/i.test(s);
-}
 
 async function createMemberFromContact(c: Contact): Promise<{ email: string; created: boolean }> {
   const email = (c.email || "").toLowerCase();
@@ -140,66 +137,60 @@ async function createMemberFromContact(c: Contact): Promise<{ email: string; cre
   return { email, created: true };
 }
 
-async function bookFromMessage(c: Contact, text: string): Promise<string> {
-  if (!c.userId) return "Please finish signing up first so I can link your booking. 🙏";
-  // Best-effort: schedule tomorrow 8pm unless the text names a clear date/time; staff confirm in-app.
-  const when = new Date(Date.now() + DAY_MS);
-  when.setHours(20, 0, 0, 0);
-  const [row] = await db.insert(appointments).values({
-    userId: c.userId,
-    title: "WhatsApp booking",
-    service: "fun",
-    description: text.slice(0, 300),
-    appointmentDate: when,
-    duration: 120,
-    cost: "0",
-    status: "pending",
-  }).returning();
-  await notifyAdmin(`📅 New WhatsApp booking #${row.id} from ${c.name || c.phone}: "${text.slice(0, 120)}" — confirm in the app.`);
-  return `Got it, ${c.name || "there"}! I've created a booking request for you. Our team will confirm the exact time shortly. You can view it in the app: ${APP_BASE_URL}/bookings`;
-}
-
 // Public entry used by both the Cloud API webhook and the QR-linked Web session.
 export async function handleInboundText(from: string, text: string, profileName?: string) {
   return handleInbound(from, text, profileName);
 }
 
+const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
+
 async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
   const c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
-  const stage = c.stage;
 
-  // 1) Brand-new or still needs a name.
-  if (stage === "new" || (stage === "await_name" && !looksLikeName(body))) {
-    await patchContact(c.id, { stage: "await_name" });
-    await sendWhatsApp(from, `Hello! 👋 Welcome to Reborn Wave Group. May I know your name?`);
+  // The bot only onboards NEW numbers. Old/known contacts (already members, or past
+  // the reply cap) get no auto-reply — a human handles them; reminders still go out.
+  const isOld = c.stage === "member" || c.stage === "active" || (c.botReplies || 0) >= MAX_BOT_REPLIES;
+  if (isOld) {
+    await notifyAdmin(`💬 ${c.name || from}: "${body.slice(0, 160)}" — (bot silent, please reply)`);
     return;
   }
+
+  // Count each auto-reply toward the cap; the bot goes quiet once it's hit.
+  let sent = 0;
+  const reply = async (msg: string) => { const ok = await sendWhatsApp(from, msg); if (ok) sent++; return ok; };
+  const finish = async (patch: Partial<Contact> = {}) => {
+    await patchContact(c.id, { ...patch, botReplies: (c.botReplies || 0) + sent });
+  };
+
+  const stage = c.stage;
+  // 1) Brand-new or still needs a name.
+  if (stage === "new" || (stage === "await_name" && !looksLikeName(body))) {
+    await reply(`Hello! 👋 Welcome to Reborn Wave Group. May I know your name?`);
+    return finish({ stage: "await_name" });
+  }
   if (stage === "await_name") {
-    await patchContact(c.id, { name: body, stage: "await_email" });
-    await sendWhatsApp(from, `Nice to meet you, ${body}! 🎉 What's your email address? I'll set up your member account.`);
-    return;
+    await reply(`Nice to meet you, ${body}! 🎉 What's your email address? I'll set up your member account.`);
+    return finish({ name: body, stage: "await_email" });
   }
   // 2) Capturing email → create the account.
   if (stage === "await_email") {
     const m = body.match(EMAIL_RE);
-    if (!m) { await sendWhatsApp(from, `That doesn't look like an email. Please send it like name@example.com 🙂`); return; }
+    if (!m) { await reply(`That doesn't look like an email. Please send it like name@example.com 🙂`); return finish(); }
     await patchContact(c.id, { email: m[0].toLowerCase() });
     const fresh = { ...c, email: m[0].toLowerCase() } as Contact;
-    const { email, created } = await createMemberFromContact(fresh);
-    const msg = created
-      ? `All set! ✅ Your member account is ready.\n\n🔗 ${APP_BASE_URL}\n📧 ${email}\n🔑 Password: ${DEFAULT_PASSWORD}\n\nPlease log in and change your password. How can I help you today? You can also type "book" to make a reservation.`
-      : `Welcome back! You already have an account (${email}). Log in at ${APP_BASE_URL}. How can I help you today?`;
-    await sendWhatsApp(from, msg);
-    return;
+    const { email, created } = await createMemberFromContact(fresh); // sets stage=member
+    await reply(created
+      ? `All set! ✅ Your member account is ready.\n\n🔗 ${APP_BASE_URL}\n📧 ${email}\n🔑 Password: ${DEFAULT_PASSWORD}\n\nPlease log in and change your password. Our team will help you from here — reply anytime. 💜`
+      : `Welcome back! You already have an account (${email}). Log in at ${APP_BASE_URL}. Our team will help you from here. 💜`);
+    return finish(); // stage already 'member' → future messages go to staff
   }
-  // 3) Active member — handle intents.
-  if (isBookingIntent(body)) { await sendWhatsApp(from, await bookFromMessage(c, body)); return; }
 
-  // Fallback: acknowledge and hand off to staff.
-  await sendWhatsApp(from, `Thanks ${c.name || "there"}! A team member will reply shortly. For quick actions you can type "book" to make a reservation, or visit ${APP_BASE_URL}. 💜`);
+  // Fallback within onboarding window.
+  await reply(`Thanks ${c.name || "there"}! A team member will reply shortly. 💜`);
   await notifyAdmin(`💬 ${c.name || from}: "${body.slice(0, 160)}"`);
+  return finish();
 }
 
 // --- Webhook -------------------------------------------------------------
