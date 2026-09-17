@@ -14,7 +14,7 @@ import type { Express, Request, Response } from "express";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, bottleKeeps, users } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users } from "@shared/schema";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -87,6 +87,21 @@ async function getOrCreateContact(phone: string, name?: string): Promise<Contact
 }
 async function patchContact(id: number, patch: Partial<Contact>) {
   await db.update(crmContacts).set({ ...patch, updatedAt: new Date() }).where(eq(crmContacts.id, id));
+}
+async function logMsg(contactId: number, phone: string, direction: "in" | "out", body: string, viaBot: boolean) {
+  try { await db.insert(crmMessages).values({ contactId, phone: phone.replace(/\D/g, ""), direction, body: body.slice(0, 4000), viaBot }); }
+  catch (e) { console.error("[wa] logMsg", e); }
+}
+
+// Admin replies to a contact from the web CRM. Sends over WhatsApp, logs it, and
+// silences the bot for that contact (a human has taken over).
+export async function sendAdminMessage(contactId: number, text: string): Promise<{ ok: boolean; message: string }> {
+  const [c] = await db.select().from(crmContacts).where(eq(crmContacts.id, contactId));
+  if (!c) return { ok: false, message: "Contact not found" };
+  const ok = await sendWhatsApp(c.phone, text);
+  await logMsg(c.id, c.phone, "out", text, false);
+  if (c.stage !== "member") await patchContact(c.id, { stage: "active" }); // stop auto-replies
+  return ok ? { ok: true, message: "Sent" } : { ok: false, message: "WhatsApp not connected — message saved but not delivered" };
 }
 
 // Called from POS when a member pays — powers "come back" and feedback reminders.
@@ -219,6 +234,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
   const c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
+  await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
 
   // The bot only onboards NEW numbers. Old/known contacts (already members, or past
   // the reply cap) get no auto-reply — a human handles them; reminders still go out.
@@ -230,7 +246,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // Count each auto-reply toward the cap; the bot goes quiet once it's hit.
   let sent = 0;
-  const reply = async (msg: string) => { const ok = await sendWhatsApp(from, msg); if (ok) sent++; return ok; };
+  const reply = async (msg: string) => { const ok = await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); if (ok) sent++; return ok; };
   const finish = async (patch: Partial<Contact> = {}) => {
     await patchContact(c.id, { ...patch, botReplies: (c.botReplies || 0) + sent });
   };

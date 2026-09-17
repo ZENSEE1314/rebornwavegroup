@@ -776,7 +776,9 @@ function Crm() {
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
   const contacts: any[] = data?.contacts || [];
-  const stageColor: Record<string, string> = { new: "text-white/50", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
+  const [openId, setOpenId] = useState<number | null>(null);
+  const openContact = contacts.find((c) => c.id === openId) || null;
+  const stageColor: Record<string, string> = { new: "text-white/50", await_lang: "text-amber-300", await_name: "text-amber-300", await_email: "text-amber-300", active: "text-emerald-300", member: "text-emerald-300" };
   const live = webStatus === "connected" || wa?.configured;
   return (
     <div className="space-y-3">
@@ -814,16 +816,101 @@ function Crm() {
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Members</p><p className="text-base font-extrabold text-emerald-300">{data?.stages?.member || 0}</p></div>
         <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">In progress</p><p className="text-base font-extrabold text-amber-300">{(data?.stages?.await_name || 0) + (data?.stages?.await_email || 0)}</p></div>
       </div>
+      <p className="text-xs text-white/40 px-1 pt-1">Tap a contact to chat, edit or delete</p>
       {contacts.map((c) => (
-        <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">{c.name || "Unknown"} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {c.stage}</span></p>
-            <p className="text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · last visit ${new Date(c.lastVisitAt).toLocaleDateString()}` : ""}</p>
-          </div>
-          <a href={`https://wa.me/${String(c.phone).replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#25D366" }}><MessageCircle className="w-4 h-4 text-white" /></a>
-        </div>
+        <button key={c.id} onClick={() => setOpenId(c.id)} className="w-full flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-left hover:bg-white/10">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(c.name || c.phone || "?").slice(0, 1).toUpperCase()}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold truncate">{c.name || "Unknown"} <span className={`text-[11px] ${stageColor[c.stage] || "text-white/40"}`}>· {c.stage}</span></span>
+            <span className="block text-[11px] text-white/40 truncate">{c.phone}{c.email ? ` · ${c.email}` : ""}{c.lastVisitAt ? ` · visit ${new Date(c.lastVisitAt).toLocaleDateString()}` : ""}</span>
+          </span>
+          <MessageCircle className="w-4 h-4 text-emerald-300 flex-shrink-0" />
+        </button>
       ))}
       {contacts.length === 0 && <Empty text="No contacts yet. Leads captured by the WhatsApp bot appear here." />}
+
+      {openContact && <CrmChat contact={openContact} connected={webStatus === "connected" || !!wa?.configured} onClose={() => setOpenId(null)} />}
+    </div>
+  );
+}
+
+function CrmChat({ contact, connected, onClose }: { contact: any; connected: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [f, setF] = useState({ name: contact.name || "", email: contact.email || "", lang: contact.lang || "en", notes: contact.notes || "" });
+  const msgsKey = ["/api/reborn/admin/crm", contact.id, "messages"];
+  const { data: msgs = [] } = useQuery<any[]>({
+    queryKey: msgsKey,
+    queryFn: () => apiRequest("GET", `/api/reborn/admin/crm/${contact.id}/messages`).then((r) => r.json()),
+    refetchInterval: 4000,
+  });
+  const send = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/reborn/admin/crm/${contact.id}/send`, { text }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ d }: any) => { setText(""); qc.invalidateQueries({ queryKey: msgsKey }); if (d?.message && d.message !== "Sent") toast({ title: d.message }); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const saveEdit = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/crm/${contact.id}`, f).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Saved" }); setEditing(false); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  const del = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/reborn/admin/crm/${contact.id}`, {}).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Contact deleted" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/crm"] }); onClose(); },
+    onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
+  });
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="relative w-full max-w-lg bg-[#160f2a] border border-white/10 rounded-t-3xl sm:rounded-3xl flex flex-col" style={{ maxHeight: "88vh" }} onClick={(e) => e.stopPropagation()}>
+        {/* header */}
+        <div className="flex items-center gap-2 p-3 border-b border-white/10">
+          <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-black font-bold" style={{ background: "linear-gradient(135deg,#c9a84c,#a855f7)" }}>{(contact.name || contact.phone || "?").slice(0, 1).toUpperCase()}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold truncate">{contact.name || "Unknown"}</p>
+            <p className="text-[11px] text-white/40 truncate">+{String(contact.phone).replace(/\D/g, "")} · {contact.stage} · {contact.lang?.toUpperCase()}</p>
+          </div>
+          <button onClick={() => setEditing((v) => !v)} className={btnSm} title="Edit"><Pencil className="w-4 h-4 text-white/70" /></button>
+          <button onClick={() => { if (confirm(`Delete ${contact.name || contact.phone}? This removes the contact and its chat history.`)) del.mutate(); }} className={btnSm} title="Delete"><Trash2 className="w-4 h-4 text-red-300" /></button>
+          <button onClick={onClose} className={btnSm} title="Close"><X className="w-4 h-4 text-white/70" /></button>
+        </div>
+
+        {editing && (
+          <div className="p-3 border-b border-white/10 space-y-2 bg-black/20">
+            <div className="grid grid-cols-2 gap-2">
+              <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Name" className={inp} />
+              <select value={f.lang} onChange={(e) => setF({ ...f, lang: e.target.value })} className={inp}><option value="en">English</option><option value="zh">中文</option><option value="id">Bahasa</option></select>
+            </div>
+            <input value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="Email" className={inp + " w-full"} />
+            <input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Notes" className={inp + " w-full"} />
+            <button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending} className={btnSave}><Check className="w-4 h-4" /> Save profile</button>
+          </div>
+        )}
+
+        {/* messages */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ minHeight: 200 }}>
+          {msgs.length === 0 && <p className="text-center text-xs text-white/40 py-8">No messages yet. Say hello 👋</p>}
+          {msgs.map((m) => (
+            <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm ${m.direction === "out" ? "bg-emerald-600/80 text-white rounded-br-sm" : "bg-white/10 text-white rounded-bl-sm"}`}>
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                <p className="text-[9px] opacity-50 mt-0.5">{m.viaBot ? "🤖 bot · " : ""}{new Date(m.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* composer */}
+        <div className="p-3 border-t border-white/10">
+          {!connected && <p className="text-[11px] text-amber-300 mb-1.5">⚠️ WhatsApp not linked — messages are saved but won't be delivered until you link a number.</p>}
+          <div className="flex items-end gap-2">
+            <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (text.trim()) send.mutate(); } }} rows={1} placeholder="Type a message…" className={inp + " flex-1 resize-none"} style={{ maxHeight: 120 }} />
+            <button onClick={() => text.trim() && send.mutate()} disabled={send.isPending || !text.trim()} className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-black disabled:opacity-40" style={{ background: "#25D366" }}><Send className="w-5 h-5" /></button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

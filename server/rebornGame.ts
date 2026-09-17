@@ -8,12 +8,13 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
+import { sendAdminMessage } from "./whatsappBot";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1665,6 +1666,46 @@ export function registerRebornRoutes(app: Express) {
     const stages: Record<string, number> = {};
     for (const c of rows) stages[c.stage] = (stages[c.stage] || 0) + 1;
     res.json({ contacts: rows, stages, count: rows.length });
+  }));
+  // Conversation history for one contact.
+  app.get("/api/reborn/admin/crm/:id/messages", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const rows = await db.select().from(crmMessages).where(eq(crmMessages.contactId, id)).orderBy(crmMessages.createdAt).limit(300);
+    res.json(rows);
+  }));
+  // Admin replies to a contact over WhatsApp from the web.
+  app.post("/api/reborn/admin/crm/:id/send", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const text = String(req.body?.text || "").trim();
+    if (!text) return res.status(400).json({ message: "Message is empty" });
+    const out = await sendAdminMessage(id, text);
+    await logAdmin(req, { targetType: "crm_contact", targetId: id, action: "wa_reply", entityType: "crm", description: `Replied on WhatsApp: "${text.slice(0, 80)}"` });
+    res.status(out.ok ? 200 : 202).json(out);
+  }));
+  // Edit a contact's profile.
+  app.patch("/api/reborn/admin/crm/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    const patch: any = { updatedAt: new Date() };
+    if (typeof b.name === "string") patch.name = b.name.trim() || null;
+    if (typeof b.email === "string") patch.email = b.email.trim().toLowerCase() || null;
+    if (typeof b.notes === "string") patch.notes = b.notes;
+    if (b.lang === "en" || b.lang === "zh" || b.lang === "id") patch.lang = b.lang;
+    if (["new", "await_lang", "await_name", "await_email", "active", "member"].includes(b.stage)) patch.stage = b.stage;
+    const [row] = await db.update(crmContacts).set(patch).where(eq(crmContacts.id, id)).returning();
+    if (!row) return res.status(404).json({ message: "Contact not found" });
+    await logAdmin(req, { targetType: "crm_contact", targetId: id, action: "edit", entityType: "crm", description: `Edited contact ${row.name || row.phone}` });
+    res.json(row);
+  }));
+  // Delete a contact and its messages.
+  app.delete("/api/reborn/admin/crm/:id", requireAdmin(async (req, res) => {
+    const id = Number(req.params.id);
+    const [row] = await db.select().from(crmContacts).where(eq(crmContacts.id, id));
+    if (!row) return res.status(404).json({ message: "Contact not found" });
+    await db.delete(crmMessages).where(eq(crmMessages.contactId, id));
+    await db.delete(crmContacts).where(eq(crmContacts.id, id));
+    await logAdmin(req, { targetType: "crm_contact", targetId: id, action: "delete", entityType: "crm", description: `Deleted contact ${row.name || row.phone}` });
+    res.json({ message: "Contact deleted" });
   }));
 
   // WhatsApp status + manual reminder trigger.

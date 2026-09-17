@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #08060f;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      #root { width: 100%; height: 100%; position: relative; color: #ffffff; }
+
+      .scene {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        text-align: center;
+        background:
+          radial-gradient(120% 90% at 50% 0%, #1a1030 0%, #0a0714 55%, #08060f 100%);
+        padding: 0 120px;
+      }
+      .kicker {
+        font-size: 26px; font-weight: 700; letter-spacing: 0.32em;
+        text-transform: uppercase; color: #c9a84c;
+      }
+      .wordmark {
+        font-size: 150px; font-weight: 800; letter-spacing: -0.03em;
+        background: linear-gradient(100deg, #f0d787 0%, #c9a84c 42%, #a855f7 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        line-height: 1.02;
+      }
+      .sub { font-size: 46px; font-weight: 600; color: #ffffff; }
+      .subdim { font-size: 30px; font-weight: 500; color: #cfc9dd; }
+      .big { font-size: 88px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; }
+      .tag { font-size: 30px; font-weight: 600; color: #c9a84c; letter-spacing: 0.02em; }
+
+      /* logo chip */
+      .chip {
+        width: 132px; height: 132px; border-radius: 34px;
+        background: linear-gradient(135deg, #c9a84c, #a855f7);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 78px; font-weight: 800; color: #08060f;
+        box-shadow: 0 24px 60px rgba(168, 85, 247, 0.4);
+      }
+
+      /* feature cards */
+      .cards { display: flex; gap: 34px; justify-content: center; align-items: stretch; }
+      .card {
+        width: 366px; min-height: 430px; border-radius: 30px;
+        background: rgba(255,255,255,0.045);
+        border: 1px solid rgba(201,168,76,0.34);
+        box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+        padding: 44px 34px; text-align: left;
+        display: flex; flex-direction: column; gap: 20px;
+      }
+      .card .ico {
+        width: 84px; height: 84px; border-radius: 22px;
+        display: flex; align-items: center; justify-content: center; font-size: 44px;
+        background: rgba(201,168,76,0.16); border: 1px solid rgba(201,168,76,0.4);
+      }
+      .card h3 { font-size: 36px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; }
+      .card p { font-size: 25px; font-weight: 500; color: #d6d1e2; line-height: 1.4; }
+      .scene-title { font-size: 40px; font-weight: 700; color: #cfc9dd; margin-bottom: 54px; letter-spacing: 0.01em; }
+
+      /* pricing pills */
+      .pills { display: flex; gap: 40px; margin-top: 30px; }
+      .pill {
+        width: 460px; border-radius: 28px; padding: 46px 40px; text-align: center;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.16);
+      }
+      .pill.gold { border-color: rgba(201,168,76,0.6); background: rgba(201,168,76,0.12); }
+      .pill .plabel { font-size: 30px; font-weight: 600; color: #cfc9dd; }
+      .pill .pname { font-size: 52px; font-weight: 800; color: #ffffff; margin-top: 8px; }
+
+      /* why lines */
+      .whyline { font-size: 66px; font-weight: 800; letter-spacing: -0.01em; }
+      .whyline .g { color: #c9a84c; }
+
+      /* CTA */
+      .cta-num {
+        font-size: 96px; font-weight: 800; letter-spacing: -0.01em;
+        background: linear-gradient(100deg, #f0d787, #c9a84c);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .cta-line { font-size: 40px; font-weight: 700; color: #ffffff; }
+      .wa {
+        margin-top: 30px; display: inline-flex; align-items: center; gap: 16px;
+        padding: 20px 40px; border-radius: 999px; background: #25D366; color: #062b16;
+        font-size: 34px; font-weight: 800;
+      }
+      .glow { will-change: filter, transform; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="23.5" data-width="1920" data-height="1080">
+
+      <!-- SCENE 1 — HOOK / LOGO -->
+      <section class="scene clip" id="s1" data-start="0" data-duration="3" data-track-index="0">
+        <div class="chip glow" id="s1chip" style="margin-bottom:40px">BX</div>
+        <div class="wordmark glow" id="s1mark">Bridge&nbsp;X</div>
+        <div class="sub" id="s1sub" style="margin-top:22px">Your venue. Your brand. One platform.</div>
+      </section>
+
+      <!-- SCENE 2 — POSITIONING -->
+      <section class="scene clip" id="s2" data-start="3" data-duration="3" data-track-index="1">
+        <div class="big" id="s2big">One platform runs<br />your whole venue.</div>
+        <div class="tag" id="s2tag" style="margin-top:30px">White-label — 100% your brand</div>
+      </section>
+
+      <!-- SCENE 3 — FEATURE CARDS -->
+      <section class="scene clip" id="s3" data-start="6" data-duration="9" data-track-index="2">
+        <div class="scene-title" id="s3title">Everything your venue needs</div>
+        <div class="cards">
+          <div class="card" id="c1">
+            <div class="ico">🎁</div>
+            <h3>Member App &amp; Rewards</h3>
+            <p>Branded app with games, spin, karaoke, loyalty &amp; bookings — keep guests coming back.</p>
+          </div>
+          <div class="card" id="c2">
+            <div class="ico">🧾</div>
+            <h3>POS + Inventory</h3>
+            <p>Table tickets, stock by category, cash drawer &amp; printed receipts.</p>
+          </div>
+          <div class="card" id="c3">
+            <div class="ico">📊</div>
+            <h3>Smart Accounting</h3>
+            <p>Income, expense, profit &amp; staff commissions — books that keep themselves.</p>
+          </div>
+          <div class="card" id="c4">
+            <div class="ico">💬</div>
+            <h3>WhatsApp Auto-CRM</h3>
+            <p>Auto-replies in EN / 中文 / Bahasa, signs up members &amp; wins customers back.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 4 — WHY -->
+      <section class="scene clip" id="s4" data-start="15" data-duration="3" data-track-index="3">
+        <div class="whyline" id="w1">More repeat customers.</div>
+        <div class="whyline" id="w2" style="margin-top:18px">Less work.</div>
+        <div class="whyline" id="w3" style="margin-top:18px">All under <span class="g">your brand.</span></div>
+      </section>
+
+      <!-- SCENE 5 — PRICING -->
+      <section class="scene clip" id="s5" data-start="18" data-duration="3" data-track-index="4">
+        <div class="scene-title" id="s5title" style="margin-bottom:10px">Two ways to start</div>
+        <div class="pills">
+          <div class="pill gold" id="p1">
+            <div class="plabel">Pay as you grow</div>
+            <div class="pname">Monthly plan</div>
+          </div>
+          <div class="pill" id="p2">
+            <div class="plabel">Own it outright</div>
+            <div class="pname">One-time payment</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCENE 6 — CTA -->
+      <section class="scene clip" id="s6" data-start="21" data-duration="2.5" data-track-index="5">
+        <div class="kicker" id="ctak" style="margin-bottom:26px">Bridge X</div>
+        <div class="cta-line" id="ctal">Text us to know more</div>
+        <div class="cta-num glow" id="ctanum" style="margin-top:10px">+65 8910 8241</div>
+        <div class="wa" id="ctawa">💬 WhatsApp anytime</div>
+      </section>
+
+      <!-- AUDIO -->
+      <audio id="bg" class="clip" data-start="0" data-duration="23.5" data-track-index="20" data-volume="0.32" src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"></audio>
+      <audio id="sfx-c1" class="clip" data-start="6.25" data-duration="0.3" data-track-index="21" data-volume="0.7" src="assets/sfx/drop_001.ogg"></audio>
+      <audio id="sfx-c2" class="clip" data-start="7.05" data-duration="0.3" data-track-index="22" data-volume="0.7" src="assets/sfx/drop_002.ogg"></audio>
+      <audio id="sfx-c3" class="clip" data-start="7.85" data-duration="0.3" data-track-index="23" data-volume="0.7" src="assets/sfx/drop_003.ogg"></audio>
+      <audio id="sfx-c4" class="clip" data-start="8.65" data-duration="0.3" data-track-index="24" data-volume="0.7" src="assets/sfx/drop_001.ogg"></audio>
+      <audio id="sfx-cta" class="clip" data-start="21.15" data-duration="1.5" data-track-index="25" data-volume="0.7" src="assets/sfx/bell.ogg"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // SCENE 1 — logo hook  // beat-locked: 0.30s
+      tl.from("#s1chip", { opacity: 0, scale: 0.6, duration: 0.5, ease: "back.out(1.7)" }, 0.30);
+      tl.from("#s1mark", { opacity: 0, y: 40, duration: 0.6, ease: "power3.out" }, 0.5);
+      tl.from("#s1sub", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 0.9);
+      // subtle logo glow breathe
+      tl.fromTo("#s1mark", { filter: "drop-shadow(0 0 0px rgba(201,168,76,0.0))" },
+        { filter: "drop-shadow(0 0 26px rgba(201,168,76,0.45))", duration: 1.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 1.2);
+
+      // SCENE 2 — positioning
+      tl.from("#s2big", { opacity: 0, y: 40, duration: 0.55, ease: "power3.out" }, 3.2);
+      tl.from("#s2tag", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 3.65);
+
+      // SCENE 3 — feature cards, one by one  // beat-grid: 6.30 / 7.10 / 7.90 / 8.70
+      tl.from("#s3title", { opacity: 0, y: 24, duration: 0.5, ease: "power2.out" }, 6.05);
+      ["#c1", "#c2", "#c3", "#c4"].forEach((id, i) => {
+        tl.from(id, { opacity: 0, y: 60, scale: 0.94, duration: 0.5, ease: "power3.out" }, 6.30 + i * 0.8);
+      });
+
+      // SCENE 4 — why lines
+      tl.from("#w1", { opacity: 0, y: 30, duration: 0.45, ease: "power2.out" }, 15.2);
+      tl.from("#w2", { opacity: 0, y: 30, duration: 0.45, ease: "power2.out" }, 15.6);
+      tl.from("#w3", { opacity: 0, y: 30, duration: 0.45, ease: "power2.out" }, 16.0);
+
+      // SCENE 5 — pricing pills
+      tl.from("#s5title", { opacity: 0, y: 20, duration: 0.45, ease: "power2.out" }, 18.2);
+      tl.from("#p1", { opacity: 0, y: 40, scale: 0.95, duration: 0.5, ease: "back.out(1.4)" }, 18.55);
+      tl.from("#p2", { opacity: 0, y: 40, scale: 0.95, duration: 0.5, ease: "back.out(1.4)" }, 18.95);
+
+      // SCENE 6 — CTA  // beat-locked: 21.15s
+      tl.from("#ctak", { opacity: 0, y: 16, duration: 0.4, ease: "power2.out" }, 21.15);
+      tl.from("#ctal", { opacity: 0, y: 16, duration: 0.4, ease: "power2.out" }, 21.35);
+      tl.from("#ctanum", { opacity: 0, scale: 0.8, duration: 0.55, ease: "back.out(1.6)" }, 21.55);
+      tl.from("#ctawa", { opacity: 0, y: 16, duration: 0.4, ease: "power2.out" }, 21.95);
+      tl.fromTo("#ctanum", { filter: "drop-shadow(0 0 0px rgba(201,168,76,0))" },
+        { filter: "drop-shadow(0 0 30px rgba(201,168,76,0.55))", duration: 0.9, yoyo: true, repeat: 1, ease: "sine.inOut" }, 22.0);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

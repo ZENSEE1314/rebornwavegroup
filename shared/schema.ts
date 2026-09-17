@@ -713,6 +713,17 @@ export const crmContacts = pgTable("crm_contacts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// WhatsApp conversation history, so admins can read and reply from the web.
+export const crmMessages = pgTable("crm_messages", {
+  id: serial("id").primaryKey(),
+  contactId: integer("contact_id").notNull(),
+  phone: varchar("phone").notNull(),
+  direction: varchar("direction").notNull(), // 'in' (from customer) | 'out' (to customer)
+  body: text("body").notNull(),
+  viaBot: boolean("via_bot").default(false).notNull(), // true = auto-reply, false = human/admin
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const stockMovements = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
