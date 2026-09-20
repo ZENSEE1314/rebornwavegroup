@@ -109,12 +109,6 @@ export default function Bookings() {
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl">
-                <Plus className="w-5 h-5 mr-2" />
-                Book Appointment
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-md bg-[#14082e] border border-white/10 text-white">
               <DialogHeader>
                 <DialogTitle className="text-white">Book New Appointment</DialogTitle>
@@ -292,18 +286,26 @@ export default function Bookings() {
 function TableBookingCard() {
   const { toast } = useToast();
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()) });
+  const todayStr = new Date().toISOString().slice(0, 10);
   const [areaId, setAreaId] = useState<string>("");
-  const [dayIdx, setDayIdx] = useState(0);
+  const [date, setDate] = useState<string>(todayStr);
   const [slot, setSlot] = useState<string>("");
   const [table, setTable] = useState<string>("");
   const [party, setParty] = useState(2);
+  const [hours, setHours] = useState(2);
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
-  const day = data?.days?.[dayIdx];
-  const slotValues: string[] = ["17:00", "19:00", "21:00", "23:00", "01:00"];
+  const areaSlots: any[] = area?.slots || []; // [{value,label}]
   const needTable = !!area && area.tables?.length > 0;
+  // Which tables are already taken for this area on this date (to grey out).
+  const { data: avail } = useQuery<any>({
+    queryKey: ["/api/reborn/booking/availability", areaId, date],
+    queryFn: () => apiRequest("GET", `/api/reborn/booking/availability?areaId=${encodeURIComponent(areaId)}&date=${date}`).then((r) => r.json()),
+    enabled: needTable && !!areaId && !!date,
+  });
+  const takenForSlot: string[] = (slot && avail?.taken?.[slot]) || [];
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date: day?.date, slot, table, partySize: party }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Requested!", description: d.message }); setSlot(""); setTable(""); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -311,15 +313,16 @@ function TableBookingCard() {
   return (
     <div className="rwg-card p-5 mb-5">
       <h3 className="text-lg font-bold text-white mb-1">🗓️ Book at Reborn Wave</h3>
-      <p className="text-white/50 text-sm mb-3">{data?.hoursSummary || "Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots"}</p>
+      <p className="text-white/50 text-sm mb-3">{data?.hoursSummary || "Hours vary by area · 2-hour slots (stay longer if you like)"}</p>
 
       {/* 1. Choose area / level */}
       <p className="text-xs text-white/50 mb-1">What would you like to book?</p>
       <div className="grid grid-cols-2 gap-2 mb-4">
         {areas.map((a) => (
-          <button key={a.id} onClick={() => { setAreaId(a.id); setTable(""); }} className={`p-3 rounded-xl text-left ${areaId === a.id ? "bg-gradient-to-br from-violet-600/40 to-blue-600/30 border border-violet-400/50" : "bg-white/5 border border-white/10"}`}>
+          <button key={a.id} onClick={() => { setAreaId(a.id); setTable(""); setSlot(""); }} className={`p-3 rounded-xl text-left ${areaId === a.id ? "bg-gradient-to-br from-violet-600/40 to-blue-600/30 border border-violet-400/50" : "bg-white/5 border border-white/10"}`}>
             <span className="block text-sm font-bold text-white">{a.name}</span>
             <span className="block text-[11px] text-white/50">{a.level}</span>
+            <span className="block text-[10px] text-amber-300/80 mt-0.5">{a.hours}</span>
           </button>
         ))}
       </div>
@@ -328,36 +331,43 @@ function TableBookingCard() {
         {area.image && <img src={area.image} alt={`${area.name} layout`} className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
         {data?.note && <p className="text-white/60 text-sm mb-3">{data.note}</p>}
 
-        <p className="text-xs text-white/50 mb-1">Day</p>
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-          {(data?.days || []).map((d: any, i: number) => (
-            <button key={d.date} onClick={() => { setDayIdx(i); setSlot(""); }} className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 ${i === dayIdx ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>
-              {i === 0 ? "Today" : i === 1 ? "Tomorrow" : new Date(d.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-            </button>
-          ))}
-        </div>
+        <p className="text-xs text-white/50 mb-1">Date</p>
+        <input type="date" value={date} min={todayStr} onChange={(e) => setDate(e.target.value)}
+          className="w-full mb-3 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" style={{ colorScheme: "dark" }} />
 
-        <p className="text-xs text-white/50 mb-1">Start time {day ? `· ${day.hours}` : ""}</p>
+        <p className="text-xs text-white/50 mb-1">Start time <span className="text-white/30">· {area.hours}</span></p>
         <div className="grid grid-cols-3 gap-2 mb-3">
-          {(day?.slots || []).map((label: string, i: number) => (
-            <button key={i} onClick={() => setSlot(slotValues[i])} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === slotValues[i] ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{label}</button>
+          {areaSlots.map((s: any) => (
+            <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{s.label}</button>
           ))}
         </div>
 
         {needTable && (<>
           <p className="text-xs text-white/50 mb-1">{area.name.includes("KTV") ? "Room" : "Table"} <span className="text-white/30">(see the plan above)</span></p>
+          {!slot && <p className="text-[11px] text-amber-300/80 mb-2">Pick a start time first to see which are free.</p>}
           <div className="grid grid-cols-4 gap-2 mb-3">
-            {area.tables.map((tb: string) => (
-              <button key={tb} onClick={() => setTable(tb)} className={`py-2.5 rounded-xl text-sm font-bold ${table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}</button>
-            ))}
+            {area.tables.map((tb: string) => {
+              const taken = takenForSlot.includes(tb);
+              return (
+                <button key={tb} disabled={taken} onClick={() => setTable(tb)} className={`py-2.5 rounded-xl text-sm font-bold ${taken ? "bg-white/5 text-white/25 line-through cursor-not-allowed" : table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}</button>
+              );
+            })}
           </div>
         </>)}
 
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-xs text-white/50">Party size</span>
-          <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
-          <span className="w-8 text-center font-extrabold text-white">{party}</span>
-          <button onClick={() => setParty((p) => Math.min(50, p + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/50">Party</span>
+            <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
+            <span className="w-8 text-center font-extrabold text-white">{party}</span>
+            <button onClick={() => setParty((p) => Math.min(50, p + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/50">Hours</span>
+            <button onClick={() => setHours((h) => Math.max(2, h - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
+            <span className="w-8 text-center font-extrabold text-white">{hours}</span>
+            <button onClick={() => setHours((h) => Math.min(8, h + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
+          </div>
         </div>
 
         <Button onClick={() => book.mutate()} disabled={!slot || (needTable && !table) || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">

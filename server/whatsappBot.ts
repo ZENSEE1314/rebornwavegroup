@@ -15,7 +15,7 @@ import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests } from "@shared/schema";
-import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr, parseTables, parseAreas } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -255,6 +255,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "几位客人？（请回复数字）",
       id: "Berapa orang? (balas angka)",
     },
+    bookAskHours: {
+      en: "How many hours? (minimum 2 — reply a number)",
+      zh: "预订几小时？（最少 2 小时，请回复数字）",
+      id: "Berapa jam? (minimal 2 — balas angka)",
+    },
     bookDone: {
       en: "Booked! ✅ {day} at {time} for {n} pax. Our team will confirm shortly. View it in the app: {url}/bookings 💜",
       zh: "预订成功！✅ {day} {time}，{n} 位。我们的团队会尽快确认。可在应用查看：{url}/bookings 💜",
@@ -340,6 +345,60 @@ function parseBookDate(s: string): string | null {
 }
 function weekdayOf(dateStr: string): number { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, m - 1, d).getDay(); }
 
+// --- Natural-language booking ("book KTV Lounge next Wednesday 6pm for 4 pax") ---
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+function dateFor(delta: number): string { const d = new Date(); d.setDate(d.getDate() + delta); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function nlDate(body: string): string | null {
+  const t = body.toLowerCase();
+  if (/\b\d{4}-\d{2}-\d{2}\b/.test(t)) return (t.match(/\b\d{4}-\d{2}-\d{2}\b/) || [])[0];
+  if (/tonight|today|hari ini|今晚|今天/.test(t)) return dateFor(0);
+  if (/tomorrow|besok|明天|tmr/.test(t)) return dateFor(1);
+  for (let i = 0; i < 7; i++) {
+    if (new RegExp(`\\b${WEEKDAYS[i]}\\b`).test(t) || new RegExp(`\\b${WEEKDAYS[i].slice(0, 3)}\\b`).test(t)) {
+      const today = new Date().getDay();
+      let delta = (i - today + 7) % 7; if (delta === 0) delta = 7; // the coming <weekday>
+      return dateFor(delta);
+    }
+  }
+  return null;
+}
+function nlHourToSlot(body: string, area: BookingArea): string | null {
+  const m = body.toLowerCase().match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/g);
+  if (!m) return null;
+  for (const raw of m) {
+    const mm = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/); if (!mm) continue;
+    let h = Number(mm[1]); const ap = mm[3];
+    if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0;
+    if (!ap && h <= 7) h += 12; // bare "6" at a nightlife venue = 6pm
+    const want = `${String(h).padStart(2, "0")}:00`;
+    const slots = areaSlots(area);
+    if (slots.includes(want)) return want;
+    // nearest slot within 1h
+    const near = slots.find((s) => Math.abs(Number(s.split(":")[0]) - h) <= 1);
+    if (near) return near;
+  }
+  return null;
+}
+function nlParty(body: string): number | null {
+  const m = body.match(/(\d+)\s*(pax|ppl|people|persons?|guests?|orang)/i) || body.match(/\bfor\s+(\d+)\b/i);
+  return m ? Math.max(1, Math.min(50, Number(m[1]))) : null;
+}
+function nlArea(body: string, areas: BookingArea[]): BookingArea | null {
+  const t = body.toLowerCase();
+  let best: BookingArea | null = null, bestScore = 0;
+  for (const a of areas) {
+    const words = a.name.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+    const score = words.reduce((n, w) => n + (t.includes(w) ? 1 : 0), 0);
+    if (score > bestScore) { bestScore = score; best = a; }
+  }
+  return bestScore > 0 ? best : null;
+}
+function nlTable(body: string, area: BookingArea): string | null {
+  const t = body.toLowerCase();
+  for (const tb of area.tables) if (new RegExp(`(^|\\W)${tb.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`).test(t)) return tb;
+  return null;
+}
+
 async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
   const c = await getOrCreateContact(from, profileName);
@@ -383,7 +442,7 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- MENU INTENTS (work for members & returning contacts) ---
   const intent = parseMenuIntent(body);
-  if (intent === "book") return startBooking(c, lang, from, say);
+  if (intent === "book") return handleBookIntent(c, lang, from, body, say);
   if (intent === "song") { await say(L(lang, "songAsk")); return patchContact(c.id, { waState: { flow: "song" } }); }
   if (intent === "menu") { await say(L(lang, "menu")); return; }
 
@@ -397,25 +456,64 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(L(lang, "menu")); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
 }
 
-// Offer a booking (used right after signup). Sends the table image if one is set.
+// Offer a booking (used right after signup). Sends an area image if one is set.
 async function offerBooking(c: Contact, lang: Lang, from: string) {
-  const hours = hoursTextFor(new Date().getDay());
-  const caption = L(lang, "bookOffer", { hours });
-  const img = await settingVal("bookingImageUrl");
+  const caption = L(lang, "bookOffer", { hours: bookingHoursSummary() });
+  const areas = enabledAreas(await settingVal("bookingAreas"));
+  const img = areas.find((a) => a.image)?.image || await settingVal("bookingImageUrl");
   if (img) await sendWhatsAppImage(from, img, caption); else await sendWhatsApp(from, caption);
   await logMsg(c.id, c.phone, "out", caption, true);
 }
 
+// Book intent — try to parse a full request from free text, else start the step flow.
+async function handleBookIntent(c: Contact, lang: Lang, from: string, body: string, say: (m: string) => Promise<void>) {
+  if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
+  const areas = enabledAreas(await settingVal("bookingAreas"));
+  const area = nlArea(body, areas);
+  const date = nlDate(body);
+  const slot = area ? nlHourToSlot(body, area) : null;
+  if (area && date && slot) {
+    const party = nlParty(body) || 2;
+    const labels = areaSlotLabels(area); const label = labels[areaSlots(area).indexOf(slot)] || slot;
+    if (area.tables.length) {
+      const table = nlTable(body, area);
+      if (table) {
+        if (await isTableTaken(area, table, bookingWhen(area, date, slot))) {
+          const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+          await say(`Sorry, ${table} is already booked for ${label} on ${date}. Pick another:\n${list}`);
+          return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
+        }
+        const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: areaOpenHour(area) });
+        await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
+        await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
+        return patchContact(c.id, { waState: { flow: null } });
+      }
+      // Area needs a table but none named → ask, keeping the parsed date/slot/party.
+      const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+      const caption = L(lang, "bookAskTable", { list });
+      if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
+      await logMsg(c.id, c.phone, "out", caption, true);
+      return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
+    }
+    const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: areaOpenHour(area) });
+    await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
+    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · ${party} pax — confirm in the app.`);
+    return patchContact(c.id, { waState: { flow: null } });
+  }
+  // Not enough detail → run the guided flow.
+  return startBooking(c, lang, from, say);
+}
+
 async function startBooking(c: Contact, lang: Lang, from: string, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
-  const areas = parseAreas(await settingVal("bookingAreas"));
+  const areas = enabledAreas(await settingVal("bookingAreas"));
   const list = areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n");
   await say(L(lang, "bookAskArea", { list }));
   return patchContact(c.id, { waState: { flow: "book", step: "area" } });
 }
 
 async function bookingStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
-  const areas = parseAreas(await settingVal("bookingAreas"));
+  const areas = enabledAreas(await settingVal("bookingAreas"));
   if (wa.step === "area") {
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
     if (idx < 0 || idx >= areas.length) { await say(`Reply a number 1-${areas.length}.`); return; }
@@ -423,20 +521,21 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     return patchContact(c.id, { waState: { flow: "book", step: "date", areaId: areas[idx].id } });
   }
   const area = areas.find((a) => a.id === wa.areaId) || areas[0];
+  if (!area) { await say(L(lang, "bookAskArea", { list: areas.map((a, i) => `${i + 1}. ${a.name} (${a.level})`).join("\n") })); return patchContact(c.id, { waState: { flow: "book", step: "area" } }); }
+  const slots = areaSlots(area);
+  const labels = areaSlotLabels(area);
   if (wa.step === "date") {
     const date = parseBookDate(body);
     if (!date) { await say(L(lang, "bookAskDate")); return; }
-    const list = slotLabels(date).map((t, i) => `${i + 1}. ${t}`).join("\n");
-    const caption = L(lang, "bookAskSlot", { day: `${area.name} · ${date}`, hours: hoursTextFor(weekdayOf(date)), list });
+    const list = labels.map((t, i) => `${i + 1}. ${t}`).join("\n");
+    const caption = L(lang, "bookAskSlot", { day: `${area.name} · ${date}`, hours: areaHoursText(area, weekdayOf(date)), list });
     await say(caption);
     return patchContact(c.id, { waState: { flow: "book", step: "slot", areaId: area.id, date } });
   }
   if (wa.step === "slot") {
-    const slots = slotsForDate(wa.date);
-    const idx = Number((body.match(/[1-9]/) || [])[0] || 0) - 1;
+    const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
     if (idx < 0 || idx >= slots.length) { await say(`Reply a number 1-${slots.length}.`); return; }
     if (area.tables.length) {
-      // Ask which table/room next, showing the area's image if set.
       const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
       const caption = L(lang, "bookAskTable", { list });
       if (area.image) await sendWhatsAppImage(from, area.image, caption); else await say(caption);
@@ -449,15 +548,31 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   if (wa.step === "table") {
     const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
     if (idx < 0 || idx >= area.tables.length) { await say(`Reply a number 1-${area.tables.length}.`); return; }
+    const picked = area.tables[idx];
+    if (await isTableTaken(area, picked, bookingWhen(area, wa.date, wa.slot))) {
+      const list = area.tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+      await say(`Sorry, ${picked} is already booked for that time. Pick another:\n${list}`);
+      return;
+    }
+    if (wa.party) { await say(L(lang, "bookAskHours")); return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: picked, party: wa.party } }); }
     await say(L(lang, "bookAskParty"));
-    return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: wa.slot, table: area.tables[idx] } });
+    return patchContact(c.id, { waState: { flow: "book", step: "party", areaId: area.id, date: wa.date, slot: wa.slot, table: picked } });
   }
   if (wa.step === "party") {
     const n = Math.max(1, Math.min(50, Number((body.match(/\d+/) || [])[0] || 2)));
-    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: n, table: wa.table, area: `${area.name} (${area.level})` });
-    const label = slotLabels(wa.date)[slotsForDate(wa.date).indexOf(wa.slot)] || wa.slot;
-    await say(L(lang, "bookDone", { day: wa.date, time: label, n: String(n), url: APP_BASE_URL }));
-    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${wa.table ? "Table " + wa.table + " · " : ""}${n} pax — confirm in the app.`);
+    await say(L(lang, "bookAskHours"));
+    return patchContact(c.id, { waState: { flow: "book", step: "hours", areaId: area.id, date: wa.date, slot: wa.slot, table: wa.table, party: n } });
+  }
+  if (wa.step === "hours") {
+    const hrs = Math.max(2, Math.min(8, Number((body.match(/\d+/) || [])[0] || 2)));
+    if (wa.table && await isTableTaken(area, wa.table, bookingWhen(area, wa.date, wa.slot))) {
+      await say(`Sorry, ${wa.table} was just booked for that time. Reply "book" to try another.`);
+      return patchContact(c.id, { waState: { flow: null } });
+    }
+    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHour(area) });
+    const label = labels[slots.indexOf(wa.slot)] || wa.slot;
+    await say(L(lang, "bookDone", { day: wa.date, time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
+    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
     return patchContact(c.id, { waState: { flow: null } });
   }
 }

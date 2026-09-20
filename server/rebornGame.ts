@@ -9,7 +9,7 @@ import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins } from "./whatsappBot";
-import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr, parseTables, parseAreas } from "./booking";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, takenTablesForDate, bookingWhen } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -1650,7 +1650,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(row);
   }));
 
-  // Booking info for members — table image, hours and start-time slots for the next 7 days.
+  // Booking info for members — enabled areas (each with its own hours/slots) + next 7 days.
   app.get("/api/reborn/booking/info", requireAuth, async (_req, res) => {
     const s = await getSettings();
     const days: any[] = [];
@@ -1658,30 +1658,46 @@ export function registerRebornRoutes(app: Express) {
     for (let i = 0; i < 7; i++) {
       const d = new Date(base); d.setDate(base.getDate() + i);
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      days.push({ date: dateStr, weekday: d.getDay(), hours: hoursTextFor(d.getDay()), slots: slotLabels(dateStr) });
+      days.push({ date: dateStr, weekday: d.getDay() });
     }
-    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), tables: parseTables(s.bookingTables), areas: parseAreas(s.bookingAreas), days });
+    const areas = enabledAreas(s.bookingAreas).map((a) => ({
+      ...a,
+      hours: areaHoursText(a, new Date().getDay()),
+      slots: areaSlots(a).map((v, i) => ({ value: v, label: areaSlotLabels(a)[i] })),
+    }));
+    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), areas, days });
   });
   // Member creates a booking from the app.
   app.post("/api/reborn/booking", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const b = req.body || {};
     const date = String(b.date || todayStr());
-    const slots = slotsForDate(date);
-    const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
-    if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
     const s = await getSettings();
-    const areas = parseAreas(s.bookingAreas);
+    const areas = enabledAreas(s.bookingAreas);
     const area = areas.find((a) => a.id === b.areaId || a.name === b.area);
     if (!area) return res.status(400).json({ message: "Pick an area" });
+    const slots = areaSlots(area);
+    const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
+    if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
     if (area.tables.length && !table) return res.status(400).json({ message: "Pick a table" });
-    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours: Number(b.hours) || 2, note: b.note, table, area: `${area.name} (${area.level})` });
-    const label = slotLabels(date)[slots.indexOf(slot)] || slot;
+    // Prevent double-booking the same table/room at the same time.
+    if (table && await isTableTaken(area, table, bookingWhen(area, date, slot)))
+      return res.status(409).json({ message: `${table} is already booked for that time. Please pick another.` });
+    const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHour(area) });
+    const label = areaSlotLabels(area)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
     await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
     res.json({ message: `Booked ${date} at ${label}. We'll confirm shortly.`, appointment: row });
+  });
+  // Which tables/rooms are already taken for an area on a date (to grey them out).
+  app.get("/api/reborn/booking/availability", requireAuth, async (req, res) => {
+    const s = await getSettings();
+    const area = enabledAreas(s.bookingAreas).find((a) => a.id === req.query.areaId);
+    if (!area) return res.json({ taken: {} });
+    res.json({ taken: await takenTablesForDate(area, String(req.query.date || todayStr())) });
   });
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.

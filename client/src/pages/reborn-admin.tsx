@@ -343,15 +343,23 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
   return (
     <div className="space-y-3">
       {areas.map((a, i) => (
-        <div key={a.id || i} className="rounded-xl border border-white/10 bg-black/20 p-3">
+        <div key={a.id || i} className={`rounded-xl border p-3 ${a.enabled === false ? "border-white/10 bg-black/40 opacity-60" : "border-white/10 bg-black/20"}`}>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <input value={a.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="Area name" className={inp} />
             <input value={a.level} onChange={(e) => upd(i, { level: e.target.value })} placeholder="Level" className={inp} />
           </div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <label className="text-[11px] text-white/50">Open<input type="time" value={a.open || ""} onChange={(e) => upd(i, { open: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+            <label className="text-[11px] text-white/50">Close<input type="time" value={a.close || ""} onChange={(e) => upd(i, { close: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          </div>
+          <p className="text-[10px] text-white/35 mb-2">Leave Open/Close empty to use nightlife hours (5pm–2am / Fri–Sat 3am).</p>
           <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2"} />
           <div className="flex items-center justify-between gap-2">
             <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" />
-            <button onClick={() => remove(i)} className={btnDel}><Trash2 className="w-4 h-4" /></button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => upd(i, { enabled: a.enabled === false })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${a.enabled === false ? "bg-white/10 text-white/50" : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"}`}>{a.enabled === false ? "Hidden" : "Visible"}</button>
+              <button onClick={() => remove(i)} className={btnDel}><Trash2 className="w-4 h-4" /></button>
+            </div>
           </div>
         </div>
       ))}
