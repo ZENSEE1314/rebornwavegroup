@@ -11,10 +11,10 @@
 // Without those vars the module still loads; sends are no-ops (logged) so the rest
 // of the app runs unchanged and the wa.me button on the homepage still works.
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, isNotNull, lte, gt, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte, gt, ilike, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, appointments } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments } from "@shared/schema";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
@@ -221,9 +221,29 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
     menu: {
-      en: "How can I help? 🌊\n1️⃣ Book a table\n2️⃣ Request a song\nReply 1 or 2.",
-      zh: "有什么可以帮您？🌊\n1️⃣ 预订桌位\n2️⃣ 点歌\n请回复 1 或 2。",
-      id: "Ada yang bisa dibantu? 🌊\n1️⃣ Pesan meja\n2️⃣ Minta lagu\nBalas 1 atau 2.",
+      en: "How can I help? 🌊\n1️⃣ Booking / appointment\n2️⃣ Request a song\n3️⃣ My kept bottles\nReply 1, 2 or 3.",
+      zh: "有什么可以帮您？🌊\n1️⃣ 预订 / 预约\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n请回复 1、2 或 3。",
+      id: "Ada yang bisa dibantu? 🌊\n1️⃣ Booking / janji\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\nBalas 1, 2 atau 3.",
+    },
+    songAskName: {
+      en: "🎤 What's the song name? (Chinese or pinyin — or both)",
+      zh: "🎤 歌名是什么？（中文或拼音都可以）",
+      id: "🎤 Judul lagunya apa? (Mandarin atau pinyin — boleh keduanya)",
+    },
+    songAskArtist: {
+      en: "And the singer? (Chinese or pinyin — or both)",
+      zh: "歌手是谁？（中文或拼音都可以）",
+      id: "Penyanyinya siapa? (Mandarin atau pinyin — boleh keduanya)",
+    },
+    bottlesList: {
+      en: "🍾 Your kept bottles ({n}):\n{list}",
+      zh: "🍾 你的寄存酒（{n}）：\n{list}",
+      id: "🍾 Botol simpanan Anda ({n}):\n{list}",
+    },
+    bottlesNone: {
+      en: "You have no bottles kept right now. 🍾",
+      zh: "你目前没有寄存酒。🍾",
+      id: "Anda belum ada botol simpanan. 🍾",
     },
     bookOffer: {
       en: "Would you like to book a table? 🪑\nOur hours — {hours}\nReply 1 to book, or 2 to request a song.",
@@ -334,11 +354,12 @@ export async function handleInboundText(from: string, text: string, profileName?
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
-function parseMenuIntent(s: string): "book" | "song" | "menu" | null {
+function parseMenuIntent(s: string): "book" | "song" | "bottle" | "menu" | null {
   const t = s.trim().toLowerCase();
-  if (/^1$|book|table|reserv|预订|订位|meja|pesan meja/.test(t)) return "book";
+  if (/^1$|book|table|reserv|appoint|预订|订位|meja|pesan meja/.test(t)) return "book";
   if (/^2$|song|sing|request a song|点歌|唱歌|lagu/.test(t)) return "song";
-  if (/^(menu|hi|hello|hey|start|help|3|你好|嗨|halo|hai)$/.test(t)) return "menu";
+  if (/^3$|bottle|my drink|keep|寄存|存酒|botol|simpan/.test(t)) return "bottle";
+  if (/^(menu|hi|hello|hey|start|help|0|你好|嗨|halo|hai)$/.test(t)) return "menu";
   return null;
 }
 function parseBookDate(s: string): string | null {
@@ -428,8 +449,8 @@ async function handleInbound(from: string, text: string, profileName?: string) {
     await patchContact(c.id, { email: m[0].toLowerCase() });
     const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
     await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
-    // Offer a booking straight away (with the table image if configured).
-    await offerBooking(c, lang, from);
+    // Second message: the WhatsApp menu shortcuts.
+    await say(L(lang, "menu"));
     return patchContact(c.id, { waState: { flow: null } });
   }
 
@@ -443,12 +464,13 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- ACTIVE FLOWS ---
   if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
-  if (wa.flow === "song") return songStep(c, lang, from, body, say);
+  if (wa.flow === "song") return songStep(c, lang, from, body, wa, say);
 
   // --- MENU INTENTS (work for members & returning contacts) ---
   const intent = parseMenuIntent(body);
   if (intent === "book") return handleBookIntent(c, lang, from, body, say);
-  if (intent === "song") { await say(L(lang, "songAsk")); return patchContact(c.id, { waState: { flow: "song" } }); }
+  if (intent === "song") { await say(L(lang, "songAskName")); return patchContact(c.id, { waState: { flow: "song", step: "name" } }); }
+  if (intent === "bottle") return showBottles(c, lang, say);
   if (intent === "menu") { await say(L(lang, "menu")); return; }
 
   // --- No recognized command ---
@@ -582,16 +604,39 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
   }
 }
 
-async function songStep(c: Contact, lang: Lang, from: string, body: string, say: (m: string) => Promise<void>) {
+async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
-  const parts = body.split(/\s*[-–—|]\s*|\s+by\s+/i);
-  const title = (parts[0] || body).trim();
-  const artist = (parts[1] || "").trim();
-  if (!title) { await say(L(lang, "songAsk")); return; }
-  await db.insert(songRequests).values({ userId: c.userId, title, artist, status: "pending" });
+  // Step 1: song name.
+  if (wa.step !== "artist") {
+    const title = body.trim();
+    if (!title) { await say(L(lang, "songAskName")); return; }
+    await say(L(lang, "songAskArtist"));
+    return patchContact(c.id, { waState: { flow: "song", step: "artist", songTitle: title } });
+  }
+  // Step 2: singer → save to the app hit-song list (dedup) + this member's requests.
+  const title = String(wa.songTitle || "").trim();
+  const artist = body.trim() === "-" ? "" : body.trim();
+  let songId: number | undefined;
+  try {
+    const [existing] = await db.select().from(songs).where(ilike(songs.title, title)).limit(1);
+    if (existing) songId = existing.id;
+    else { const [s] = await db.insert(songs).values({ title, artist, createdBy: c.userId }).returning(); songId = s.id; }
+  } catch (e) { console.error("[wa] song upsert", e); }
+  await db.insert(songRequests).values({ userId: c.userId, songId, title, artist, status: "pending" });
   await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
   await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""}`);
   return patchContact(c.id, { waState: { flow: null } });
+}
+
+async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<void>) {
+  if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
+  const rows = await db.select().from(bottleKeeps).where(and(eq(bottleKeeps.userId, c.userId), eq(bottleKeeps.status, "kept")));
+  if (!rows.length) { await say(L(lang, "bottlesNone")); return; }
+  const list = rows.map((b) => {
+    const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / DAY_MS)) : 0;
+    return `• ${b.name} ${b.type === "beer" ? `(${b.quantity} left)` : ""} — ${days} day(s) left`;
+  }).join("\n");
+  await say(L(lang, "bottlesList", { n: String(rows.length), list }));
 }
 
 // Post-payment: ask for feedback + a Google review. Called from the app after a paid order/top-up.

@@ -35,9 +35,10 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingAreas: "",         // JSON array of venue areas by level (empty → server defaults)
   googleReviewUrl: "",      // link sent after payment to collect a Google review
   houseReferralUserId: "",  // admin account that owns un-referred signups (house commission)
-  spinPoolPercent: "10",    // % of paid sales set aside into the Lucky Spin prize pool
+  spinPoolPercent: "10",    // % of un-referred paid sales set aside into the Lucky Spin prize pool
   spinPoolMin: "1000000",   // spin only pays prizes when the pool is at/above this (min 1,000,000)
   spinPoolBalance: "0",     // current prize-pool reserve (auto: +contributions, -payouts)
+  spinTokenCost: "1",       // tokens spent per spin (admin-set)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -61,7 +62,19 @@ async function getSettings() {
     spinPoolPercent: Number(map.spinPoolPercent) || 10,
     spinPoolMin: Math.max(1000000, Number(map.spinPoolMin) || 1000000),
     spinPoolBalance: Number(map.spinPoolBalance) || 0,
+    spinTokenCost: Math.max(1, Number(map.spinTokenCost) || 1),
   };
+}
+// Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
+// referrer's commission instead). House-account referrals count as un-referred.
+async function contributeSpinPoolIfUnreferred(userId: string | null | undefined, saleTotal: number) {
+  try {
+    if (!userId) return;
+    const [u] = await db.select({ ref: users.referredById }).from(users).where(eq(users.id, userId));
+    const houseId = (await db.select().from(appSettings).where(eq(appSettings.key, "houseReferralUserId")))[0]?.value || "";
+    const referred = u?.ref && u.ref !== houseId;
+    if (!referred) await contributeSpinPool(saleTotal);
+  } catch (e) { console.error("pool unreferred", e); }
 }
 // Prize-pool helpers (stored in app_settings.spinPoolBalance as a number string).
 async function getSpinPool(): Promise<number> {
@@ -505,7 +518,7 @@ export function registerRebornRoutes(app: Express) {
     try {
       await seedPrizesIfEmpty();
       const rows = await db.select().from(spinPrizes).where(eq(spinPrizes.active, true)).orderBy(spinPrizes.sortOrder);
-      res.json({ cost: SPIN_COST, prizes: rows });
+      res.json({ cost: (await getSettings()).spinTokenCost, prizes: rows });
     } catch (e) { console.error("spin prizes", e); res.status(500).json({ message: "Failed to load prizes" }); }
   });
 
@@ -513,14 +526,15 @@ export function registerRebornRoutes(app: Express) {
     try {
       const userId = getUserId(req)!;
       await seedPrizesIfEmpty();
+      const spinSettings = await getSettings();
+      const spinCost = spinSettings.spinTokenCost;
       const user = await storage.getUser(userId);
-      if (!user || (user.tokens || 0) < SPIN_COST) return res.status(400).json({ message: "Not enough tokens. Feed your pet to earn more." });
+      if (!user || (user.tokens || 0) < spinCost) return res.status(400).json({ message: `Not enough tokens (need ${spinCost}). Feed your pet to earn more.` });
 
       const prizes = await db.select().from(spinPrizes).where(eq(spinPrizes.active, true)).orderBy(spinPrizes.sortOrder);
       if (prizes.length === 0) return res.status(400).json({ message: "The wheel isn't set up yet. Please check back soon." });
       // Prize pool gating: real prizes can only be won when the pool is funded and can
       // afford them. Below the minimum (or empty) only free outcomes (nothing/free spin).
-      const spinSettings = await getSettings();
       const pool = await getSpinPool();
       const gate = pool >= spinSettings.spinPoolMin;
       const isFree = (p: any) => p.prizeType === "nothing" || p.prizeType === "free_spin";
@@ -535,14 +549,14 @@ export function registerRebornRoutes(app: Express) {
 
       const now = new Date();
       // Spend a token
-      await db.update(users).set({ tokens: sql`${users.tokens} - ${SPIN_COST}`, updatedAt: now }).where(eq(users.id, userId));
-      await db.insert(tokenTransactions).values({ userId, tokens: -SPIN_COST, type: "spent", status: "completed", description: "Spin the Wheel" });
+      await db.update(users).set({ tokens: sql`${users.tokens} - ${spinCost}`, updatedAt: now }).where(eq(users.id, userId));
+      await db.insert(tokenTransactions).values({ userId, tokens: -spinCost, type: "spent", status: "completed", description: "Spin the Wheel" });
 
       let status = "won";
       let freeSpin = false;
       if (picked.prizeType === "free_spin") {
         freeSpin = true;
-        await db.update(users).set({ tokens: sql`${users.tokens} + ${SPIN_COST}`, updatedAt: now }).where(eq(users.id, userId));
+        await db.update(users).set({ tokens: sql`${users.tokens} + ${spinCost}`, updatedAt: now }).where(eq(users.id, userId));
       } else if (picked.prizeType === "pill") {
         await db.insert(petPills).values({ userId, grantedBy: "spin", note: "Won on the wheel" });
       } else if (picked.prizeType === "egg") {
@@ -557,7 +571,7 @@ export function registerRebornRoutes(app: Express) {
 
       const [result] = await db.insert(spinResults).values({
         userId, prizeId: picked.id, prizeLabel: picked.label, prizeType: picked.prizeType,
-        tokensSpent: SPIN_COST, status,
+        tokensSpent: spinCost, status,
       }).returning();
 
       // Draw the prize's cost from the pool and record it as an expense (accountable).
@@ -1098,7 +1112,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1534,7 +1548,7 @@ export function registerRebornRoutes(app: Express) {
       crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
       sendReviewRequest({ userId: u.id, phone: (u as any).phoneNumber, name: u.firstName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
-    contributeSpinPool(total).catch(() => {});
+    contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
@@ -1593,7 +1607,7 @@ export function registerRebornRoutes(app: Express) {
       crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
       sendReviewRequest({ userId: o.memberId, name: o.memberName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
-    contributeSpinPool(total).catch(() => {});
+    contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
@@ -1819,7 +1833,7 @@ export function registerRebornRoutes(app: Express) {
         const when = new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
         const msg = status === "confirmed"
           ? `✅ Your booking is confirmed: ${row.title} on ${when}. See you! 💜`
-          : `😔 Sorry, your booking (${row.title} on ${when}) couldn't be confirmed${note ? `: ${note}` : "."} Please try another time. 💜`;
+          : `😔 Sorry, your booking (${row.title} on ${when}) has been cancelled${note ? `: ${note}` : "."} Please rebook a new date by typing "booking". 💜`;
         sendWhatsApp(u.phoneNumber, msg).catch(() => {});
       }
     }

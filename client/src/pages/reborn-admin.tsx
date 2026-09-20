@@ -320,8 +320,9 @@ function Settings() {
       </Card>
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Disc3 className="w-4 h-4 text-amber-300" /> Lucky Spin prize pool</h3>
-        <p className="text-[11px] text-white/50 mb-3">A % of every paid sale is set aside into the pool. Spins only award a prize the pool can afford; below the minimum (or empty) spins land on "nothing". Set each prize's <b>cost RP</b> in the Prizes tab.</p>
-        <Field label="Pool contribution % of each sale" value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
+        <p className="text-[11px] text-white/50 mb-3">The pool is funded by the <b>10% on un-referred sales</b> (a referred buyer's 10% goes to their referrer instead). Raise the % to grow the pool faster. Spins only award a prize the pool can afford; below the minimum (or empty) spins land on "nothing". Set each prize's <b>cost RP</b> in the Prizes tab.</p>
+        <Field label="Tokens spent per spin" value={cur.spinTokenCost} onChange={(v: any) => set("spinTokenCost", v)} />
+        <Field label="Pool contribution % of un-referred sales" value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
         <Field label="Minimum pool before prizes pay out (min 1,000,000)" value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
         <SpinPool />
       </Card>

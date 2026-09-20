@@ -99,12 +99,18 @@ function hourOf(hm?: string): number | null { if (!hm) return null; const h = Nu
 export function areaOpenHour(a: BookingArea): number { return hourOf(a.open) ?? OPEN_HOUR; }
 function areaCloseHour(a: BookingArea): number { return hourOf(a.close) ?? 2; } // default 2am
 
-// 2-hour start slots from open up to (but not including) close; close may be next-day.
+// Hourly start slots from open up to (but not including) close; close may be next-day.
+// 1am and 2am are never offered as a start (too close to closing for everyone).
+const EXCLUDED_START_HOURS = new Set([1, 2]);
 export function areaSlots(a: BookingArea): string[] {
   const open = areaOpenHour(a), close = areaCloseHour(a);
   const span = (close <= open ? close + 24 : close) - open; // hours the venue is open
   const out: string[] = [];
-  for (let t = 0; t < span; t += 2) out.push(`${String((open + t) % 24).padStart(2, "0")}:00`);
+  for (let t = 0; t < span; t += 1) {
+    const h = (open + t) % 24;
+    if (EXCLUDED_START_HOURS.has(h)) continue;
+    out.push(`${String(h).padStart(2, "0")}:00`);
+  }
   return out.length ? out : [...SLOT_TIMES];
 }
 export function areaSlotLabels(a: BookingArea): string[] { return areaSlots(a).map(labelTime); }
