@@ -9,7 +9,7 @@ import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins } from "./whatsappBot";
-import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr, parseTables } from "./booking";
+import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr, parseTables, parseAreas } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -29,9 +29,10 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   clubName: "Reborn Wave Group",
   receiptLogoUrl: "",       // data URL / image for receipts
   receiptFooter: "Thank you — see you again!",
-  bookingImageUrl: "",      // table layout / availability image shown in-app + on WhatsApp
+  bookingImageUrl: "",      // legacy single floor-plan image (kept for back-compat)
   bookingNote: "",          // optional extra note shown with booking timings
-  bookingTables: "V1,V2,1,2,3,4,5,T6,T7,T8,T9", // selectable tables (match the floor plan)
+  bookingTables: "V1,V2,1,2,3,4,5,T6,T7,T8,T9", // legacy single table list (back-compat)
+  bookingAreas: "",         // JSON array of venue areas by level (empty → server defaults)
   googleReviewUrl: "",      // link sent after payment to collect a Google review
   houseReferralUserId: "",  // admin account that owns un-referred signups (house commission)
 };
@@ -51,6 +52,7 @@ async function getSettings() {
     bookingImageUrl: map.bookingImageUrl || "",
     bookingNote: map.bookingNote || "",
     bookingTables: map.bookingTables || "V1,V2,1,2,3,4,5,T6,T7,T8,T9",
+    bookingAreas: map.bookingAreas || "",
     googleReviewUrl: map.googleReviewUrl || "",
     houseReferralUserId: map.houseReferralUserId || "",
   };
@@ -1051,7 +1053,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "googleReviewUrl", "houseReferralUserId"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         await db.insert(appSettings).values({ key: k, value: String(req.body[k]), updatedAt: new Date() })
@@ -1658,7 +1660,7 @@ export function registerRebornRoutes(app: Express) {
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       days.push({ date: dateStr, weekday: d.getDay(), hours: hoursTextFor(d.getDay()), slots: slotLabels(dateStr) });
     }
-    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), tables: parseTables(s.bookingTables), days });
+    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), tables: parseTables(s.bookingTables), areas: parseAreas(s.bookingAreas), days });
   });
   // Member creates a booking from the app.
   app.post("/api/reborn/booking", requireAuth, async (req, res) => {
@@ -1669,9 +1671,12 @@ export function registerRebornRoutes(app: Express) {
     const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
     if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
     const s = await getSettings();
-    const validTables = parseTables(s.bookingTables);
-    const table = b.table && validTables.includes(String(b.table)) ? String(b.table) : undefined;
-    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours: Number(b.hours) || 2, note: b.note, table });
+    const areas = parseAreas(s.bookingAreas);
+    const area = areas.find((a) => a.id === b.areaId || a.name === b.area);
+    if (!area) return res.status(400).json({ message: "Pick an area" });
+    const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
+    if (area.tables.length && !table) return res.status(400).json({ message: "Pick a table" });
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours: Number(b.hours) || 2, note: b.note, table, area: `${area.name} (${area.level})` });
     const label = slotLabels(date)[slots.indexOf(slot)] || slot;
     const [u] = await db.select().from(users).where(eq(users.id, userId));
     await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);

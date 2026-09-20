@@ -305,11 +305,9 @@ function Settings() {
         <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
       </Card>
       <Card>
-        <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking</h3>
-        <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. This image is shown on the member booking page and sent on WhatsApp.</p>
-        <p className="text-xs text-white/60 mb-1">Table layout / availability image</p>
-        <ImageUpload value={cur.bookingImageUrl} onChange={(v) => setStr("bookingImageUrl", v)} label="Upload floor plan" />
-        <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Tables guests can pick (comma-separated, match the floor plan)</span><input value={cur.bookingTables || ""} onChange={(e) => setStr("bookingTables", e.target.value)} placeholder="V1,V2,1,2,3,4,5,T6,T7,T8,T9" className={inp + " w-full"} /></label>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking areas (by level)</h3>
+        <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. Each area shows on the member booking page and on WhatsApp. Add tables/rooms and a layout image where guests pick a spot (e.g. KTV Lounge).</p>
+        <BookingAreasEditor value={cur.bookingAreas} onChange={(v) => setStr("bookingAreas", v)} />
         <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Booking note (optional, shown with timings)</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
       </Card>
       <Card>
@@ -324,6 +322,42 @@ function Settings() {
 }
 function Field({ label, value, onChange }: any) {
   return <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{label}</span><input type="number" value={value} onChange={(e) => onChange(e.target.value)} className={inp + " w-full"} /></label>;
+}
+
+const DEFAULT_AREAS = [
+  { id: "l1-game", name: "Game House", level: "Level 1", image: "", tables: [] },
+  { id: "l1-ktv", name: "KTV Lounge", level: "Level 1", image: "", tables: ["V1", "V2", "1", "2", "3", "4", "5", "T6", "T7", "T8", "T9"] },
+  { id: "beauty", name: "Beauty Service", level: "Level 2 & 3", image: "", tables: [] },
+  { id: "l2-ktv", name: "KTV Room", level: "Level 2", image: "", tables: ["Room 1", "Room 2", "Room 3", "Room 4"] },
+  { id: "l3-vip", name: "VIP KTV Room", level: "Level 3", image: "", tables: ["VIP 1", "VIP 2", "VIP 3"] },
+  { id: "l4-pet", name: "Pet Room", level: "Level 4", image: "", tables: [] },
+  { id: "restaurant", name: "Restaurant", level: "Level 4 & 5", image: "", tables: [] },
+];
+function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (json: string) => void }) {
+  const parse = (): any[] => { try { const a = JSON.parse(value || ""); if (Array.isArray(a) && a.length) return a; } catch {} return DEFAULT_AREAS; };
+  const [areas, setAreas] = useState<any[]>(parse);
+  const push = (next: any[]) => { setAreas(next); onChange(JSON.stringify(next)); };
+  const upd = (i: number, patch: any) => push(areas.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  const add = () => push([...areas, { id: `area-${Date.now().toString(36)}`, name: "New area", level: "Level 1", image: "", tables: [] }]);
+  const remove = (i: number) => push(areas.filter((_, j) => j !== i));
+  return (
+    <div className="space-y-3">
+      {areas.map((a, i) => (
+        <div key={a.id || i} className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <input value={a.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="Area name" className={inp} />
+            <input value={a.level} onChange={(e) => upd(i, { level: e.target.value })} placeholder="Level" className={inp} />
+          </div>
+          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2"} />
+          <div className="flex items-center justify-between gap-2">
+            <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" />
+            <button onClick={() => remove(i)} className={btnDel}><Trash2 className="w-4 h-4" /></button>
+          </div>
+        </div>
+      ))}
+      <button onClick={add} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Add area</button>
+    </div>
+  );
 }
 
 function Songs() {
