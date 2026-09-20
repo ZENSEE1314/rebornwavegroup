@@ -55,16 +55,26 @@ export function todayStr(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
 
+// Default table labels — match the Level 1 floor plan (VIP sofas, round tables, booths).
+export const DEFAULT_TABLES = ["V1", "V2", "1", "2", "3", "4", "5", "T6", "T7", "T8", "T9"];
+export function parseTables(raw?: string): string[] {
+  const list = (raw || "").split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  return list.length ? list : DEFAULT_TABLES;
+}
+
 // Create a pending appointment (used by app + WhatsApp bot). Staff confirm in-app.
 export async function createBooking(opts: {
-  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number;
+  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number; table?: string;
 }) {
   const when = slotToDate(opts.dateStr, opts.slot);
+  const party = opts.partySize || 2;
+  const desc = `${opts.table ? `Table ${opts.table} · ` : ""}Party of ${party}${opts.note ? ` · ${opts.note}` : ""}`;
   const [row] = await db.insert(appointments).values({
     userId: opts.userId,
-    title: "Table booking",
+    title: opts.table ? `Table ${opts.table}` : "Table booking",
     service: "table",
-    description: opts.note || `Party of ${opts.partySize || 2}`,
+    description: desc,
+    notes: opts.table || null,
     appointmentDate: when,
     duration: (opts.hours || 2) * 60,
     cost: "0",

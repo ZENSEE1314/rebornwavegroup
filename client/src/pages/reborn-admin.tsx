@@ -308,7 +308,8 @@ function Settings() {
         <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking</h3>
         <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. This image is shown on the member booking page and sent on WhatsApp.</p>
         <p className="text-xs text-white/60 mb-1">Table layout / availability image</p>
-        <ImageUpload value={cur.bookingImageUrl} onChange={(v) => setStr("bookingImageUrl", v)} label="Upload booking image" />
+        <ImageUpload value={cur.bookingImageUrl} onChange={(v) => setStr("bookingImageUrl", v)} label="Upload floor plan" />
+        <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Tables guests can pick (comma-separated, match the floor plan)</span><input value={cur.bookingTables || ""} onChange={(e) => setStr("bookingTables", e.target.value)} placeholder="V1,V2,1,2,3,4,5,T6,T7,T8,T9" className={inp + " w-full"} /></label>
         <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Booking note (optional, shown with timings)</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
       </Card>
       <Card>

@@ -294,11 +294,13 @@ function TableBookingCard() {
   const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()) });
   const [dayIdx, setDayIdx] = useState(0);
   const [slot, setSlot] = useState<string>("");
+  const [table, setTable] = useState<string>("");
   const [party, setParty] = useState(2);
   const day = data?.days?.[dayIdx];
+  const tables: string[] = data?.tables || [];
   const book = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { date: day?.date, slot, partySize: party }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
-    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Requested!", description: d.message }); setSlot(""); },
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { date: day?.date, slot, table, partySize: party }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Requested!", description: d.message }); setSlot(""); setTable(""); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   // Slot values are the raw HH:MM from the server; labels are display strings.
@@ -326,6 +328,15 @@ function TableBookingCard() {
         ))}
       </div>
 
+      {tables.length > 0 && (<>
+        <p className="text-xs text-white/50 mb-1">Table <span className="text-white/30">(see the plan above)</span></p>
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {tables.map((tb) => (
+            <button key={tb} onClick={() => setTable(tb)} className={`py-2.5 rounded-xl text-sm font-bold ${table === tb ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>{tb}</button>
+          ))}
+        </div>
+      </>)}
+
       <div className="flex items-center gap-3 mb-4">
         <span className="text-xs text-white/50">Party size</span>
         <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
@@ -333,8 +344,8 @@ function TableBookingCard() {
         <button onClick={() => setParty((p) => Math.min(50, p + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
       </div>
 
-      <Button onClick={() => book.mutate()} disabled={!slot || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
-        {book.isPending ? "Booking…" : slot ? "Request booking" : "Pick a time"}
+      <Button onClick={() => book.mutate()} disabled={!slot || !table || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
+        {book.isPending ? "Booking…" : !slot ? "Pick a time" : !table ? "Pick a table" : "Request booking"}
       </Button>
     </div>
   );

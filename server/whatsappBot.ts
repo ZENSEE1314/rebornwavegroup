@@ -15,7 +15,7 @@ import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests } from "@shared/schema";
-import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr } from "./booking";
+import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr, parseTables } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -240,6 +240,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "{day} · {hours}\n请选择开始时间：\n{list}\n回复数字。",
       id: "{day} · {hours}\nPilih jam mulai:\n{list}\nBalas nomornya.",
     },
+    bookAskTable: {
+      en: "Which table? (see the layout image above)\n{list}\nReply the number.",
+      zh: "选择哪张桌位？（见上方平面图）\n{list}\n回复数字。",
+      id: "Meja mana? (lihat gambar denah di atas)\n{list}\nBalas nomornya.",
+    },
     bookAskParty: {
       en: "How many people? (reply a number)",
       zh: "几位客人？（请回复数字）",
@@ -419,15 +424,28 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     const slots = slotsForDate(wa.date);
     const idx = Number((body.match(/[1-9]/) || [])[0] || 0) - 1;
     if (idx < 0 || idx >= slots.length) { await say(`Reply a number 1-${slots.length}.`); return; }
+    // Ask which table next, showing the floor-plan image.
+    const tables = parseTables(await settingVal("bookingTables"));
+    const list = tables.map((t, i) => `${i + 1}. ${t}`).join("\n");
+    const img = await settingVal("bookingImageUrl");
+    const caption = L(lang, "bookAskTable", { list });
+    if (img) await sendWhatsAppImage(from, img, caption); else await say(caption);
+    await logMsg(c.id, c.phone, "out", caption, true);
+    return patchContact(c.id, { waState: { flow: "book", step: "table", date: wa.date, slot: slots[idx] } });
+  }
+  if (wa.step === "table") {
+    const tables = parseTables(await settingVal("bookingTables"));
+    const idx = Number((body.match(/\d+/) || [])[0] || 0) - 1;
+    if (idx < 0 || idx >= tables.length) { await say(`Reply a number 1-${tables.length}.`); return; }
     await say(L(lang, "bookAskParty"));
-    return patchContact(c.id, { waState: { flow: "book", step: "party", date: wa.date, slot: slots[idx] } });
+    return patchContact(c.id, { waState: { flow: "book", step: "party", date: wa.date, slot: wa.slot, table: tables[idx] } });
   }
   if (wa.step === "party") {
     const n = Math.max(1, Math.min(50, Number((body.match(/\d+/) || [])[0] || 2)));
-    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: n });
+    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: n, table: wa.table });
     const label = slotLabels(wa.date)[slotsForDate(wa.date).indexOf(wa.slot)] || wa.slot;
     await say(L(lang, "bookDone", { day: wa.date, time: label, n: String(n), url: APP_BASE_URL }));
-    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${wa.date} ${label} · ${n} pax — confirm in the app.`);
+    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${wa.date} ${label} · Table ${wa.table || "-"} · ${n} pax — confirm in the app.`);
     return patchContact(c.id, { waState: { flow: null } });
   }
 }
