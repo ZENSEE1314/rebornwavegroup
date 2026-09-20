@@ -530,6 +530,7 @@ export const spinPrizes = pgTable("spin_prizes", {
   // voucher_percent | voucher_amount | item | egg | free_spin | nothing
   prizeType: varchar("prize_type").default("item"),
   value: integer("value").default(0), // percent (10,50) or RP amount (50000)
+  costRp: integer("cost_rp").default(0), // RP cost drawn from the prize pool when won (0 = free outcome)
   weight: integer("weight").default(10), // relative probability
   colorHex: varchar("color_hex").default("#c9a84c"),
   active: boolean("active").default(true),

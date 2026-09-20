@@ -318,12 +318,44 @@ function Settings() {
         <label className="block"><span className="text-xs text-white/60 block mb-1">House referral account — user ID that owns un-referred signups (commission)</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder="e.g. your admin user id" className={inp + " w-full"} /></label>
         <p className="text-[11px] text-white/40 mt-1">Signups from the website or WhatsApp with no referral code are credited to this account.</p>
       </Card>
+      <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Disc3 className="w-4 h-4 text-amber-300" /> Lucky Spin prize pool</h3>
+        <p className="text-[11px] text-white/50 mb-3">A % of every paid sale is set aside into the pool. Spins only award a prize the pool can afford; below the minimum (or empty) spins land on "nothing". Set each prize's <b>cost RP</b> in the Prizes tab.</p>
+        <Field label="Pool contribution % of each sale" value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
+        <Field label="Minimum pool before prizes pay out (min 1,000,000)" value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
+        <SpinPool />
+      </Card>
       <button onClick={() => save.mutate()} className={btn}>Save settings</button>
     </div>
   );
 }
 function Field({ label, value, onChange }: any) {
   return <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">{label}</span><input type="number" value={value} onChange={(e) => onChange(e.target.value)} className={inp + " w-full"} /></label>;
+}
+
+function SpinPool() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/spin-pool"], queryFn: () => apiRequest("GET", "/api/reborn/admin/spin-pool").then((r) => r.json()) });
+  const [amt, setAmt] = useState("");
+  const money = (v: number) => "RP " + Math.round(v || 0).toLocaleString();
+  const adjust = useMutation({
+    mutationFn: (body: any) => apiRequest("POST", "/api/reborn/admin/spin-pool", body).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Pool updated" }); setAmt(""); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/spin-pool"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div className="mt-2 rounded-xl bg-amber-500/10 border border-amber-400/30 p-3">
+      <p className="text-xs text-white/50">Current pool balance</p>
+      <p className="text-xl font-extrabold text-amber-300">{money(data?.balance || 0)}</p>
+      <div className="flex gap-2 mt-2">
+        <input value={amt} onChange={(e) => setAmt(e.target.value)} type="number" placeholder="Amount RP" className={inp + " flex-1"} />
+        <button onClick={() => adjust.mutate({ add: Number(amt) })} disabled={!amt || adjust.isPending} className={btnSave}>Add</button>
+        <button onClick={() => { if (confirm(`Set pool to RP ${Number(amt).toLocaleString()}?`)) adjust.mutate({ set: Number(amt) }); }} disabled={amt === "" || adjust.isPending} className="px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white/70">Set</button>
+      </div>
+      <p className="text-[11px] text-white/40 mt-1">Add tops up the pool; Set overwrites it. Contributions & prize payouts adjust it automatically.</p>
+    </div>
+  );
 }
 
 const DEFAULT_AREAS = [
@@ -496,6 +528,7 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
           {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <label className="text-xs text-white/50">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
+        <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" value={e.costRp || 0} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
         <label className="text-xs text-white/50">win rate<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
         <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>
@@ -662,7 +695,7 @@ function ProductRow({ p }: any) {
   );
 }
 
-const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:other": "Other expenses" };
+const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:spin_prize": "Spin prizes paid", "expense:other": "Other expenses" };
 
 function Accounting() {
   const { toast } = useToast();
@@ -702,6 +735,11 @@ function Accounting() {
         <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Income</p><p className="text-base font-extrabold text-emerald-300">{money(sum?.income || 0)}</p></div>
         <div className="rounded-2xl bg-red-500/10 border border-red-400/30 p-3 text-center"><p className="text-[11px] text-white/50">Expense</p><p className="text-base font-extrabold text-red-300">{money(sum?.expense || 0)}</p></div>
         <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Net</p><p className={`text-base font-extrabold ${(sum?.net || 0) >= 0 ? "text-amber-300" : "text-red-300"}`}>{money(sum?.net || 0)}</p></div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Revenue</p><p className="text-sm font-extrabold text-white">{money(sum?.revenue || 0)}</p></div>
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-3 text-center"><p className="text-[11px] text-white/50">Cost of goods</p><p className="text-sm font-extrabold text-white">{money(sum?.cogs || 0)}</p></div>
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-400/30 p-3 text-center"><p className="text-[11px] text-white/50">🎡 Prize pool</p><p className="text-sm font-extrabold text-amber-300">{money(sum?.spinPool || 0)}</p></div>
       </div>
       {sum?.byCategory && Object.keys(sum.byCategory).length > 0 && (
         <Card>

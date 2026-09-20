@@ -35,6 +35,9 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingAreas: "",         // JSON array of venue areas by level (empty → server defaults)
   googleReviewUrl: "",      // link sent after payment to collect a Google review
   houseReferralUserId: "",  // admin account that owns un-referred signups (house commission)
+  spinPoolPercent: "10",    // % of paid sales set aside into the Lucky Spin prize pool
+  spinPoolMin: "1000000",   // spin only pays prizes when the pool is at/above this (min 1,000,000)
+  spinPoolBalance: "0",     // current prize-pool reserve (auto: +contributions, -payouts)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -55,7 +58,32 @@ async function getSettings() {
     bookingAreas: map.bookingAreas || "",
     googleReviewUrl: map.googleReviewUrl || "",
     houseReferralUserId: map.houseReferralUserId || "",
+    spinPoolPercent: Number(map.spinPoolPercent) || 10,
+    spinPoolMin: Math.max(1000000, Number(map.spinPoolMin) || 1000000),
+    spinPoolBalance: Number(map.spinPoolBalance) || 0,
   };
+}
+// Prize-pool helpers (stored in app_settings.spinPoolBalance as a number string).
+async function getSpinPool(): Promise<number> {
+  const [r] = await db.select().from(appSettings).where(eq(appSettings.key, "spinPoolBalance"));
+  return Number(r?.value) || 0;
+}
+async function adjustSpinPool(delta: number): Promise<number> {
+  await db.insert(appSettings).values({ key: "spinPoolBalance", value: String(Math.max(0, delta)), updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: sql`GREATEST(0, COALESCE(${appSettings.value}::numeric,0) + ${delta})::text`, updatedAt: new Date() } });
+  return getSpinPool();
+}
+async function setSpinPool(value: number): Promise<void> {
+  await db.insert(appSettings).values({ key: "spinPoolBalance", value: String(Math.max(0, value)), updatedAt: new Date() })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: String(Math.max(0, value)), updatedAt: new Date() } });
+}
+// Contribute a % of a paid sale into the prize pool (called from POS/app pay).
+async function contributeSpinPool(saleTotal: number) {
+  try {
+    const pct = Number((await db.select().from(appSettings).where(eq(appSettings.key, "spinPoolPercent")))[0]?.value) || 10;
+    const add = Math.round(saleTotal * pct / 100);
+    if (add > 0) await adjustSpinPool(add);
+  } catch (e) { console.error("spin pool contribute", e); }
 }
 const DEFAULT_GIFT_TYPES = [
   { name: "Rose", emoji: "🌹", animation: "float", kgoldCost: 100, sortOrder: 0 },
@@ -490,11 +518,20 @@ export function registerRebornRoutes(app: Express) {
 
       const prizes = await db.select().from(spinPrizes).where(eq(spinPrizes.active, true)).orderBy(spinPrizes.sortOrder);
       if (prizes.length === 0) return res.status(400).json({ message: "The wheel isn't set up yet. Please check back soon." });
-      const total = prizes.reduce((s, p) => s + Math.max(0, p.weight || 0), 0);
+      // Prize pool gating: real prizes can only be won when the pool is funded and can
+      // afford them. Below the minimum (or empty) only free outcomes (nothing/free spin).
+      const spinSettings = await getSettings();
+      const pool = await getSpinPool();
+      const gate = pool >= spinSettings.spinPoolMin;
+      const isFree = (p: any) => p.prizeType === "nothing" || p.prizeType === "free_spin";
+      let candidates = prizes.filter((p) => isFree(p) || (gate && (p.costRp || 0) <= pool));
+      if (candidates.length === 0) candidates = prizes.filter((p) => p.prizeType === "nothing");
+      if (candidates.length === 0) candidates = prizes; // last-resort safety
+      const total = candidates.reduce((s, p) => s + Math.max(0, p.weight || 0), 0) || 1;
       let r = Math.random() * total;
-      let picked = prizes[prizes.length - 1];
-      for (const p of prizes) { r -= Math.max(0, p.weight || 0); if (r <= 0) { picked = p; break; } }
-      const index = prizes.findIndex((p) => p.id === picked.id);
+      let picked = candidates[candidates.length - 1];
+      for (const p of candidates) { r -= Math.max(0, p.weight || 0); if (r <= 0) { picked = p; break; } }
+      const index = Math.max(0, prizes.findIndex((p) => p.id === picked.id));
 
       const now = new Date();
       // Spend a token
@@ -522,6 +559,13 @@ export function registerRebornRoutes(app: Express) {
         userId, prizeId: picked.id, prizeLabel: picked.label, prizeType: picked.prizeType,
         tokensSpent: SPIN_COST, status,
       }).returning();
+
+      // Draw the prize's cost from the pool and record it as an expense (accountable).
+      const cost = Number(picked.costRp) || 0;
+      if (cost > 0) {
+        await adjustSpinPool(-cost);
+        await db.insert(ledgerEntries).values({ kind: "expense", category: "spin_prize", amount: String(cost), note: `Spin prize: ${picked.label}`, refType: "spin_result", refId: String(result.id), userId });
+      }
 
       const fresh = await storage.getUser(userId);
       res.json({
@@ -1054,14 +1098,31 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
-        await db.insert(appSettings).values({ key: k, value: String(req.body[k]), updatedAt: new Date() })
-          .onConflictDoUpdate({ target: appSettings.key, set: { value: String(req.body[k]), updatedAt: new Date() } });
+        let v = String(req.body[k]);
+        if (k === "spinPoolMin") v = String(Math.max(1000000, Number(req.body[k]) || 1000000)); // floor 1,000,000
+        if (k === "spinPoolPercent") v = String(Math.max(0, Math.min(100, Number(req.body[k]) || 0)));
+        await db.insert(appSettings).values({ key: k, value: v, updatedAt: new Date() })
+          .onConflictDoUpdate({ target: appSettings.key, set: { value: v, updatedAt: new Date() } });
       }
     }
     res.json(await getSettings());
+  }));
+  // Prize pool status + manual adjust (top-up or set).
+  app.get("/api/reborn/admin/spin-pool", requireAdmin(async (_req, res) => {
+    const s = await getSettings();
+    res.json({ balance: await getSpinPool(), percent: s.spinPoolPercent, min: s.spinPoolMin });
+  }));
+  app.post("/api/reborn/admin/spin-pool", requireAdmin(async (req, res) => {
+    const add = Number(req.body?.add); const set = Number(req.body?.set);
+    if (Number.isFinite(set) && req.body?.set !== undefined && req.body?.set !== "") { await setSpinPool(Math.max(0, set)); }
+    else if (Number.isFinite(add) && add !== 0) { await adjustSpinPool(add); }
+    else return res.status(400).json({ message: "Provide 'add' or 'set'" });
+    const bal = await getSpinPool();
+    await logAdmin(req, { targetType: "spin_pool", action: "adjust", entityType: "spin", description: `Prize pool → RP ${bal.toLocaleString()}` });
+    res.json({ balance: bal });
   }));
 
   // Admin: manage members (search, edit balances, change role)
@@ -1473,6 +1534,7 @@ export function registerRebornRoutes(app: Express) {
       crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
       sendReviewRequest({ userId: u.id, phone: (u as any).phoneNumber, name: u.firstName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
+    contributeSpinPool(total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
@@ -1531,6 +1593,7 @@ export function registerRebornRoutes(app: Express) {
       crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
       sendReviewRequest({ userId: o.memberId, name: o.memberName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
     }
+    contributeSpinPool(total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
@@ -1610,7 +1673,7 @@ export function registerRebornRoutes(app: Express) {
       byCat[r.kind + ":" + r.category] = (byCat[r.kind + ":" + r.category] || 0) + amt;
     }
     // revenue = income; COGS = stock purchases; grossProfit = revenue - COGS; net = revenue - all expenses.
-    res.json({ days, income, expense, revenue: income, cogs, grossProfit: income - cogs, otherExpense: expense - cogs, net: income - expense, byCategory: byCat, count: rows.length });
+    res.json({ days, income, expense, revenue: income, cogs, grossProfit: income - cogs, otherExpense: expense - cogs, net: income - expense, byCategory: byCat, count: rows.length, spinPool: await getSpinPool() });
   }));
   app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
     const limit = Math.min(500, Number(req.query.limit) || 100);
