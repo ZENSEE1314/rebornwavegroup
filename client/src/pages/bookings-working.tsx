@@ -128,7 +128,7 @@ function TableBookingCard() {
       </div>
 
       {area && (<>
-        {area.image && <img src={area.image} alt={`${area.name} layout`} className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
+        {area.hasImage && <img src={`/api/reborn/booking/area-image/${area.id}`} alt={`${area.name} layout`} loading="lazy" className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 340, objectFit: "contain" }} />}
         {data?.note && <p className="text-white/60 text-sm mb-3">{data.note}</p>}
 
         <p className="text-xs text-white/50 mb-1">Date</p>

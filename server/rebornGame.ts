@@ -1660,12 +1660,24 @@ export function registerRebornRoutes(app: Express) {
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       days.push({ date: dateStr, weekday: d.getDay() });
     }
-    const areas = enabledAreas(s.bookingAreas).map((a) => ({
+    // Strip the (large) inline image from the list; the app lazy-loads it per area.
+    const areas = enabledAreas(s.bookingAreas).map(({ image, ...a }) => ({
       ...a,
-      hours: areaHoursText(a, new Date().getDay()),
-      slots: areaSlots(a).map((v, i) => ({ value: v, label: areaSlotLabels(a)[i] })),
+      hasImage: !!image,
+      hours: areaHoursText(a as any, new Date().getDay()),
+      slots: areaSlots(a as any).map((v, i) => ({ value: v, label: areaSlotLabels(a as any)[i] })),
     }));
-    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), areas, days });
+    res.json({ note: s.bookingNote, hoursSummary: bookingHoursSummary(), areas, days });
+  });
+  // Serve one area's layout image (kept out of booking/info to keep that payload small).
+  app.get("/api/reborn/booking/area-image/:areaId", requireAuth, async (req, res) => {
+    const s = await getSettings();
+    const area = enabledAreas(s.bookingAreas).find((a) => a.id === req.params.areaId);
+    const m = area?.image && /^data:([^;]+);base64,(.+)$/.exec(area.image);
+    if (!m) return res.sendStatus(404);
+    res.setHeader("Content-Type", m[1]);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(Buffer.from(m[2], "base64"));
   });
   // Member creates a booking from the app.
   app.post("/api/reborn/booking", requireAuth, async (req, res) => {
