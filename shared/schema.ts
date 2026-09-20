@@ -89,7 +89,8 @@ export const appointments = pgTable("appointments", {
   appointmentDate: timestamp("appointment_date").notNull(),
   duration: integer("duration").default(60).notNull(), // minutes
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
-  status: varchar("status").default("pending").notNull(), // 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  status: varchar("status").default("pending").notNull(), // 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'blocked'
+  adminNote: text("admin_note"), // admin comment (e.g. reason for rejection)
   remindersSent: varchar("reminders_sent").default(""), // WhatsApp reminders already sent: e.g. "3h,1h,10m"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -608,6 +609,7 @@ export const songRequests = pgTable("song_requests", {
   title: varchar("title").notNull(),
   artist: varchar("artist").default(""),
   status: varchar("status").default("pending"), // pending | confirmed | rejected
+  adminNote: text("admin_note"), // optional note/comment from admin (e.g. reason for reject)
   createdAt: timestamp("created_at").defaultNow(),
   confirmedAt: timestamp("confirmed_at"),
   adminId: varchar("admin_id"),

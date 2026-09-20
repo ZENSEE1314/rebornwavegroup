@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -26,6 +26,7 @@ export default function RebornAdmin() {
       </div>
       {tab === "Overview" && <Overview onGo={setTab} />}
       {tab === "Bookings" && <AdminBookings />}
+      {tab === "Bottles" && <AdminBottles />}
       {tab === "Codes" && <Codes />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
@@ -79,7 +80,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
-  Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />,
+  Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -407,17 +408,17 @@ function SongRow({ s, onSave, onDelete }: any) {
 function SongRequests() {
   const qc = useQueryClient();
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/song-requests"], queryFn: () => apiRequest("GET", "/api/reborn/admin/song-requests").then((r) => r.json()) });
-  const act = useMutation({ mutationFn: ({ id, approve }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
+  const act = useMutation({ mutationFn: ({ id, approve, comment }: any) => apiRequest("POST", `/api/reborn/admin/song-requests/${id}`, { approve, comment }), onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/song-requests"] }) });
   if (rows.length === 0) return <Empty text="No pending song requests." />;
   return (
     <div className="space-y-2">
       {rows.map((r) => (
         <Card key={r.id}>
           <div className="flex items-center gap-3">
-            <Music2 className="w-5 h-5 text-amber-300" />
+            <Music2 className="w-5 h-5 text-amber-300 flex-shrink-0" />
             <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · user {r.userId?.slice(0, 8)}</p></div>
             <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Confirm</button>
-            <button onClick={() => act.mutate({ id: r.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
+            <button onClick={() => { const comment = prompt("Reject — reason/comment (optional):", "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> Reject</button>
           </div>
         </Card>
       ))}
@@ -813,43 +814,118 @@ function AdminBookings() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/bookings"], queryFn: () => apiRequest("GET", "/api/reborn/admin/bookings").then((r) => r.json()), refetchInterval: 30000 });
+  const inv = () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/bookings"] });
   const setStatus = useMutation({
-    mutationFn: (v: { id: number; status: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status }).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/bookings"] }); },
+    mutationFn: (v: { id: number; status: string; note?: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status, note: v.note }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Updated" }); inv(); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
   const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && b.status !== "cancelled" : true));
-  const sColor: Record<string, string> = { confirmed: "text-emerald-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300" };
+  const sColor: Record<string, string> = { confirmed: "text-emerald-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300", blocked: "text-orange-300" };
   return (
     <div className="space-y-3">
+      <BlockSlot onDone={inv} />
       <div className="flex gap-2">
         {(["upcoming", "all"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{f}</button>
         ))}
-        <span className="ml-auto text-xs text-white/40 self-center">{list.length} booking(s)</span>
+        <span className="ml-auto text-xs text-white/40 self-center">{list.length} item(s)</span>
       </div>
       {list.map((b) => (
         <div key={b.id} className="rounded-xl bg-white/5 border border-white/10 p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-bold truncate">{b.title}</p>
-              <p className="text-[11px] text-white/50">{b.memberName}{b.memberPhone ? ` · ${b.memberPhone}` : ""}</p>
+              <p className="text-sm font-bold truncate">{b.status === "blocked" ? "🚫 " : ""}{b.title}</p>
+              {b.status !== "blocked" && <p className="text-[11px] text-white/50">{b.memberName}{b.memberPhone ? ` · ${b.memberPhone}` : ""}</p>}
               <p className="text-[11px] text-white/40 mt-0.5">📅 {fmt(b.appointmentDate)} · {Math.round((b.duration || 120) / 60)}h · {b.description}</p>
+              {b.adminNote && <p className="text-[11px] text-amber-300/80 mt-0.5">📝 {b.adminNote}</p>}
             </div>
             <span className={`text-xs font-bold flex-shrink-0 ${sColor[b.status] || "text-white/50"}`}>{b.status}</span>
           </div>
-          {b.status !== "cancelled" && b.status !== "completed" && (
+          {b.status === "blocked" ? (
+            <button onClick={() => { if (confirm("Unblock this slot?")) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="mt-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">Unblock</button>
+          ) : b.status !== "cancelled" && b.status !== "completed" && (
             <div className="flex gap-2 mt-2">
               {b.status !== "confirmed" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Confirm</button>}
               <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">Done</button>
-              <button onClick={() => { if (confirm("Cancel this booking?")) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Cancel</button>
+              <button onClick={() => { const note = prompt("Reject/cancel — reason for the guest (optional):", "") ?? undefined; setStatus.mutate({ id: b.id, status: "cancelled", note }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Reject</button>
             </div>
           )}
         </div>
       ))}
       {list.length === 0 && <Empty text="No bookings." />}
     </div>
+  );
+}
+
+function AdminBottles() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/bottle-keeps", q], queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
+  const collect = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/reborn/pos/bottle-keeps/${id}/collect`, {}).then((r) => r.json()),
+    onSuccess: (d: any) => { toast({ title: d.message || "Redeemed" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const kept = rows.filter((b) => b.status === "kept");
+  return (
+    <div className="space-y-3">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search member name / code…" className={inp + " w-full"} />
+      <p className="text-xs text-white/40 px-1">{kept.length} bottle(s) kept</p>
+      {kept.map((b) => (
+        <div key={b.id} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
+          {b.photoUrl ? <img src={b.photoUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" /> : <span className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0"><Wine className="w-5 h-5 text-amber-300" /></span>}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">{b.name} <span className="text-white/40 text-xs capitalize">· {b.type}{b.type === "beer" ? ` · ${b.quantity} left` : ""}</span></p>
+            <p className="text-[11px] text-white/40 truncate">{b.memberName || "—"}{b.memberCode ? ` · ${b.memberCode}` : ""}{b.expiresAt ? ` · exp ${new Date(b.expiresAt).toLocaleDateString()}` : ""}</p>
+          </div>
+          <button onClick={() => { if (confirm(`Redeem ${b.name} for ${b.memberName || "customer"}?`)) collect.mutate(b.id); }} disabled={collect.isPending} className={btnSave + " flex-shrink-0"}><Check className="w-4 h-4" /> Redeem</button>
+        </div>
+      ))}
+      {kept.length === 0 && <Empty text="No bottles kept right now." />}
+    </div>
+  );
+}
+
+function BlockSlot({ onDone }: { onDone: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()), enabled: open });
+  const areas: any[] = data?.areas || [];
+  const [areaId, setAreaId] = useState(""); const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [slot, setSlot] = useState(""); const [table, setTable] = useState(""); const [reason, setReason] = useState("");
+  const area = areas.find((a) => a.id === areaId);
+  const block = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/block", { areaId, date, slot, table: table || undefined, reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); setReason(""); onDone(); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}>🚫 Block a date / time</button>;
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">Block a date / time</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
+      <select value={areaId} onChange={(e) => { setAreaId(e.target.value); setSlot(""); setTable(""); }} className={inp + " w-full mb-2"}>
+        <option value="">Select area…</option>
+        {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
+      </select>
+      {area && (<>
+        <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
+        <select value={slot} onChange={(e) => setSlot(e.target.value)} className={inp + " w-full mb-2"}>
+          <option value="">Start time…</option>
+          {(area.slots || []).map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        {area.tables?.length > 0 && (
+          <select value={table} onChange={(e) => setTable(e.target.value)} className={inp + " w-full mb-2"}>
+            <option value="">Whole area (all tables)</option>
+            {area.tables.map((t: string) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className={inp + " w-full mb-2"} />
+        <button onClick={() => block.mutate()} disabled={!slot || block.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>Block this slot</button>
+      </>)}
+    </Card>
   );
 }
 

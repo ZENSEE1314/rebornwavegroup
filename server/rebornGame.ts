@@ -8,8 +8,8 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage, sendReviewRequest, notifyAdmins } from "./whatsappBot";
-import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, takenTablesForDate, bookingWhen } from "./booking";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from "./whatsappBot";
+import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -997,8 +997,9 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/admin/song-requests/:id", requireStaff(async (req, res) => {
     const adminId = getUserId(req)!;
     const approve = req.body?.approve !== false;
-    const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId }).where(eq(songRequests.id, Number(req.params.id))).returning();
-    await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"` });
+    const comment = String(req.body?.comment || "").trim() || null;
+    const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId, adminNote: comment }).where(eq(songRequests.id, Number(req.params.id))).returning();
+    await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"${comment ? ` (${comment})` : ""}` });
     res.json(row);
   }));
   app.post("/api/reborn/admin/songs", requireStaff(async (req, res) => {
@@ -1693,8 +1694,10 @@ export function registerRebornRoutes(app: Express) {
     if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
     const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : undefined;
     if (area.tables.length && !table) return res.status(400).json({ message: "Pick a table" });
+    const whenDt = bookingWhen(area, date, slot);
+    if (await isAreaBlocked(area, whenDt)) return res.status(409).json({ message: "That time is not available. Please pick another." });
     // Prevent double-booking the same table/room at the same time.
-    if (table && await isTableTaken(area, table, bookingWhen(area, date, slot)))
+    if (table && await isTableTaken(area, table, whenDt))
       return res.status(409).json({ message: `${table} is already booked for that time. Please pick another.` });
     const hours = Math.max(2, Math.min(8, Number(b.hours) || 2));
     const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours, note: b.note, table, area: `${area.name} (${area.level})`, openHour: areaOpenHour(area) });
@@ -1743,10 +1746,41 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.params.id);
     const status = ["confirmed", "cancelled", "completed", "pending"].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ message: "Bad status" });
-    const [row] = await db.update(appointments).set({ status, updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    const note = String(req.body?.note || "").trim() || undefined;
+    const [row] = await db.update(appointments).set({ status, ...(note ? { adminNote: note } : {}), updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
     if (!row) return res.status(404).json({ message: "Not found" });
-    await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}` });
+    // Tell the member on WhatsApp when a booking is confirmed or rejected.
+    if ((status === "confirmed" || status === "cancelled") && row.userId) {
+      const [u] = await db.select().from(users).where(eq(users.id, row.userId));
+      if (u?.phoneNumber) {
+        const when = new Date(row.appointmentDate).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+        const msg = status === "confirmed"
+          ? `✅ Your booking is confirmed: ${row.title} on ${when}. See you! 💜`
+          : `😔 Sorry, your booking (${row.title} on ${when}) couldn't be confirmed${note ? `: ${note}` : "."} Please try another time. 💜`;
+        sendWhatsApp(u.phoneNumber, msg).catch(() => {});
+      }
+    }
+    await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}${note ? ` (${note})` : ""}` });
     res.json(row);
+  }));
+  // Admin blocks a date/time (whole area, or one table/room) so guests can't book it.
+  app.post("/api/reborn/admin/bookings/block", requireStaff(async (req, res) => {
+    const b = req.body || {};
+    const s = await getSettings();
+    const area = enabledAreas(s.bookingAreas).find((a) => a.id === b.areaId);
+    if (!area) return res.status(400).json({ message: "Pick an area" });
+    const slots = areaSlots(area);
+    const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
+    if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
+    const table = b.table && area.tables.includes(String(b.table)) ? String(b.table) : BLOCK_ALL;
+    const when = bookingWhen(area, String(b.date || todayStr()), slot);
+    const [row] = await db.insert(appointments).values({
+      userId: getUserId(req)!, title: "BLOCKED", service: `${area.name} (${area.level})`,
+      description: `Blocked by admin${b.reason ? `: ${b.reason}` : ""}`, notes: `${area.name} (${area.level}) / ${table}`,
+      appointmentDate: when, duration: 120, cost: "0", status: "blocked", adminNote: b.reason || null,
+    }).returning();
+    await logAdmin(req, { targetType: "appointment", targetId: row.id, action: "block", entityType: "booking", description: `Blocked ${area.name} ${b.date} ${slot} (${table})` });
+    res.json({ message: `Blocked ${area.name} on ${b.date} ${slot}${table !== BLOCK_ALL ? " · " + table : " (whole area)"}.`, appointment: row });
   }));
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.

@@ -8,7 +8,8 @@ import { and, eq, ne, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import { appointments } from "@shared/schema";
 
-const ACTIVE_BOOKING = ["pending", "scheduled", "confirmed"];
+const ACTIVE_BOOKING = ["pending", "scheduled", "confirmed", "blocked"];
+export const BLOCK_ALL = "*ALL*"; // whole-area block marker (admin closes a slot)
 
 const OPEN_HOUR = 17; // 5pm
 export const SLOT_TIMES = ["17:00", "19:00", "21:00", "23:00", "01:00"]; // 2-hour intervals
@@ -131,8 +132,18 @@ export function bookingWhen(areaLabelOrOpenHour: BookingArea | number, dateStr: 
 }
 function areaLabel(a: BookingArea): string { return `${a.name} (${a.level})`; }
 
-// Is a specific table/room already booked for that exact start time?
+// Is the whole area closed (admin block) for that start time?
+export async function isAreaBlocked(a: BookingArea, when: Date): Promise<boolean> {
+  const rows = await db.select().from(appointments).where(and(
+    eq(appointments.notes, `${areaLabel(a)} / ${BLOCK_ALL}`),
+    eq(appointments.appointmentDate, when),
+  ));
+  return rows.some((r) => r.status === "blocked");
+}
+
+// Is a specific table/room already booked (or blocked) for that exact start time?
 export async function isTableTaken(a: BookingArea, table: string, when: Date): Promise<boolean> {
+  if (await isAreaBlocked(a, when)) return true;
   if (!table) return false;
   const rows = await db.select().from(appointments).where(and(
     eq(appointments.notes, `${areaLabel(a)} / ${table}`),
@@ -159,7 +170,8 @@ export async function takenTablesForDate(a: BookingArea, dateStr: string): Promi
     const t = new Date(r.appointmentDate).getTime();
     const idx = whens.findIndex((w) => w.getTime() === t);
     if (idx < 0) continue;
-    (out[slots[idx]] ||= []).push(table);
+    if (table === BLOCK_ALL) { out[slots[idx]] = [...a.tables]; continue; } // whole slot blocked
+    if (!(out[slots[idx]] || []).includes(BLOCK_ALL)) (out[slots[idx]] ||= []).push(table);
   }
   return out;
 }

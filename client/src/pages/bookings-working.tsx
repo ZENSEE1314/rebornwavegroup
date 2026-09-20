@@ -59,6 +59,7 @@ function MyBookings() {
                 <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLE[b.status] || STATUS_STYLE.pending}`}>{b.status}</span>
               </div>
               {b.description && <p className="text-white/50 text-sm mb-2">{b.description}</p>}
+              {b.adminNote && b.status === "cancelled" && <p className="text-red-300/80 text-xs mb-2">Note: {b.adminNote}</p>}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/40">
                 <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {fmt(b.appointmentDate)}</span>
                 <span className="text-white/30">·</span>
