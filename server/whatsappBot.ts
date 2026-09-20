@@ -14,7 +14,7 @@ import type { Express, Request, Response } from "express";
 import { and, desc, eq, isNotNull, lte, gt, ilike, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
@@ -245,6 +245,16 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "你目前没有寄存酒。🍾",
       id: "Anda belum ada botol simpanan. 🍾",
     },
+    welcomeBackMenu: {
+      en: "Hi {name}! 👋 What can I do for you today?\n1️⃣ Booking / ask a question\n2️⃣ Song request\n3️⃣ My kept bottles\n\nYou can also just ask me anything — opening hours, address, room capacity, and more.",
+      zh: "你好 {name}！👋 今天需要什么帮助？\n1️⃣ 预订 / 咨询\n2️⃣ 点歌\n3️⃣ 我的寄存酒\n\n也可以直接问我任何问题——营业时间、地址、房间容纳人数等。",
+      id: "Hai {name}! 👋 Ada yang bisa dibantu hari ini?\n1️⃣ Booking / tanya\n2️⃣ Minta lagu\n3️⃣ Botol simpanan saya\n\nAtau tanya apa saja — jam buka, alamat, kapasitas ruangan, dll.",
+    },
+    faqUnknown: {
+      en: "Thanks for your question! Our team will get back to you shortly. 💜",
+      zh: "谢谢你的提问！我们的团队会尽快回复你。💜",
+      id: "Terima kasih atas pertanyaannya! Tim kami akan segera membalas. 💜",
+    },
     bookOffer: {
       en: "Would you like to book a table? 🪑\nOur hours — {hours}\nReply 1 to book, or 2 to request a song.",
       zh: "要预订桌位吗？🪑\n营业时间 — {hours}\n回复 1 预订，或回复 2 点歌。",
@@ -427,9 +437,23 @@ function nlTable(body: string, area: BookingArea): string | null {
 
 async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
-  const c = await getOrCreateContact(from, profileName);
+  let c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
+
+  // If this phone already has an app account, skip onboarding — greet by name.
+  if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name" || c.stage === "await_email")) {
+    const u = await linkExistingUserByPhone(c.phone);
+    if (u) {
+      const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || "there";
+      const uLang = (["en", "zh", "id"].includes((u as any).preferredLanguage) ? (u as any).preferredLanguage : c.lang) as Lang;
+      await patchContact(c.id, { userId: u.id, name, stage: "member", lang: uLang });
+      c = { ...c, userId: u.id, name, stage: "member", lang: uLang } as Contact;
+      await sendWhatsApp(from, L(uLang, "welcomeBackMenu", { name: name.split(" ")[0] }));
+      await logMsg(c.id, c.phone, "out", "welcome-back menu", true);
+      return;
+    }
+  }
 
   const lang = (c.lang as Lang) || "en";
   const say = async (msg: string) => { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); };
@@ -475,12 +499,61 @@ async function handleInbound(from: string, text: string, profileName?: string) {
 
   // --- No recognized command ---
   if (c.stage === "member" || c.stage === "active") {
-    // Known contact, free-form chat → hand to staff (no AI chit-chat).
-    await notifyAdmin(`💬 ${c.name || from}: "${body.slice(0, 160)}" — (bot silent, please reply)`);
+    // Answer general enquiries from the FAQ knowledge base.
+    const ans = await faqAnswer(body);
+    if (ans) { await say(ans); return; }
+    // Greeting with no FAQ hit → show the menu.
+    if (/\b(hi|hello|hey|enquir|enquiries|question|help|menu)\b/i.test(body)) {
+      await say(L(lang, "welcomeBackMenu", { name: (c.name || "there").split(" ")[0] }));
+      return;
+    }
+    // Unknown → acknowledge, log a pending FAQ for admin, and hand to staff.
+    await say(L(lang, "faqUnknown"));
+    await createPendingFaq(body);
+    await notifyAdmin(`❓ ${c.name || from}: "${body.slice(0, 160)}" — no FAQ answer (added as pending, please reply).`);
     return;
   }
   // Still onboarding-ish → nudge with the menu (capped).
   if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(L(lang, "menu")); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
+}
+
+// Find an existing app account by phone number (digit-normalised, endsWith either way).
+async function linkExistingUserByPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 6) return null;
+  const tail = digits.slice(-8);
+  const cands = await db.select().from(users).where(and(isNotNull(users.phoneNumber), ilike(users.phoneNumber, `%${tail}%`)));
+  return cands.find((u) => {
+    const d = (u.phoneNumber || "").replace(/\D/g, "");
+    return d && (d.endsWith(digits) || digits.endsWith(d));
+  }) || null;
+}
+
+// Match the message against active FAQ items with an answer.
+async function faqAnswer(body: string): Promise<string | null> {
+  const lc = body.toLowerCase();
+  const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
+  let best: any = null, bestScore = 0;
+  for (const f of faqs) {
+    if (!f.answer || !f.answer.trim()) continue;
+    const kws = (f.keywords || "").toLowerCase().split(",").map((k) => k.trim()).filter(Boolean);
+    let score = 0;
+    for (const k of kws) if (k && lc.includes(k)) score += 2;
+    if (f.question && lc.includes(f.question.toLowerCase().slice(0, 12))) score += 1;
+    if (score > bestScore) { bestScore = score; best = f; }
+  }
+  return bestScore > 0 ? best.answer : null;
+}
+
+// Log an unanswered question as an inactive FAQ item (admin fills the answer later).
+async function createPendingFaq(question: string) {
+  try {
+    const q = question.slice(0, 200);
+    const existing = await db.select().from(faqItems).where(ilike(faqItems.question, q));
+    if (existing.length) return;
+    const kws = Array.from(new Set(q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 3))).slice(0, 8).join(",");
+    await db.insert(faqItems).values({ question: q, answer: "", keywords: kws, active: false, sortOrder: 200 });
+  } catch (e) { console.error("[wa] pending faq", e); }
 }
 
 // Offer a booking (used right after signup). Sends an area image if one is set.

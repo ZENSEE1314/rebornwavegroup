@@ -1,7 +1,7 @@
 // Company WhatsApp — floating button for the public homepage. Pre-fills a greeting
 // so the bot flow (server/whatsappBot.ts) can start capturing the contact into the CRM.
 const WA_NUMBER = "6281336361314";
-const WA_GREETING = "Hello";
+const WA_GREETING = "Hi Reborn Wave Group, I have some enquiries.";
 
 export function WhatsAppFab() {
   const href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_GREETING)}`;
