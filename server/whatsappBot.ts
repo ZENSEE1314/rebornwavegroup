@@ -11,10 +11,10 @@
 // Without those vars the module still loads; sends are no-ops (logged) so the rest
 // of the app runs unchanged and the wa.me button on the homepage still works.
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte, gt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, appointments } from "@shared/schema";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlots, areaSlotLabels, areaHoursText, areaOpenHour, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
@@ -289,6 +289,11 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       en: "Thank you for the {n}⭐! {extra}",
       zh: "感谢你的 {n}⭐！{extra}",
       id: "Terima kasih atas {n}⭐! {extra}",
+    },
+    bookReminder: {
+      en: "⏰ Reminder: your booking at {club} is {when} — in about {left}.{where} See you soon! 💜",
+      zh: "⏰ 提醒：您在 {club} 的预订时间为 {when}，大约还有 {left}。{where} 期待您的光临！💜",
+      id: "⏰ Pengingat: booking Anda di {club} pada {when} — sekitar {left} lagi.{where} Sampai jumpa! 💜",
     },
   };
   let s = (T[key]?.[lang]) || T[key]?.en || "";
@@ -701,6 +706,43 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
   return out;
 }
 
+// Booking reminders — sent at ~3h, ~1h and ~10min before the appointment start.
+const REMINDER_ORDER = ["3h", "1h", "10m"];
+export async function runBookingReminders(): Promise<number> {
+  if (!(await whatsappAvailable())) return 0;
+  const now = Date.now();
+  let sent = 0;
+  try {
+    const soon = new Date(now + 3 * 60 * 60_000 + 15 * 60_000); // up to ~3h15m ahead
+    const rows = await db.select().from(appointments).where(and(gt(appointments.appointmentDate, new Date(now)), lte(appointments.appointmentDate, soon)));
+    const club = (await settingVal("clubName")) || "Reborn Wave";
+    for (const a of rows) {
+      if (!["pending", "scheduled", "confirmed"].includes(a.status)) continue;
+      const mins = (new Date(a.appointmentDate).getTime() - now) / 60000;
+      let tag = ""; let left = "";
+      if (mins <= 10) { tag = "10m"; left = "10 minutes"; }
+      else if (mins <= 60) { tag = "1h"; left = "1 hour"; }
+      else if (mins <= 180) { tag = "3h"; left = "3 hours"; }
+      if (!tag) continue;
+      const already = (a.remindersSent || "").split(",").filter(Boolean);
+      if (already.includes(tag)) continue;
+      // Resolve the member's phone + language.
+      const [u] = await db.select().from(users).where(eq(users.id, a.userId));
+      const phone = (u?.phoneNumber || "").replace(/\D/g, "");
+      const markSet = Array.from(new Set([...already, ...REMINDER_ORDER.slice(0, REMINDER_ORDER.indexOf(tag) + 1)]));
+      if (!phone) { await db.update(appointments).set({ remindersSent: markSet.join(",") }).where(eq(appointments.id, a.id)); continue; }
+      const lang = await langForPhone(phone);
+      const d = new Date(a.appointmentDate);
+      const when = d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+      const where = a.notes ? ` (${a.notes})` : "";
+      const ok = await sendWhatsApp(phone, L(lang, "bookReminder", { club, when, left, where }));
+      await db.update(appointments).set({ remindersSent: markSet.join(",") }).where(eq(appointments.id, a.id));
+      if (ok) sent++;
+    }
+  } catch (e) { console.error("[wa] booking reminders", e); }
+  return sent;
+}
+
 async function phoneForBottle(b: typeof bottleKeeps.$inferSelect): Promise<string | null> {
   if (b.userId) {
     const [u] = await db.select().from(users).where(eq(users.id, b.userId));
@@ -723,7 +765,10 @@ let schedulerStarted = false;
 function startReminderScheduler() {
   if (schedulerStarted) return;
   schedulerStarted = true;
-  // Run ~10 min after boot, then hourly.
+  // Run ~10 min after boot, then hourly (bottle / comeback / feedback).
   setTimeout(() => { runReminders().catch(() => {}); }, 10 * 60 * 1000);
   setInterval(() => { runReminders().catch(() => {}); }, HOUR_MS);
+  // Booking reminders need finer granularity (3h / 1h / 10min) — check every 5 minutes.
+  setTimeout(() => { runBookingReminders().catch(() => {}); }, 60 * 1000);
+  setInterval(() => { runBookingReminders().catch(() => {}); }, 5 * 60 * 1000);
 }

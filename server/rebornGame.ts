@@ -1,6 +1,6 @@
 // Reborn Wave gamified economy: pet lifecycle, spin-the-wheel, support/FAQ, admin config.
 import type { Express, Request, Response } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { requireAuth, getUserId } from "./multiAuth";
@@ -15,7 +15,7 @@ import {
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
-  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages,
+  posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages, appointments,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1699,6 +1699,43 @@ export function registerRebornRoutes(app: Express) {
     if (!area) return res.json({ taken: {} });
     res.json({ taken: await takenTablesForDate(area, String(req.query.date || todayStr())) });
   });
+  // A member's own bookings (includes ones made over WhatsApp — same account).
+  app.get("/api/reborn/my-bookings", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const rows = await db.select().from(appointments).where(eq(appointments.userId, userId)).orderBy(desc(appointments.appointmentDate)).limit(50);
+    res.json(rows);
+  });
+  app.post("/api/reborn/my-bookings/:id/cancel", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const id = Number(req.params.id);
+    const [a] = await db.select().from(appointments).where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+    if (!a) return res.status(404).json({ message: "Booking not found" });
+    if (a.status === "cancelled" || a.status === "completed") return res.status(400).json({ message: "Can't cancel this booking" });
+    await db.update(appointments).set({ status: "cancelled", updatedAt: new Date() }).where(eq(appointments.id, id));
+    res.json({ message: "Booking cancelled" });
+  });
+  // Admin — all bookings (recent + upcoming) with member name/phone.
+  app.get("/api/reborn/admin/bookings", requireStaff(async (req, res) => {
+    const rows = await db.select().from(appointments).orderBy(desc(appointments.appointmentDate)).limit(300);
+    const ids = Array.from(new Set(rows.map((r) => r.userId).filter(Boolean)));
+    const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids as string[])) : [];
+    const umap = new Map(us.map((u) => [u.id, u]));
+    const now = Date.now();
+    const out = rows.map((r) => {
+      const u: any = umap.get(r.userId);
+      return { ...r, memberName: u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email : "—", memberPhone: u?.phoneNumber || "", upcoming: new Date(r.appointmentDate).getTime() > now };
+    });
+    res.json(out);
+  }));
+  app.post("/api/reborn/admin/bookings/:id/status", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const status = ["confirmed", "cancelled", "completed", "pending"].includes(req.body?.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ message: "Bad status" });
+    const [row] = await db.update(appointments).set({ status, updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    if (!row) return res.status(404).json({ message: "Not found" });
+    await logAdmin(req, { targetUserId: row.userId, targetType: "appointment", targetId: id, action: status, entityType: "booking", description: `Booking #${id} → ${status}` });
+    res.json(row);
+  }));
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {

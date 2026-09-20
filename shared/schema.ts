@@ -90,6 +90,7 @@ export const appointments = pgTable("appointments", {
   duration: integer("duration").default(60).notNull(), // minutes
   cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status").default("pending").notNull(), // 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+  remindersSent: varchar("reminders_sent").default(""), // WhatsApp reminders already sent: e.g. "3h,1h,10m"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

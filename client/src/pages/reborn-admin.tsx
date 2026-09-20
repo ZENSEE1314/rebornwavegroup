@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Overview", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -25,6 +25,7 @@ export default function RebornAdmin() {
         ))}
       </div>
       {tab === "Overview" && <Overview onGo={setTab} />}
+      {tab === "Bookings" && <AdminBookings />}
       {tab === "Codes" && <Codes />}
       {tab === "Prizes" && <Prizes />}
       {tab === "Redemptions" && <Redemptions />}
@@ -78,7 +79,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Users: <UsersIcon className="w-4 h-4" />, Products: <Package className="w-4 h-4" />, Accounting: <Calculator className="w-4 h-4" />,
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
-  Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />,
+  Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -355,7 +356,7 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
           <p className="text-[10px] text-white/35 mb-2">Leave Open/Close empty to use nightlife hours (5pm–2am / Fri–Sat 3am).</p>
           <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2"} />
           <div className="flex items-center justify-between gap-2">
-            <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" />
+            <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" output="jpeg" maxDim={900} />
             <div className="flex items-center gap-2">
               <button onClick={() => upd(i, { enabled: a.enabled === false })} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${a.enabled === false ? "bg-white/10 text-white/50" : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"}`}>{a.enabled === false ? "Hidden" : "Visible"}</button>
               <button onClick={() => remove(i)} className={btnDel}><Trash2 className="w-4 h-4" /></button>
@@ -803,6 +804,51 @@ function Inventory() {
         </Card>
       ))}
       {items.length === 0 && <Empty text="No products yet. Add products in the Products tab." />}
+    </div>
+  );
+}
+
+function AdminBookings() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
+  const { data: rows = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/bookings"], queryFn: () => apiRequest("GET", "/api/reborn/admin/bookings").then((r) => r.json()), refetchInterval: 30000 });
+  const setStatus = useMutation({
+    mutationFn: (v: { id: number; status: string }) => apiRequest("POST", `/api/reborn/admin/bookings/${v.id}/status`, { status: v.status }).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/bookings"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+  const list = rows.filter((b) => (filter === "upcoming" ? b.upcoming && b.status !== "cancelled" : true));
+  const sColor: Record<string, string> = { confirmed: "text-emerald-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300" };
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {(["upcoming", "all"] as const).map((f) => (
+          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{f}</button>
+        ))}
+        <span className="ml-auto text-xs text-white/40 self-center">{list.length} booking(s)</span>
+      </div>
+      {list.map((b) => (
+        <div key={b.id} className="rounded-xl bg-white/5 border border-white/10 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate">{b.title}</p>
+              <p className="text-[11px] text-white/50">{b.memberName}{b.memberPhone ? ` · ${b.memberPhone}` : ""}</p>
+              <p className="text-[11px] text-white/40 mt-0.5">📅 {fmt(b.appointmentDate)} · {Math.round((b.duration || 120) / 60)}h · {b.description}</p>
+            </div>
+            <span className={`text-xs font-bold flex-shrink-0 ${sColor[b.status] || "text-white/50"}`}>{b.status}</span>
+          </div>
+          {b.status !== "cancelled" && b.status !== "completed" && (
+            <div className="flex gap-2 mt-2">
+              {b.status !== "confirmed" && <button onClick={() => setStatus.mutate({ id: b.id, status: "confirmed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Confirm</button>}
+              <button onClick={() => setStatus.mutate({ id: b.id, status: "completed" })} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white/70">Done</button>
+              <button onClick={() => { if (confirm("Cancel this booking?")) setStatus.mutate({ id: b.id, status: "cancelled" }); }} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Cancel</button>
+            </div>
+          )}
+        </div>
+      ))}
+      {list.length === 0 && <Empty text="No bookings." />}
     </div>
   );
 }

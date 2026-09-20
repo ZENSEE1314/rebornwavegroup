@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2 } from "lucide-react";
 
-// Reads an image file, resizes it to fit maxDim, and returns a compressed WebP data URL.
-async function toWebp(file: File, maxDim = 640, quality = 0.82): Promise<string> {
+// Reads an image file, resizes it to fit maxDim, and returns a compressed data URL.
+async function toWebp(file: File, maxDim = 640, quality = 0.82, mime = "image/webp"): Promise<string> {
   const dataUrl = await new Promise<string>((res, rej) => {
     const fr = new FileReader();
     fr.onload = () => res(String(fr.result));
@@ -22,11 +22,11 @@ async function toWebp(file: File, maxDim = 640, quality = 0.82): Promise<string>
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL("image/webp", quality);
+  return canvas.toDataURL(mime, quality);
 }
 
-export function ImageUpload({ value, onChange, shape = "square", label = "Upload image" }: {
-  value?: string; onChange: (dataUrl: string) => void; shape?: "square" | "circle"; label?: string;
+export function ImageUpload({ value, onChange, shape = "square", label = "Upload image", output = "webp", maxDim = 640 }: {
+  value?: string; onChange: (dataUrl: string) => void; shape?: "square" | "circle"; label?: string; output?: "webp" | "jpeg"; maxDim?: number;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +36,7 @@ export function ImageUpload({ value, onChange, shape = "square", label = "Upload
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy(true);
-    try { onChange(await toWebp(file)); } catch { /* ignore bad image */ } finally { setBusy(false); if (ref.current) ref.current.value = ""; }
+    try { onChange(await toWebp(file, maxDim, 0.82, output === "jpeg" ? "image/jpeg" : "image/webp")); } catch { /* ignore bad image */ } finally { setBusy(false); if (ref.current) ref.current.value = ""; }
   };
 
   return (
