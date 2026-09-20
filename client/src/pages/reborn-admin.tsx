@@ -304,6 +304,19 @@ function Settings() {
         <p className="text-xs text-white/60 mb-1">Receipt logo</p>
         <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
       </Card>
+      <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking</h3>
+        <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. This image is shown on the member booking page and sent on WhatsApp.</p>
+        <p className="text-xs text-white/60 mb-1">Table layout / availability image</p>
+        <ImageUpload value={cur.bookingImageUrl} onChange={(v) => setStr("bookingImageUrl", v)} label="Upload booking image" />
+        <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Booking note (optional, shown with timings)</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
+      </Card>
+      <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> Reviews & referral</h3>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Google review link (sent on WhatsApp after payment)</span><input value={cur.googleReviewUrl || ""} onChange={(e) => setStr("googleReviewUrl", e.target.value)} placeholder="https://g.page/r/..." className={inp + " w-full"} /></label>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">House referral account — user ID that owns un-referred signups (commission)</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder="e.g. your admin user id" className={inp + " w-full"} /></label>
+        <p className="text-[11px] text-white/40 mt-1">Signups from the website or WhatsApp with no referral code are credited to this account.</p>
+      </Card>
       <button onClick={() => save.mutate()} className={btn}>Save settings</button>
     </div>
   );

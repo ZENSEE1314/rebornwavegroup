@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { RebornLayout } from "@/components/RebornLayout";
 import { Badge } from "@/components/ui/badge";
@@ -219,6 +221,8 @@ export default function Bookings() {
           </Dialog>
         </div>
 
+        <TableBookingCard />
+
         <div className="grid grid-cols-1 gap-5">
           {appointments.map((appointment) => (
             <div key={appointment.id} className="rwg-card p-5">
@@ -282,5 +286,56 @@ export default function Bookings() {
         )}
       </div>
     </div></RebornLayout>
+  );
+}
+
+function TableBookingCard() {
+  const { toast } = useToast();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()) });
+  const [dayIdx, setDayIdx] = useState(0);
+  const [slot, setSlot] = useState<string>("");
+  const [party, setParty] = useState(2);
+  const day = data?.days?.[dayIdx];
+  const book = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/booking", { date: day?.date, slot, partySize: party }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Requested!", description: d.message }); setSlot(""); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  // Slot values are the raw HH:MM from the server; labels are display strings.
+  const slotValues: string[] = ["17:00", "19:00", "21:00", "23:00", "01:00"];
+  return (
+    <div className="rwg-card p-5 mb-5">
+      <h3 className="text-lg font-bold text-white mb-1">🪑 Book a table</h3>
+      <p className="text-white/50 text-sm mb-3">{data?.hoursSummary || "Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots"}</p>
+      {data?.imageUrl && <img src={data.imageUrl} alt="Table layout" className="w-full rounded-xl border border-white/10 mb-3" style={{ maxHeight: 320, objectFit: "contain" }} />}
+      {data?.note && <p className="text-white/60 text-sm mb-3">{data.note}</p>}
+
+      <p className="text-xs text-white/50 mb-1">Day</p>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+        {(data?.days || []).map((d: any, i: number) => (
+          <button key={d.date} onClick={() => { setDayIdx(i); setSlot(""); }} className={`px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 ${i === dayIdx ? "bg-amber-400 text-black" : "bg-white/5 text-white/70 border border-white/10"}`}>
+            {i === 0 ? "Today" : i === 1 ? "Tomorrow" : new Date(d.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-white/50 mb-1">Start time {day ? `· ${day.hours}` : ""}</p>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {(day?.slots || []).map((label: string, i: number) => (
+          <button key={i} onClick={() => setSlot(slotValues[i])} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === slotValues[i] ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{label}</button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-xs text-white/50">Party size</span>
+        <button onClick={() => setParty((p) => Math.max(1, p - 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>−</button>
+        <span className="w-8 text-center font-extrabold text-white">{party}</span>
+        <button onClick={() => setParty((p) => Math.min(50, p + 1))} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 text-white font-bold" style={{ fontSize: 18 }}>+</button>
+      </div>
+
+      <Button onClick={() => book.mutate()} disabled={!slot || book.isPending} className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white border-0 rounded-xl disabled:opacity-50">
+        {book.isPending ? "Booking…" : slot ? "Request booking" : "Pick a time"}
+      </Button>
+    </div>
   );
 }

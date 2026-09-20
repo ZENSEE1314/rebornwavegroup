@@ -36,7 +36,10 @@ export default function RebornBottles() {
             <div className="flex-1 min-w-0">
               <p className="font-semibold truncate">{b.name}</p>
               <p className="text-xs text-white/50 capitalize">{b.type} · {b.type === "beer" ? `${b.quantity} bottle(s) left` : "kept"}</p>
-              <p className={`text-xs mt-1 flex items-center gap-1 ${b.daysLeft <= 5 ? "text-amber-300" : "text-white/50"}`}><Clock className="w-3 h-3" /> {b.daysLeft} day(s) left</p>
+              <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-1 rounded-full text-xs font-bold ${b.daysLeft <= 3 ? "bg-red-500/20 text-red-300 border border-red-400/40" : b.daysLeft <= 7 ? "bg-amber-500/20 text-amber-300 border border-amber-400/40" : "bg-white/10 text-white/70 border border-white/15"}`}>
+                <Clock className="w-3 h-3" /> {b.daysLeft > 0 ? `${b.daysLeft} day${b.daysLeft === 1 ? "" : "s"} left` : "Expires today"}
+              </span>
+              {b.daysLeft <= 7 && <p className="text-[11px] text-white/40 mt-1">Come finish it before it expires — we'll remind you on WhatsApp.</p>}
             </div>
           </div>
         ))}

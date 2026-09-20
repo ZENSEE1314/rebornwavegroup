@@ -1115,7 +1115,8 @@ export function registerRebornRoutes(app: Express) {
     if (b.preferredLanguage !== undefined && ["en", "zh", "id"].includes(b.preferredLanguage)) patch.preferredLanguage = b.preferredLanguage;
     if (b.newPassword) {
       const [u] = await db.select().from(users).where(eq(users.id, userId));
-      if (u?.password) {
+      // Skip the current-password check on a forced first-login reset (bot-created accounts).
+      if (u?.password && !(u as any).mustChangePassword) {
         const ok = await bcrypt.compare(String(b.currentPassword || ""), u.password);
         if (!ok) return res.status(400).json({ message: "Current password is incorrect" });
       }

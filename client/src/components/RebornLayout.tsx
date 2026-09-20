@@ -34,6 +34,38 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
 
+function ForcePasswordChange() {
+  const { t } = useTranslation();
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const submit = async () => {
+    setErr("");
+    if (pw.length < 6) { setErr("At least 6 characters."); return; }
+    if (pw !== pw2) { setErr("Passwords don't match."); return; }
+    setBusy(true);
+    try {
+      const r = await apiRequest("POST", "/api/reborn/profile", { newPassword: pw });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.message || "Failed"); setBusy(false); return; }
+      window.location.reload();
+    } catch (e: any) { setErr(e?.message || "Failed"); setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+      <div className="relative w-full max-w-sm bg-[#160f2a] border border-white/10 rounded-3xl p-6">
+        <h3 className="text-lg font-extrabold mb-1">Set a new password</h3>
+        <p className="text-sm text-white/50 mb-4">For your security, please change the temporary password before you continue.</p>
+        <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
+        <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Confirm new password" className="w-full mb-2 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" />
+        {err && <p className="text-xs text-red-300 mb-2">{err}</p>}
+        <button onClick={submit} disabled={busy} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{busy ? "Saving…" : "Save & continue"}</button>
+      </div>
+    </div>
+  );
+}
+
 export function RebornLayout({ children, title, active, wide }: { children: ReactNode; title?: string; active?: string; wide?: boolean }) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -86,6 +118,8 @@ export function RebornLayout({ children, title, active, wide }: { children: Reac
           })}
         </div>
       </nav>
+
+      {(user as any)?.mustChangePassword && <ForcePasswordChange />}
 
       {/* Logout confirm */}
       {confirmLogout && (
