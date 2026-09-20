@@ -1,0 +1,74 @@
+// Booking rules & helpers shared by the app, the public API and the WhatsApp bot.
+//
+// Hours (venue local time):
+//   Sun–Thu: 5:00pm → 2:00am next day
+//   Fri–Sat: 5:00pm → 3:00am next day
+// Start slots run every 2 hours from 5pm. Guests may book longer than one slot.
+import { db } from "./db";
+import { appointments } from "@shared/schema";
+
+const OPEN_HOUR = 17; // 5pm
+export const SLOT_TIMES = ["17:00", "19:00", "21:00", "23:00", "01:00"]; // 2-hour intervals
+
+export function isWeekendNight(weekday: number): boolean {
+  // Friday (5) and Saturday (6) nights run later.
+  return weekday === 5 || weekday === 6;
+}
+
+export function hoursTextFor(weekday: number): string {
+  return isWeekendNight(weekday) ? "5:00pm – 3:00am" : "5:00pm – 2:00am";
+}
+
+export function bookingHoursSummary(): string {
+  return "Sun–Thu: 5pm–2am · Fri–Sat: 5pm–3am · 2-hour slots (stay longer if you like)";
+}
+
+// Slot start times for a given date (YYYY-MM-DD). Same list every day; the closing
+// time differs by weekday and is shown separately.
+export function slotsForDate(dateStr: string): string[] {
+  return [...SLOT_TIMES];
+}
+
+function labelTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}${m ? ":" + String(m).padStart(2, "0") : ""}${ampm}`;
+}
+
+export function slotLabels(dateStr: string): string[] {
+  return slotsForDate(dateStr).map(labelTime);
+}
+
+// Combine a YYYY-MM-DD date and HH:MM slot into a Date. Slots at/after midnight
+// (e.g. 01:00) belong to the following calendar day.
+export function slotToDate(dateStr: string, hhmm: string): Date {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const [h, mi] = hhmm.split(":").map(Number);
+  const base = new Date(y, (mo || 1) - 1, d || 1, h, mi, 0, 0);
+  if (h < OPEN_HOUR) base.setDate(base.getDate() + 1); // after-midnight slot
+  return base;
+}
+
+export function todayStr(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+
+// Create a pending appointment (used by app + WhatsApp bot). Staff confirm in-app.
+export async function createBooking(opts: {
+  userId: string; dateStr: string; slot: string; partySize?: number; note?: string; hours?: number;
+}) {
+  const when = slotToDate(opts.dateStr, opts.slot);
+  const [row] = await db.insert(appointments).values({
+    userId: opts.userId,
+    title: "Table booking",
+    service: "table",
+    description: opts.note || `Party of ${opts.partySize || 2}`,
+    appointmentDate: when,
+    duration: (opts.hours || 2) * 60,
+    cost: "0",
+    status: "pending",
+  }).returning();
+  return row;
+}

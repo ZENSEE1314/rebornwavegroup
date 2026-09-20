@@ -146,9 +146,16 @@ export function setupAuthRoutes(app: Express) {
         referralCode: await storage.createReferralCode(),
       });
 
-      // Handle referral if provided
+      // Handle referral if provided; otherwise the signup belongs to the house
+      // (admin) account so un-referred signups still generate commission.
       if (referralCode) {
         await storage.handleReferral(userId, referralCode);
+      } else {
+        try {
+          const rows: any = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'houseReferralUserId'`);
+          const houseId = (rows.rows || rows)[0]?.value;
+          if (houseId) await db.execute(sql`UPDATE users SET referred_by_id = ${houseId} WHERE id = ${newUser.id} AND referred_by_id IS NULL`);
+        } catch (e) { console.error('house referral assign', e); }
       }
 
       // Log in the user
@@ -432,6 +439,7 @@ If you didn't request this password reset, please ignore this email.
         country: (user as any).country,
         preferredLanguage: (user as any).preferredLanguage,
         membershipCardNumber: (user as any).membershipCardNumber,
+        mustChangePassword: (user as any).mustChangePassword,
         authProvider: user.authProvider,
         profileImageUrl: user.profileImageUrl,
         role: user.role,

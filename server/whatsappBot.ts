@@ -14,7 +14,8 @@ import type { Express, Request, Response } from "express";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { crmContacts, crmMessages, bottleKeeps, users } from "@shared/schema";
+import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests } from "@shared/schema";
+import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -70,6 +71,27 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
 async function notifyAdmin(text: string) {
   const c = cfg();
   if (c.adminNumber) await sendWhatsApp(c.adminNumber, text);
+}
+export async function notifyAdmins(text: string) { await notifyAdmin(text); }
+
+// Send an image (data URL or http URL) with a caption. Falls back to text when the
+// linked Web session isn't available (Cloud API image upload not implemented).
+export async function sendWhatsAppImage(to: string, imageUrl: string, caption: string): Promise<boolean> {
+  const num = String(to).replace(/\D/g, "");
+  try {
+    const web = await import("./whatsappWeb");
+    if (web.isWebConnected() && imageUrl) {
+      const m = /^data:[^;]+;base64,(.+)$/.exec(imageUrl);
+      const buf = m ? Buffer.from(m[1], "base64") : null;
+      if (buf) return await web.sendWhatsAppWebImage(num, buf, caption);
+    }
+  } catch { /* fall through to text */ }
+  return sendWhatsApp(num, caption);
+}
+
+async function settingVal(key: string): Promise<string> {
+  try { const [r] = await db.select().from(appSettings).where(eq(appSettings.key, key)); return r?.value || ""; }
+  catch { return ""; }
 }
 
 // --- CRM -----------------------------------------------------------------
@@ -198,6 +220,61 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       zh: "你好 {name}！🍾 你寄存的 {item}（还剩 {qty}）正在 Reborn Wave 等你，将在 {days} 天后到期。快来喝完吧！💜",
       id: "Hai {name}! 🍾 Simpanan {item} Anda (sisa {qty}) menunggu di Reborn Wave — kedaluwarsa dalam {days} hari. Yuk habiskan sebelum hangus! 💜",
     },
+    menu: {
+      en: "How can I help? 🌊\n1️⃣ Book a table\n2️⃣ Request a song\nReply 1 or 2.",
+      zh: "有什么可以帮您？🌊\n1️⃣ 预订桌位\n2️⃣ 点歌\n请回复 1 或 2。",
+      id: "Ada yang bisa dibantu? 🌊\n1️⃣ Pesan meja\n2️⃣ Minta lagu\nBalas 1 atau 2.",
+    },
+    bookOffer: {
+      en: "Would you like to book a table? 🪑\nOur hours — {hours}\nReply 1 to book, or 2 to request a song.",
+      zh: "要预订桌位吗？🪑\n营业时间 — {hours}\n回复 1 预订，或回复 2 点歌。",
+      id: "Mau pesan meja? 🪑\nJam buka — {hours}\nBalas 1 untuk pesan, atau 2 untuk minta lagu.",
+    },
+    bookAskDate: {
+      en: "Which day? Reply: today, tomorrow, or a date like 2026-09-25.",
+      zh: "哪一天？请回复：今天、明天，或日期如 2026-09-25。",
+      id: "Hari apa? Balas: hari ini, besok, atau tanggal seperti 2026-09-25.",
+    },
+    bookAskSlot: {
+      en: "{day} · {hours}\nChoose your start time:\n{list}\nReply the number.",
+      zh: "{day} · {hours}\n请选择开始时间：\n{list}\n回复数字。",
+      id: "{day} · {hours}\nPilih jam mulai:\n{list}\nBalas nomornya.",
+    },
+    bookAskParty: {
+      en: "How many people? (reply a number)",
+      zh: "几位客人？（请回复数字）",
+      id: "Berapa orang? (balas angka)",
+    },
+    bookDone: {
+      en: "Booked! ✅ {day} at {time} for {n} pax. Our team will confirm shortly. View it in the app: {url}/bookings 💜",
+      zh: "预订成功！✅ {day} {time}，{n} 位。我们的团队会尽快确认。可在应用查看：{url}/bookings 💜",
+      id: "Berhasil! ✅ {day} jam {time} untuk {n} orang. Tim kami akan konfirmasi. Lihat di app: {url}/bookings 💜",
+    },
+    bookNeedAcct: {
+      en: "Let's set up your account first — what's your name?",
+      zh: "先帮您开通账户吧——请问您的名字？",
+      id: "Kita buat akun dulu ya — siapa nama Anda?",
+    },
+    songAsk: {
+      en: "🎤 Which song? Send it as: Song name - Singer",
+      zh: "🎤 想点哪首歌？请按：歌名 - 歌手 发送",
+      id: "🎤 Lagu apa? Kirim: Judul lagu - Penyanyi",
+    },
+    songDone: {
+      en: "🎤 Added your request: {title}{artist}. See it in the app under Song Requests. 💜",
+      zh: "🎤 已收到你的点歌：{title}{artist}。可在应用的点歌记录查看。💜",
+      id: "🎤 Permintaan lagu dicatat: {title}{artist}. Lihat di app pada Song Requests. 💜",
+    },
+    review: {
+      en: "Thanks for coming to {club}! ⭐ How was it? Reply 1-5 stars.{link}",
+      zh: "感谢光临 {club}！⭐ 体验如何？请回复 1-5 星。{link}",
+      id: "Terima kasih sudah ke {club}! ⭐ Bagaimana? Balas 1-5 bintang.{link}",
+    },
+    reviewThanks: {
+      en: "Thank you for the {n}⭐! {extra}",
+      zh: "感谢你的 {n}⭐！{extra}",
+      id: "Terima kasih atas {n}⭐! {extra}",
+    },
   };
   let s = (T[key]?.[lang]) || T[key]?.en || "";
   for (const k in vars) s = s.replaceAll(`{${k}}`, vars[k]);
@@ -219,6 +296,13 @@ async function createMemberFromContact(c: Contact): Promise<{ email: string; cre
     phoneNumber: c.phone,
     authProvider: "email",
   });
+  // Force a password change on first login, and assign the house referral account
+  // (un-referred signups belong to admin for commission).
+  const house = await settingVal("houseReferralUserId");
+  await db.update(users).set({
+    mustChangePassword: true,
+    ...(house ? { referredById: house } : {}),
+  }).where(eq(users.id, user.id));
   await patchContact(c.id, { userId: user.id, stage: "member" });
   return { email, created: true };
 }
@@ -230,64 +314,152 @@ export async function handleInboundText(from: string, text: string, profileName?
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
 
+function parseMenuIntent(s: string): "book" | "song" | "menu" | null {
+  const t = s.trim().toLowerCase();
+  if (/^1$|book|table|reserv|预订|订位|meja|pesan meja/.test(t)) return "book";
+  if (/^2$|song|sing|request a song|点歌|唱歌|lagu/.test(t)) return "song";
+  if (/^(menu|hi|hello|hey|start|help|3|你好|嗨|halo|hai)$/.test(t)) return "menu";
+  return null;
+}
+function parseBookDate(s: string): string | null {
+  const t = s.trim().toLowerCase();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  if (/today|hari ini|今天|tonight|今晚/.test(t)) return todayStr();
+  if (/tomorrow|besok|明天|tmr/.test(t)) { const d = new Date(); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+  return null;
+}
+function weekdayOf(dateStr: string): number { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, m - 1, d).getDay(); }
+
 async function handleInbound(from: string, text: string, profileName?: string) {
   const body = (text || "").trim();
   const c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
 
-  // The bot only onboards NEW numbers. Old/known contacts (already members, or past
-  // the reply cap) get no auto-reply — a human handles them; reminders still go out.
-  const isOld = c.stage === "member" || c.stage === "active" || (c.botReplies || 0) >= MAX_BOT_REPLIES;
-  if (isOld) {
+  const lang = (c.lang as Lang) || "en";
+  const say = async (msg: string) => { await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); };
+  const wa: any = (c.waState as any) || {};
+
+  // --- ONBOARDING (new numbers) ---
+  if (c.stage === "new") { await say(WELCOME_TRILINGUAL); return patchContact(c.id, { stage: "await_lang" }); }
+  if (c.stage === "await_lang") { const picked = parseLang(body) || "en"; await say(L(picked, "askName")); return patchContact(c.id, { lang: picked, stage: "await_name" }); }
+  if (c.stage === "await_name") {
+    if (!looksLikeName(body)) { await say(L(lang, "askName")); return; }
+    await say(L(lang, "askEmail", { name: body }));
+    return patchContact(c.id, { name: body, stage: "await_email" });
+  }
+  if (c.stage === "await_email") {
+    const m = body.match(EMAIL_RE);
+    if (!m) { await say(L(lang, "badEmail")); return; }
+    await patchContact(c.id, { email: m[0].toLowerCase() });
+    const { email, created } = await createMemberFromContact({ ...c, email: m[0].toLowerCase() } as Contact); // sets stage=member
+    await say(created ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD }) : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
+    // Offer a booking straight away (with the table image if configured).
+    await offerBooking(c, lang, from);
+    return patchContact(c.id, { waState: { flow: null } });
+  }
+
+  // --- REVIEW REPLY (after payment) ---
+  if (wa.flow === "review") {
+    const stars = Number((body.match(/[1-5]/) || [])[0] || 0);
+    const extra = stars >= 4 ? (wa.reviewUrl ? `Please leave us a Google review 🙏 ${wa.reviewUrl}` : "See you again soon! 💜") : "Thank you — we'll do better. 💜";
+    if (stars) { await say(L(lang, "reviewThanks", { n: String(stars), extra })); await notifyAdmin(`⭐ ${c.name || from} rated ${stars}/5`); return patchContact(c.id, { waState: { flow: null } }); }
+    // not a rating → fall through to normal handling
+  }
+
+  // --- ACTIVE FLOWS ---
+  if (wa.flow === "book") return bookingStep(c, lang, from, body, wa, say);
+  if (wa.flow === "song") return songStep(c, lang, from, body, say);
+
+  // --- MENU INTENTS (work for members & returning contacts) ---
+  const intent = parseMenuIntent(body);
+  if (intent === "book") return startBooking(c, lang, from, say);
+  if (intent === "song") { await say(L(lang, "songAsk")); return patchContact(c.id, { waState: { flow: "song" } }); }
+  if (intent === "menu") { await say(L(lang, "menu")); return; }
+
+  // --- No recognized command ---
+  if (c.stage === "member" || c.stage === "active") {
+    // Known contact, free-form chat → hand to staff (no AI chit-chat).
     await notifyAdmin(`💬 ${c.name || from}: "${body.slice(0, 160)}" — (bot silent, please reply)`);
     return;
   }
+  // Still onboarding-ish → nudge with the menu (capped).
+  if ((c.botReplies || 0) < MAX_BOT_REPLIES) { await say(L(lang, "menu")); await patchContact(c.id, { botReplies: (c.botReplies || 0) + 1 }); }
+}
 
-  // Count each auto-reply toward the cap; the bot goes quiet once it's hit.
-  let sent = 0;
-  const reply = async (msg: string) => { const ok = await sendWhatsApp(from, msg); await logMsg(c.id, c.phone, "out", msg, true); if (ok) sent++; return ok; };
-  const finish = async (patch: Partial<Contact> = {}) => {
-    await patchContact(c.id, { ...patch, botReplies: (c.botReplies || 0) + sent });
-  };
+// Offer a booking (used right after signup). Sends the table image if one is set.
+async function offerBooking(c: Contact, lang: Lang, from: string) {
+  const hours = hoursTextFor(new Date().getDay());
+  const caption = L(lang, "bookOffer", { hours });
+  const img = await settingVal("bookingImageUrl");
+  if (img) await sendWhatsAppImage(from, img, caption); else await sendWhatsApp(from, caption);
+  await logMsg(c.id, c.phone, "out", caption, true);
+}
 
-  const lang = (c.lang as Lang) || "en";
-  const stage = c.stage;
+async function startBooking(c: Contact, lang: Lang, from: string, say: (m: string) => Promise<void>) {
+  if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
+  await say(L(lang, "bookAskDate"));
+  return patchContact(c.id, { waState: { flow: "book", step: "date" } });
+}
 
-  // 0) Brand-new → greet in all 3 languages and ask which to use.
-  if (stage === "new") {
-    await reply(WELCOME_TRILINGUAL);
-    return finish({ stage: "await_lang" });
+async function bookingStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
+  if (wa.step === "date") {
+    const date = parseBookDate(body);
+    if (!date) { await say(L(lang, "bookAskDate")); return; }
+    const labels = slotLabels(date);
+    const list = labels.map((t, i) => `${i + 1}. ${t}`).join("\n");
+    const hours = hoursTextFor(weekdayOf(date));
+    const img = await settingVal("bookingImageUrl");
+    const caption = L(lang, "bookAskSlot", { day: date, hours, list });
+    if (img) await sendWhatsAppImage(from, img, caption); else await say(caption);
+    await logMsg(c.id, c.phone, "out", caption, true);
+    return patchContact(c.id, { waState: { flow: "book", step: "slot", date } });
   }
-  // 1) Capture language choice, then ask for the name in that language.
-  if (stage === "await_lang") {
-    const picked = parseLang(body) || "en"; // default English if unclear
-    await reply(L(picked, "askName"));
-    return finish({ lang: picked, stage: "await_name" });
+  if (wa.step === "slot") {
+    const slots = slotsForDate(wa.date);
+    const idx = Number((body.match(/[1-9]/) || [])[0] || 0) - 1;
+    if (idx < 0 || idx >= slots.length) { await say(`Reply a number 1-${slots.length}.`); return; }
+    await say(L(lang, "bookAskParty"));
+    return patchContact(c.id, { waState: { flow: "book", step: "party", date: wa.date, slot: slots[idx] } });
   }
-  // 2) Capture name.
-  if (stage === "await_name") {
-    if (!looksLikeName(body)) { await reply(L(lang, "askName")); return finish(); }
-    await reply(L(lang, "askEmail", { name: body }));
-    return finish({ name: body, stage: "await_email" });
+  if (wa.step === "party") {
+    const n = Math.max(1, Math.min(50, Number((body.match(/\d+/) || [])[0] || 2)));
+    const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: n });
+    const label = slotLabels(wa.date)[slotsForDate(wa.date).indexOf(wa.slot)] || wa.slot;
+    await say(L(lang, "bookDone", { day: wa.date, time: label, n: String(n), url: APP_BASE_URL }));
+    await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${wa.date} ${label} · ${n} pax — confirm in the app.`);
+    return patchContact(c.id, { waState: { flow: null } });
   }
-  // 3) Capture email → create the account.
-  if (stage === "await_email") {
-    const m = body.match(EMAIL_RE);
-    if (!m) { await reply(L(lang, "badEmail")); return finish(); }
-    await patchContact(c.id, { email: m[0].toLowerCase() });
-    const fresh = { ...c, email: m[0].toLowerCase() } as Contact;
-    const { email, created } = await createMemberFromContact(fresh); // sets stage=member
-    await reply(created
-      ? L(lang, "ready", { url: APP_BASE_URL, email, pw: DEFAULT_PASSWORD })
-      : L(lang, "welcomeBack", { url: APP_BASE_URL, email }));
-    return finish(); // stage already 'member' → future messages go to staff
-  }
+}
 
-  // Fallback within onboarding window.
-  await reply(L(lang, "thanks", { name: c.name || "" }));
-  await notifyAdmin(`💬 ${c.name || from}: "${body.slice(0, 160)}"`);
-  return finish();
+async function songStep(c: Contact, lang: Lang, from: string, body: string, say: (m: string) => Promise<void>) {
+  if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
+  const parts = body.split(/\s*[-–—|]\s*|\s+by\s+/i);
+  const title = (parts[0] || body).trim();
+  const artist = (parts[1] || "").trim();
+  if (!title) { await say(L(lang, "songAsk")); return; }
+  await db.insert(songRequests).values({ userId: c.userId, title, artist, status: "pending" });
+  await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
+  await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""}`);
+  return patchContact(c.id, { waState: { flow: null } });
+}
+
+// Post-payment: ask for feedback + a Google review. Called from the app after a paid order/top-up.
+export async function sendReviewRequest(opts: { phone?: string | null; userId?: string | null; name?: string | null; club: string; reviewUrl?: string }) {
+  try {
+    let num = (opts.phone || "").replace(/\D/g, "");
+    let contact: Contact | undefined;
+    if (num) [contact] = await db.select().from(crmContacts).where(eq(crmContacts.phone, num));
+    if (!contact && opts.userId) { [contact] = await db.select().from(crmContacts).where(eq(crmContacts.userId, opts.userId)); if (contact) num = contact.phone; }
+    if (!num && opts.userId) { const [u] = await db.select().from(users).where(eq(users.id, opts.userId)); if (u?.phoneNumber) num = u.phoneNumber.replace(/\D/g, ""); }
+    if (!num) return;
+    const lang = ((contact?.lang as Lang) || "en");
+    const link = opts.reviewUrl ? `\n${opts.reviewUrl}` : "";
+    const msg = L(lang, "review", { club: opts.club, link });
+    const ok = await sendWhatsApp(num, msg);
+    if (contact) { await logMsg(contact.id, num, "out", msg, true); await patchContact(contact.id, { waState: { flow: "review", reviewUrl: opts.reviewUrl || "" } }); }
+    return ok;
+  } catch (e) { console.error("[wa] review request", e); }
 }
 
 // --- Webhook -------------------------------------------------------------
@@ -333,18 +505,20 @@ export async function runReminders(): Promise<{ bottles: number; comeback: numbe
   if (!(await whatsappAvailable())) return out;
   const now = Date.now();
 
-  // 1) Leftover drinks
+  // 1) Leftover drinks — weekly nudges across the ~30-day keep, then daily in the last 3 days.
   try {
-    const soon = new Date(now + 7 * DAY_MS);
     const kept = await db.select().from(bottleKeeps)
-      .where(and(eq(bottleKeeps.status, "kept"), isNotNull(bottleKeeps.expiresAt), lte(bottleKeeps.expiresAt, soon)));
+      .where(and(eq(bottleKeeps.status, "kept"), isNotNull(bottleKeeps.expiresAt)));
     for (const b of kept) {
-      if (b.lastReminderAt && now - new Date(b.lastReminderAt).getTime() < 5 * DAY_MS) continue;
+      const exp = b.expiresAt ? new Date(b.expiresAt).getTime() : 0;
+      if (!exp || exp <= now) continue; // expired handled elsewhere
+      const daysLeft = Math.max(0, Math.ceil((exp - now) / DAY_MS));
+      const gapNeeded = daysLeft <= 3 ? 20 * HOUR_MS : 7 * DAY_MS; // daily near expiry, else weekly
+      if (b.lastReminderAt && now - new Date(b.lastReminderAt).getTime() < gapNeeded) continue;
       const phone = await phoneForBottle(b);
       if (!phone) continue;
-      const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - now) / DAY_MS)) : 0;
       const blang = await langForPhone(phone);
-      const ok = await sendWhatsApp(phone, L(blang, "bottle", { name: b.memberName || "", item: b.name, qty: String(b.quantity), days: String(days) }));
+      const ok = await sendWhatsApp(phone, L(blang, "bottle", { name: b.memberName || "", item: b.name, qty: String(b.quantity), days: String(daysLeft) }));
       if (ok) { await db.update(bottleKeeps).set({ lastReminderAt: new Date() }).where(eq(bottleKeeps.id, b.id)); out.bottles++; }
     }
   } catch (e) { console.error("[wa] bottle reminders", e); }

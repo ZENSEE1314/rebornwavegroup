@@ -172,6 +172,17 @@ export async function sendWhatsAppWeb(to: string, text: string): Promise<boolean
   } catch (e) { console.error("[wa-web] send error", e); return false; }
 }
 
+export async function sendWhatsAppWebImage(to: string, image: Buffer, caption: string): Promise<boolean> {
+  if (!isWebConnected() || !sock) return false;
+  const digits = String(to).replace(/\D/g, "");
+  let jid = jidForPhone.get(digits);
+  try {
+    if (!jid) { const res = await sock.onWhatsApp(digits).catch(() => null); jid = res?.[0]?.jid || `${digits}@s.whatsapp.net`; }
+    await sock.sendMessage(jid, { image, caption });
+    return true;
+  } catch (e) { console.error("[wa-web] image send error", e); return false; }
+}
+
 export async function logoutWhatsAppWeb(): Promise<void> {
   try { await sock?.logout(); } catch {}
   sock = null; status = "loggedout"; qrDataUrl = null; selfNumber = null;

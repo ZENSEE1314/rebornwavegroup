@@ -8,7 +8,8 @@ import bcrypt from "bcryptjs";
 import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
-import { sendAdminMessage } from "./whatsappBot";
+import { sendAdminMessage, sendReviewRequest, notifyAdmins } from "./whatsappBot";
+import { createBooking, slotLabels, slotsForDate, hoursTextFor, bookingHoursSummary, todayStr } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
   spinPrizes, spinResults, faqItems, supportTickets, supportMessages,
@@ -28,6 +29,10 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   clubName: "Reborn Wave Group",
   receiptLogoUrl: "",       // data URL / image for receipts
   receiptFooter: "Thank you — see you again!",
+  bookingImageUrl: "",      // table layout / availability image shown in-app + on WhatsApp
+  bookingNote: "",          // optional extra note shown with booking timings
+  googleReviewUrl: "",      // link sent after payment to collect a Google review
+  houseReferralUserId: "",  // admin account that owns un-referred signups (house commission)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -42,6 +47,10 @@ async function getSettings() {
     clubName: map.clubName || "Reborn Wave Group",
     receiptLogoUrl: map.receiptLogoUrl || "",
     receiptFooter: map.receiptFooter || "",
+    bookingImageUrl: map.bookingImageUrl || "",
+    bookingNote: map.bookingNote || "",
+    googleReviewUrl: map.googleReviewUrl || "",
+    houseReferralUserId: map.houseReferralUserId || "",
   };
 }
 const DEFAULT_GIFT_TYPES = [
@@ -1040,7 +1049,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "googleReviewUrl", "houseReferralUserId"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         await db.insert(appSettings).values({ key: k, value: String(req.body[k]), updatedAt: new Date() })
@@ -1112,6 +1121,7 @@ export function registerRebornRoutes(app: Express) {
       }
       if (String(b.newPassword).length < 6) return res.status(400).json({ message: "New password must be at least 6 characters" });
       patch.password = await bcrypt.hash(String(b.newPassword), 12);
+      patch.mustChangePassword = false; // first-login reset satisfied
     }
     const [row] = await db.update(users).set(patch).where(eq(users.id, userId)).returning();
     res.json({ ...row, password: undefined });
@@ -1453,7 +1463,10 @@ export function registerRebornRoutes(app: Express) {
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
-    if (u) crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
+    if (u) {
+      crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
+      sendReviewRequest({ userId: u.id, phone: (u as any).phoneNumber, name: u.firstName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
+    }
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
@@ -1508,7 +1521,10 @@ export function registerRebornRoutes(app: Express) {
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
-    if (o.memberId) crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
+    if (o.memberId) {
+      crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
+      sendReviewRequest({ userId: o.memberId, name: o.memberName, club: settings.clubName, reviewUrl: settings.googleReviewUrl }).catch(() => {});
+    }
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
@@ -1581,13 +1597,14 @@ export function registerRebornRoutes(app: Express) {
     const since = new Date(Date.now() - days * DAY_MS);
     const rows = await db.select().from(ledgerEntries).where(sql`${ledgerEntries.createdAt} >= ${since}`);
     const byCat: Record<string, number> = {};
-    let income = 0, expense = 0;
+    let income = 0, expense = 0, cogs = 0;
     for (const r of rows) {
       const amt = Number(r.amount);
-      if (r.kind === "income") income += amt; else expense += amt;
+      if (r.kind === "income") income += amt; else { expense += amt; if (r.category === "purchase") cogs += amt; }
       byCat[r.kind + ":" + r.category] = (byCat[r.kind + ":" + r.category] || 0) + amt;
     }
-    res.json({ days, income, expense, net: income - expense, byCategory: byCat, count: rows.length });
+    // revenue = income; COGS = stock purchases; grossProfit = revenue - COGS; net = revenue - all expenses.
+    res.json({ days, income, expense, revenue: income, cogs, grossProfit: income - cogs, otherExpense: expense - cogs, net: income - expense, byCategory: byCat, count: rows.length });
   }));
   app.get("/api/reborn/admin/accounting/ledger", requireAdmin(async (req, res) => {
     const limit = Math.min(500, Number(req.query.limit) || 100);
@@ -1627,6 +1644,34 @@ export function registerRebornRoutes(app: Express) {
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
     res.json(row);
   }));
+
+  // Booking info for members — table image, hours and start-time slots for the next 7 days.
+  app.get("/api/reborn/booking/info", requireAuth, async (_req, res) => {
+    const s = await getSettings();
+    const days: any[] = [];
+    const base = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base); d.setDate(base.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      days.push({ date: dateStr, weekday: d.getDay(), hours: hoursTextFor(d.getDay()), slots: slotLabels(dateStr) });
+    }
+    res.json({ imageUrl: s.bookingImageUrl, note: s.bookingNote, hoursSummary: bookingHoursSummary(), days });
+  });
+  // Member creates a booking from the app.
+  app.post("/api/reborn/booking", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const b = req.body || {};
+    const date = String(b.date || todayStr());
+    const slots = slotsForDate(date);
+    const slot = slots.includes(String(b.slot)) ? String(b.slot) : null;
+    if (!slot) return res.status(400).json({ message: "Pick a valid time slot" });
+    const row = await createBooking({ userId, dateStr: date, slot, partySize: Number(b.partySize) || 2, hours: Number(b.hours) || 2, note: b.note });
+    const label = slotLabels(date)[slots.indexOf(slot)] || slot;
+    const [u] = await db.select().from(users).where(eq(users.id, userId));
+    await notifyAdmins(`📅 New app booking #${row.id}: ${[u?.firstName, u?.lastName].filter(Boolean).join(" ") || u?.email} · ${date} ${label} · ${row.description} — confirm in the app.`);
+    await logAdmin(req, { targetUserId: userId, targetType: "appointment", targetId: row.id, action: "book", entityType: "booking", description: `Booked ${date} ${label}` });
+    res.json({ message: `Booked ${date} at ${label}. We'll confirm shortly.`, appointment: row });
+  });
 
   // Inventory report — stock levels, valuation and low-stock alerts, grouped by category.
   app.get("/api/reborn/admin/inventory", requireAdmin(async (req, res) => {

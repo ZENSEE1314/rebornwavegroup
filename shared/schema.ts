@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   username: varchar("username").unique(), // Username for display in KOS system
   password: varchar("password"), // For email/password authentication
+  mustChangePassword: boolean("must_change_password").default(false).notNull(), // force reset on first login (bot-created accounts)
   authProvider: varchar("auth_provider").default("replit").notNull(), // 'replit' | 'email' | 'google' | 'apple'
   googleId: varchar("google_id").unique(),
   appleId: varchar("apple_id").unique(),
