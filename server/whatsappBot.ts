@@ -707,7 +707,9 @@ async function showBottles(c: Contact, lang: Lang, say: (m: string) => Promise<v
   if (!rows.length) { await say(L(lang, "bottlesNone")); return; }
   const list = rows.map((b) => {
     const days = b.expiresAt ? Math.max(0, Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / DAY_MS)) : 0;
-    return `• ${b.name} ${b.type === "beer" ? `(${b.quantity} left)` : ""} — ${days} day(s) left`;
+    const emoji = b.type === "whisky" ? "🥃" : b.type === "beer" ? "🍺" : "🍾";
+    const typeLabel = (b.type || "drink").charAt(0).toUpperCase() + (b.type || "drink").slice(1);
+    return `• ${emoji} ${typeLabel} — ${b.name}${b.type === "beer" ? ` (${b.quantity} left)` : ""} · ${days} day(s) left`;
   }).join("\n");
   await say(L(lang, "bottlesList", { n: String(rows.length), list }));
 }

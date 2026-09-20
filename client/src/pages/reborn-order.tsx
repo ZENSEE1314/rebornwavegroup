@@ -61,11 +61,26 @@ export default function RebornOrder() {
       </div>
 
       {myOrders.filter((o) => o.status === "open").length > 0 && (
-        <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-3">
+        <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-3 space-y-2">
           {myOrders.filter((o) => o.status === "open").map((o) => (
-            <div key={o.id} className="flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-amber-300" />
-              <span>Order <b>{o.orderNo}</b> · Table {o.tableNumber} · {rp(Number(o.total))} — being served</span>
+            <div key={o.id} className="text-sm">
+              <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-300" /><span>Order <b>{o.orderNo}</b> · Table {o.tableNumber} · {rp(Number(o.total))}</span></div>
+              {Array.isArray(o.items) && o.items.length > 0 && (
+                <div className="mt-1 pl-6 space-y-0.5">
+                  {o.items.map((it: any) => (
+                    <div key={it.id} className="flex items-center justify-between text-[13px] text-white/70">
+                      <span className={it.status === "rejected" ? "line-through opacity-60" : ""}>{it.qty}× {it.name}</span>
+                      <span className={
+                        it.status === "served" ? "text-emerald-300 text-xs font-semibold" :
+                        it.status === "accepted" ? "text-blue-300 text-xs font-semibold" :
+                        it.status === "rejected" ? "text-red-300 text-xs font-semibold" : "text-amber-300 text-xs font-semibold"
+                      }>
+                        {it.status === "served" ? "✓ Served" : it.status === "accepted" ? "👍 Preparing" : it.status === "rejected" ? `✕ ${it.rejectReason || "Unavailable"}` : "⏳ Waiting"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

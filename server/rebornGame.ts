@@ -1431,16 +1431,20 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // Deduct stock for a set of items, append them to an order, and re-total the ticket.
-  async function appendItems(orderId: number, orderNo: string, items: any[], userId: string) {
+  async function appendItems(orderId: number, orderNo: string, items: any[], userId: string, status: string = "accepted", source: string = "pos") {
     for (const it of items) {
-      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty) });
+      await db.insert(posTicketItems).values({ orderId, productId: it.productId || null, name: it.name, price: String(it.price), qty: it.qty, lineTotal: String(Number(it.price) * it.qty), status, source });
       if (it.productId) {
         await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${it.qty}` }).where(eq(posProducts.id, it.productId));
         await db.insert(stockMovements).values({ productId: it.productId, delta: -it.qty, reason: "sale", note: `Ticket ${orderNo}`, userId });
       }
     }
+    return recalcTicket(orderId);
+  }
+  // Ticket subtotal/total = sum of non-rejected line totals.
+  async function recalcTicket(orderId: number) {
     const rows = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, orderId));
-    const total = rows.reduce((s, r) => s + Number(r.lineTotal), 0);
+    const total = rows.filter((r) => r.status !== "rejected").reduce((s, r) => s + Number(r.lineTotal), 0);
     await db.update(posTickets).set({ subtotal: String(total), total: String(total) }).where(eq(posTickets.id, orderId));
     return total;
   }
@@ -1571,12 +1575,35 @@ export function registerRebornRoutes(app: Express) {
         tableNumber, orderMode: req.body?.orderMode === "take_away" ? "take_away" : "dine_in", subtotal: "0", total: "0",
       }).returning();
     }
-    await appendItems(order.id, order.orderNo, clean!, userId);
-    res.json({ message: "Order sent to the floor — staff will bring it to your table.", order });
+    await appendItems(order.id, order.orderNo, clean!, userId, "pending", "app"); // counter must accept
+    await notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`);
+    res.json({ message: "Order sent — waiting for the counter to accept.", order });
   });
+  // Counter accepts / rejects / serves an app order item.
+  app.post("/api/reborn/pos/items/:id/status", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const status = ["accepted", "rejected", "served"].includes(req.body?.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ message: "Bad status" });
+    const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!it) return res.status(404).json({ message: "Item not found" });
+    const patch: any = { status };
+    if (status === "rejected") {
+      patch.rejectReason = String(req.body?.reason || "").trim() || "Unavailable";
+      if (it.status !== "rejected" && it.productId) { // return stock
+        await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+        await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "order_reject", note: `Rejected item #${id}`, userId: getUserId(req)! });
+      }
+    }
+    if (status === "served") patch.servedAt = new Date();
+    await db.update(posTicketItems).set(patch).where(eq(posTicketItems.id, id));
+    await recalcTicket(it.orderId);
+    res.json({ message: status === "rejected" ? `Rejected: ${patch.rejectReason}` : status === "served" ? "Marked served" : "Accepted" });
+  }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
-    res.json(await db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(20));
+    const rows = await db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(20);
+    const withItems = await Promise.all(rows.map(async (o) => ({ ...o, items: await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, o.id)) })));
+    res.json(withItems);
   });
 
   // Open tickets (app orders awaiting payment) for staff to close.

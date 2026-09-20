@@ -676,6 +676,10 @@ export const posTicketItems = pgTable("pos_ticket_items", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   qty: integer("qty").default(1).notNull(),
   lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").default("accepted").notNull(), // 'pending' | 'accepted' | 'rejected' | 'served'
+  rejectReason: varchar("reject_reason"),
+  source: varchar("source").default("pos"), // 'pos' | 'app'
+  servedAt: timestamp("served_at"),
 });
 
 // Bottle keep — members leave unfinished bottles; staff store them (beer count / whisky photo of level), 1-month keep

@@ -240,6 +240,11 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: (d) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); onBack(); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
+  const itemStatus = useMutation({
+    mutationFn: (v: { id: number; status: string; reason?: string }) => post(`/api/reborn/pos/items/${v.id}/status`, { status: v.status, reason: v.reason }),
+    onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
   const total = Number(order.total);
   return (
     <div>
@@ -259,8 +264,30 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               <span className="text-xl font-extrabold text-amber-300">{rp(total)}</span>
             </div>
             {order.items && order.items.length > 0 && (
-              <div className="mt-3 border-t border-white/10 pt-2 text-sm text-white/70 max-h-52 overflow-y-auto">
-                {order.items.map((it: any) => <div key={it.id} className="flex justify-between py-0.5"><span>{it.qty}× {it.name}</span><span>{rp(Number(it.lineTotal))}</span></div>)}
+              <div className="mt-3 border-t border-white/10 pt-2 text-sm text-white/70 max-h-72 overflow-y-auto space-y-1.5">
+                {order.items.map((it: any) => (
+                  <div key={it.id} className={`${it.status === "rejected" ? "opacity-50" : ""}`}>
+                    <div className="flex justify-between py-0.5">
+                      <span className={it.status === "rejected" ? "line-through" : ""}>{it.qty}× {it.name}
+                        {it.status === "pending" && <span className="ml-1 text-[10px] text-amber-300 bg-amber-400/20 px-1 rounded">NEW</span>}
+                        {it.status === "served" && <span className="ml-1 text-[10px] text-emerald-300">✓ served</span>}
+                        {it.status === "rejected" && <span className="ml-1 text-[10px] text-red-300">✕ {it.rejectReason}</span>}
+                      </span>
+                      <span>{rp(Number(it.lineTotal))}</span>
+                    </div>
+                    {it.status === "pending" && (
+                      <div className="flex gap-1.5 pb-1">
+                        <button onClick={() => itemStatus.mutate({ id: it.id, status: "accepted" })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">Accept</button>
+                        <button onClick={() => { const reason = prompt("Reject reason (e.g. out of stock, closing):", "out of stock") || "Unavailable"; itemStatus.mutate({ id: it.id, status: "rejected", reason }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Reject</button>
+                      </div>
+                    )}
+                    {it.status === "accepted" && (
+                      <div className="flex gap-1.5 pb-1">
+                        <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">Mark served</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
             {!order.memberName && (
