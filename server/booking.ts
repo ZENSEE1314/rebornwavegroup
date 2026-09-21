@@ -69,7 +69,8 @@ export function parseTables(raw?: string): string[] {
 // Bookable venue areas (by floor). Admin-editable via the bookingAreas setting (JSON).
 // open/close are "HH:MM" (close may be after midnight, e.g. "03:00"). When omitted the
 // area uses the default nightlife hours (5pm → 2am weekday / 3am weekend).
-export interface BookingArea { id: string; name: string; level: string; image?: string; tables: string[]; enabled?: boolean; open?: string; close?: string; }
+export interface DaySchedule { enabled?: boolean; open?: string; close?: string; }
+export interface BookingArea { id: string; name: string; level: string; image?: string; tables: string[]; enabled?: boolean; open?: string; close?: string; schedule?: Record<string, DaySchedule>; }
 export const DEFAULT_AREAS: BookingArea[] = [
   { id: "l1-game", name: "Game House", level: "Level 1", image: "", tables: [], enabled: true },
   { id: "l1-ktv", name: "KTV Lounge", level: "Level 1", image: "", tables: ["V1", "V2", "1", "2", "3", "4", "5", "T6", "T7", "T8", "T9"], enabled: true },
@@ -87,6 +88,7 @@ export function parseAreas(raw?: string): BookingArea[] {
         id: String(x.id || `area-${i}`), name: String(x.name || `Area ${i + 1}`), level: String(x.level || ""),
         image: x.image || "", tables: Array.isArray(x.tables) ? x.tables.map(String) : [],
         enabled: x.enabled !== false, open: x.open || "", close: x.close || "",
+        schedule: (x.schedule && typeof x.schedule === "object") ? x.schedule : undefined,
       }));
     } catch { /* fall back */ }
   }
@@ -117,6 +119,38 @@ export function areaSlotLabels(a: BookingArea): string[] { return areaSlots(a).m
 export function areaHoursText(a: BookingArea, weekday: number): string {
   if (a.open && a.close) return `${labelTime(a.open)} – ${labelTime(a.close)}`;
   return hoursTextFor(weekday); // default nightlife hours
+}
+
+// --- Per-weekday schedule (overrides the area's default hours per day) ---
+function weekdayOfDate(dateStr: string): number { const [y, m, d] = dateStr.split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1).getDay(); }
+// Effective config for a given weekday: schedule override merged over the area default.
+export function areaDayConfig(a: BookingArea, weekday: number): { enabled: boolean; open?: string; close?: string } {
+  const s = a.schedule?.[String(weekday)];
+  return { enabled: s ? s.enabled !== false : true, open: (s?.open || a.open) || "", close: (s?.close || a.close) || "" };
+}
+function slotsFromHours(open: number, close: number): string[] {
+  const span = (close <= open ? close + 24 : close) - open;
+  const out: string[] = [];
+  for (let t = 0; t < span; t += 1) { const h = (open + t) % 24; if (EXCLUDED_START_HOURS.has(h)) continue; out.push(`${String(h).padStart(2, "0")}:00`); }
+  return out;
+}
+export function areaSlotsForDate(a: BookingArea, dateStr: string): string[] {
+  const cfg = areaDayConfig(a, weekdayOfDate(dateStr));
+  if (!cfg.enabled) return []; // closed this weekday
+  const open = hourOf(cfg.open) ?? OPEN_HOUR, close = hourOf(cfg.close) ?? 2;
+  const out = slotsFromHours(open, close);
+  return out.length ? out : [...SLOT_TIMES];
+}
+export function areaSlotLabelsForDate(a: BookingArea, dateStr: string): string[] { return areaSlotsForDate(a, dateStr).map(labelTime); }
+export function areaHoursTextForDate(a: BookingArea, dateStr: string): string {
+  const cfg = areaDayConfig(a, weekdayOfDate(dateStr));
+  if (!cfg.enabled) return "Closed";
+  if (cfg.open && cfg.close) return `${labelTime(cfg.open)} – ${labelTime(cfg.close)}`;
+  return hoursTextFor(weekdayOfDate(dateStr));
+}
+export function areaOpenHourForDate(a: BookingArea, dateStr: string): number {
+  const cfg = areaDayConfig(a, weekdayOfDate(dateStr));
+  return hourOf(cfg.open) ?? OPEN_HOUR;
 }
 // Combine date + slot for a given area (after-midnight slots roll to the next day).
 export function areaSlotToDate(a: BookingArea, dateStr: string, hhmm: string): Date {
@@ -162,8 +196,10 @@ export async function isTableTaken(a: BookingArea, table: string, when: Date): P
 export async function takenTablesForDate(a: BookingArea, dateStr: string): Promise<Record<string, string[]>> {
   const out: Record<string, string[]> = {};
   if (!a.tables.length) return out;
-  const slots = areaSlots(a);
-  const whens = slots.map((s) => bookingWhen(a, dateStr, s));
+  const slots = areaSlotsForDate(a, dateStr);
+  if (!slots.length) return out;
+  const openHour = areaOpenHourForDate(a, dateStr);
+  const whens = slots.map((s) => bookingWhen(openHour, dateStr, s));
   const lo = new Date(Math.min(...whens.map((w) => w.getTime())));
   const hi = new Date(Math.max(...whens.map((w) => w.getTime())) + 60_000);
   const rows = await db.select().from(appointments).where(and(

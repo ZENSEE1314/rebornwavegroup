@@ -91,14 +91,14 @@ function TableBookingCard() {
   const [hours, setHours] = useState(2);
   const areas: any[] = data?.areas || [];
   const area = areas.find((a) => a.id === areaId) || null;
-  const areaSlots: any[] = area?.slots || []; // [{value,label}]
   const needTable = !!area && area.tables?.length > 0;
-  // Which tables are already taken for this area on this date (to grey out).
+  // Slots + taken tables for the chosen area+date (respects the weekly schedule).
   const { data: avail } = useQuery<any>({
     queryKey: ["/api/reborn/booking/availability", areaId, date],
     queryFn: () => apiRequest("GET", `/api/reborn/booking/availability?areaId=${encodeURIComponent(areaId)}&date=${date}`).then((r) => r.json()),
-    enabled: needTable && !!areaId && !!date,
+    enabled: !!areaId && !!date,
   });
+  const areaSlots: any[] = avail?.slots || []; // [{value,label}]
   const takenForSlot: string[] = (slot && avail?.taken?.[slot]) || [];
   const book = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/booking", { areaId, date, slot, table, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
@@ -136,12 +136,16 @@ function TableBookingCard() {
         <input type="date" value={date} min={todayStr} onChange={(e) => setDate(e.target.value)}
           className="w-full mb-3 px-3 py-2.5 rounded-xl bg-black/30 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-400/60" style={{ colorScheme: "dark" }} />
 
-        <p className="text-xs text-white/50 mb-1">Start time <span className="text-white/30">· {area.hours}</span></p>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {areaSlots.map((s: any) => (
-            <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{s.label}</button>
-          ))}
-        </div>
+        <p className="text-xs text-white/50 mb-1">Start time <span className="text-white/30">· {avail?.hours || area.hours}</span></p>
+        {avail?.closed ? (
+          <p className="text-sm text-amber-300 mb-3">Closed on this day — please pick another date.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {areaSlots.map((s: any) => (
+              <button key={s.value} onClick={() => setSlot(s.value)} className={`py-2.5 rounded-xl text-sm font-semibold ${slot === s.value ? "bg-gradient-to-r from-violet-600 to-blue-600 text-white" : "bg-white/5 text-white/70 border border-white/10"}`}>{s.label}</button>
+            ))}
+          </div>
+        )}
 
         {needTable && (<>
           <p className="text-xs text-white/50 mb-1">{area.name.includes("KTV") ? "Room" : "Table"} <span className="text-white/30">(see the plan above)</span></p>

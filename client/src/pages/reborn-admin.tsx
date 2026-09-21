@@ -388,8 +388,9 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
             <label className="text-[11px] text-white/50">Open<input type="time" value={a.open || ""} onChange={(e) => upd(i, { open: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
             <label className="text-[11px] text-white/50">Close<input type="time" value={a.close || ""} onChange={(e) => upd(i, { close: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
           </div>
-          <p className="text-[10px] text-white/35 mb-2">Leave Open/Close empty to use nightlife hours (5pm–2am / Fri–Sat 3am).</p>
-          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2"} />
+          <p className="text-[10px] text-white/35 mb-2">Default hours above. Set per-day below to override or close a day (applies to app + WhatsApp).</p>
+          <WeeklySchedule area={a} onChange={(schedule: any) => upd(i, { schedule })} />
+          <input value={(a.tables || []).join(", ")} onChange={(e) => upd(i, { tables: e.target.value.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="Tables/rooms (comma) — leave empty for none" className={inp + " w-full mb-2 mt-2"} />
           <div className="flex items-center justify-between gap-2">
             <ImageUpload value={a.image} onChange={(v) => upd(i, { image: v })} label="Layout image" output="jpeg" maxDim={900} />
             <div className="flex items-center gap-2">
@@ -400,6 +401,41 @@ function BookingAreasEditor({ value, onChange }: { value?: string; onChange: (js
         </div>
       ))}
       <button onClick={add} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Add area</button>
+    </div>
+  );
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function WeeklySchedule({ area, onChange }: { area: any; onChange: (s: any) => void }) {
+  const [open, setOpen] = useState(false);
+  const sched = area.schedule || {};
+  const setDay = (d: number, patch: any) => {
+    const cur = sched[String(d)] || {};
+    const next = { ...sched, [String(d)]: { ...cur, ...patch } };
+    onChange(next);
+  };
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 p-2 mb-1">
+      <button onClick={() => setOpen((v) => !v)} className="w-full text-left text-[11px] text-white/60 flex items-center justify-between">
+        <span>Weekly schedule (Mon–Sun) {open ? "▲" : "▼"}</span>
+        <span className="text-white/30">tap to {open ? "hide" : "edit"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1">
+          {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+            const cfg = sched[String(d)] || {};
+            const enabled = cfg.enabled !== false;
+            return (
+              <div key={d} className="flex items-center gap-2">
+                <button onClick={() => setDay(d, { enabled: !enabled })} className={`w-12 py-1 rounded text-[11px] font-bold ${enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/30 line-through"}`}>{WEEKDAYS[d]}</button>
+                <input type="time" value={cfg.open || ""} disabled={!enabled} onChange={(e) => setDay(d, { open: e.target.value })} className={inp + " flex-1"} style={{ colorScheme: "dark" }} />
+                <input type="time" value={cfg.close || ""} disabled={!enabled} onChange={(e) => setDay(d, { close: e.target.value })} className={inp + " flex-1"} style={{ colorScheme: "dark" }} />
+              </div>
+            );
+          })}
+          <p className="text-[10px] text-white/35">Leave a day's times blank to use the default hours above. Toggle the day off to close it.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -611,9 +647,9 @@ function FaqRow({ f, onSave, onDelete }: any) {
       <input value={e.question} onChange={(x) => setE({ ...e, question: x.target.value })} placeholder="Question" className={inp + " w-full mb-2"} />
       <textarea value={e.answer} onChange={(x) => setE({ ...e, answer: x.target.value })} placeholder="Answer" rows={2} className={inp + " w-full mb-2"} />
       <input value={e.keywords || ""} onChange={(x) => setE({ ...e, keywords: x.target.value })} placeholder="keywords, comma, separated" className={inp + " w-full mb-2"} />
-      <div className="flex gap-2 justify-end">
-        <button onClick={() => onSave(e)} className={btnSm + " text-emerald-400"}><Check className="w-4 h-4" /></button>
-        <button onClick={() => onDelete(f.id)} className={btnSm + " text-red-400"}><Trash2 className="w-4 h-4" /></button>
+      <div className="flex gap-2">
+        <button onClick={() => onSave(e)} className={btnSave + " flex-1 justify-center"}><Check className="w-4 h-4" /> Save</button>
+        <button onClick={() => onDelete(f.id)} className={btnDel + " justify-center"}><Trash2 className="w-4 h-4" /> Delete</button>
       </div>
     </Card>
   );
@@ -867,6 +903,7 @@ function AdminBookings() {
   const sColor: Record<string, string> = { confirmed: "text-emerald-300", pending: "text-amber-300", scheduled: "text-blue-300", completed: "text-white/40", cancelled: "text-red-300", blocked: "text-orange-300" };
   return (
     <div className="space-y-3">
+      <ManualBooking onDone={inv} />
       <BlockSlot onDone={inv} />
       <div className="flex gap-2">
         {(["upcoming", "all"] as const).map((f) => (
@@ -931,6 +968,55 @@ function AdminBottles() {
   );
 }
 
+function ManualBooking({ onDone }: { onDone: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/booking/info"], queryFn: () => apiRequest("GET", "/api/reborn/booking/info").then((r) => r.json()), enabled: open });
+  const areas: any[] = data?.areas || [];
+  const [memberCode, setMemberCode] = useState(""); const [areaId, setAreaId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [slot, setSlot] = useState(""); const [table, setTable] = useState(""); const [party, setParty] = useState(2); const [hours, setHours] = useState(2);
+  const area = areas.find((a) => a.id === areaId);
+  const { data: avail } = useQuery<any>({ queryKey: ["/api/reborn/booking/availability", areaId, date, "manual"], queryFn: () => apiRequest("GET", `/api/reborn/booking/availability?areaId=${encodeURIComponent(areaId)}&date=${date}`).then((r) => r.json()), enabled: open && !!areaId && !!date });
+  const slots: any[] = avail?.slots || [];
+  const book = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/manual", { memberCode, areaId, date, slot, table: table || undefined, partySize: party, hours }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); onDone(); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  if (!open) return <button onClick={() => setOpen(true)} className={btn + " w-full justify-center"}><Plus className="w-4 h-4" /> Book for a member</button>;
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-sm">Book for a member</h3><button onClick={() => setOpen(false)} className={btnSm}><X className="w-4 h-4" /></button></div>
+      <input value={memberCode} onChange={(e) => setMemberCode(e.target.value)} placeholder="Member code / card / username / email" className={inp + " w-full mb-2"} />
+      <select value={areaId} onChange={(e) => { setAreaId(e.target.value); setSlot(""); setTable(""); }} className={inp + " w-full mb-2"}>
+        <option value="">Select area…</option>
+        {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
+      </select>
+      {area && (<>
+        <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => { setDate(e.target.value); setSlot(""); }} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
+        {avail?.closed ? <p className="text-xs text-amber-300 mb-2">Closed that day.</p> : (
+          <select value={slot} onChange={(e) => setSlot(e.target.value)} className={inp + " w-full mb-2"}>
+            <option value="">Start time…</option>
+            {slots.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        )}
+        {area.tables?.length > 0 && (
+          <select value={table} onChange={(e) => setTable(e.target.value)} className={inp + " w-full mb-2"}>
+            <option value="">Select table/room…</option>
+            {area.tables.map((t: string) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
+        <div className="flex gap-2 mb-2">
+          <label className="text-[11px] text-white/50 flex-1">Party<input type="number" min={1} value={party} onChange={(e) => setParty(Number(e.target.value))} className={inp + " w-full"} /></label>
+          <label className="text-[11px] text-white/50 flex-1">Hours<input type="number" min={2} max={8} value={hours} onChange={(e) => setHours(Number(e.target.value))} className={inp + " w-full"} /></label>
+        </div>
+        <button onClick={() => book.mutate()} disabled={!memberCode.trim() || !slot || (area.tables?.length > 0 && !table) || book.isPending} className={btn + " w-full justify-center disabled:opacity-50"}>Confirm booking</button>
+      </>)}
+    </Card>
+  );
+}
+
 function BlockSlot({ onDone }: { onDone: () => void }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -939,6 +1025,8 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
   const [areaId, setAreaId] = useState(""); const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [slot, setSlot] = useState(""); const [table, setTable] = useState(""); const [reason, setReason] = useState("");
   const area = areas.find((a) => a.id === areaId);
+  const { data: avail } = useQuery<any>({ queryKey: ["/api/reborn/booking/availability", areaId, date, "block"], queryFn: () => apiRequest("GET", `/api/reborn/booking/availability?areaId=${encodeURIComponent(areaId)}&date=${date}`).then((r) => r.json()), enabled: open && !!areaId && !!date });
+  const slots: any[] = avail?.slots || [];
   const block = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/bookings/block", { areaId, date, slot, table: table || undefined, reason }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); setSlot(""); setTable(""); setReason(""); onDone(); },
@@ -953,10 +1041,10 @@ function BlockSlot({ onDone }: { onDone: () => void }) {
         {areas.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.level})</option>)}
       </select>
       {area && (<>
-        <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
+        <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => { setDate(e.target.value); setSlot(""); }} className={inp + " w-full mb-2"} style={{ colorScheme: "dark" }} />
         <select value={slot} onChange={(e) => setSlot(e.target.value)} className={inp + " w-full mb-2"}>
           <option value="">Start time…</option>
-          {(area.slots || []).map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          {slots.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         {area.tables?.length > 0 && (
           <select value={table} onChange={(e) => setTable(e.target.value)} className={inp + " w-full mb-2"}>
