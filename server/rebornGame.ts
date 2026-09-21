@@ -1599,6 +1599,103 @@ export function registerRebornRoutes(app: Express) {
     await recalcTicket(it.orderId);
     res.json({ message: status === "rejected" ? `Rejected: ${patch.rejectReason}` : status === "served" ? "Marked served" : "Accepted" });
   }));
+  // Edit an item's price and/or qty (adjusts stock for qty change; logs reason).
+  app.post("/api/reborn/pos/items/:id/edit", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!it) return res.status(404).json({ message: "Item not found" });
+    const price = req.body?.price !== undefined ? Math.max(0, Number(req.body.price)) : Number(it.price);
+    const qty = req.body?.qty !== undefined ? Math.max(1, Math.floor(Number(req.body.qty))) : it.qty;
+    const dQty = qty - it.qty;
+    if (dQty !== 0 && it.productId) { // keep stock in sync
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} - ${dQty}` }).where(eq(posProducts.id, it.productId));
+      await db.insert(stockMovements).values({ productId: it.productId, delta: -dQty, reason: "adjustment", note: `Edit item #${id}`, userId: getUserId(req)! });
+    }
+    await db.update(posTicketItems).set({ price: String(price), qty, lineTotal: String(price * qty) }).where(eq(posTicketItems.id, id));
+    await recalcTicket(it.orderId);
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "edit", entityType: "order", description: `Edited "${it.name}" → ${qty} × RP ${price}${req.body?.reason ? ` (${req.body.reason})` : ""}` });
+    res.json({ message: "Item updated" });
+  }));
+  // Remove an item with an optional reason (restores stock). App-ordered items are
+  // marked rejected (kept visible to the customer with the reason); POS items are deleted.
+  app.post("/api/reborn/pos/items/:id/remove", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const reason = String(req.body?.reason || "").trim();
+    const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!it) return res.status(404).json({ message: "Item not found" });
+    if (it.status !== "rejected" && it.productId) {
+      await db.update(posProducts).set({ stock: sql`${posProducts.stock} + ${it.qty}` }).where(eq(posProducts.id, it.productId));
+      await db.insert(stockMovements).values({ productId: it.productId, delta: it.qty, reason: "adjustment", note: `Removed item #${id}`, userId: getUserId(req)! });
+    }
+    if (it.source === "app") await db.update(posTicketItems).set({ status: "rejected", rejectReason: reason || "Removed by staff" }).where(eq(posTicketItems.id, id));
+    else await db.delete(posTicketItems).where(eq(posTicketItems.id, id));
+    await recalcTicket(it.orderId);
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "remove", entityType: "order", description: `Removed "${it.name}"${reason ? ` (${reason})` : ""}` });
+    res.json({ message: reason ? `Removed: ${reason}` : "Item removed" });
+  }));
+  // Move one item to another table's open ticket (split a bill). Creates the ticket if needed.
+  app.post("/api/reborn/pos/items/:id/move", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const table = String(req.body?.tableNumber || "").trim();
+    if (!table) return res.status(400).json({ message: "Enter a table number" });
+    const [it] = await db.select().from(posTicketItems).where(eq(posTicketItems.id, id));
+    if (!it) return res.status(404).json({ message: "Item not found" });
+    let [dest] = await db.select().from(posTickets).where(and(eq(posTickets.status, "open"), eq(posTickets.tableNumber, table))).limit(1);
+    if (!dest) {
+      [dest] = await db.insert(posTickets).values({ orderNo: "T" + Date.now().toString(36).toUpperCase(), source: "pos", status: "open", tableNumber: table, subtotal: "0", total: "0", staffId: getUserId(req)! }).returning();
+    }
+    if (dest.id === it.orderId) return res.status(400).json({ message: "Item already on that table" });
+    await db.update(posTicketItems).set({ orderId: dest.id }).where(eq(posTicketItems.id, id));
+    await recalcTicket(it.orderId);
+    await recalcTicket(dest.id);
+    await logAdmin(req, { targetType: "pos_item", targetId: id, action: "move", entityType: "order", description: `Moved "${it.name}" to table ${table}` });
+    res.json({ message: `Moved to table ${table}` });
+  }));
+  // Change a ticket's table number.
+  app.post("/api/reborn/pos/orders/:id/table", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const table = String(req.body?.tableNumber || "").trim();
+    if (!table) return res.status(400).json({ message: "Enter a table number" });
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Ticket not open" });
+    await db.update(posTickets).set({ tableNumber: table }).where(eq(posTickets.id, id));
+    await logAdmin(req, { targetType: "pos_order", targetId: id, action: "rename_table", entityType: "order", description: `Table ${o.tableNumber} → ${table}` });
+    res.json({ message: `Table changed to ${table}` });
+  }));
+  // Merge all items from this ticket into another open ticket, then close this one.
+  app.post("/api/reborn/pos/orders/:id/merge", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const intoId = Number(req.body?.intoId);
+    if (!intoId || intoId === id) return res.status(400).json({ message: "Pick a different ticket to merge into" });
+    const [from] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    const [into] = await db.select().from(posTickets).where(eq(posTickets.id, intoId));
+    if (!from || !into || from.status !== "open" || into.status !== "open") return res.status(400).json({ message: "Both tickets must be open" });
+    await db.update(posTicketItems).set({ orderId: intoId }).where(eq(posTicketItems.orderId, id));
+    await db.update(posTickets).set({ status: "cancelled" }).where(eq(posTickets.id, id));
+    await recalcTicket(intoId);
+    await logAdmin(req, { targetType: "pos_order", targetId: id, action: "merge", entityType: "order", description: `Merged ${from.orderNo} into ${into.orderNo} (table ${into.tableNumber})` });
+    res.json({ message: `Merged into table ${into.tableNumber}` });
+  }));
+  // Set a whole-bill discount with an optional reason (applied at payment).
+  app.post("/api/reborn/pos/orders/:id/discount", requireStaff(async (req, res) => {
+    const id = Number(req.params.id);
+    const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
+    if (!o || o.status !== "open") return res.status(400).json({ message: "Ticket not open" });
+    const subtotal = Number(o.subtotal || o.total);
+    let amount: number, reason: string;
+    const pct = Number(req.body?.percent);
+    if (req.body?.percent !== undefined && req.body?.percent !== "" && Number.isFinite(pct) && pct > 0) {
+      amount = Math.round(subtotal * Math.min(100, pct) / 100);
+      reason = String(req.body?.reason || "").trim() || `${pct}% off`;
+    } else {
+      amount = Math.max(0, Number(req.body?.amount) || 0);
+      reason = String(req.body?.reason || "").trim() || (amount ? "Discount" : "");
+    }
+    amount = Math.min(subtotal, amount);
+    await db.update(posTickets).set({ discount: String(amount), discountReason: reason || null }).where(eq(posTickets.id, id));
+    await logAdmin(req, { targetType: "pos_order", targetId: id, action: "discount", entityType: "order", description: `Discount RP ${amount}${reason ? ` (${reason})` : ""} on ${o.orderNo}` });
+    res.json({ message: amount ? `Discount RP ${amount.toLocaleString()} set` : "Discount cleared", amount });
+  }));
   app.get("/api/reborn/shop/my-orders", requireAuth, async (req, res) => {
     const userId = getUserId(req)!;
     const rows = await db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(20);
@@ -1619,7 +1716,9 @@ export function registerRebornRoutes(app: Express) {
     if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
     const settings = await getSettings();
     const subtotal = Number(o.subtotal || o.total);
-    const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
+    // Use the request discount if provided, else the discount already set on the ticket.
+    const reqDisc = req.body?.discount !== undefined ? Number(req.body.discount) : Number(o.discount || 0);
+    const discount = Math.min(subtotal, Math.max(0, reqDisc || 0));
     const tax = Math.round((subtotal - discount) * settings.taxPercent / 100);
     const total = subtotal - discount + tax;
     const points = o.memberId ? Math.floor(total / POINTS_PER_RP) : 0;

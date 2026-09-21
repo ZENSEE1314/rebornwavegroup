@@ -213,7 +213,9 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [pay, setPay] = useState<"cash" | "card">("cash");
   const [code, setCode] = useState("");
   const [sales, setSales] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState(Number((order as any).discount) || 0);
+  const [discPct, setDiscPct] = useState("");
+  const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
@@ -245,6 +247,24 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
+  const itemEdit = useMutation({
+    mutationFn: (v: { id: number; op: string; body?: any }) => post(`/api/reborn/pos/items/${v.id}/${v.op}`, v.body || {}),
+    onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const renameTable = useMutation({
+    mutationFn: (tableNumber: string) => post(`/api/reborn/pos/orders/${order.id}/table`, { tableNumber }),
+    onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const setBillDiscount = useMutation({
+    mutationFn: (v: { amount?: number; percent?: number; reason?: string }) => post(`/api/reborn/pos/orders/${order.id}/discount`, v),
+    onSuccess: (d: any) => { toast({ title: d.message }); setDiscount(d.amount ?? 0); setDiscPct(""); invalidate(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const mergeInto = useMutation({
+    mutationFn: (intoId: number) => post(`/api/reborn/pos/orders/${order.id}/merge`, { intoId }),
+    onSuccess: (d: any) => { toast({ title: d.message }); invalidate(); onBack(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const { data: openTickets = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/orders"], queryFn: () => apiRequest("GET", "/api/reborn/pos/orders?status=open").then((r) => r.json()) });
   const total = Number(order.total);
   return (
     <div>
@@ -258,7 +278,9 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
           <div className="rounded-2xl border border-amber-400/30 bg-white/5 p-4 mb-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xl font-extrabold">Table {order.tableNumber || "—"}</p>
+                <p className="text-xl font-extrabold flex items-center gap-2">Table {order.tableNumber || "—"}
+                  <button onClick={() => { const t = prompt("Change table number (e.g. 2, 2B):", order.tableNumber || ""); if (t && t.trim()) renameTable.mutate(t.trim()); }} className="text-white/40 hover:text-white text-xs">✏️</button>
+                </p>
                 <p className="text-xs text-white/50">{order.orderNo} · {order.memberName || "no member"}</p>
               </div>
               <span className="text-xl font-extrabold text-amber-300">{rp(total)}</span>
@@ -281,9 +303,13 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                         <button onClick={() => { const reason = prompt("Reject reason (e.g. out of stock, closing):", "out of stock") || "Unavailable"; itemStatus.mutate({ id: it.id, status: "rejected", reason }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200 border border-red-400/40">Reject</button>
                       </div>
                     )}
-                    {it.status === "accepted" && (
-                      <div className="flex gap-1.5 pb-1">
-                        <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">Mark served</button>
+                    {it.status !== "rejected" && (
+                      <div className="flex flex-wrap gap-1.5 pb-1">
+                        {it.status === "accepted" && <button onClick={() => itemStatus.mutate({ id: it.id, status: "served" })} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/70">Served</button>}
+                        <button onClick={() => { const p = prompt(`New unit price for "${it.name}" (RP):`, String(Number(it.price))); if (p !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { price: Number(p) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">Price</button>
+                        <button onClick={() => { const q = prompt(`Quantity for "${it.name}":`, String(it.qty)); if (q !== null) itemEdit.mutate({ id: it.id, op: "edit", body: { qty: Number(q) } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">Qty</button>
+                        <button onClick={() => { const t = prompt(`Move "${it.name}" to which table? (splits the bill)`, ""); if (t && t.trim()) itemEdit.mutate({ id: it.id, op: "move", body: { tableNumber: t.trim() } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 text-white/60">Move</button>
+                        <button onClick={() => { const reason = prompt(`Remove "${it.name}" — reason (shown to the customer):`, ""); if (reason !== null) itemEdit.mutate({ id: it.id, op: "remove", body: { reason } }); }} className="px-2 py-1 rounded-md text-[11px] font-semibold bg-red-500/15 text-red-200">✕ Remove</button>
                       </div>
                     )}
                   </div>
@@ -297,6 +323,16 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               </div>
             )}
           </div>
+          {/* Merge this bill into another open table */}
+          {openTickets.filter((t: any) => t.id !== order.id).length > 0 && (
+            <div className="flex gap-2 mb-3">
+              <select id={`merge-${order.id}`} className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm">
+                <option value="">Merge into table…</option>
+                {openTickets.filter((t: any) => t.id !== order.id).map((t: any) => <option key={t.id} value={t.id}>Table {t.tableNumber || "—"} ({rp(Number(t.total))})</option>)}
+              </select>
+              <button onClick={() => { const el = document.getElementById(`merge-${order.id}`) as HTMLSelectElement; const into = Number(el?.value); if (into && confirm("Merge this bill into the selected table?")) mergeInto.mutate(into); }} className="px-4 rounded-xl bg-white/10 text-sm font-semibold">Merge</button>
+            </div>
+          )}
           <button onClick={() => printKitchen({ ...order })} className="w-full py-2.5 rounded-xl bg-white/10 border border-white/10 text-sm font-semibold mb-3 flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> Print kitchen ticket</button>
           <div className="rounded-2xl border border-white/10 bg-[#160f2a] p-3">
             <p className="font-bold text-sm mb-2">Take payment · {rp(total)}</p>
@@ -306,7 +342,15 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
               ))}
             </div>
             <div className="mb-2"><SalesPicker value={sales} onChange={setSales} /></div>
-            <label className="text-xs text-white/50 block mb-2">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
+            <div className="rounded-xl border border-white/10 bg-black/20 p-2 mb-2">
+              <p className="text-xs text-white/50 mb-1">Discount {(order as any).discountReason ? <span className="text-amber-300">· {(order as any).discountReason}</span> : ""}</p>
+              <div className="flex gap-2 mb-2">
+                <input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} placeholder="RP amount" className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+                <input type="number" min={0} max={100} value={discPct} onChange={(e) => setDiscPct(e.target.value)} placeholder="%" className="w-16 px-2 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" />
+              </div>
+              <input value={discReason} onChange={(e) => setDiscReason(e.target.value)} placeholder="Reason (optional)" className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm mb-2" />
+              <button onClick={() => setBillDiscount.mutate(discPct ? { percent: Number(discPct), reason: discReason } : { amount: discount, reason: discReason })} className="w-full py-2 rounded-xl bg-white/10 text-sm font-semibold">Apply discount</button>
+            </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
               {(["cash", "card"] as const).map((m) => (
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
