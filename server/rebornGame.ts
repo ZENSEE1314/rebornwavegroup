@@ -16,6 +16,7 @@ import {
   kosGifts, songs, songRequests, friendships, chatMessages,
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages, appointments,
+  staffAttendance, workerShifts, leaveRequests,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -1885,8 +1886,108 @@ export function registerRebornRoutes(app: Express) {
     const amount = Number(b.amount) || 0;
     if (amount <= 0) return res.status(400).json({ message: "Enter an amount" });
     const kind = b.kind === "expense" ? "expense" : "income";
-    const [row] = await db.insert(ledgerEntries).values({ kind, category: b.category || "other", amount: String(amount), note: b.note || null, userId: getUserId(req)! }).returning();
+    const [row] = await db.insert(ledgerEntries).values({ kind, category: b.category || "other", amount: String(amount), note: b.note || null, photoUrl: b.photoUrl || null, userId: getUserId(req)! }).returning();
     await logAdmin(req, { targetType: "ledger", targetId: row.id, action: "manual_entry", entityType: "accounting", description: `${kind} RP ${amount} (${row.category})` });
+    res.json(row);
+  }));
+
+  // ── HR: attendance, schedule, leave ──────────────────────────────────
+  // Worker self-service (any staff/admin account)
+  app.post("/api/reborn/staff/check-in", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    const wd = todayStr();
+    const open = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, wd))).limit(1);
+    if (open[0] && !open[0].checkOutAt) return res.status(400).json({ message: "You are already checked in today." });
+    const [row] = await db.insert(staffAttendance).values({ userId: uid, workDate: wd }).returning();
+    res.json(row);
+  }));
+  app.post("/api/reborn/staff/check-out", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.userId, uid), eq(staffAttendance.workDate, todayStr()))).orderBy(desc(staffAttendance.id)).limit(1);
+    const row = rows[0];
+    if (!row || row.checkOutAt) return res.status(400).json({ message: "No open check-in to close." });
+    const [upd] = await db.update(staffAttendance).set({ checkOutAt: new Date() }).where(eq(staffAttendance.id, row.id)).returning();
+    res.json(upd);
+  }));
+  app.get("/api/reborn/staff/my-attendance", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    res.json(await db.select().from(staffAttendance).where(eq(staffAttendance.userId, uid)).orderBy(desc(staffAttendance.id)).limit(60));
+  }));
+  app.get("/api/reborn/staff/my-shifts", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    res.json(await db.select().from(workerShifts).where(eq(workerShifts.userId, uid)).orderBy(desc(workerShifts.shiftDate)).limit(120));
+  }));
+  app.post("/api/reborn/staff/leave", requireStaff(async (req, res) => {
+    const b = req.body || {};
+    if (!b.startDate || !b.endDate || !String(b.reason || "").trim()) return res.status(400).json({ message: "Dates and a reason are required." });
+    const [row] = await db.insert(leaveRequests).values({
+      userId: getUserId(req)!, type: b.type === "mc" ? "mc" : "leave",
+      startDate: b.startDate, endDate: b.endDate, reason: String(b.reason).trim(), attachmentUrl: b.attachmentUrl || null,
+    }).returning();
+    res.json(row);
+  }));
+  app.get("/api/reborn/staff/my-leave", requireStaff(async (req, res) => {
+    const uid = getUserId(req)!;
+    res.json(await db.select().from(leaveRequests).where(eq(leaveRequests.userId, uid)).orderBy(desc(leaveRequests.id)).limit(60));
+  }));
+
+  // Admin/manager (full admin)
+  const nameOf = (u: any) => u ? (`${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || u.email || u.id) : "Unknown";
+  app.get("/api/reborn/admin/staff-list", requireAdmin(async (_req, res) => {
+    const rows = await db.select().from(users).where(inArray(users.role, ["staff", "admin"]));
+    res.json(rows.map((u: any) => ({ id: u.id, name: nameOf(u), role: u.role })));
+  }));
+  app.get("/api/reborn/admin/attendance", requireAdmin(async (req, res) => {
+    const status = String(req.query.status || "");
+    const base = db.select().from(staffAttendance).orderBy(desc(staffAttendance.id)).limit(200);
+    const rows = status ? await db.select().from(staffAttendance).where(eq(staffAttendance.status, status)).orderBy(desc(staffAttendance.id)).limit(200) : await base;
+    const ids = Array.from(new Set(rows.map((r) => r.userId)));
+    const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
+    const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
+  }));
+  app.post("/api/reborn/admin/attendance/:id/decide", requireAdmin(async (req, res) => {
+    const approve = !!req.body?.approve;
+    const [row] = await db.update(staffAttendance).set({ status: approve ? "approved" : "rejected", decidedBy: getUserId(req)!, decisionNote: req.body?.note || null }).where(eq(staffAttendance.id, Number(req.params.id))).returning();
+    if (!row) return res.status(404).json({ message: "Not found" });
+    res.json(row);
+  }));
+  app.get("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
+    const from = String(req.query.from || ""), to = String(req.query.to || "");
+    let rows;
+    if (from && to) rows = await db.select().from(workerShifts).where(and(sql`${workerShifts.shiftDate} >= ${from}`, sql`${workerShifts.shiftDate} <= ${to}`)).orderBy(workerShifts.shiftDate);
+    else rows = await db.select().from(workerShifts).orderBy(desc(workerShifts.shiftDate)).limit(300);
+    const ids = Array.from(new Set(rows.map((r) => r.userId)));
+    const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
+    const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
+  }));
+  app.post("/api/reborn/admin/shifts", requireAdmin(async (req, res) => {
+    const b = req.body || {};
+    if (!b.userId || !b.shiftDate || !b.startTime || !b.endTime) return res.status(400).json({ message: "Worker, date and times are required." });
+    const [row] = await db.insert(workerShifts).values({ userId: b.userId, shiftDate: b.shiftDate, startTime: b.startTime, endTime: b.endTime, role: b.role || null, note: b.note || null, createdBy: getUserId(req)! }).returning();
+    res.json(row);
+  }));
+  app.delete("/api/reborn/admin/shifts/:id", requireAdmin(async (req, res) => {
+    await db.delete(workerShifts).where(eq(workerShifts.id, Number(req.params.id)));
+    res.json({ ok: true });
+  }));
+  app.get("/api/reborn/admin/leave", requireAdmin(async (req, res) => {
+    const status = String(req.query.status || "");
+    const rows = status ? await db.select().from(leaveRequests).where(eq(leaveRequests.status, status)).orderBy(desc(leaveRequests.id)).limit(200) : await db.select().from(leaveRequests).orderBy(desc(leaveRequests.id)).limit(200);
+    const ids = Array.from(new Set(rows.map((r) => r.userId)));
+    const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
+    const map = new Map(us.map((u: any) => [u.id, nameOf(u)]));
+    res.json(rows.map((r) => ({ ...r, staffName: map.get(r.userId) || r.userId })));
+  }));
+  app.post("/api/reborn/admin/leave/:id/decide", requireAdmin(async (req, res) => {
+    const approve = !!req.body?.approve;
+    const [row] = await db.update(leaveRequests).set({
+      status: approve ? "approved" : "rejected",
+      paid: approve ? !!req.body?.paid : null,
+      decidedBy: getUserId(req)!, decisionNote: req.body?.note || null,
+    }).where(eq(leaveRequests.id, Number(req.params.id))).returning();
+    if (!row) return res.status(404).json({ message: "Not found" });
     res.json(row);
   }));
 

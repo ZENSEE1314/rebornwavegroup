@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users"] as const;
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -43,6 +43,7 @@ export default function RebornAdmin() {
       {tab === "Products" && <Products />}
       {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
+      {tab === "Staff" && <StaffHr isAdmin={isFullAdmin} />}
       {tab === "CRM" && <Crm />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
@@ -81,6 +82,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
+  Staff: <Clock className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -699,6 +701,198 @@ const btnDel = "inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font
 function Card({ children }: any) { return <div className="rounded-2xl bg-white/5 border border-white/10 p-4">{children}</div>; }
 function Empty({ text }: any) { return <div className="text-center py-12 text-white/40">{text}</div>; }
 
+// ── HR: attendance, schedule, leave ──────────────────────────────────
+const HR_STATUS: Record<string, string> = {
+  pending: "bg-yellow-500/20 text-yellow-300", approved: "bg-emerald-500/20 text-emerald-300", rejected: "bg-red-500/20 text-red-300",
+};
+const timeStr = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "—";
+
+function StaffHr({ isAdmin }: { isAdmin: boolean }) {
+  const [view, setView] = useState<"me" | "manage">(isAdmin ? "manage" : "me");
+  return (
+    <div className="space-y-3">
+      {isAdmin && (
+        <div className="flex gap-2">
+          <button onClick={() => setView("manage")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "manage" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Manage team</button>
+          <button onClick={() => setView("me")} className={`flex-1 py-2 rounded-lg text-xs font-semibold ${view === "me" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>My attendance</button>
+        </div>
+      )}
+      {view === "me" ? <MyHr /> : <ManageHr />}
+    </div>
+  );
+}
+
+function MyHr() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: att = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-attendance"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-attendance").then((r) => r.json()) });
+  const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-shifts"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-shifts").then((r) => r.json()) });
+  const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/staff/my-leave"], queryFn: () => apiRequest("GET", "/api/reborn/staff/my-leave").then((r) => r.json()) });
+  const today = new Date().toISOString().slice(0, 10);
+  const openToday = att.find((a) => a.workDate === today && !a.checkOutAt);
+  const doAct = useMutation({
+    mutationFn: (path: string) => apiRequest("POST", path, {}).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Done" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-attendance"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const [lv, setLv] = useState<any>({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" });
+  const applyLeave = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/staff/leave", lv).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Leave requested" }); setLv({ type: "leave", startDate: today, endDate: today, reason: "", attachmentUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/staff/my-leave"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  return (
+    <div className="space-y-3">
+      <Card>
+        <h3 className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance</h3>
+        {openToday
+          ? <button onClick={() => doAct.mutate("/api/reborn/staff/check-out")} disabled={doAct.isPending} className={btn + " w-full justify-center bg-red-400 hover:bg-red-300"}><LogOut className="w-4 h-4" /> Check out (in since {timeStr(openToday.checkInAt)})</button>
+          : <button onClick={() => doAct.mutate("/api/reborn/staff/check-in")} disabled={doAct.isPending} className={btn + " w-full justify-center"}><LogIn className="w-4 h-4" /> Check in</button>}
+        <p className="text-[11px] text-white/40 mt-2">Your manager approves each day's attendance.</p>
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 text-sm">Recent days</p>
+        {att.length === 0 && <p className="text-xs text-white/40">No records yet.</p>}
+        {att.slice(0, 14).map((a) => (
+          <div key={a.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
+            <span className="text-white/70">{a.workDate}</span>
+            <span className="text-white/50 text-xs">{timeStr(a.checkInAt)} – {timeStr(a.checkOutAt)}</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[a.status]}`}>{a.status}</span>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> My upcoming shifts</p>
+        {shifts.filter((s) => s.shiftDate >= today).length === 0 && <p className="text-xs text-white/40">No shifts scheduled.</p>}
+        {shifts.filter((s) => s.shiftDate >= today).slice(0, 20).map((s) => (
+          <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0">
+            <span className="text-white/70">{s.shiftDate}{s.role ? ` · ${s.role}` : ""}</span>
+            <span className="text-amber-300 text-xs font-semibold">{s.startTime}–{s.endTime}</span>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> Apply for leave / MC</p>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })} className={inp}><option value="leave">Leave</option><option value="mc">Medical (MC)</option></select>
+          <div />
+          <label className="text-xs text-white/50">From<input type="date" value={lv.startDate} onChange={(e) => setLv({ ...lv, startDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">To<input type="date" value={lv.endDate} onChange={(e) => setLv({ ...lv, endDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+        </div>
+        <textarea value={lv.reason} onChange={(e) => setLv({ ...lv, reason: e.target.value })} placeholder="Reason (required)" rows={2} className={inp + " w-full mb-2"} />
+        {lv.type === "mc" && <div className="mb-2"><p className="text-[11px] text-white/50 mb-1">📸 MC / document (optional)</p><ImageUpload value={lv.attachmentUrl} onChange={(v: any) => setLv({ ...lv, attachmentUrl: v })} label="Upload MC" output="jpeg" maxDim={1200} /></div>}
+        <button onClick={() => applyLeave.mutate()} disabled={!lv.reason.trim() || applyLeave.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Submit request</button>
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 text-sm">My leave requests</p>
+        {leave.length === 0 && <p className="text-xs text-white/40">None yet.</p>}
+        {leave.map((l) => (
+          <div key={l.id} className="py-1.5 border-b border-white/5 last:border-0">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/70">{l.type === "mc" ? "MC" : "Leave"} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full ${HR_STATUS[l.status]}`}>{l.status}{l.status === "approved" ? (l.paid ? " · paid" : " · unpaid") : ""}</span>
+            </div>
+            {l.decisionNote && <p className="text-[11px] text-white/40 mt-0.5">Note: {l.decisionNote}</p>}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+function ManageHr() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: pendAtt = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/attendance", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/attendance?status=pending").then((r) => r.json()) });
+  const { data: staff = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-list"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-list").then((r) => r.json()) });
+  const { data: leave = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/leave", "pending"], queryFn: () => apiRequest("GET", "/api/reborn/admin/leave?status=pending").then((r) => r.json()) });
+  const decideAtt = useMutation({
+    mutationFn: (v: { id: number; approve: boolean }) => apiRequest("POST", `/api/reborn/admin/attendance/${v.id}/decide`, v).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/attendance", "pending"] }); },
+  });
+  const decideLeave = useMutation({
+    mutationFn: (v: any) => apiRequest("POST", `/api/reborn/admin/leave/${v.id}/decide`, v).then((r) => r.json()),
+    onSuccess: () => { toast({ title: "Updated" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/leave", "pending"] }); },
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const [sh, setSh] = useState<any>({ userId: "", shiftDate: today, startTime: "18:00", endTime: "02:00", role: "" });
+  const [schedFrom, setSchedFrom] = useState(today);
+  const { data: shifts = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/shifts", schedFrom], queryFn: () => apiRequest("GET", `/api/reborn/admin/shifts?from=${schedFrom}&to=2999-12-31`).then((r) => r.json()) });
+  const addShift = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/shifts", sh).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: "Shift added" }); setSh({ ...sh, role: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+  const delShift = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/reborn/admin/shifts/${id}`, {}).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/reborn/admin/shifts", schedFrom] }),
+  });
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Clock className="w-4 h-4 text-amber-300" /> Attendance to approve</p>
+        {pendAtt.length === 0 && <p className="text-xs text-white/40">Nothing pending.</p>}
+        {pendAtt.map((a) => (
+          <div key={a.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-white/5 last:border-0">
+            <div className="min-w-0"><p className="truncate text-white/80">{a.staffName}</p><p className="text-[11px] text-white/40">{a.workDate} · {timeStr(a.checkInAt)}–{timeStr(a.checkOutAt)}</p></div>
+            <div className="flex gap-1.5 flex-shrink-0">
+              <button onClick={() => decideAtt.mutate({ id: a.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /></button>
+              <button onClick={() => decideAtt.mutate({ id: a.id, approve: false })} className={btnDel}><X className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Plane className="w-4 h-4 text-amber-300" /> Leave / MC to approve</p>
+        {leave.length === 0 && <p className="text-xs text-white/40">Nothing pending.</p>}
+        {leave.map((l) => (
+          <div key={l.id} className="py-2 border-b border-white/5 last:border-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm text-white/80">{l.staffName}</span>
+              <span className="text-[11px] text-white/40">{l.type === "mc" ? "MC" : "Leave"} · {l.startDate}{l.endDate !== l.startDate ? `→${l.endDate}` : ""}</span>
+              {l.attachmentUrl && <a href={l.attachmentUrl} target="_blank" rel="noreferrer" className="text-[11px] text-amber-300 underline">doc</a>}
+            </div>
+            <p className="text-xs text-white/50 mb-2">{l.reason}</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: true })} className={btnSave}><Check className="w-4 h-4" /> Paid</button>
+              <button onClick={() => decideLeave.mutate({ id: l.id, approve: true, paid: false })} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold bg-amber-400 text-black hover:bg-amber-300"><Check className="w-4 h-4" /> Unpaid</button>
+              <button onClick={() => { const note = prompt("Reject — reason (optional):", "") ?? undefined; decideLeave.mutate({ id: l.id, approve: false, note }); }} className={btnDel}><X className="w-4 h-4" /> Reject</button>
+            </div>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <p className="font-bold mb-2 flex items-center gap-2 text-sm"><CalendarClock className="w-4 h-4 text-amber-300" /> Add a shift</p>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select value={sh.userId} onChange={(e) => setSh({ ...sh, userId: e.target.value })} className={inp + " col-span-2"}>
+            <option value="">Choose worker…</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+          </select>
+          <label className="text-xs text-white/50 col-span-2">Date<input type="date" value={sh.shiftDate} onChange={(e) => setSh({ ...sh, shiftDate: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">Start<input type="time" value={sh.startTime} onChange={(e) => setSh({ ...sh, startTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <label className="text-xs text-white/50">End<input type="time" value={sh.endTime} onChange={(e) => setSh({ ...sh, endTime: e.target.value })} className={inp + " w-full"} style={{ colorScheme: "dark" }} /></label>
+          <input value={sh.role} onChange={(e) => setSh({ ...sh, role: e.target.value })} placeholder="Position (e.g. Bartender)" className={inp + " col-span-2"} />
+        </div>
+        <button onClick={() => addShift.mutate()} disabled={!sh.userId || addShift.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add shift</button>
+      </Card>
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-bold text-sm">Schedule</p>
+          <label className="text-xs text-white/50 flex items-center gap-1">from <input type="date" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} className={inp + " w-36"} style={{ colorScheme: "dark" }} /></label>
+        </div>
+        {shifts.length === 0 && <p className="text-xs text-white/40">No shifts in range.</p>}
+        {shifts.map((s) => (
+          <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-white/5 last:border-0 gap-2">
+            <div className="min-w-0"><p className="truncate text-white/80">{s.staffName}{s.role ? ` · ${s.role}` : ""}</p><p className="text-[11px] text-white/40">{s.shiftDate}</p></div>
+            <span className="text-amber-300 text-xs font-semibold flex-shrink-0">{s.startTime}–{s.endTime}</span>
+            <button onClick={() => { if (confirm("Remove this shift?")) delShift.mutate(s.id); }} className={btnSm + " flex-shrink-0"}><Trash2 className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
 function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -771,7 +965,7 @@ function ProductRow({ p }: any) {
   );
 }
 
-const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:spin_prize": "Spin prizes paid", "expense:other": "Other expenses" };
+const CAT_LABEL: Record<string, string> = { "income:product_sale": "Product sales", "income:topup": "Top-ups", "income:service": "Services", "income:other": "Other income", "expense:purchase": "Stock purchases", "expense:commission": "Commission paid", "expense:spin_prize": "Spin prizes paid", "expense:salary": "Staff salary", "expense:rental": "Rental", "expense:utilities": "Utilities", "expense:other": "Other expenses" };
 
 function Accounting() {
   const { toast } = useToast();
@@ -781,10 +975,10 @@ function Accounting() {
   const { data: sum } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/summary", days], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/summary?days=${days}`).then((r) => r.json()) });
   const { data: commission } = useQuery<any>({ queryKey: ["/api/reborn/admin/accounting/commission", days, rate], queryFn: () => apiRequest("GET", `/api/reborn/admin/accounting/commission?days=${days}&rate=${rate}`).then((r) => r.json()) });
   const { data: ledger = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/accounting/ledger"], queryFn: () => apiRequest("GET", "/api/reborn/admin/accounting/ledger?limit=100").then((r) => r.json()) });
-  const [e, setE] = useState({ kind: "expense", category: "other", amount: 0, note: "" });
+  const [e, setE] = useState<any>({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" });
   const addEntry = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/accounting/entry", e).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Entry added" }); setE({ kind: "expense", category: "other", amount: 0, note: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
+    onSuccess: () => { toast({ title: "Entry added" }); setE({ kind: "expense", category: "other", amount: 0, note: "", photoUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/summary"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/accounting/ledger"] }); },
     onError: (x: any) => toast({ title: "Failed", description: x.message, variant: "destructive" }),
   });
   const payCommission = useMutation({
@@ -850,17 +1044,26 @@ function Accounting() {
         <p className="font-bold mb-2 flex items-center gap-2 text-sm"><Calculator className="w-4 h-4 text-amber-300" /> Add manual entry</p>
         <div className="grid grid-cols-2 gap-2 mb-2">
           <select value={e.kind} onChange={(x) => setE({ ...e, kind: x.target.value })} className={inp}><option value="expense">Expense</option><option value="income">Income</option></select>
-          <select value={e.category} onChange={(x) => setE({ ...e, category: x.target.value })} className={inp}><option value="other">Other</option><option value="service">Service</option><option value="purchase">Purchase</option></select>
+          <select value={e.category} onChange={(x) => setE({ ...e, category: x.target.value })} className={inp}>
+            {e.kind === "expense"
+              ? <><option value="salary">Staff salary</option><option value="rental">Rental</option><option value="utilities">Utilities</option><option value="purchase">Stock purchase</option><option value="other">Other</option></>
+              : <><option value="service">Service</option><option value="other">Other</option></>}
+          </select>
           <input type="number" value={e.amount} onChange={(x) => setE({ ...e, amount: Number(x.target.value) })} placeholder="Amount (RP)" className={inp} />
-          <input value={e.note} onChange={(x) => setE({ ...e, note: x.target.value })} placeholder="Note" className={inp} />
+          <input value={e.note} onChange={(x) => setE({ ...e, note: x.target.value })} placeholder="Note (who / what for)" className={inp} />
         </div>
+        <p className="text-[11px] text-white/50 mb-1">📸 Snap the invoice / receipt (optional — for outside payments)</p>
+        <div className="mb-3"><ImageUpload value={e.photoUrl} onChange={(v: any) => setE({ ...e, photoUrl: v })} label="Snap / upload invoice" output="jpeg" maxDim={1200} /></div>
         <button onClick={() => addEntry.mutate()} disabled={e.amount <= 0 || addEntry.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add entry</button>
       </Card>
       <p className="text-xs text-white/40 px-1">Recent ledger</p>
       {ledger.map((l) => (
-        <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm">
-          <div className="min-w-0"><p className="truncate">{l.note || CAT_LABEL[l.kind + ":" + l.category] || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString()}</p></div>
-          <span className={l.kind === "income" ? "text-emerald-300 font-semibold" : "text-red-300 font-semibold"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
+        <div key={l.id} className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm gap-2">
+          <div className="min-w-0 flex items-center gap-2">
+            {l.photoUrl && <a href={l.photoUrl} target="_blank" rel="noreferrer"><img src={l.photoUrl} alt="invoice" className="w-9 h-9 rounded object-cover border border-white/10 flex-shrink-0" /></a>}
+            <div className="min-w-0"><p className="truncate">{l.note || CAT_LABEL[l.kind + ":" + l.category] || l.category}</p><p className="text-[11px] text-white/40">{new Date(l.createdAt).toLocaleString()}</p></div>
+          </div>
+          <span className={l.kind === "income" ? "text-emerald-300 font-semibold flex-shrink-0" : "text-red-300 font-semibold flex-shrink-0"}>{l.kind === "income" ? "+" : "−"}{money(Number(l.amount))}</span>
         </div>
       ))}
       {ledger.length === 0 && <Empty text="No transactions yet." />}

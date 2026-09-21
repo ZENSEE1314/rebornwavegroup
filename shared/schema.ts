@@ -750,9 +750,52 @@ export const ledgerEntries = pgTable("ledger_entries", {
   category: varchar("category").notNull(), // 'product_sale' | 'service' | 'topup' | 'purchase' | 'other'
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   note: text("note"),
+  photoUrl: text("photo_url"), // snapped invoice/receipt for outside payments
   refType: varchar("ref_type"), // 'pos_order' | 'topup' | 'stock_movement'
   refId: varchar("ref_id"),
   userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// HR — worker attendance (check-in/out, needs admin/manager approval)
+export const staffAttendance = pgTable("staff_attendance", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  workDate: varchar("work_date").notNull(), // YYYY-MM-DD (local)
+  checkInAt: timestamp("check_in_at").defaultNow(),
+  checkOutAt: timestamp("check_out_at"),
+  status: varchar("status").notNull().default("pending"), // pending | approved | rejected
+  decidedBy: varchar("decided_by"),
+  decisionNote: text("decision_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// HR — monthly worker schedule (shifts set by admin/manager)
+export const workerShifts = pgTable("worker_shifts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  shiftDate: varchar("shift_date").notNull(), // YYYY-MM-DD
+  startTime: varchar("start_time").notNull(), // HH:mm
+  endTime: varchar("end_time").notNull(), // HH:mm
+  role: varchar("role"), // optional job/position label
+  note: text("note"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// HR — leave / MC requests
+export const leaveRequests = pgTable("leave_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type").notNull().default("leave"), // leave | mc
+  startDate: varchar("start_date").notNull(), // YYYY-MM-DD
+  endDate: varchar("end_date").notNull(), // YYYY-MM-DD
+  reason: text("reason").notNull(),
+  attachmentUrl: text("attachment_url"), // e.g. MC photo
+  status: varchar("status").notNull().default("pending"), // pending | approved | rejected
+  paid: boolean("paid"), // set by approver: true=paid leave, false=unpaid
+  decidedBy: varchar("decided_by"),
+  decisionNote: text("decision_note"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
