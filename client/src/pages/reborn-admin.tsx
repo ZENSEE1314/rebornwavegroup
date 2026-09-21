@@ -323,6 +323,7 @@ function Settings() {
         <p className="text-[11px] text-white/50 mb-3">The pool is funded by the <b>10% on un-referred sales</b> (a referred buyer's 10% goes to their referrer instead). Raise the % to grow the pool faster. Spins only award a prize the pool can afford; below the minimum (or empty) spins land on "nothing". Set each prize's <b>cost RP</b> in the Prizes tab.</p>
         <Field label="Tokens spent per spin" value={cur.spinTokenCost} onChange={(v: any) => set("spinTokenCost", v)} />
         <Field label="Pool contribution % of un-referred sales" value={cur.spinPoolPercent} onChange={(v: any) => set("spinPoolPercent", v)} />
+        <Field label="Assumed bill (RP) for % voucher cost" value={cur.spinAssumedBill} onChange={(v: any) => set("spinAssumedBill", v)} />
         <Field label="Minimum pool before prizes pay out (min 1,000,000)" value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
         <SpinPool />
       </Card>
@@ -528,8 +529,10 @@ function PrizeRow({ p, totalWeight, onSave, onDelete }: any) {
         <select value={e.prizeType} onChange={(x) => setE({ ...e, prizeType: x.target.value })} className={inp}>
           {["item", "voucher_percent", "voucher_amount", "pill", "free_spin", "nothing"].map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <label className="text-xs text-white/50">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
-        <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" value={e.costRp || 0} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>
+        <label className="text-xs text-white/50" title="For % voucher: the discount %. For RP voucher: the RP amount.">value<input type="number" value={e.value} onChange={(x) => setE({ ...e, value: Number(x.target.value) })} className={inp + " w-20 ml-1"} /></label>
+        {e.prizeType === "voucher_percent"
+          ? <span className="text-[11px] text-white/40" title="Cost is auto = value% × the assumed bill (Settings)">cost: auto {e.value || 0}% of bill</span>
+          : <label className="text-xs text-white/50" title="RP drawn from the prize pool when won (0 = free outcome)">cost RP<input type="number" value={e.costRp || 0} onChange={(x) => setE({ ...e, costRp: Number(x.target.value) })} className={inp + " w-24 ml-1"} /></label>}
         <label className="text-xs text-white/50">win rate<input type="number" value={e.weight} onChange={(x) => setE({ ...e, weight: Number(x.target.value) })} className={inp + " w-16 ml-1"} /></label>
         <span className="text-xs font-bold text-amber-300" title="Chance of winning this prize">≈{pct}%</span>
         <label className="text-xs text-white/50 flex items-center gap-1"><input type="checkbox" checked={e.active} onChange={(x) => setE({ ...e, active: x.target.checked })} /> active</label>

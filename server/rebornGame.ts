@@ -39,6 +39,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinPoolMin: "1000000",   // spin only pays prizes when the pool is at/above this (min 1,000,000)
   spinPoolBalance: "0",     // current prize-pool reserve (auto: +contributions, -payouts)
   spinTokenCost: "1",       // tokens spent per spin (admin-set)
+  spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -63,6 +64,7 @@ async function getSettings() {
     spinPoolMin: Math.max(1000000, Number(map.spinPoolMin) || 1000000),
     spinPoolBalance: Number(map.spinPoolBalance) || 0,
     spinTokenCost: Math.max(1, Number(map.spinTokenCost) || 1),
+    spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
   };
 }
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
@@ -538,7 +540,11 @@ export function registerRebornRoutes(app: Express) {
       const pool = await getSpinPool();
       const gate = pool >= spinSettings.spinPoolMin;
       const isFree = (p: any) => p.prizeType === "nothing" || p.prizeType === "free_spin";
-      let candidates = prizes.filter((p) => isFree(p) || (gate && (p.costRp || 0) <= pool));
+      // A %-voucher's pool cost = voucher% × the assumed bill (real cost is unknown at spin time).
+      const prizeCost = (p: any) => p.prizeType === "voucher_percent"
+        ? Math.round((Number(p.value) || 0) / 100 * spinSettings.spinAssumedBill)
+        : (Number(p.costRp) || 0);
+      let candidates = prizes.filter((p) => isFree(p) || (gate && prizeCost(p) <= pool));
       if (candidates.length === 0) candidates = prizes.filter((p) => p.prizeType === "nothing");
       if (candidates.length === 0) candidates = prizes; // last-resort safety
       const total = candidates.reduce((s, p) => s + Math.max(0, p.weight || 0), 0) || 1;
@@ -575,10 +581,11 @@ export function registerRebornRoutes(app: Express) {
       }).returning();
 
       // Draw the prize's cost from the pool and record it as an expense (accountable).
-      const cost = Number(picked.costRp) || 0;
+      const cost = prizeCost(picked);
       if (cost > 0) {
         await adjustSpinPool(-cost);
-        await db.insert(ledgerEntries).values({ kind: "expense", category: "spin_prize", amount: String(cost), note: `Spin prize: ${picked.label}`, refType: "spin_result", refId: String(result.id), userId });
+        const label = picked.prizeType === "voucher_percent" ? `${picked.label} (est. ${picked.value}% of RP ${spinSettings.spinAssumedBill.toLocaleString()})` : picked.label;
+        await db.insert(ledgerEntries).values({ kind: "expense", category: "spin_prize", amount: String(cost), note: `Spin prize: ${label}`, refType: "spin_result", refId: String(result.id), userId });
       }
 
       const fresh = await storage.getUser(userId);
@@ -1112,7 +1119,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
