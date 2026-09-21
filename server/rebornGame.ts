@@ -40,6 +40,7 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinPoolBalance: "0",     // current prize-pool reserve (auto: +contributions, -payouts)
   spinTokenCost: "1",       // tokens spent per spin (admin-set)
   spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
+  mainAdminPassword: "",    // required to run the "reset numbers" action (set by the main admin)
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
@@ -65,6 +66,7 @@ async function getSettings() {
     spinPoolBalance: Number(map.spinPoolBalance) || 0,
     spinTokenCost: Math.max(1, Number(map.spinTokenCost) || 1),
     spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
+    mainAdminPassword: map.mainAdminPassword || "",
   };
 }
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
@@ -1119,7 +1121,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1150,10 +1152,37 @@ export function registerRebornRoutes(app: Express) {
   const userCols = { id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phoneNumber: users.phoneNumber, role: users.role, credits: users.credits, loyaltyPoints: users.loyaltyPoints, tokens: users.tokens, kgold: users.kgold, referralCode: users.referralCode, membershipCardNumber: users.membershipCardNumber };
   app.get("/api/reborn/admin/users", requireStaff(async (req, res) => {
     const q = String(req.query.q || "").trim();
-    const rows = q.length >= 1
-      ? await db.select(userCols).from(users).where(or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`))).orderBy(users.firstName).limit(40)
-      : await db.select(userCols).from(users).orderBy(desc(users.createdAt)).limit(40);
-    res.json(rows);
+    const filter = String(req.query.filter || "all"); // all | active | admin
+    const sort = String(req.query.sort || "recent"); // recent | tokens
+    let rows = q.length >= 1
+      ? await db.select(userCols).from(users).where(or(ilike(users.username, `${q}%`), ilike(users.firstName, `${q}%`), ilike(users.lastName, `${q}%`), ilike(users.email, `${q}%`), ilike(users.membershipCardNumber, `${q}%`), ilike(users.referralCode, `${q}%`))).orderBy(users.firstName).limit(60)
+      : await db.select(userCols).from(users).orderBy(sort === "tokens" ? desc(users.tokens) : desc(users.createdAt)).limit(200);
+    if (filter === "active") rows = rows.filter((u: any) => (u.tokens || 0) > 0 || (u.loyaltyPoints || 0) > 0 || Number(u.credits || 0) > 0 || (u.kgold || 0) > 0);
+    if (filter === "admin") rows = rows.filter((u: any) => u.role === "admin" || u.role === "staff");
+    if (sort === "tokens") rows = [...rows].sort((a: any, b: any) => (b.tokens || 0) - (a.tokens || 0));
+    // Whole-base summary (independent of the current page/filter).
+    const [agg] = await db.select({ count: sql<number>`count(*)`, tokens: sql<number>`coalesce(sum(${users.tokens}),0)`, points: sql<number>`coalesce(sum(${users.loyaltyPoints}),0)` }).from(users);
+    res.json({ users: rows, summary: { totalUsers: Number(agg?.count) || 0, totalTokens: Number(agg?.tokens) || 0, totalPoints: Number(agg?.points) || 0 } });
+  }));
+  // Delete a user (admin only; not yourself).
+  app.delete("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
+    const id = req.params.id;
+    if (id === getUserId(req)) return res.status(400).json({ message: "You can't delete your own account" });
+    const [u] = await db.select().from(users).where(eq(users.id, id));
+    if (!u) return res.status(404).json({ message: "User not found" });
+    await db.delete(users).where(eq(users.id, id));
+    await logAdmin(req, { targetUserId: id, targetType: "user", action: "delete", entityType: "user", description: `Deleted user ${u.username || u.email || id}` });
+    res.json({ message: "User deleted" });
+  }));
+  // Main-admin reset: zero all member balances/points + the prize pool. Keeps users & items.
+  app.post("/api/reborn/admin/reset-numbers", requireAdmin(async (req, res) => {
+    const s = await getSettings();
+    if (!s.mainAdminPassword) return res.status(400).json({ message: "Set a main-admin password in Settings first." });
+    if (String(req.body?.password || "") !== s.mainAdminPassword) return res.status(403).json({ message: "Wrong main-admin password." });
+    await db.update(users).set({ tokens: 0, loyaltyPoints: 0, lifetimePoints: 0, credits: "0.00", kgold: 0, referralEarnings: "0.00", updatedAt: new Date() });
+    await setSpinPool(0);
+    await logAdmin(req, { targetType: "system", action: "reset_numbers", entityType: "system", description: "Reset all member balances/points + prize pool" });
+    res.json({ message: "All member balances, points, tokens and the prize pool have been reset to 0." });
   }));
   app.post("/api/reborn/admin/users/:id", requireAdmin(async (req, res) => {
     const id = req.params.id; const b = req.body || {};

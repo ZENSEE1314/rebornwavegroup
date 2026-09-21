@@ -122,20 +122,50 @@ function Overview({ onGo }: { onGo: (tab: string) => void }) {
 
 function Members() {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const { data: users = [], refetch } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/users", q], queryFn: () => apiRequest("GET", `/api/reborn/admin/users${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()) });
+  const [filter, setFilter] = useState<"all" | "active" | "admin">("all");
+  const [sort, setSort] = useState<"recent" | "tokens">("recent");
+  const key = ["/api/reborn/admin/users", q, filter, sort];
+  const { data, refetch } = useQuery<any>({ queryKey: key, queryFn: () => apiRequest("GET", `/api/reborn/admin/users?q=${encodeURIComponent(q)}&filter=${filter}&sort=${sort}`).then((r) => r.json()) });
+  const users: any[] = data?.users || [];
+  const summary = data?.summary;
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
   const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: "Member updated" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || "Deleted" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
+  const reset = useMutation({
+    mutationFn: (password: string) => apiRequest("POST", "/api/reborn/admin/reset-numbers", { password }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
+    onSuccess: ({ ok, d }: any) => { if (!ok) { toast({ title: "Failed", description: d.message, variant: "destructive" }); return; } toast({ title: d.message }); refetch(); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
   return (
     <div>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name / username / email" className={inp + " w-full mb-4"} />
+      {summary && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">Users</p><p className="font-extrabold">{summary.totalUsers}</p></div>
+          <div className="rounded-xl bg-amber-500/10 border border-amber-400/30 p-2.5 text-center"><p className="text-[11px] text-white/50">Total tokens</p><p className="font-extrabold text-amber-300">{summary.totalTokens}</p></div>
+          <div className="rounded-xl bg-white/5 border border-white/10 p-2.5 text-center"><p className="text-[11px] text-white/50">Total points</p><p className="font-extrabold">{summary.totalPoints}</p></div>
+        </div>
+      )}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name / username / email" className={inp + " w-full mb-2"} />
+      <div className="flex flex-wrap gap-2 mb-3">
+        {(["all", "active", "admin"] as const).map((f) => <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize ${filter === f ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>{f === "admin" ? "Staff/Admin" : f}</button>)}
+        <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Sort: {sort === "tokens" ? "tokens" : "recent"}</button>
+      </div>
       {!isFullAdmin && <p className="text-xs text-white/40 mb-3">Only full admins can edit balances and roles.</p>}
-      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} editable={isFullAdmin} onSave={save.mutate} />)}</div>
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(`Delete ${u.firstName || u.username || u.email}? This cannot be undone.`)) del.mutate(id); }} />)}</div>
+      {isFullAdmin && (
+        <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-500/5 p-4">
+          <h3 className="font-bold text-sm text-red-200 mb-1">⚠️ Reset numbers (main admin)</h3>
+          <p className="text-[11px] text-white/50 mb-2">Zeros all members' tokens, points, credits, KGOLD and the prize pool. Users and items are NOT deleted. Requires the main-admin password (set it in Settings).</p>
+          <button onClick={() => { const p = prompt("Main-admin password to reset ALL numbers:"); if (p) reset.mutate(p); }} disabled={reset.isPending} className={btnDel}>Reset all numbers</button>
+        </div>
+      )}
     </div>
   );
 }
-function MemberRow({ u, editable, onSave }: any) {
+function MemberRow({ u, editable, onSave, onDelete }: any) {
   const [e, setE] = useState(u);
   return (
     <Card>
@@ -164,6 +194,7 @@ function MemberRow({ u, editable, onSave }: any) {
               </select>
             </label>
             <button onClick={() => onSave(e)} className={btn + " ml-auto"}>Save</button>
+            {onDelete && <button onClick={() => onDelete(u.id)} className={btnDel}><Trash2 className="w-4 h-4" /></button>}
           </div>
         </>
       ) : (
@@ -326,6 +357,11 @@ function Settings() {
         <Field label="Assumed bill (RP) for % voucher cost" value={cur.spinAssumedBill} onChange={(v: any) => set("spinAssumedBill", v)} />
         <Field label="Minimum pool before prizes pay out (min 1,000,000)" value={cur.spinPoolMin} onChange={(v: any) => set("spinPoolMin", v)} />
         <SpinPool />
+      </Card>
+      <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Coins className="w-4 h-4 text-red-300" /> Main-admin security</h3>
+        <p className="text-[11px] text-white/50 mb-3">Password required to <b>reset all numbers</b> (zero every member's tokens/points/credits + the prize pool) from the Members tab. Keep it separate from your login password.</p>
+        <label className="block"><span className="text-xs text-white/60 block mb-1">Main-admin reset password</span><PasswordInput value={cur.mainAdminPassword || ""} onChange={(v) => setStr("mainAdminPassword", v)} placeholder="Set a strong password" className={inp + " w-full"} /></label>
       </Card>
       <button onClick={() => save.mutate()} className={btn}>Save settings</button>
     </div>
