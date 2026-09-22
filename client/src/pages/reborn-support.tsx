@@ -72,7 +72,7 @@ function Chat() {
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${mine ? "rounded-br-sm text-black" : "rounded-bl-sm text-white/85 bg-white/8 border border-white/10"}`} style={mine ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>
-                {!mine && <div className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: isBot ? "#45b7d1" : "#c084fc" }}>{isBot ? "Auto-answer" : "Admin"}</div>}
+                {!mine && <div className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: isBot ? "#45b7d1" : "#c084fc" }}>{isBot ? "AI assistant" : "Admin"}</div>}
                 {m.content}
               </div>
             </div>

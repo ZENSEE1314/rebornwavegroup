@@ -1,0 +1,29 @@
+# Only mobile/ is needed by the Expo cloud builder. The repository's website,
+# videos, generated decks, and server packages would otherwise add hundreds of
+# megabytes to every mobile build upload.
+.agents/
+.git
+.git/**
+attached_assets/
+brag-output-*/
+client/
+dist/
+dist-server-check/
+investor-decks/
+node_modules/
+scripts/
+server/
+shared/
+uploaded-images/
+
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

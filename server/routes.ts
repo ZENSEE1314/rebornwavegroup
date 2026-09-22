@@ -13,6 +13,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { setupMultiAuth, requireAuth, getUserId } from "./multiAuth";
 import { sendEmail, sendWelcomeEmail, sendPetEvolutionEmail } from "./sendgrid";
 import { registerInvestorRoutes } from "./investorRoutes";
+import { generateLayaSupportReply } from "./layaAgent";
 
 // Initialize Stripe (optional — payment routes disabled if key not set)
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -10621,7 +10622,7 @@ ${urls.map(u => `  <url>
       if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
       // If not escalated, generate AI reply
       if (ticket.status !== 'escalated') {
-        const aiReply = await generateAIReply(content.trim(), ticket.category);
+        const aiReply = await generateAIReply(content.trim(), ticket.category, ticketId);
         await db.insert(schema.supportMessages).values({ ticketId, senderType: 'ai', senderId: null, content: aiReply });
         await db.update(schema.supportTickets).set({ status: 'ai_replied', updatedAt: new Date() }).where(eq(schema.supportTickets.id, ticketId));
         res.json({ userMessage: content, aiReply });
@@ -10659,7 +10660,10 @@ ${urls.map(u => `  <url>
 // ═══════════════════════════════════════════════════════
 // AI REPLY GENERATOR
 // ═══════════════════════════════════════════════════════
-async function generateAIReply(userMessage: string, category: string): Promise<string> {
+async function generateAIReply(userMessage: string, category: string, ticketId: number): Promise<string> {
+  const layaReply = await generateLayaSupportReply({ ticketId, message: userMessage, category });
+  if (layaReply) return layaReply;
+
   const OPENAI_KEY = process.env.OPENAI_API_KEY;
   const systemPrompt = `You are the friendly AI customer support assistant for Reborn Wave Group (RWG), a 5-in-1 entertainment club based in Batam, Indonesia, expanding to Singapore.
 
