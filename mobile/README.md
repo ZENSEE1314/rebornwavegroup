@@ -1,6 +1,6 @@
 # Reborn Wave Group mobile app
 
-This Expo app packages the complete Reborn member experience for iOS and Android. It loads the production application from `https://rebornwave.group` inside a native shell with shared login cookies, Android back-button support, pull-to-refresh, external-link handling, branded loading, and connection recovery.
+This Expo app packages the complete Reborn member experience for iOS and Android. It opens the production login at `https://rebornwave.group/login` inside a native shell with shared login cookies, Android back-button support, pull-to-refresh, external-link handling, branded loading, and connection recovery.
 
 ## Local development
 
