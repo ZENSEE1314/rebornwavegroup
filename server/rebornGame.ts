@@ -9,6 +9,7 @@ import { sendEmail } from "./emailService";
 import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot";
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from "./whatsappBot";
+import { generateLayaSupportReply } from "./layaAgent";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -683,7 +684,9 @@ export function registerRebornRoutes(app: Express) {
       const ticket = await getOrCreateTicket(userId);
       await db.insert(supportMessages).values({ ticketId: ticket.id, senderType: "user", senderId: userId, content });
 
-      // Auto-reply: match FAQ keywords/questions
+      // Give Laya the approved FAQ catalogue as grounded support knowledge.
+      // If Laya is disabled or unavailable, preserve the existing deterministic
+      // FAQ matcher so support chat continues to work.
       await seedFaqIfEmpty();
       const faqs = await db.select().from(faqItems).where(eq(faqItems.active, true));
       const lc = content.toLowerCase();
@@ -695,9 +698,17 @@ export function registerRebornRoutes(app: Express) {
         if (f.question && lc.includes(f.question.toLowerCase().slice(0, 12))) score += 1;
         if (score > bestScore) { bestScore = score; best = f; }
       }
-      let autoReply: string | null = null;
-      if (best && bestScore > 0) {
-        autoReply = best.answer;
+      const faqContext = faqs
+        .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
+        .join("\n\n");
+      let autoReply = await generateLayaSupportReply({
+        ticketId: ticket.id,
+        message: content,
+        category: ticket.category,
+        faqContext,
+      });
+      if (!autoReply && best && bestScore > 0) autoReply = best.answer;
+      if (autoReply) {
         await db.insert(supportMessages).values({ ticketId: ticket.id, senderType: "ai", content: autoReply });
         await db.update(supportTickets).set({ status: "ai_replied", updatedAt: new Date() }).where(eq(supportTickets.id, ticket.id));
       }
