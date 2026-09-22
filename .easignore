@@ -1,0 +1,16 @@
+# The Expo project is self-contained in mobile/. Keep cloud build uploads focused
+# on that directory instead of sending the website's videos and design assets.
+*
+!mobile/
+!mobile/**
+
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+mobile/npm-debug.log*
+mobile/yarn-debug.log*
+mobile/yarn-error.log*
+

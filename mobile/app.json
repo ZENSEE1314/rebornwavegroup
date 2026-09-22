@@ -24,6 +24,7 @@
       "bundleIdentifier": "com.zensee.rebornwavegroup",
       "buildNumber": "1",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Reborn Wave Group uses the camera to scan QR codes and upload account or payment images.",
         "NSPhotoLibraryUsageDescription": "Reborn Wave Group uses your photo library when you choose an account or payment image.",
         "NSMicrophoneUsageDescription": "Reborn Wave Group uses the microphone for karaoke and media features you start."
@@ -44,6 +45,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e1d4fa37-5438-4cee-8f00-0b9796bc0f1d"
+      }
     }
   }
 }
