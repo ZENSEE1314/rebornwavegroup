@@ -187,19 +187,31 @@ export default function Login() {
   /* ─── Mutations ─── */
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Login failed");
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15_000);
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(data),
+          signal: controller.signal,
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.message || "Login failed");
+        }
+        return result;
+      } catch (error: any) {
+        if (error?.name === "AbortError") {
+          throw new Error("Login took too long. Check your connection and try again.");
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timeout);
       }
-      return response.json();
     },
-    onSuccess: (_user, variables) => {
+    onSuccess: (user, variables) => {
       if (variables.rememberMe) {
         window.localStorage.setItem("reborn.rememberedEmail", variables.email);
         window.localStorage.setItem("reborn.rememberedPassword", variables.password);
@@ -207,9 +219,9 @@ export default function Login() {
         window.localStorage.removeItem("reborn.rememberedEmail");
         window.localStorage.removeItem("reborn.rememberedPassword");
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.setQueryData(["/api/auth/user"], user);
       toast({ title: "Welcome back!", description: "Logged in successfully." });
-      setTimeout(() => { window.location.href = "/"; }, 500);
+      window.location.replace("/");
     },
     onError: (err: any) => setError(err.message || "Login failed. Please try again."),
   });

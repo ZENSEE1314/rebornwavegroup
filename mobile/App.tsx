@@ -13,7 +13,10 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
 
-const APP_URL = process.env.EXPO_PUBLIC_APP_URL || "https://rebornwave.group";
+const configuredAppUrl = process.env.EXPO_PUBLIC_APP_URL || "https://rebornwave.group/login";
+const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
+  ? configuredAppUrl
+  : `${configuredAppUrl.replace(/\/$/, "")}/login`;
 
 function RebornApp() {
   const insets = useSafeAreaInsets();
@@ -62,6 +65,7 @@ function RebornApp() {
         domStorageEnabled
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
+        cacheEnabled
         allowsBackForwardNavigationGestures
         pullToRefreshEnabled
         setSupportMultipleWindows={false}
@@ -69,6 +73,9 @@ function RebornApp() {
         allowsInlineMediaPlayback
         onNavigationStateChange={handleNavigation}
         onShouldStartLoadWithRequest={handleRequest}
+        onLoadProgress={({ nativeEvent }) => {
+          if (nativeEvent.progress >= 0.9) setLoading(false);
+        }}
         onLoadStart={() => {
           setFailed(false);
           setLoading(true);
@@ -84,6 +91,8 @@ function RebornApp() {
         onOpenWindow={({ nativeEvent }) => {
           Linking.openURL(nativeEvent.targetUrl).catch(() => undefined);
         }}
+        onContentProcessDidTerminate={retry}
+        onRenderProcessGone={retry}
       />
 
       {loading && !failed && (
