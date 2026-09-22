@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Reborn Wave Group",
+    "slug": "reborn-wave-group",
+    "owner": "zensee",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "rebornwave",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#07101f"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.zensee.rebornwavegroup",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Reborn Wave Group uses the camera to scan QR codes and upload account or payment images.",
+        "NSPhotoLibraryUsageDescription": "Reborn Wave Group uses your photo library when you choose an account or payment image.",
+        "NSMicrophoneUsageDescription": "Reborn Wave Group uses the microphone for karaoke and media features you start."
+      }
+    },
+    "android": {
+      "package": "com.zensee.rebornwavegroup",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#07101f",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
