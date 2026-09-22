@@ -93,6 +93,28 @@ const HERO_CSS = `
 .rwg-hero .info-card .ic { font-size:30px; display:block; margin-bottom:14px; }
 .rwg-hero .info-card h3 { font-family:var(--display); font-size:21px; font-weight:800; margin:0 0 10px; }
 .rwg-hero .info-card p { color:var(--ink-dim); font-size:14.5px; line-height:1.65; margin:0; }
+.rwg-hero .app-download { overflow:hidden; }
+.rwg-hero .app-download::before { content:""; position:absolute; width:520px; height:520px; right:-180px; top:-180px; border-radius:50%; background:radial-gradient(circle,rgba(69,183,209,.24),transparent 68%); pointer-events:none; }
+.rwg-hero .app-grid { position:relative; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr); gap:clamp(30px,6vw,76px); align-items:center; }
+.rwg-hero .app-points { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:32px; }
+.rwg-hero .app-point { padding:18px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.04); }
+.rwg-hero .app-point span { display:block; font-size:24px; margin-bottom:9px; }
+.rwg-hero .app-point strong { display:block; font-size:14px; margin-bottom:5px; }
+.rwg-hero .app-point p { color:var(--ink-faint); font-size:12.5px; line-height:1.5; margin:0; }
+.rwg-hero .store-card { position:relative; padding:28px; border:1px solid rgba(255,255,255,.18); border-radius:24px; background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.035)); box-shadow:0 30px 80px rgba(0,0,0,.35); backdrop-filter:blur(18px); }
+.rwg-hero .store-card h3 { margin:0 0 8px; font-family:var(--display); font-size:25px; }
+.rwg-hero .store-card > p { margin:0 0 22px; color:var(--ink-dim); font-size:14px; line-height:1.55; }
+.rwg-hero .store-button { width:100%; min-height:62px; display:flex; align-items:center; gap:14px; padding:12px 18px; margin-top:12px; border:1px solid var(--line); border-radius:15px; color:var(--ink); background:rgba(8,6,15,.72); text-decoration:none; transition:transform .25s var(--ease),border-color .25s,background .25s; }
+.rwg-hero .store-button:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.35); background:rgba(255,255,255,.1); }
+.rwg-hero .store-button .store-icon { width:34px; height:34px; display:grid; place-items:center; flex:0 0 34px; border-radius:10px; background:linear-gradient(135deg,var(--l2),var(--l3)); color:#07101f; font-size:20px; }
+.rwg-hero .store-button.apple .store-icon { background:linear-gradient(135deg,#fff,#b7bfd1); }
+.rwg-hero .store-copy { display:flex; flex-direction:column; gap:2px; text-align:left; }
+.rwg-hero .store-copy small { color:var(--ink-faint); font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+.rwg-hero .store-copy strong { font-size:17px; }
+.rwg-hero .store-button[aria-disabled="true"] { opacity:.6; cursor:not-allowed; }
+.rwg-hero .store-button[aria-disabled="true"]:hover { transform:none; background:rgba(8,6,15,.72); border-color:var(--line); }
+.rwg-hero .store-note { margin-top:18px !important; margin-bottom:0 !important; color:var(--ink-faint) !important; font-size:12px !important; }
+@media (max-width:820px) { .rwg-hero .app-grid { grid-template-columns:1fr; } .rwg-hero .app-points { grid-template-columns:1fr; } }
 .rwg-hero .pet-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px; margin:0 0 26px; }
 .rwg-hero .pet-card { padding:20px 16px; border-radius:var(--radius); border:1px solid var(--line); background:rgba(255,255,255,0.04); text-align:center; }
 .rwg-hero .pet-card img { width:100%; height:120px; object-fit:contain; margin-bottom:14px; filter:drop-shadow(0 10px 24px rgba(0,0,0,0.45)); }
@@ -142,6 +164,7 @@ const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=" + encodeURIC
 const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
 const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
+const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/6a5b7f19-53d4-4e93-ba97-d0c4849abca8";
 
 const AUDIENCE = [
   { icon: "🧳", title: "Tourists", desc: "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances." },
@@ -245,6 +268,7 @@ export default function Landing() {
           {RAIL.filter((r) => r.target !== "intro").map((r, i) => (
             <a key={r.target} href={`#${r.target}`}>{FLOORS[i].num} · {r.label}</a>
           ))}
+          <a href="#app-download">Get the app</a>
         </nav>
         <button className="login-btn" type="button" onClick={goLogin}>Login</button>
       </header>
@@ -330,6 +354,35 @@ export default function Landing() {
                   <p>{b.desc}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* MOBILE APP */}
+        <section className="info app-download" id="app-download">
+          <div className="info-inner app-grid">
+            <div>
+              <span className="eyebrow reveal">Reborn mobile</span>
+              <h2 className="info-h reveal">Events, rewards and pet care in your pocket</h2>
+              <p className="info-lead reveal">Open Reborn straight from your phone, see new club events, care for your Doloruu pet, and keep member rewards close wherever you go.</p>
+              <div className="app-points reveal">
+                <div className="app-point"><span aria-hidden="true">🎉</span><strong>New events</strong><p>Keep up with club nights, live shows and member activities.</p></div>
+                <div className="app-point"><span aria-hidden="true">🐾</span><strong>Pet care</strong><p>Feed your Doloruu, collect daily tokens and follow its progress.</p></div>
+                <div className="app-point"><span aria-hidden="true">🔔</span><strong>Notifications</strong><p>Event alerts and pet-care reminders are coming with the store release.</p></div>
+              </div>
+            </div>
+            <div className="store-card reveal">
+              <h3>Get the Reborn app</h3>
+              <p>Android testing is open now. The Apple App Store release follows after Apple developer approval.</p>
+              <a className="store-button" href={ANDROID_APP_URL} target="_blank" rel="noopener noreferrer">
+                <span className="store-icon" aria-hidden="true">◆</span>
+                <span className="store-copy"><small>Download for</small><strong>Android APK</strong></span>
+              </a>
+              <div className="store-button apple" aria-disabled="true">
+                <span className="store-icon" aria-hidden="true">●</span>
+                <span className="store-copy"><small>Coming soon on the</small><strong>Apple App Store</strong></span>
+              </div>
+              <p className="store-note">Android may ask you to allow installation from your browser. Apple availability requires App Store review.</p>
             </div>
           </div>
         </section>
