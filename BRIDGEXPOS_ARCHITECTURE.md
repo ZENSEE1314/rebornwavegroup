@@ -17,6 +17,8 @@ Each company stores:
 - selected industry and optional modules
 - subscription plan, monthly/yearly billing, or a one-time commercial agreement
 
+Company owners can open a Stripe Checkout session for the saved price and billing choice. Monthly and yearly selections create recurring Stripe subscriptions; one-time agreements create a single payment. The return session is verified server-side before BridgeXPOS marks the company active.
+
 The web client resolves the incoming host and applies the company title, favicon and theme tokens. DNS and TLS terminate at Railway and route to the shared application.
 
 The Expo project uses `mobile/app.config.js`. A build pipeline sets `EXPO_TENANT_SLUG`, `EXPO_PUBLIC_APP_NAME`, `EXPO_PUBLIC_APP_URL`, `EXPO_APP_ICON`, `EXPO_ANDROID_PACKAGE`, `EXPO_IOS_BUNDLE_ID` and a tenant-specific `EXPO_PROJECT_ID`. Each store app therefore has its own identity while calling the shared `/api/v1` backend. App-store accounts, signing certificates and EAS projects remain separate per legal publisher when required by Apple or Google.

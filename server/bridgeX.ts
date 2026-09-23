@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -37,6 +38,7 @@ export const BRIDGEX_NOTIFICATION_EVENTS = [
 ] as const;
 
 const MANAGEMENT_ROLES = new Set(["owner", "admin", "manager"]);
+const bridgeStripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-06-30.basil" }) : null;
 const PLATFORM_EMAILS = () => new Set(
   (process.env.BRIDGEX_SUPER_ADMIN_EMAILS || process.env.ADMIN_EMAIL || "zensee1314@gmail.com")
     .split(",").map((value) => value.trim().toLowerCase()).filter(Boolean),
@@ -274,6 +276,38 @@ export function registerBridgeXRoutes(app: Express) {
     if (allowed.billingModel === "one_time") allowed.billingCycle = "one_time";
     allowed.updatedAt = new Date();
     res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, access.companyId)).returning())[0]);
+  }));
+
+  app.post("/api/v1/company/billing/checkout", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    if (!bridgeStripe) return res.status(503).json({ message: "Stripe is not configured" });
+    const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, access.companyId)).limit(1))[0];
+    if (!company || Number(company.price) <= 0) return res.status(400).json({ message: "Set a company price before checkout" });
+    const currency = company.currency.toLowerCase();
+    const zeroDecimal = new Set(["bif","clp","djf","gnf","jpy","kmf","krw","mga","pyg","rwf","ugx","vnd","vuv","xaf","xof","xpf"]);
+    const unitAmount = Math.round(Number(company.price) * (zeroDecimal.has(currency) ? 1 : 100));
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const recurring = company.billingModel === "subscription" ? { interval: company.billingCycle === "yearly" ? "year" as const : "month" as const } : undefined;
+    const session = await bridgeStripe.checkout.sessions.create({
+      mode: recurring ? "subscription" : "payment",
+      customer_email: access.user.email || undefined,
+      line_items: [{ quantity: 1, price_data: { currency, unit_amount: unitAmount, product_data: { name: `${company.appName} · ${company.subscriptionPlan} plan`, metadata: { companyId: String(company.id) } }, ...(recurring ? { recurring } : {}) } }],
+      metadata: { companyId: String(company.id), userId: access.user.id, billingCycle: company.billingCycle },
+      success_url: `${origin}/bridgex?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/bridgex?checkout=cancelled`,
+    });
+    res.json({ url: session.url, sessionId: session.id });
+  }));
+
+  app.post("/api/v1/company/billing/confirm", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    if (!bridgeStripe) return res.status(503).json({ message: "Stripe is not configured" });
+    const sessionId = String(req.body?.sessionId || ""); if (!sessionId) return res.status(400).json({ message: "Checkout session required" });
+    const session = await bridgeStripe.checkout.sessions.retrieve(sessionId);
+    if (session.metadata?.companyId !== String(access.companyId)) return res.status(403).json({ message: "Checkout does not belong to this company" });
+    if (session.status !== "complete" || (session.mode === "payment" && session.payment_status !== "paid")) return res.status(409).json({ message: "Payment is not complete" });
+    const [company] = await db.update(bridgeCompanies).set({ subscriptionStatus: "active", status: "active", updatedAt: new Date() }).where(eq(bridgeCompanies.id, access.companyId)).returning();
+    res.json(company);
   }));
 
   app.get("/api/v1/company/modules", route(async (req, res) => { const access = await companyAccess(req, res); if (access) res.json(await db.select().from(bridgeCompanyModules).where(eq(bridgeCompanyModules.companyId, access.companyId))); }));
