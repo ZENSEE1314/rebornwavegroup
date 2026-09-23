@@ -114,6 +114,21 @@ export const bridgeCompanyModules = pgTable("bridge_company_modules", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.companyId, table.moduleKey] })]);
 
+export const bridgeMerchantApplications = pgTable("bridge_merchant_applications", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  applicantUserId: varchar("applicant_user_id").notNull(),
+  contactName: varchar("contact_name").notNull(),
+  contactEmail: varchar("contact_email").notNull(),
+  contactPhone: varchar("contact_phone"),
+  requirements: jsonb("requirements").notNull().default({}),
+  status: varchar("status").notNull().default("submitted"), // submitted | reviewing | approved | rejected
+  reviewNote: text("review_note"),
+  reviewedBy: varchar("reviewed_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const bridgePositions = pgTable("bridge_positions", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id").notNull(),

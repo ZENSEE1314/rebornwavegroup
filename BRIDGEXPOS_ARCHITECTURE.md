@@ -2,6 +2,8 @@
 
 BridgeXPOS is the platform brand. Reborn Wave Group is tenant one and keeps its existing customer experience while its POS, staffing and operational records receive a `company_id` and `branch_id`.
 
+The public merchant surface lives at `/bridgexpos`, with merchant login at `/bridgexpos/login` and self-service application at `/bridgexpos/apply`. A BridgeXPOS hostname automatically uses that merchant landing page at `/`. The application creates the owner account, tenant, first branch, selected modules and a reviewable requirements record in one flow.
+
 ## Isolation model
 
 Every tenant request uses an authenticated user plus `X-Company-Id`. The API checks `bridge_company_members` before reading or writing company data. Company managers can manage only companies where they have the `owner`, `admin` or `manager` role. Platform administrators are configured with `BRIDGEX_SUPER_ADMIN_EMAILS`.
@@ -18,6 +20,8 @@ Each company stores:
 - subscription plan, monthly/yearly billing, or a one-time commercial agreement
 
 Company owners can open a Stripe Checkout session for the saved price and billing choice. Monthly and yearly selections create recurring Stripe subscriptions; one-time agreements create a single payment. The return session is verified server-side before BridgeXPOS marks the company active.
+
+Reborn administrators open `/bridgex` from the existing Reborn admin screen. Reborn is selected as their company, where they can change its customer-facing name, logo, theme, service modules, commercial plan and branches without changing any other merchant.
 
 The web client resolves the incoming host and applies the company title, favicon and theme tokens. DNS and TLS terminate at Railway and route to the shared application.
 

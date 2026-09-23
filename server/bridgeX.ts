@@ -12,6 +12,7 @@ import {
   bridgeCompanyModules,
   bridgeDeviceTokens,
   bridgeMeetings,
+  bridgeMerchantApplications,
   bridgeNotifications,
   bridgePositions,
   bridgeStaffNotes,
@@ -172,6 +173,7 @@ export async function ensureBridgeXSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS bridge_companies_ios_bundle_id_key ON bridge_companies(ios_bundle_id) WHERE ios_bundle_id IS NOT NULL;
     CREATE TABLE IF NOT EXISTS bridge_branches (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, code varchar NOT NULL, address text, timezone varchar NOT NULL DEFAULT 'Asia/Jakarta', active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now(), UNIQUE(company_id, code));
     CREATE TABLE IF NOT EXISTS bridge_company_modules (company_id integer NOT NULL, module_key varchar NOT NULL, enabled boolean NOT NULL DEFAULT true, config jsonb NOT NULL DEFAULT '{}', updated_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY(company_id, module_key));
+    CREATE TABLE IF NOT EXISTS bridge_merchant_applications (id serial PRIMARY KEY, company_id integer NOT NULL, applicant_user_id varchar NOT NULL, contact_name varchar NOT NULL, contact_email varchar NOT NULL, contact_phone varchar, requirements jsonb NOT NULL DEFAULT '{}', status varchar NOT NULL DEFAULT 'submitted', review_note text, reviewed_by varchar, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_positions (id serial PRIMARY KEY, company_id integer NOT NULL, name varchar NOT NULL, code varchar NOT NULL, permissions jsonb NOT NULL DEFAULT '[]', active boolean NOT NULL DEFAULT true, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now(), UNIQUE(company_id, code));
     CREATE TABLE IF NOT EXISTS bridge_company_members (id serial PRIMARY KEY, company_id integer NOT NULL, user_id varchar NOT NULL, branch_id integer, position_id integer, role varchar NOT NULL DEFAULT 'staff', status varchar NOT NULL DEFAULT 'active', joined_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now(), UNIQUE(company_id, user_id));
     CREATE TABLE IF NOT EXISTS bridge_staff_profiles (id serial PRIMARY KEY, company_id integer NOT NULL, user_id varchar NOT NULL, branch_id integer, position_id integer, employment_type varchar NOT NULL DEFAULT 'full_time', pay_type varchar NOT NULL DEFAULT 'salary', base_salary numeric(14,2) NOT NULL DEFAULT 0, hourly_rate numeric(14,2) NOT NULL DEFAULT 0, hire_date varchar, status varchar NOT NULL DEFAULT 'active', ranking_score numeric(10,2) NOT NULL DEFAULT 0, star_grade numeric(3,2) NOT NULL DEFAULT 0, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now(), UNIQUE(company_id, user_id));
@@ -201,6 +203,49 @@ export async function ensureBridgeXSchema() {
 }
 
 export function registerBridgeXRoutes(app: Express) {
+  app.post("/api/v1/merchant/apply", route(async (req, res) => {
+    const body = req.body || {};
+    const email = String(body.email || "").trim().toLowerCase(); const password = String(body.password || "");
+    const firstName = String(body.firstName || "").trim(); const lastName = String(body.lastName || "").trim();
+    if (!email || !email.includes("@") || password.length < 8 || !firstName || !body.companyName) return res.status(400).json({ message: "Company, owner name, valid email and an 8-character password are required" });
+    let user = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
+    if (user) {
+      if (!user.password || !(await bcrypt.compare(password, user.password))) return res.status(409).json({ message: "This email already has an account. Sign in first, then create the company from BridgeXPOS." });
+    } else {
+      user = (await ensureUser(email, `${firstName} ${lastName}`.trim(), password)).user;
+      await db.update(users).set({ firstName, lastName, phoneNumber: body.phone || null, mustChangePassword: false, updatedAt: new Date() }).where(eq(users.id, user.id));
+    }
+    const created = await createCompany(req, user.id, {
+      name: body.companyName, appName: body.appName || body.companyName, industry: body.industry,
+      logoUrl: body.logoUrl, websiteDomain: body.websiteDomain, branchName: body.branchName,
+      address: body.address, timezone: body.timezone, modules: body.modules,
+      subscriptionPlan: body.subscriptionPlan, billingModel: body.billingModel,
+      billingCycle: body.billingCycle, price: body.price, currency: body.currency,
+    });
+    const requirements = {
+      outletCount: Math.max(1, Number(body.outletCount || 1)), expectedStaff: Math.max(1, Number(body.expectedStaff || 1)),
+      requestedModules: created.modules, desiredLaunchDate: body.desiredLaunchDate || null,
+      needsWebsite: body.needsWebsite !== false, needsAndroidApp: !!body.needsAndroidApp,
+      needsIosApp: !!body.needsIosApp, notes: body.notes || null,
+    };
+    const [application] = await db.insert(bridgeMerchantApplications).values({ companyId: created.company.id, applicantUserId: user.id, contactName: `${firstName} ${lastName}`.trim(), contactEmail: email, contactPhone: body.phone || null, requirements }).returning();
+    await new Promise<void>((resolve, reject) => req.login(user as any, (error) => error ? reject(error) : resolve()));
+    res.status(201).json({ ...created, application, next: "/bridgex" });
+  }));
+
+  app.get("/api/v1/platform/applications", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const result = await db.execute(sql`SELECT a.*, c.name company_name, c.app_name FROM bridge_merchant_applications a JOIN bridge_companies c ON c.id=a.company_id ORDER BY a.id DESC`); res.json(result.rows || result);
+  }));
+  app.patch("/api/v1/platform/applications/:id", route(async (req, res) => {
+    const admin = await requireUser(req, res); if (!admin) return; if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const status = String(req.body?.status || ""); if (!["reviewing", "approved", "rejected"].includes(status)) return res.status(400).json({ message: "Invalid application status" });
+    const [application] = await db.update(bridgeMerchantApplications).set({ status, reviewNote: req.body?.reviewNote || null, reviewedBy: admin.id, updatedAt: new Date() }).where(eq(bridgeMerchantApplications.id, Number(req.params.id))).returning();
+    if (!application) return res.status(404).json({ message: "Application not found" });
+    if (status === "approved") await db.update(bridgeCompanies).set({ status: "active", updatedAt: new Date() }).where(eq(bridgeCompanies.id, application.companyId));
+    res.json(application);
+  }));
+
   app.get("/api/v1/platform/bootstrap", route(async (req, res) => {
     const user = await requireUser(req, res); if (!user) return;
     res.json({ brand: "BridgeXPOS", platformAdmin: await isPlatformAdmin(req), modules: BRIDGEX_MODULES, notificationEvents: BRIDGEX_NOTIFICATION_EVENTS });

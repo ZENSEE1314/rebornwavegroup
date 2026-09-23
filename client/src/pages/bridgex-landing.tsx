@@ -1,0 +1,19 @@
+import { ArrowRight, BarChart3, Building2, Check, ChefHat, CreditCard, QrCode, Smartphone, Users } from "lucide-react";
+import { Link } from "wouter";
+
+const features = [
+  [CreditCard,"POS and payments","Run counter, table and mobile sales across every outlet."],
+  [ChefHat,"Industry modules","Restaurant, KTV, beauty, booking, kitchen and inventory tools."],
+  [Users,"Staff operations","Roles, pay, attendance, shifts, leave, reviews and leaderboards."],
+  [QrCode,"Customer experience","QR ordering, membership, loyalty and native notifications."],
+  [BarChart3,"One company view","Accounting and analytics stay isolated by company and branch."],
+  [Smartphone,"Your own app","Publish Android and iOS apps with your name, logo and colours."],
+];
+
+export default function BridgeXLanding(){return <div className="min-h-screen bg-[#06111d] text-white">
+  <header className="border-b border-white/10"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5"><Link href="/bridgexpos" className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">BX</span><span className="text-xl font-black">BridgeXPOS</span></Link><div className="flex gap-3"><Link href="/bridgexpos/login" className="rounded-xl px-4 py-2 text-sm text-slate-300 hover:bg-white/5">Merchant login</Link><Link href="/bridgexpos/apply" className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950">Create company</Link></div></div></header>
+  <main><section className="relative overflow-hidden px-6 py-24"><div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-400/20 blur-[120px]"/><div className="relative mx-auto max-w-5xl text-center"><span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[.2em] text-cyan-300">One platform · Every business</span><h1 className="mt-7 text-5xl font-black leading-tight md:text-7xl">Your business.<br/><span className="text-cyan-300">Your POS. Your brand.</span></h1><p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-400">Launch a complete merchant system with your own website, domain, logo, mobile app, branches and selected services. BridgeXPOS manages the platform underneath.</p><div className="mt-9 flex flex-wrap justify-center gap-3"><Link href="/bridgexpos/apply" className="rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-950">Build my company <ArrowRight className="ml-2 inline h-4 w-4"/></Link><Link href="/bridgexpos/login" className="rounded-xl border border-white/15 px-6 py-3 font-semibold">Merchant login</Link></div></div></section>
+    <section className="mx-auto max-w-7xl px-6 pb-24"><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{features.map(([Icon,title,text]:any)=><div key={title} className="rounded-2xl border border-white/10 bg-white/[.035] p-6"><Icon className="mb-5 h-7 w-7 text-cyan-300"/><h2 className="text-lg font-bold">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></div>)}</div></section>
+    <section className="border-y border-white/10 bg-cyan-400/5 px-6 py-20"><div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2"><div><Building2 className="h-10 w-10 text-cyan-300"/><h2 className="mt-5 text-3xl font-black">Reborn runs as the first BridgeXPOS company.</h2><p className="mt-3 text-slate-400">Its branding, branches, modules, staff and app remain separate from every future merchant.</p></div><div className="space-y-3">{["Monthly, yearly or one-time plans","Company and branch data isolation","Separate branded Android and iOS builds","Native operational notifications"].map(x=><p key={x} className="flex gap-3 rounded-xl bg-white/5 p-4"><Check className="h-5 w-5 text-cyan-300"/>{x}</p>)}</div></div></section>
+  </main><footer className="px-6 py-8 text-center text-xs text-slate-500">© {new Date().getFullYear()} BridgeXPOS</footer>
+</div>}

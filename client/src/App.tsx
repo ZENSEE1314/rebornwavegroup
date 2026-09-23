@@ -89,6 +89,9 @@ const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
 const BridgeXAdmin         = lazy(() => import("@/pages/bridgex-admin"));
 const StaffFeedback        = lazy(() => import("@/pages/staff-feedback"));
+const BridgeXLanding       = lazy(() => import("@/pages/bridgex-landing"));
+const BridgeXLogin         = lazy(() => import("@/pages/bridgex-login"));
+const BridgeXApply         = lazy(() => import("@/pages/bridgex-apply"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -105,6 +108,7 @@ function PageLoader() {
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const bridgeXHost = /bridgexpos/i.test(window.location.hostname) || (import.meta.env.VITE_BRIDGEX_DOMAIN && window.location.hostname === import.meta.env.VITE_BRIDGEX_DOMAIN);
 
   // Adopt the member's saved language on a fresh device (unless they already picked one here).
   useEffect(() => {
@@ -167,13 +171,17 @@ function Router() {
       <Switch>
         {/* Login route should always be accessible */}
         <Route path="/login" component={Login} />
+        <Route path="/bridgexpos" component={BridgeXLanding} />
+        <Route path="/bridgexpos/login" component={BridgeXLogin} />
+        <Route path="/bridgexpos/apply" component={BridgeXApply} />
+        <Route path="/bridgex" component={isAuthenticated ? BridgeXAdmin : BridgeXLogin} />
         <Route path="/reset-password" component={Login} />
         <Route path="/investor/login" component={InvestorLogin} />
         <Route path="/investor" component={InvestorLanding} />
         <Route path="/lux" component={LuxExperience} />
 
         {!isAuthenticated ? (
-          <Route path="/" component={Landing} />
+          <Route path="/" component={bridgeXHost ? BridgeXLanding : Landing} />
         ) : (
           <>
             {/* New member dashboard is the home; full legacy app still at /complete-app */}
@@ -188,7 +196,6 @@ function Router() {
             <Route path="/bottles" component={RebornBottles} />
             <Route path="/pos" component={RebornPos} />
             <Route path="/reborn-admin" component={RebornAdmin} />
-            <Route path="/bridgex" component={BridgeXAdmin} />
             <Route path="/staff-feedback" component={StaffFeedback} />
             <Route path="/complete-app" component={CompleteApp} />
             <Route path="/investor/admin" component={InvestorAdmin} />
@@ -220,6 +227,12 @@ function Router() {
 function App() {
   useEffect(() => {
     const host = window.location.hostname;
+    const isBridgeX = /bridgexpos/i.test(host) || window.location.pathname.startsWith("/bridgex");
+    if (isBridgeX) {
+      document.title = "BridgeXPOS | White-label POS for every business";
+      const description = document.querySelector("meta[name='description']");
+      description?.setAttribute("content", "Create a multi-branch POS, staff system, website and branded Android or iOS app for your company.");
+    }
     fetch(`/api/v1/tenant/resolve?host=${encodeURIComponent(host)}`)
       .then((response) => response.ok ? response.json() : null)
       .then((tenant) => {
