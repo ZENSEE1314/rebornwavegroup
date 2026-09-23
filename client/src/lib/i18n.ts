@@ -24,6 +24,7 @@ export const translations: Translations = {
   'nav.kingsOfSingers': { en: 'Kings of Singers', zh: '歌王之王', id: 'Raja Penyanyi' },
   'nav.songRequest': { en: 'Song Request', zh: '点歌', id: 'Permintaan Lagu' },
   'nav.support': { en: 'Support & FAQ', zh: '客服与常见问题', id: 'Bantuan & FAQ' },
+  'nav.staffFeedback': { en: 'Staff Feedback', zh: '员工评价', id: 'Ulasan Staf' },
   'nav.petCare': { en: 'Pet Care', zh: '宠物护理', id: 'Perawatan Peliharaan' },
   'nav.pos': { en: 'POS', zh: '收银', id: 'Kasir' },
   'nav.allFeatures': { en: 'All features', zh: '全部功能', id: 'Semua Fitur' },

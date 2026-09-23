@@ -87,6 +87,8 @@ const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
 const RebornPos            = lazy(() => import("@/pages/reborn-pos"));
 const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
+const BridgeXAdmin         = lazy(() => import("@/pages/bridgex-admin"));
+const StaffFeedback        = lazy(() => import("@/pages/staff-feedback"));
 
 // Shared loading fallback
 function PageLoader() {
@@ -186,6 +188,8 @@ function Router() {
             <Route path="/bottles" component={RebornBottles} />
             <Route path="/pos" component={RebornPos} />
             <Route path="/reborn-admin" component={RebornAdmin} />
+            <Route path="/bridgex" component={BridgeXAdmin} />
+            <Route path="/staff-feedback" component={StaffFeedback} />
             <Route path="/complete-app" component={CompleteApp} />
             <Route path="/investor/admin" component={InvestorAdmin} />
             <Route path="/investor/dashboard" component={InvestorDashboard} />
@@ -214,6 +218,24 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    const host = window.location.hostname;
+    fetch(`/api/v1/tenant/resolve?host=${encodeURIComponent(host)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((tenant) => {
+        if (!tenant) return;
+        document.title = tenant.app_name || tenant.name;
+        const primary = tenant.theme?.primaryColor;
+        const accent = tenant.theme?.accentColor;
+        if (primary) document.documentElement.style.setProperty("--bridgex-primary", primary);
+        if (accent) document.documentElement.style.setProperty("--bridgex-accent", accent);
+        if (tenant.logo_url) {
+          let icon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+          if (!icon) { icon = document.createElement("link"); icon.rel = "icon"; document.head.appendChild(icon); }
+          icon.href = tenant.logo_url;
+        }
+      }).catch(() => undefined);
+  }, []);
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

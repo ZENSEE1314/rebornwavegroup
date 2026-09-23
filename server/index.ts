@@ -3,6 +3,7 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerStarRoutes } from "./star-routes";
 import { registerRebornRoutes } from "./rebornGame";
+import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
@@ -84,6 +85,10 @@ app.use((req, res, next) => {
   registerStarRoutes(app);
 
   const server = await registerRoutes(app);
+
+  // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
+  await ensureBridgeXSchema();
+  registerBridgeXRoutes(app);
 
   // Reborn game routes need the session/passport middleware that registerRoutes sets up
   registerRebornRoutes(app);
