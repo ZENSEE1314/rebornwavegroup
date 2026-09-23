@@ -19,6 +19,7 @@ export default function RebornAdmin() {
   const [tab, setTab] = useState<string>("Overview");
   return (
     <RebornLayout active="/reborn-admin" title="ADMIN">
+      {isFullAdmin && <a href="/bridgex" className="mb-4 flex items-center justify-between rounded-2xl border border-cyan-400/25 bg-cyan-400/10 p-4 text-cyan-100"><span><b className="block">BridgeXPOS company settings</b><span className="text-xs text-cyan-100/60">Change Reborn name, logo, modules, subscription and branches</span></span><span className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950">Open</span></a>}
       <div className="flex gap-1 p-1 rounded-2xl bg-white/5 border border-white/10 mb-5 overflow-x-auto">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`flex-1 min-w-[92px] py-2 px-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors inline-flex items-center justify-center gap-1.5 ${tab === t ? "text-black" : "text-white/60"}`} style={tab === t ? { background: "linear-gradient(90deg,#c9a84c,#f0d787)" } : undefined}>{TAB_ICON[t]}{t}</button>

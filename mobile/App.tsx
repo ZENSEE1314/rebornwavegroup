@@ -1,10 +1,14 @@
 import { StatusBar } from "expo-status-bar";
+import Constants from "expo-constants";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
   Image,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +21,22 @@ const configuredAppUrl = process.env.EXPO_PUBLIC_APP_URL || "https://rebornwave.
 const APP_URL = /\/login(?:[?#]|$)/i.test(configuredAppUrl)
   ? configuredAppUrl
   : `${configuredAppUrl.replace(/\/$/, "")}/login`;
+const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME || "Reborn Wave Group";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
+});
+
+async function getPushToken() {
+  if (!Device.isDevice) return null;
+  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("bridgex", { name: "BridgeXPOS alerts", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
+  const current = await Notifications.getPermissionsAsync();
+  const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
+  if (permission.status !== "granted") return null;
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+  if (!projectId) return null;
+  return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+}
 
 function RebornApp() {
   const insets = useSafeAreaInsets();
@@ -25,6 +45,7 @@ function RebornApp() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -34,6 +55,26 @@ function RebornApp() {
     });
     return () => subscription.remove();
   }, [canGoBack]);
+
+  useEffect(() => {
+    getPushToken().then(setPushToken).catch(() => undefined);
+  }, []);
+
+  const syncPushToken = useCallback(() => {
+    if (!pushToken) return;
+    const token = JSON.stringify(pushToken);
+    const platform = JSON.stringify(Platform.OS);
+    webViewRef.current?.injectJavaScript(`
+      (function () {
+        var companyId = localStorage.getItem('bridgexCompanyId');
+        fetch('/api/v1/app/device-tokens', {
+          method: 'POST', credentials: 'include',
+          headers: Object.assign({'Content-Type':'application/json'}, companyId ? {'X-Company-Id':companyId} : {}),
+          body: JSON.stringify({expoPushToken:${token},platform:${platform},deviceId:'expo-app'})
+        }).catch(function () {});
+      })(); true;
+    `);
+  }, [pushToken]);
 
   const retry = useCallback(() => {
     setFailed(false);
@@ -80,7 +121,7 @@ function RebornApp() {
           setFailed(false);
           setLoading(true);
         }}
-        onLoadEnd={() => setLoading(false)}
+        onLoadEnd={() => { setLoading(false); syncPushToken(); }}
         onError={() => {
           setLoading(false);
           setFailed(true);
@@ -99,7 +140,7 @@ function RebornApp() {
         <View style={styles.overlay}>
           <Image source={require("./assets/icon.png")} style={styles.logo} />
           <ActivityIndicator size="large" color="#f0d787" />
-          <Text selectable style={styles.loadingText}>Opening Reborn Wave Group…</Text>
+          <Text selectable style={styles.loadingText}>Opening {APP_NAME}…</Text>
         </View>
       )}
 

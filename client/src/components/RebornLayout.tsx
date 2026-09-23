@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   Home, PawPrint, Disc3, Headphones, X, Gift, Coins,
   Calendar, Trophy, Users, User, Music, Mic2, LogOut, Sparkles, MessageCircle,
-  Utensils,
+  Utensils, Star,
 } from "lucide-react";
 
 interface NavItem { label: string; tkey: string; icon: ReactNode; path: string; }
@@ -31,6 +31,7 @@ export const MENU_ITEMS: NavItem[] = [
   { label: "Song Request", tkey: "nav.songRequest", icon: <Music className="w-5 h-5" />, path: "/songs" },
   { label: "Referrals", tkey: "nav.referrals", icon: <Users className="w-5 h-5" />, path: "/my-referral" },
   { label: "Support & FAQ", tkey: "nav.support", icon: <Headphones className="w-5 h-5" />, path: "/support" },
+  { label: "Staff Feedback", tkey: "nav.staffFeedback", icon: <Star className="w-5 h-5" />, path: "/staff-feedback" },
   { label: "Profile", tkey: "nav.profile", icon: <User className="w-5 h-5" />, path: "/profile" },
 ];
 

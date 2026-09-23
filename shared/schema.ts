@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uniqueIndex,
   serial,
   integer,
   decimal,
@@ -65,6 +66,169 @@ export const users = pgTable("users", {
   passwordResetExpiry: timestamp("password_reset_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// BridgeXPOS multi-tenant platform -------------------------------------------------
+export const bridgeCompanies = pgTable("bridge_companies", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug").notNull().unique(),
+  name: varchar("name").notNull(),
+  appName: varchar("app_name").notNull(),
+  industry: varchar("industry").notNull().default("other"),
+  logoUrl: text("logo_url"),
+  websiteDomain: varchar("website_domain").unique(),
+  appIconUrl: text("app_icon_url"),
+  androidPackage: varchar("android_package").unique(),
+  iosBundleId: varchar("ios_bundle_id").unique(),
+  theme: jsonb("theme").notNull().default({}),
+  status: varchar("status").notNull().default("active"), // active | suspended | trial
+  subscriptionPlan: varchar("subscription_plan").notNull().default("starter"),
+  billingModel: varchar("billing_model").notNull().default("subscription"), // subscription | one_time
+  billingCycle: varchar("billing_cycle").notNull().default("monthly"), // monthly | yearly | one_time
+  price: decimal("price", { precision: 14, scale: 2 }).default("0").notNull(),
+  currency: varchar("currency").notNull().default("IDR"),
+  subscriptionStatus: varchar("subscription_status").notNull().default("trialing"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const bridgeBranches = pgTable("bridge_branches", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  name: varchar("name").notNull(),
+  code: varchar("code").notNull(),
+  address: text("address"),
+  timezone: varchar("timezone").notNull().default("Asia/Jakarta"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [uniqueIndex("bridge_branch_company_code").on(table.companyId, table.code)]);
+
+export const bridgeCompanyModules = pgTable("bridge_company_modules", {
+  companyId: integer("company_id").notNull(),
+  moduleKey: varchar("module_key").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  config: jsonb("config").notNull().default({}),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.companyId, table.moduleKey] })]);
+
+export const bridgeMerchantApplications = pgTable("bridge_merchant_applications", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  applicantUserId: varchar("applicant_user_id").notNull(),
+  contactName: varchar("contact_name").notNull(),
+  contactEmail: varchar("contact_email").notNull(),
+  contactPhone: varchar("contact_phone"),
+  requirements: jsonb("requirements").notNull().default({}),
+  status: varchar("status").notNull().default("submitted"), // submitted | reviewing | approved | rejected
+  reviewNote: text("review_note"),
+  reviewedBy: varchar("reviewed_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const bridgePositions = pgTable("bridge_positions", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  name: varchar("name").notNull(),
+  code: varchar("code").notNull(),
+  permissions: jsonb("permissions").notNull().default([]),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [uniqueIndex("bridge_position_company_code").on(table.companyId, table.code)]);
+
+export const bridgeCompanyMembers = pgTable("bridge_company_members", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  branchId: integer("branch_id"),
+  positionId: integer("position_id"),
+  role: varchar("role").notNull().default("staff"), // owner | admin | manager | staff | member
+  status: varchar("status").notNull().default("active"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [uniqueIndex("bridge_member_company_user").on(table.companyId, table.userId)]);
+
+export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  branchId: integer("branch_id"),
+  positionId: integer("position_id"),
+  employmentType: varchar("employment_type").notNull().default("full_time"), // full_time | part_time | contract
+  payType: varchar("pay_type").notNull().default("salary"), // salary | hourly
+  baseSalary: decimal("base_salary", { precision: 14, scale: 2 }).default("0").notNull(),
+  hourlyRate: decimal("hourly_rate", { precision: 14, scale: 2 }).default("0").notNull(),
+  hireDate: varchar("hire_date"),
+  status: varchar("status").notNull().default("active"),
+  rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
+  starGrade: decimal("star_grade", { precision: 3, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [uniqueIndex("bridge_staff_company_user").on(table.companyId, table.userId)]);
+
+export const bridgeStaffReviews = pgTable("bridge_staff_reviews", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  branchId: integer("branch_id"),
+  staffUserId: varchar("staff_user_id").notNull(),
+  customerUserId: varchar("customer_user_id"),
+  rating: integer("rating").notNull(),
+  note: text("note"),
+  sentiment: varchar("sentiment").notNull().default("neutral"),
+  visible: boolean("visible").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bridgeStaffNotes = pgTable("bridge_staff_notes", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  staffUserId: varchar("staff_user_id").notNull(),
+  authorUserId: varchar("author_user_id").notNull(),
+  note: text("note").notNull(),
+  visibility: varchar("visibility").notNull().default("management"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bridgeMeetings = pgTable("bridge_meetings", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  branchId: integer("branch_id"),
+  title: varchar("title").notNull(),
+  agenda: text("agenda"),
+  startsAt: timestamp("starts_at").notNull(),
+  location: varchar("location"),
+  status: varchar("status").notNull().default("scheduled"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bridgeDeviceTokens = pgTable("bridge_device_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  companyId: integer("company_id"),
+  expoPushToken: text("expo_push_token").notNull().unique(),
+  platform: varchar("platform").notNull(),
+  deviceId: varchar("device_id"),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bridgeNotifications = pgTable("bridge_notifications", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type").notNull(),
+  title: varchar("title").notNull(),
+  body: text("body").notNull(),
+  data: jsonb("data").notNull().default({}),
+  pushStatus: varchar("push_status").notNull().default("pending"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Referrals tracking table
@@ -619,6 +783,8 @@ export const songRequests = pgTable("song_requests", {
 // Admin-posted events shown on the homepage / at login
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   title: varchar("title").notNull(),
   body: text("body"),
   imageUrl: varchar("image_url"),
@@ -632,6 +798,8 @@ export const events = pgTable("events", {
 // POS / inventory
 export const posProducts = pgTable("pos_products", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   name: varchar("name").notNull(),
   category: varchar("category").default("General").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).default("0").notNull(),
@@ -646,6 +814,8 @@ export const posProducts = pgTable("pos_products", {
 // Reborn POS tickets (separate from the legacy posOrders table above)
 export const posTickets = pgTable("pos_tickets", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   orderNo: varchar("order_no").notNull(),
   source: varchar("source").default("pos").notNull(), // 'pos' | 'app'
   status: varchar("status").default("open").notNull(), // 'open' | 'paid' | 'cancelled'
@@ -736,6 +906,8 @@ export const crmMessages = pgTable("crm_messages", {
 
 export const stockMovements = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   productId: integer("product_id").notNull(),
   delta: integer("delta").notNull(), // + in, - out
   reason: varchar("reason").notNull(), // 'stock_in' | 'sale' | 'adjustment' | 'order_cancel'
@@ -746,6 +918,8 @@ export const stockMovements = pgTable("stock_movements", {
 
 export const ledgerEntries = pgTable("ledger_entries", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   kind: varchar("kind").notNull(), // 'income' | 'expense'
   category: varchar("category").notNull(), // 'product_sale' | 'service' | 'topup' | 'purchase' | 'other'
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
@@ -760,6 +934,8 @@ export const ledgerEntries = pgTable("ledger_entries", {
 // HR — worker attendance (check-in/out, needs admin/manager approval)
 export const staffAttendance = pgTable("staff_attendance", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   userId: varchar("user_id").notNull(),
   workDate: varchar("work_date").notNull(), // YYYY-MM-DD (local)
   checkInAt: timestamp("check_in_at").defaultNow(),
@@ -773,6 +949,8 @@ export const staffAttendance = pgTable("staff_attendance", {
 // HR — monthly worker schedule (shifts set by admin/manager)
 export const workerShifts = pgTable("worker_shifts", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   userId: varchar("user_id").notNull(),
   shiftDate: varchar("shift_date").notNull(), // YYYY-MM-DD
   startTime: varchar("start_time").notNull(), // HH:mm
@@ -786,6 +964,8 @@ export const workerShifts = pgTable("worker_shifts", {
 // HR — leave / MC requests
 export const leaveRequests = pgTable("leave_requests", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  branchId: integer("branch_id"),
   userId: varchar("user_id").notNull(),
   type: varchar("type").notNull().default("leave"), // leave | mc
   startDate: varchar("start_date").notNull(), // YYYY-MM-DD
