@@ -110,6 +110,41 @@ function Router() {
   const { toast } = useToast();
   const bridgeXHost = /bridgexpos/i.test(window.location.hostname) || (import.meta.env.VITE_BRIDGEX_DOMAIN && window.location.hostname === import.meta.env.VITE_BRIDGEX_DOMAIN);
 
+  // Keep every active screen current. Server-sent events update immediately;
+  // the timer covers mobile networks that temporarily suspend the stream.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let stopped = false;
+    let source: EventSource | null = null;
+    let reconnectTimer: number | undefined;
+    const refresh = () => queryClient.invalidateQueries({ refetchType: "active" });
+    const connect = () => {
+      if (stopped) return;
+      source?.close();
+      source = new EventSource("/api/live");
+      source.addEventListener("change", refresh);
+      source.onerror = () => {
+        source?.close();
+        if (!stopped) reconnectTimer = window.setTimeout(connect, 3000);
+      };
+    };
+    connect();
+    const fallback = window.setInterval(refresh, 10_000);
+    const resume = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", refresh);
+    window.addEventListener("bridgex:notification", refresh);
+    return () => {
+      stopped = true;
+      source?.close();
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      window.clearInterval(fallback);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("bridgex:notification", refresh);
+    };
+  }, [isAuthenticated]);
+
   // Adopt the member's saved language on a fresh device (unless they already picked one here).
   useEffect(() => {
     const pref = (user as any)?.preferredLanguage;

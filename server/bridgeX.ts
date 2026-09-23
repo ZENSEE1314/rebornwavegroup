@@ -36,7 +36,7 @@ export const BRIDGEX_MODULES = [
 export const BRIDGEX_NOTIFICATION_EVENTS = [
   "new_order", "low_stock", "booking", "shift", "attendance_exception", "leave_request",
   "leave_decision", "staff_review", "meeting", "payroll_published", "subscription_renewal",
-  "loyalty_reward", "pet_care",
+  "loyalty_reward", "pet_care", "song_request", "song_request_update", "feedback",
 ] as const;
 
 const MANAGEMENT_ROLES = new Set(["owner", "admin", "manager"]);
@@ -166,9 +166,29 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
 }
 
 const liveCompanyClients = new Map<number, Set<Response>>();
-function emitCompanyChange(companyId: number, resource = "all") {
+export function emitCompanyChange(companyId: number, resource = "all") {
   const message = `event: change\ndata: ${JSON.stringify({ companyId, resource, at: Date.now() })}\n\n`;
   for (const client of Array.from(liveCompanyClients.get(companyId) || [])) client.write(message);
+}
+
+export async function sendRebornStaffNotification(payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  if (!company) return;
+  const members = await db.select().from(bridgeCompanyMembers).where(and(
+    eq(bridgeCompanyMembers.companyId, company.id),
+    eq(bridgeCompanyMembers.status, "active"),
+    inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager", "staff"]),
+  ));
+  await sendBridgeXNotifications(company.id, members.map((member) => member.userId), payload);
+  emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
+}
+
+export async function sendRebornUserNotification(userId: string | null | undefined, payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
+  if (!userId) return;
+  const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0];
+  if (!company) return;
+  await sendBridgeXNotifications(company.id, [userId], payload);
+  emitCompanyChange(company.id, String(payload.data?.path || "notifications"));
 }
 
 export async function ensureBridgeXSchema() {

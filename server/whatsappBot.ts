@@ -15,6 +15,8 @@ import { and, desc, eq, isNotNull, lte, gt, ilike, sql } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
 import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests, songs, appointments, faqItems } from "@shared/schema";
+import { sendRebornStaffNotification } from "./bridgeX";
+import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, type BookingArea } from "./booking";
 
 const GRAPH_VERSION = "v20.0";
@@ -359,7 +361,13 @@ async function createMemberFromContact(c: Contact): Promise<{ email: string; cre
 
 // Public entry used by both the Cloud API webhook and the QR-linked Web session.
 export async function handleInboundText(from: string, text: string, profileName?: string) {
-  return handleInbound(from, text, profileName);
+  try {
+    return await handleInbound(from, text, profileName);
+  } finally {
+    // WhatsApp updates happen outside the app's HTTP mutations. Wake every open
+    // screen after processing so bookings, messages, songs and CRM data appear now.
+    emitLiveUpdate("/api/reborn/whatsapp", { action: "WHATSAPP_INBOUND" });
+  }
 }
 
 const MAX_BOT_REPLIES = 10; // stop auto-replying to a number after this many bot messages
@@ -565,6 +573,15 @@ async function offerBooking(c: Contact, lang: Lang, from: string) {
 }
 
 // Book intent — try to parse a full request from free text, else start the step flow.
+async function pushWhatsAppBooking(row: any, c: Contact, area: BookingArea, date: string, time: string, party: number) {
+  await sendRebornStaffNotification({
+    type: "booking",
+    title: "New WhatsApp booking",
+    body: `${c.name || "Guest"} · ${area.name} · ${date} ${time} · ${party} pax`,
+    data: { path: "/reborn-admin", bookingId: row.id, source: "whatsapp" },
+  });
+}
+
 async function handleBookIntent(c: Contact, lang: Lang, from: string, body: string, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
   const areas = enabledAreas(await settingVal("bookingAreas"));
@@ -584,6 +601,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
           return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
         }
         const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, table, area: `${area.name} (${area.level})`, openHour: openH });
+        await pushWhatsAppBooking(row, c, area, date, label, party);
         await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
         await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · Table ${table} · ${party} pax — confirm in the app.`);
         return patchContact(c.id, { waState: { flow: null } });
@@ -596,6 +614,7 @@ async function handleBookIntent(c: Contact, lang: Lang, from: string, body: stri
       return patchContact(c.id, { waState: { flow: "book", step: "table", areaId: area.id, date, slot, party } });
     }
     const row = await createBooking({ userId: c.userId!, dateStr: date, slot, partySize: party, hours: 2, area: `${area.name} (${area.level})`, openHour: openH });
+    await pushWhatsAppBooking(row, c, area, date, label, party);
     await say(L(lang, "bookDone", { day: date, time: label, n: String(party), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${date} ${label} · ${party} pax — confirm in the app.`);
     return patchContact(c.id, { waState: { flow: null } });
@@ -674,6 +693,7 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
     }
     const row = await createBooking({ userId: c.userId!, dateStr: wa.date, slot: wa.slot, partySize: wa.party || 2, hours: hrs, table: wa.table, area: `${area.name} (${area.level})`, openHour: areaOpenHourForDate(area, wa.date) });
     const label = labels[slots.indexOf(wa.slot)] || wa.slot;
+    await pushWhatsAppBooking(row, c, area, wa.date, label, wa.party || 2);
     await say(L(lang, "bookDone", { day: wa.date, time: `${label} (${hrs}h)`, n: String(wa.party || 2), url: APP_BASE_URL }));
     await notifyAdmin(`📅 New WhatsApp booking #${row.id}: ${c.name || c.phone} · ${area.name} · ${wa.date} ${label} · ${hrs}h · ${wa.table ? "Table " + wa.table + " · " : ""}${wa.party || 2} pax — confirm in the app.`);
     return patchContact(c.id, { waState: { flow: null } });
@@ -699,6 +719,13 @@ async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: 
     else { const [s] = await db.insert(songs).values({ title, artist, createdBy: c.userId }).returning(); songId = s.id; }
   } catch (e) { console.error("[wa] song upsert", e); }
   await db.insert(songRequests).values({ userId: c.userId, songId, title, artist, status: "pending" });
+  emitLiveUpdate("/api/reborn/admin/song-requests", { action: "WHATSAPP_SONG_REQUEST" });
+  await sendRebornStaffNotification({
+    type: "song_request",
+    title: "New WhatsApp song request",
+    body: `${c.name || "Guest"}: ${title}${artist ? ` - ${artist}` : ""}`,
+    data: { path: "/reborn-admin", source: "whatsapp" },
+  });
   await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
   await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""}`);
   return patchContact(c.id, { waState: { flow: null } });
@@ -759,7 +786,7 @@ export function registerWhatsAppBot(app: Express) {
             if (msg.type !== "text") continue;
             const from = msg.from;
             const profileName = contacts.find((x: any) => x.wa_id === from)?.profile?.name;
-            await handleInbound(from, msg.text?.body || "", profileName);
+            await handleInboundText(from, msg.text?.body || "", profileName);
           }
         }
       }
