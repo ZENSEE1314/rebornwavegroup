@@ -2991,6 +2991,7 @@ function SupportSection({ user }: { user: any }) {
 
       {view === 'list' && (
         <div className="space-y-4">
+          <a href="/staff-feedback" className="block w-full rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-center font-bold text-amber-200">⭐ Give feedback about our service, staff, or an improvement</a>
           <button onClick={() => setView('new')} className="w-full py-3 rounded-xl font-bold text-black" style={{ background: 'linear-gradient(135deg,#C9A84C,#f0c060)' }}>
             + New Support Ticket
           </button>
@@ -7214,8 +7215,14 @@ export default function CompleteApp() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [selectedMarketplaceSeason, setSelectedMarketplaceSeason] = useState<string | null>(null);
 
+  const { data: tenantSettings = { loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] } } } = useQuery<any>({
+    queryKey: ['/api/v1/tenant/settings', 'reborn-wave-group'],
+    queryFn: () => fetch('/api/v1/tenant/settings?slug=reborn-wave-group', { credentials: 'include' }).then(r => r.json()),
+    refetchInterval: 5000,
+  });
+
   // 5-Level Loyalty Program System
-  const loyaltyLevels = [
+  const defaultLoyaltyLevels = [
     { 
       level: 1, 
       minPoints: 0, 
@@ -7301,6 +7308,13 @@ export default function CompleteApp() {
       ]
     }
   ];
+
+  const configuredTiers = tenantSettings?.loyalty?.tiers || [];
+  const loyaltyLevels = configuredTiers.length ? configuredTiers.map((tier:any,index:number) => ({
+    level:index+1, minPoints:Number(tier.minPoints||0), maxPoints:index<configuredTiers.length-1?Number(configuredTiers[index+1].minPoints||0)-1:Infinity,
+    discount:Number(tier.discountPercent||0), name:tier.name||`Tier ${index+1}`, color:["from-orange-600 to-amber-600","from-gray-500 to-gray-600","from-yellow-500 to-yellow-600","from-purple-500 to-purple-600","from-blue-600 to-indigo-600"][index%5],
+    bgColor:"bg-gray-50", borderColor:"border-gray-200", icon:[Award,Medal,Star,Crown,Trophy][index%5], benefits:[...(tier.benefits||[]),...(Number(tier.freeRp||0)>0?[`RP ${Number(tier.freeRp).toLocaleString()} store gift`]:[])],
+  })) : defaultLoyaltyLevels;
 
   const getLoyaltyLevel = (points) => {
     return loyaltyLevels.find(level => points >= level.minPoints && points <= level.maxPoints) || loyaltyLevels[0];
@@ -10380,7 +10394,7 @@ export default function CompleteApp() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Available Rewards */}
               <div className="lg:col-span-2">
-                <Card>
+                {tenantSettings?.loyalty?.rewardsEnabled !== false && <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>{t('rewards.availableRewards')}</CardTitle>
                     <div className="text-sm text-gray-500">
@@ -10434,7 +10448,7 @@ export default function CompleteApp() {
                       ))}
                     </div>
                   </CardContent>
-                </Card>
+                </Card>}
 
                 {/* Point History */}
                 <Card className="mt-6">
