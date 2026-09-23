@@ -727,7 +727,8 @@ export async function sendReviewRequest(opts: { phone?: string | null; userId?: 
     if (!num && opts.userId) { const [u] = await db.select().from(users).where(eq(users.id, opts.userId)); if (u?.phoneNumber) num = u.phoneNumber.replace(/\D/g, ""); }
     if (!num) return;
     const lang = ((contact?.lang as Lang) || "en");
-    const link = opts.reviewUrl ? `\n${opts.reviewUrl}` : "";
+    const feedbackUrl = `${APP_BASE_URL.replace(/\/$/, "")}/staff-feedback`;
+    const link = `\nFeedback in the app: ${feedbackUrl}${opts.reviewUrl ? `\nGoogle review: ${opts.reviewUrl}` : ""}`;
     const msg = L(lang, "review", { club: opts.club, link });
     const ok = await sendWhatsApp(num, msg);
     if (contact) { await logMsg(contact.id, num, "out", msg, true); await patchContact(contact.id, { waState: { flow: "review", reviewUrl: opts.reviewUrl || "" } }); }

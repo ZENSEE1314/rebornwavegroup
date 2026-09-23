@@ -9,8 +9,8 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
-const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff"] as const;
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
+const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -45,6 +45,8 @@ export default function RebornAdmin() {
       {tab === "Inventory" && <Inventory />}
       {tab === "Accounting" && <Accounting />}
       {tab === "Staff" && <StaffHr isAdmin={isFullAdmin} />}
+      {tab === "Leaderboard" && <StaffLeaderboard />}
+      {tab === "Feedback" && <CompanyFeedback />}
       {tab === "CRM" && <Crm />}
       {tab === "Logs" && <Logs />}
     </RebornLayout>
@@ -83,7 +85,7 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Prizes: <Disc3 className="w-4 h-4" />, Gifts: <Sparkles className="w-4 h-4" />, FAQ: <HelpCircle className="w-4 h-4" />,
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
-  Staff: <Clock className="w-4 h-4" />,
+  Staff: <Clock className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />,
 };
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
@@ -135,6 +137,7 @@ function Members() {
   const summary = data?.summary;
   const { user } = useAuth();
   const isFullAdmin = (user as any)?.role === "admin";
+  const { data: positions = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/admin/staff-positions"], queryFn: () => apiRequest("GET", "/api/reborn/admin/staff-positions").then((r) => r.json()), enabled: isFullAdmin });
   const save = useMutation({ mutationFn: (u: any) => apiRequest("POST", `/api/reborn/admin/users/${u.id}`, u).then((r) => r.json()), onSuccess: () => { toast({ title: "Member updated" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
   const del = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/reborn/admin/users/${id}`, {}).then((r) => r.json()), onSuccess: (d: any) => { toast({ title: d.message || "Deleted" }); refetch(); }, onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }) });
   const reset = useMutation({
@@ -157,7 +160,7 @@ function Members() {
         <button onClick={() => setSort(sort === "tokens" ? "recent" : "tokens")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${sort === "tokens" ? "bg-amber-400 text-black" : "bg-white/5 text-white/60"}`}>Sort: {sort === "tokens" ? "tokens" : "recent"}</button>
       </div>
       {!isFullAdmin && <p className="text-xs text-white/40 mb-3">Only full admins can edit balances and roles.</p>}
-      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(`Delete ${u.firstName || u.username || u.email}? This cannot be undone.`)) del.mutate(id); }} />)}</div>
+      <div className="space-y-3">{users.map((u) => <MemberRow key={u.id} u={u} positions={positions} editable={isFullAdmin} onSave={save.mutate} onDelete={(id: string) => { if (confirm(`Delete ${u.firstName || u.username || u.email}? This cannot be undone.`)) del.mutate(id); }} />)}</div>
       {isFullAdmin && (
         <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-500/5 p-4">
           <h3 className="font-bold text-sm text-red-200 mb-1">⚠️ Reset numbers (main admin)</h3>
@@ -168,7 +171,7 @@ function Members() {
     </div>
   );
 }
-function MemberRow({ u, editable, onSave, onDelete }: any) {
+function MemberRow({ u, positions = [], editable, onSave, onDelete }: any) {
   const [e, setE] = useState(u);
   return (
     <Card>
@@ -196,6 +199,11 @@ function MemberRow({ u, editable, onSave, onDelete }: any) {
                 <option value="user">user</option><option value="staff">staff (sub-admin)</option><option value="admin">admin</option>
               </select>
             </label>
+            {(e.role === "staff" || e.role === "admin") && <label className="text-xs text-white/50">Position
+              <select value={e.position_id || ""} onChange={(x) => setE({ ...e, positionId: x.target.value, position_id: x.target.value })} className={inp + " ml-1"}>
+                <option value="">Select position</option>{positions.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>}
             <button onClick={() => onSave(e)} className={btn + " ml-auto"}>Save</button>
             {onDelete && <button onClick={() => onDelete(u.id)} className={btnDel}><Trash2 className="w-4 h-4" /></button>}
           </div>
@@ -707,6 +715,15 @@ const HR_STATUS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-300", approved: "bg-emerald-500/20 text-emerald-300", rejected: "bg-red-500/20 text-red-300",
 };
 const timeStr = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "—";
+
+function StaffLeaderboard() {
+  const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/leaderboard"],queryFn:()=>apiRequest("GET","/api/reborn/staff/leaderboard").then(r=>r.json()),refetchInterval:5000});
+  return <div className="space-y-3">{rows.length===0&&<Empty text="No ranked staff yet."/>}{rows.map((r:any)=><Card key={r.user_id}><div className={`flex items-center justify-between ${r.redFlag?"text-red-300":""}`}><div><b>#{r.rank} · {r.name}</b><p className="text-xs text-white/45">{r.position||"Staff"}</p></div><div className="text-right"><b>⭐ {Number(r.rating).toFixed(1)}</b><p className="text-xs text-white/45">RP {Number(r.weekly_sales).toLocaleString()} · {r.review_count} review(s)</p></div></div>{r.redFlag&&<p className="mt-2 text-xs text-red-300">Needs management attention because of repeated low reviews.</p>}</Card>)}</div>;
+}
+function CompanyFeedback() {
+  const { data: rows=[] }=useQuery<any[]>({queryKey:["/api/reborn/staff/feedback"],queryFn:()=>apiRequest("GET","/api/reborn/staff/feedback").then(r=>r.json()),refetchInterval:5000});
+  return <div className="space-y-3"><a href="/staff-feedback" className={btn+" w-full justify-center"}>Open customer feedback form</a>{rows.length===0&&<Empty text="No customer feedback yet."/>}{rows.map((f:any)=><Card key={f.id}><div className="flex justify-between gap-3"><b className="capitalize">{f.category} feedback</b><span className="text-xs text-white/35">{new Date(f.created_at).toLocaleString()}</span></div><p className="mt-2 text-sm text-white/75">{f.message}</p><p className="mt-2 text-xs text-white/40">{f.user_name||"Customer"}{f.staff_name?` → ${f.staff_name}`:""}{f.rating?` · ${f.rating}/5 stars`:""}</p></Card>)}</div>;
+}
 
 function StaffHr({ isAdmin }: { isAdmin: boolean }) {
   const [view, setView] = useState<"me" | "manage">(isAdmin ? "manage" : "me");

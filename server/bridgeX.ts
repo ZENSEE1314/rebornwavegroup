@@ -30,7 +30,8 @@ import {
 export const BRIDGEX_MODULES = [
   "pos", "restaurant", "ktv", "beauty", "booking", "inventory", "employees",
   "payroll", "membership", "loyalty", "qr_ordering", "kitchen_display",
-  "accounting", "analytics",
+  "accounting", "analytics", "retail", "ai_whatsapp", "ai_telegram",
+  "song_requests", "bottle_keep", "faq_automation",
 ] as const;
 export const BRIDGEX_NOTIFICATION_EVENTS = [
   "new_order", "low_stock", "booking", "shift", "attendance_exception", "leave_request",
@@ -134,7 +135,7 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
     billingCycle: body.billingModel === "one_time" ? "one_time" : body.billingCycle || "monthly",
     price: String(body.price || 0), currency: body.currency || "IDR",
     subscriptionStatus: body.subscriptionStatus || "trialing",
-    trialEndsAt: new Date(Date.now() + 14 * 86400000), createdBy: ownerUserId,
+    trialEndsAt: new Date(Date.now() + 7 * 86400000), createdBy: ownerUserId,
   }).returning();
   const [branch] = await db.insert(bridgeBranches).values({
     companyId: company.id, name: body.branchName || "Main Outlet", code: "MAIN",
@@ -164,6 +165,12 @@ export async function sendBridgeXNotifications(companyId: number, userIds: strin
   } catch (error) { console.warn("Expo push unavailable", error); }
 }
 
+const liveCompanyClients = new Map<number, Set<Response>>();
+function emitCompanyChange(companyId: number, resource = "all") {
+  const message = `event: change\ndata: ${JSON.stringify({ companyId, resource, at: Date.now() })}\n\n`;
+  for (const client of Array.from(liveCompanyClients.get(companyId) || [])) client.write(message);
+}
+
 export async function ensureBridgeXSchema() {
   await db.execute(sql.raw(`
     CREATE TABLE IF NOT EXISTS bridge_companies (id serial PRIMARY KEY, slug varchar UNIQUE NOT NULL, name varchar NOT NULL, app_name varchar NOT NULL, industry varchar NOT NULL DEFAULT 'other', logo_url text, website_domain varchar UNIQUE, app_icon_url text, android_package varchar UNIQUE, ios_bundle_id varchar UNIQUE, theme jsonb NOT NULL DEFAULT '{}', status varchar NOT NULL DEFAULT 'active', subscription_plan varchar NOT NULL DEFAULT 'starter', billing_model varchar NOT NULL DEFAULT 'subscription', billing_cycle varchar NOT NULL DEFAULT 'monthly', price numeric(14,2) NOT NULL DEFAULT 0, currency varchar NOT NULL DEFAULT 'IDR', subscription_status varchar NOT NULL DEFAULT 'trialing', trial_ends_at timestamp, created_by varchar, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
@@ -182,6 +189,8 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS bridge_meetings (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer, title varchar NOT NULL, agenda text, starts_at timestamp NOT NULL, location varchar, status varchar NOT NULL DEFAULT 'scheduled', created_by varchar NOT NULL, created_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_device_tokens (id serial PRIMARY KEY, user_id varchar NOT NULL, company_id integer, expo_push_token text UNIQUE NOT NULL, platform varchar NOT NULL, device_id varchar, active boolean NOT NULL DEFAULT true, updated_at timestamp NOT NULL DEFAULT now(), created_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_notifications (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, type varchar NOT NULL, title varchar NOT NULL, body text NOT NULL, data jsonb NOT NULL DEFAULT '{}', push_status varchar NOT NULL DEFAULT 'pending', read_at timestamp, created_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS bridge_feedback (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer, user_id varchar, category varchar NOT NULL, staff_user_id varchar, rating integer CHECK (rating BETWEEN 1 AND 5), subject varchar, message text NOT NULL, status varchar NOT NULL DEFAULT 'new', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS bridge_company_settings (company_id integer PRIMARY KEY, config jsonb NOT NULL DEFAULT '{}', updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS branch_id integer;
@@ -193,9 +202,11 @@ export async function ensureBridgeXSchema() {
   `));
   const reborn = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0]
     || (await db.insert(bridgeCompanies).values({ slug: "reborn-wave-group", name: "Reborn Wave Group", appName: "Reborn", industry: "entertainment", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active" }).returning())[0];
+  await db.update(bridgeCompanies).set({ appName: "Reborn", industry: "entertainment", websiteDomain: "rebornwave.group", androidPackage: "com.rebornwave.group", iosBundleId: "com.rebornwave.group", status: "active", subscriptionPlan: "enterprise", subscriptionStatus: "active", updatedAt: new Date() }).where(eq(bridgeCompanies.id, reborn.id));
   let branch = (await db.select().from(bridgeBranches).where(and(eq(bridgeBranches.companyId, reborn.id), eq(bridgeBranches.code, "MAIN"))).limit(1))[0];
   if (!branch) [branch] = await db.insert(bridgeBranches).values({ companyId: reborn.id, name: "Reborn Batam", code: "MAIN", address: "Batam, Indonesia" }).returning();
   await db.execute(sql.raw(`INSERT INTO bridge_company_modules (company_id, module_key, enabled) SELECT ${reborn.id}, module_key, true FROM unnest(ARRAY[${BRIDGEX_MODULES.map((key) => `'${key}'`).join(",")}]::text[]) module_key ON CONFLICT (company_id, module_key) DO NOTHING`));
+  await db.execute(sql`INSERT INTO bridge_company_settings (company_id, config) VALUES (${reborn.id}, ${JSON.stringify({ loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [{ name: "Bronze", minPoints: 0, discountPercent: 0, freeRp: 0, benefits: ["Member access"] }, { name: "Silver", minPoints: 500, discountPercent: 2, freeRp: 0, benefits: ["Priority booking"] }, { name: "Gold", minPoints: 2000, discountPercent: 5, freeRp: 50000, benefits: ["5% discount", "RP 50,000 store gift"] }] }, services: { booking: true, faq: true, songRequests: true, bottleKeep: true, aiWhatsApp: true, aiTelegram: false }, booking: { areas: [] }, automation: { reminders: [], faq: [] }, provision: { domainStatus: "live", backendStatus: "live", appStyle: "reborn" } })}::jsonb) ON CONFLICT (company_id) DO NOTHING`);
   await db.execute(sql`INSERT INTO bridge_company_members (company_id, user_id, branch_id, role) SELECT ${reborn.id}, id, ${branch.id}, CASE WHEN role='admin' THEN 'admin' WHEN role='staff' THEN 'staff' ELSE 'member' END FROM users ON CONFLICT (company_id, user_id) DO NOTHING`);
   for (const table of ["pos_products", "pos_tickets", "stock_movements", "ledger_entries", "staff_attendance", "worker_shifts", "leave_requests", "events"]) {
     await db.execute(sql.raw(`UPDATE ${table} SET company_id=${reborn.id}, branch_id=${branch.id} WHERE company_id IS NULL`));
@@ -203,6 +214,27 @@ export async function ensureBridgeXSchema() {
 }
 
 export function registerBridgeXRoutes(app: Express) {
+  app.get("/api/v1/company/live", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    res.setHeader("Content-Type", "text/event-stream"); res.setHeader("Cache-Control", "no-cache, no-transform"); res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.(); res.write(`event: ready\ndata: ${JSON.stringify({ companyId: access.companyId })}\n\n`);
+    const clients = liveCompanyClients.get(access.companyId) || new Set<Response>(); clients.add(res); liveCompanyClients.set(access.companyId, clients);
+    const heartbeat = setInterval(() => res.write(": keepalive\n\n"), 25000);
+    req.on("close", () => { clearInterval(heartbeat); clients.delete(res); if (!clients.size) liveCompanyClients.delete(access.companyId); });
+  }));
+  app.use("/api/v1", (req, res, next) => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) res.on("finish", () => { const id = requestedCompanyId(req); if (id && res.statusCode < 400) emitCompanyChange(id, req.path); });
+    next();
+  });
+  app.use(["/api/v1/company/pos", "/api/v1/company/attendance", "/api/v1/company/leave", "/api/v1/company/shifts"], async (req, res, next) => {
+    try {
+      const companyId = requestedCompanyId(req); if (!companyId) return res.status(400).json({ message: "Company required" });
+      const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, companyId)).limit(1))[0];
+      const trialActive = company?.subscriptionStatus === "trialing" && !!company.trialEndsAt && new Date(company.trialEndsAt).getTime() > Date.now();
+      if (!company || (company.subscriptionStatus !== "active" && !trialActive)) return res.status(402).json({ message: "Company access is locked. Start a trial or complete payment to continue.", code: "SUBSCRIPTION_REQUIRED" });
+      next();
+    } catch (error) { next(error); }
+  });
   app.post("/api/v1/merchant/apply", route(async (req, res) => {
     const body = req.body || {};
     const email = String(body.email || "").trim().toLowerCase(); const password = String(body.password || "");
@@ -256,6 +288,13 @@ export function registerBridgeXRoutes(app: Express) {
     res.json(await db.select().from(bridgeCompanies).orderBy(desc(bridgeCompanies.id)));
   }));
 
+  app.get("/api/v1/platform/users", route(async (req, res) => {
+    if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
+    const q = `%${String(req.query.q || "").trim()}%`;
+    const result = await db.execute(sql`SELECT id, email, first_name, last_name, role FROM users WHERE email ILIKE ${q} OR first_name ILIKE ${q} OR last_name ILIKE ${q} ORDER BY created_at DESC LIMIT 80`);
+    res.json(result.rows || result);
+  }));
+
   app.post("/api/v1/platform/companies", route(async (req, res) => {
     const admin = await requireUser(req, res); if (!admin) return;
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
@@ -281,6 +320,9 @@ export function registerBridgeXRoutes(app: Express) {
   app.patch("/api/v1/platform/companies/:id", route(async (req, res) => {
     if (!(await isPlatformAdmin(req))) return res.status(403).json({ message: "Platform admin required" });
     const allowed: any = {}; for (const key of ["name", "appName", "industry", "logoUrl", "websiteDomain", "appIconUrl", "androidPackage", "iosBundleId", "theme", "status", "subscriptionPlan", "billingModel", "billingCycle", "price", "currency", "subscriptionStatus"]) if (req.body?.[key] !== undefined) allowed[key] = key === "price" ? String(req.body[key]) : req.body[key];
+    if (req.body?.trialDays !== undefined) { const days = Math.max(0, Number(req.body.trialDays) || 0); allowed.trialEndsAt = new Date(Date.now() + days * 86400000); allowed.subscriptionStatus = "trialing"; allowed.status = "trial"; }
+    if (req.body?.subscriptionStatus === "active") allowed.status = "active";
+    if (["past_due", "unpaid", "cancelled"].includes(req.body?.subscriptionStatus)) allowed.status = "suspended";
     allowed.updatedAt = new Date();
     res.json((await db.update(bridgeCompanies).set(allowed).where(eq(bridgeCompanies.id, Number(req.params.id))).returning())[0]);
   }));
@@ -306,9 +348,51 @@ export function registerBridgeXRoutes(app: Express) {
         iconUrl: company.appIconUrl || company.logoUrl,
         androidPackage: company.androidPackage,
         iosBundleId: company.iosBundleId,
-        startUrl: `https://${company.websiteDomain || "rebornwave.group"}/login?tenant=${company.slug}`,
+        startUrl: company.websiteDomain ? `https://${company.websiteDomain}/login?tenant=${company.slug}` : `https://bridgexpos.up.railway.app/bridgexpos/login?tenant=${company.slug}`,
       },
     });
+  }));
+  app.get("/api/v1/tenant/settings", route(async (req, res) => {
+    const slug = String(req.query.slug || "reborn-wave-group").toLowerCase();
+    const result = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug=${slug} LIMIT 1`);
+    res.json((result.rows || result as any)[0]?.config || { loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] }, services: {} });
+  }));
+
+  app.get("/api/v1/company/access-status", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const company = (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.id, access.companyId)).limit(1))[0];
+    const trialActive = company.subscriptionStatus === "trialing" && !!company.trialEndsAt && new Date(company.trialEndsAt).getTime() > Date.now();
+    res.json({ allowed: company.subscriptionStatus === "active" || trialActive, subscriptionStatus: company.subscriptionStatus, status: company.status, trialEndsAt: company.trialEndsAt, trialActive });
+  }));
+
+  app.get("/api/v1/company/settings", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const result = await db.execute(sql`SELECT config, updated_at FROM bridge_company_settings WHERE company_id=${access.companyId}`);
+    res.json((result.rows || result as any)[0] || { config: { loyalty: { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] }, services: {}, booking: { areas: [] }, automation: { reminders: [], faq: [] } } });
+  }));
+  app.put("/api/v1/company/settings", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    const config = req.body?.config || {};
+    const result = await db.execute(sql`INSERT INTO bridge_company_settings (company_id, config, updated_at) VALUES (${access.companyId}, ${JSON.stringify(config)}::jsonb, now()) ON CONFLICT (company_id) DO UPDATE SET config=EXCLUDED.config, updated_at=now() RETURNING *`);
+    res.json((result.rows || result as any)[0]);
+  }));
+
+  app.get("/api/v1/company/feedback", route(async (req, res) => {
+    const access = await companyAccess(req, res); if (!access) return;
+    const result = await db.execute(sql`SELECT f.*, COALESCE(NULLIF(trim(concat(u.first_name,' ',u.last_name)),''),u.email) user_name, COALESCE(NULLIF(trim(concat(s.first_name,' ',s.last_name)),''),s.email) staff_name FROM bridge_feedback f LEFT JOIN users u ON u.id=f.user_id LEFT JOIN users s ON s.id=f.staff_user_id WHERE f.company_id=${access.companyId} ORDER BY f.id DESC LIMIT 300`);
+    res.json(result.rows || result);
+  }));
+  app.post("/api/v1/company/feedback", route(async (req, res) => {
+    const user = await requireUser(req, res); if (!user) return; const companyId = requestedCompanyId(req); if (!companyId) return res.status(400).json({ message: "Company required" });
+    const category = String(req.body?.category || "service"); const message = String(req.body?.message || "").trim(); const rating = req.body?.rating ? Math.max(1, Math.min(5, Number(req.body.rating))) : null;
+    if (!["service", "staff", "improvement"].includes(category) || !message) return res.status(400).json({ message: "Choose a feedback type and enter your feedback" });
+    const result = await db.execute(sql`INSERT INTO bridge_feedback (company_id, branch_id, user_id, category, staff_user_id, rating, subject, message) VALUES (${companyId}, ${req.body?.branchId || null}, ${user.id}, ${category}, ${req.body?.staffUserId || null}, ${rating}, ${req.body?.subject || null}, ${message}) RETURNING *`);
+    if (category === "staff" && req.body?.staffUserId && rating) {
+      await db.insert(bridgeStaffReviews).values({ companyId, branchId: req.body?.branchId || null, staffUserId: req.body.staffUserId, customerUserId: user.id, rating, note: message, sentiment: rating >= 4 ? "positive" : rating <= 2 ? "negative" : "neutral" });
+    }
+    const managers = await db.select().from(bridgeCompanyMembers).where(and(eq(bridgeCompanyMembers.companyId, companyId), inArray(bridgeCompanyMembers.role, ["owner", "admin", "manager"])));
+    await sendBridgeXNotifications(companyId, managers.map(x => x.userId), { type: "feedback", title: `New ${category} feedback`, body: rating ? `${rating} stars · ${message.slice(0, 100)}` : message.slice(0, 120) });
+    res.status(201).json((result.rows || result as any)[0]);
   }));
 
   app.put("/api/v1/company/white-label", route(async (req, res) => {
@@ -384,10 +468,19 @@ export function registerBridgeXRoutes(app: Express) {
     res.json(result.rows || result);
   }));
 
+  app.get("/api/v1/company/users", route(async (req, res) => {
+    const access = await companyAccess(req, res, true); if (!access) return;
+    const q = `%${String(req.query.q || "").trim()}%`;
+    const result = await db.execute(sql`SELECT u.id, u.email, u.first_name, u.last_name, u.role, m.role company_role, m.position_id, m.branch_id FROM users u LEFT JOIN bridge_company_members m ON m.user_id=u.id AND m.company_id=${access.companyId} WHERE u.email ILIKE ${q} OR u.first_name ILIKE ${q} OR u.last_name ILIKE ${q} ORDER BY u.created_at DESC LIMIT 80`);
+    res.json(result.rows || result);
+  }));
+
   app.post("/api/v1/company/staff", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
-    const email = String(req.body?.email || "").trim(); if (!email) return res.status(400).json({ message: "Staff email required" });
-    const ensured = await ensureUser(email, req.body?.name || "Staff", req.body?.password);
+    const existingId = String(req.body?.userId || "").trim(); const email = String(req.body?.email || "").trim(); if (!existingId && !email) return res.status(400).json({ message: "Select a user or enter a staff email" });
+    const existing = existingId ? (await db.select().from(users).where(eq(users.id, existingId)).limit(1))[0] : null;
+    if (existingId && !existing) return res.status(404).json({ message: "User not found" });
+    const ensured = existing ? { user: existing, temporaryPassword: null } : await ensureUser(email, req.body?.name || "Staff", req.body?.password);
     await db.insert(bridgeCompanyMembers).values({ companyId: access.companyId, userId: ensured.user.id, branchId: req.body?.branchId || null, positionId: req.body?.positionId || null, role: req.body?.role || "staff" }).onConflictDoUpdate({ target: [bridgeCompanyMembers.companyId, bridgeCompanyMembers.userId], set: { branchId: req.body?.branchId || null, positionId: req.body?.positionId || null, role: req.body?.role || "staff", status: "active", updatedAt: new Date() } });
     await db.insert(bridgeStaffProfiles).values({ companyId: access.companyId, userId: ensured.user.id, branchId: req.body?.branchId || null, positionId: req.body?.positionId || null, employmentType: req.body?.employmentType || "full_time", payType: req.body?.payType || "salary", baseSalary: String(req.body?.baseSalary || 0), hourlyRate: String(req.body?.hourlyRate || 0), hireDate: req.body?.hireDate || null }).onConflictDoUpdate({ target: [bridgeStaffProfiles.companyId, bridgeStaffProfiles.userId], set: { branchId: req.body?.branchId || null, positionId: req.body?.positionId || null, employmentType: req.body?.employmentType || "full_time", payType: req.body?.payType || "salary", baseSalary: String(req.body?.baseSalary || 0), hourlyRate: String(req.body?.hourlyRate || 0), hireDate: req.body?.hireDate || null, updatedAt: new Date() } });
     res.status(201).json({ userId: ensured.user.id, temporaryPassword: ensured.temporaryPassword });
@@ -504,9 +597,10 @@ export function registerBridgeXRoutes(app: Express) {
   app.get("/api/v1/company/shifts", route(async (req, res) => { const access = await companyAccess(req, res); if (!access) return; const userId = MANAGEMENT_ROLES.has(access.role) ? (req.query.userId ? String(req.query.userId) : null) : access.user.id; const condition = userId ? and(eq(workerShifts.companyId, access.companyId), eq(workerShifts.userId, userId)) : eq(workerShifts.companyId, access.companyId); res.json(await db.select().from(workerShifts).where(condition).orderBy(desc(workerShifts.shiftDate)).limit(300)); }));
   app.post("/api/v1/company/shifts", route(async (req, res) => {
     const access = await companyAccess(req, res, true); if (!access) return;
-    if (!req.body?.userId || !req.body?.shiftDate || !req.body?.startTime || !req.body?.endTime) return res.status(400).json({ message: "Staff, date and times required" });
-    const [shift] = await db.insert(workerShifts).values({ companyId: access.companyId, branchId: req.body?.branchId || null, userId: req.body.userId, shiftDate: req.body.shiftDate, startTime: req.body.startTime, endTime: req.body.endTime, role: req.body?.role || null, note: req.body?.note || null, createdBy: access.user.id }).returning();
-    await sendBridgeXNotifications(access.companyId, [shift.userId], { type: "shift", title: "New work shift", body: `${shift.shiftDate}, ${shift.startTime}–${shift.endTime}`, data: { shiftId: shift.id } }); res.status(201).json(shift);
+    const dates: string[] = Array.from(new Set<string>((Array.isArray(req.body?.dates) ? req.body.dates : [req.body?.shiftDate]).map(String).filter(Boolean))).slice(0, 62);
+    if (!req.body?.userId || !dates.length || !req.body?.startTime || !req.body?.endTime) return res.status(400).json({ message: "Staff, at least one date and times required" });
+    const shifts = await db.insert(workerShifts).values(dates.map(shiftDate => ({ companyId: access.companyId, branchId: req.body?.branchId || null, userId: req.body.userId, shiftDate, startTime: req.body.startTime, endTime: req.body.endTime, role: req.body?.role || null, note: req.body?.note || null, createdBy: access.user.id }))).returning();
+    await sendBridgeXNotifications(access.companyId, [req.body.userId], { type: "shift", title: dates.length === 1 ? "New work shift" : `${dates.length} new work shifts`, body: `${dates[0]}${dates.length > 1 ? ` to ${dates[dates.length - 1]}` : ""}, ${req.body.startTime}–${req.body.endTime}`, data: { shiftIds: shifts.map(x => x.id) } }); res.status(201).json(shifts);
   }));
   app.get("/api/v1/company/leave", route(async (req, res) => { const access = await companyAccess(req, res); if (!access) return; const condition = MANAGEMENT_ROLES.has(access.role) ? eq(leaveRequests.companyId, access.companyId) : and(eq(leaveRequests.companyId, access.companyId), eq(leaveRequests.userId, access.user.id)); res.json(await db.select().from(leaveRequests).where(condition).orderBy(desc(leaveRequests.id)).limit(200)); }));
   app.post("/api/v1/company/leave", route(async (req, res) => {
