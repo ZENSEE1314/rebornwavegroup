@@ -94,9 +94,12 @@ app.use((req, res, next) => {
   registerRebornRoutes(app);
 
   // WhatsApp CRM bot + reminder scheduler (activates when WHATSAPP_* env vars are set)
-  registerWhatsAppBot(app);
-  // Resume a previously QR-linked WhatsApp Web session if one exists.
-  resumeWhatsAppWebIfLinked().catch(() => {});
+  const bridgeXPortalOnly = process.env.BRIDGEX_PORTAL_ONLY === "true";
+  if (!bridgeXPortalOnly) {
+    registerWhatsAppBot(app);
+    // Resume a previously QR-linked WhatsApp Web session if one exists.
+    resumeWhatsAppWebIfLinked().catch(() => {});
+  }
 
   // Background pet decay system - runs every 3 minutes
   const startBackgroundDecay = () => {
@@ -177,8 +180,10 @@ app.use((req, res, next) => {
   };
 
   // Start background decay system
-  startBackgroundDecay();
-  console.log("Background pet decay system started - runs every 3 minutes");
+  if (!bridgeXPortalOnly) {
+    startBackgroundDecay();
+    console.log("Background pet decay system started - runs every 3 minutes");
+  }
 
   // Background daily token distribution system - runs every 10 minutes
   const startDailyTokenDistribution = () => {
@@ -287,10 +292,12 @@ app.use((req, res, next) => {
   };
 
   // Start daily token distribution system
-  startDailyTokenDistribution();
-  console.log(
-    "Background daily token distribution started - runs every 10 minutes",
-  );
+  if (!bridgeXPortalOnly) {
+    startDailyTokenDistribution();
+    console.log(
+      "Background daily token distribution started - runs every 10 minutes",
+    );
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

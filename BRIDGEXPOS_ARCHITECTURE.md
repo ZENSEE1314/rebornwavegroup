@@ -4,6 +4,8 @@ BridgeXPOS is the platform brand. Reborn Wave Group is tenant one and keeps its 
 
 The public merchant surface lives at `/bridgexpos`, with merchant login at `/bridgexpos/login` and self-service application at `/bridgexpos/apply`. A BridgeXPOS hostname automatically uses that merchant landing page at `/`. The application creates the owner account, tenant, first branch, selected modules and a reviewable requirements record in one flow.
 
+The Railway merchant service runs with `BRIDGEX_PORTAL_ONLY=true`. It serves the tenant-aware API and website while leaving Reborn's WhatsApp integration, pet decay and token schedulers running only on the Reborn service.
+
 ## Isolation model
 
 Every tenant request uses an authenticated user plus `X-Company-Id`. The API checks `bridge_company_members` before reading or writing company data. Company managers can manage only companies where they have the `owner`, `admin` or `manager` role. Platform administrators are configured with `BRIDGEX_SUPER_ADMIN_EMAILS`.
