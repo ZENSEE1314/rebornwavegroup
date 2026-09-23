@@ -10,6 +10,8 @@ import { crmRecordVisit, whatsappConfigured, runReminders } from "./whatsappBot"
 import { getWaWebStatus, startWhatsAppWeb, logoutWhatsAppWeb } from "./whatsappWeb";
 import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from "./whatsappBot";
 import { generateLayaSupportReply } from "./layaAgent";
+import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
+import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -957,6 +959,12 @@ export function registerRebornRoutes(app: Express) {
         songId = song.id;
       }
       const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", status: "pending" }).returning();
+      await sendRebornStaffNotification({
+        type: "song_request",
+        title: "New app song request",
+        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""}`,
+        data: { path: "/reborn-admin", songRequestId: reqRow.id, source: "app" },
+      });
       res.json({ message: "Request sent! Staff will confirm it shortly.", request: reqRow });
     } catch (e) { console.error("song request", e); res.status(500).json({ message: "Request failed" }); }
   });
@@ -1079,6 +1087,13 @@ export function registerRebornRoutes(app: Express) {
     const comment = String(req.body?.comment || "").trim() || null;
     const [row] = await db.update(songRequests).set({ status: approve ? "confirmed" : "rejected", confirmedAt: new Date(), adminId, adminNote: comment }).where(eq(songRequests.id, Number(req.params.id))).returning();
     await logAdmin(req, { targetUserId: row?.userId, targetType: "song_request", targetId: req.params.id, action: approve ? "approve" : "reject", entityType: "song_request", description: `${approve ? "Confirmed" : "Rejected"} song "${row?.title}"${comment ? ` (${comment})` : ""}` });
+    await sendRebornUserNotification(row?.userId, {
+      type: "song_request_update",
+      title: approve ? "Song request confirmed" : "Song request update",
+      body: `${row?.title || "Your song"}${comment ? ` · ${comment}` : ""}`,
+      data: { path: "/songs", songRequestId: row?.id, status: row?.status },
+    });
+    emitLiveUpdate("/api/reborn/songs/my-requests", { action: approve ? "CONFIRMED" : "REJECTED" });
     res.json(row);
   }));
   app.post("/api/reborn/admin/songs", requireStaff(async (req, res) => {

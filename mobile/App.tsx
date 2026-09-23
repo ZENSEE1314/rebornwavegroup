@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   BackHandler,
   Image,
   Linking,
@@ -60,18 +61,65 @@ function RebornApp() {
     getPushToken().then(setPushToken).catch(() => undefined);
   }, []);
 
+  const refreshWebData = useCallback(() => {
+    webViewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new Event('bridgex:notification'));
+      window.dispatchEvent(new Event('online'));
+      true;
+    `);
+  }, []);
+
+  const openNotification = useCallback((data?: Record<string, unknown>) => {
+    const requestedPath = typeof data?.path === "string" ? data.path : "";
+    const safePath = requestedPath.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "";
+    webViewRef.current?.injectJavaScript(`
+      (function () {
+        window.dispatchEvent(new Event('bridgex:notification'));
+        ${safePath ? `if (location.pathname + location.search !== ${JSON.stringify(safePath)}) location.href = ${JSON.stringify(safePath)};` : ""}
+      })(); true;
+    `);
+  }, []);
+
+  useEffect(() => {
+    const received = Notifications.addNotificationReceivedListener(() => refreshWebData());
+    const responded = Notifications.addNotificationResponseReceivedListener((response) => {
+      openNotification(response.notification.request.content.data as Record<string, unknown>);
+    });
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) openNotification(response.notification.request.content.data as Record<string, unknown>);
+    }).catch(() => undefined);
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshWebData();
+    });
+    return () => {
+      received.remove();
+      responded.remove();
+      appState.remove();
+    };
+  }, [openNotification, refreshWebData]);
+
   const syncPushToken = useCallback(() => {
     if (!pushToken) return;
     const token = JSON.stringify(pushToken);
     const platform = JSON.stringify(Platform.OS);
     webViewRef.current?.injectJavaScript(`
       (function () {
-        var companyId = localStorage.getItem('bridgexCompanyId');
-        fetch('/api/v1/app/device-tokens', {
-          method: 'POST', credentials: 'include',
-          headers: Object.assign({'Content-Type':'application/json'}, companyId ? {'X-Company-Id':companyId} : {}),
-          body: JSON.stringify({expoPushToken:${token},platform:${platform},deviceId:'expo-app'})
-        }).catch(function () {});
+        if (window.__bridgeXPushTimer) clearInterval(window.__bridgeXPushTimer);
+        function registerPushToken() {
+          var companyId = localStorage.getItem('bridgexCompanyId');
+          fetch('/api/v1/app/device-tokens', {
+            method: 'POST', credentials: 'include',
+            headers: Object.assign({'Content-Type':'application/json'}, companyId ? {'X-Company-Id':companyId} : {}),
+            body: JSON.stringify({expoPushToken:${token},platform:${platform},deviceId:'expo-app'})
+          }).then(function (response) {
+            if (response.ok && window.__bridgeXPushTimer) {
+              clearInterval(window.__bridgeXPushTimer);
+              window.__bridgeXPushTimer = null;
+            }
+          }).catch(function () {});
+        }
+        registerPushToken();
+        window.__bridgeXPushTimer = setInterval(registerPushToken, 10000);
       })(); true;
     `);
   }, [pushToken]);

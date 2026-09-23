@@ -7,6 +7,7 @@ import { ensureBridgeXSchema, registerBridgeXRoutes } from "./bridgeX";
 import { registerWhatsAppBot } from "./whatsappBot";
 import { resumeWhatsAppWebIfLinked } from "./whatsappWeb";
 import { setupVite, serveStatic, log } from "./vite";
+import { emitLiveUpdate, installLiveMutationBroadcast, registerLiveUpdateRoute } from "./liveUpdates";
 
 const app = express();
 app.use(compression());
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+installLiveMutationBroadcast(app);
 
 // Global request logging for debugging star purchase issue
 app.use((req, res, next) => {
@@ -86,6 +88,8 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  registerLiveUpdateRoute(app);
+
   // BridgeXPOS uses the same authenticated session and seeds Reborn as tenant one.
   await ensureBridgeXSchema();
   registerBridgeXRoutes(app);
@@ -118,6 +122,7 @@ app.use((req, res, next) => {
           `🔄 Background decay check: Found ${allPets.length} active pets`,
         );
 
+        let changed = false;
         for (const pet of allPets) {
           const now = new Date();
           const lastDecayTime = pet.lastDecayTime
@@ -167,12 +172,14 @@ app.use((req, res, next) => {
                 updatedAt: now,
               })
               .where(eq(pets.id, pet.id));
+            changed = true;
 
             console.log(
               `Background decay applied to pet ${pet.name} (ID: ${pet.id}): ${decayIntervals} intervals (${decayAmount}% total decay)`,
             );
           }
         }
+        if (changed) emitLiveUpdate("/api/reborn/pets", { action: "BACKGROUND_UPDATE" });
       } catch (error) {
         console.error("Background decay error:", error);
       }
