@@ -18,6 +18,7 @@ import { crmContacts, crmMessages, bottleKeeps, users, appSettings, songRequests
 import { sendRebornStaffNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, bookingWhen, type BookingArea } from "./booking";
+import { searchSongCatalog, textPinyin, type SongSuggestion } from "./songSearch";
 
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
@@ -245,9 +246,29 @@ function L(lang: Lang, key: string, vars: Record<string, string> = {}): string {
       id: "🎤 Judul lagunya apa? (Mandarin atau pinyin — boleh keduanya)",
     },
     songAskArtist: {
-      en: "And the singer? (Chinese or pinyin — or both)",
-      zh: "歌手是谁？（中文或拼音都可以）",
-      id: "Penyanyinya siapa? (Mandarin atau pinyin — boleh keduanya)",
+      en: "Who is the singer? This is optional — reply - to skip.",
+      zh: "歌手是谁？可不填，回复 - 跳过。",
+      id: "Siapa penyanyinya? Boleh kosong — balas - untuk lewati.",
+    },
+    songPick: {
+      en: "I found these songs:\n{list}\n\nReply with the number, or 0 to enter the singer yourself.",
+      zh: "找到这些歌曲：\n{list}\n\n回复编号，或回复 0 自己填写歌手。",
+      id: "Saya menemukan lagu berikut:\n{list}\n\nBalas nomornya, atau 0 untuk isi penyanyi sendiri.",
+    },
+    songPickInvalid: {
+      en: "Please reply with a song number from the list, or 0 to enter it manually.",
+      zh: "请回复列表中的歌曲编号，或回复 0 手动填写。",
+      id: "Balas dengan nomor lagu dari daftar, atau 0 untuk isi manual.",
+    },
+    songAskMode: {
+      en: "How should it be performed?\n1. Self sing\n2. By singer",
+      zh: "请选择演唱方式：\n1. 自己唱\n2. 歌手演唱",
+      id: "Pilih cara tampil:\n1. Nyanyi sendiri\n2. Dinyanyikan penyanyi",
+    },
+    songModeInvalid: {
+      en: "Reply 1 for Self sing or 2 for By singer.",
+      zh: "回复 1 自己唱，或 2 歌手演唱。",
+      id: "Balas 1 untuk nyanyi sendiri atau 2 untuk dinyanyikan penyanyi.",
     },
     bottlesList: {
       en: "🍾 Your kept bottles ({n}):\n{list}",
@@ -722,32 +743,101 @@ async function bookingStep(c: Contact, lang: Lang, from: string, body: string, w
 
 async function songStep(c: Contact, lang: Lang, from: string, body: string, wa: any, say: (m: string) => Promise<void>) {
   if (!c.userId) { await say(L(lang, "bookNeedAcct")); return patchContact(c.id, { stage: "await_name", waState: { flow: null } }); }
-  // Step 1: song name.
-  if (wa.step !== "artist") {
+  if (wa.step === "name") {
     const title = body.trim();
     if (!title) { await say(L(lang, "songAskName")); return; }
+    const result = await searchSongCatalog(title, 8);
+    if (result.songs.length) {
+      const list = result.songs.map((song, index) => `${index + 1}. ${song.title}${song.artist ? ` — ${song.artist}` : ""}${song.titlePinyin ? ` (${song.titlePinyin})` : ""}`).join("\n");
+      await say(L(lang, "songPick", { list }));
+      return patchContact(c.id, { waState: { flow: "song", step: "pick", songTitle: title, candidates: result.songs } });
+    }
     await say(L(lang, "songAskArtist"));
     return patchContact(c.id, { waState: { flow: "song", step: "artist", songTitle: title } });
   }
-  // Step 2: singer → save to the app hit-song list (dedup) + this member's requests.
-  const title = String(wa.songTitle || "").trim();
-  const artist = body.trim() === "-" ? "" : body.trim();
+
+  if (wa.step === "pick") {
+    const selected = Number((body.match(/\d+/) || [])[0] || -1);
+    if (selected === 0) {
+      await say(L(lang, "songAskArtist"));
+      return patchContact(c.id, { waState: { flow: "song", step: "artist", songTitle: wa.songTitle } });
+    }
+    const song = Array.isArray(wa.candidates) ? wa.candidates[selected - 1] as SongSuggestion | undefined : undefined;
+    if (!song) { await say(L(lang, "songPickInvalid")); return; }
+    if ((await settingVal("songRequestModeEnabled")) !== "false") {
+      await say(L(lang, "songAskMode"));
+      return patchContact(c.id, { waState: { flow: "song", step: "mode", song } });
+    }
+    await finishWhatsAppSongRequest(c, lang, song, "self", say);
+    return;
+  }
+
+  if (wa.step === "artist") {
+    const title = String(wa.songTitle || "").trim();
+    const artist = body.trim() === "-" ? "" : body.trim();
+    const song: SongSuggestion = { source: "library", title, titlePinyin: textPinyin(title), artist, artistPinyin: textPinyin(artist) };
+    if ((await settingVal("songRequestModeEnabled")) !== "false") {
+      await say(L(lang, "songAskMode"));
+      return patchContact(c.id, { waState: { flow: "song", step: "mode", song } });
+    }
+    await finishWhatsAppSongRequest(c, lang, song, "self", say);
+    return;
+  }
+
+  if (wa.step === "mode") {
+    const normalized = body.trim().toLowerCase();
+    const performanceMode = /^(2|singer|by singer|歌手|penyanyi)/i.test(normalized) ? "singer" : /^(1|self|self sing|自己|sendiri)/i.test(normalized) ? "self" : "";
+    if (!performanceMode) { await say(L(lang, "songModeInvalid")); return; }
+    await finishWhatsAppSongRequest(c, lang, wa.song as SongSuggestion, performanceMode, say);
+    return;
+  }
+
+  await say(L(lang, "songAskName"));
+  return patchContact(c.id, { waState: { flow: "song", step: "name" } });
+}
+
+async function finishWhatsAppSongRequest(c: Contact, lang: Lang, selected: SongSuggestion, performanceMode: "self" | "singer", say: (m: string) => Promise<void>) {
+  const title = String(selected?.title || "").trim();
+  const artist = String(selected?.artist || "").trim();
   let songId: number | undefined;
   try {
-    const [existing] = await db.select().from(songs).where(ilike(songs.title, title)).limit(1);
-    if (existing) songId = existing.id;
-    else { const [s] = await db.insert(songs).values({ title, artist, createdBy: c.userId }).returning(); songId = s.id; }
+    if (selected?.id && selected.source === "library") {
+      const [existing] = await db.select().from(songs).where(eq(songs.id, selected.id)).limit(1);
+      if (existing) {
+        songId = existing.id;
+        await db.update(songs).set({ requestCount: (existing.requestCount || 0) + 1 }).where(eq(songs.id, existing.id));
+      }
+    }
+    if (!songId) {
+      const [existing] = await db.select().from(songs).where(and(ilike(songs.title, title), artist ? ilike(songs.artist, artist) : ilike(songs.artist, ""))).limit(1);
+      if (existing) {
+        songId = existing.id;
+        await db.update(songs).set({ requestCount: (existing.requestCount || 0) + 1 }).where(eq(songs.id, existing.id));
+      } else {
+        const [saved] = await db.insert(songs).values({
+          title,
+          titlePinyin: selected.titlePinyin || textPinyin(title),
+          artist,
+          artistPinyin: selected.artistPinyin || textPinyin(artist),
+          spotifyUrl: selected.spotifyUrl || null,
+          artistPhoto: selected.artistPhoto || null,
+          requestCount: 1,
+          createdBy: c.userId,
+        }).returning();
+        songId = saved.id;
+      }
+    }
   } catch (e) { console.error("[wa] song upsert", e); }
-  await db.insert(songRequests).values({ userId: c.userId, songId, title, artist, status: "pending" });
+  await db.insert(songRequests).values({ userId: c.userId!, songId, title, artist, performanceMode, status: "pending" });
   emitLiveUpdate("/api/reborn/admin/song-requests", { action: "WHATSAPP_SONG_REQUEST" });
   await sendRebornStaffNotification({
     type: "song_request",
     title: "New WhatsApp song request",
-    body: `${c.name || "Guest"}: ${title}${artist ? ` - ${artist}` : ""}`,
+    body: `${c.name || "Guest"}: ${title}${artist ? ` - ${artist}` : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`,
     data: { path: "/reborn-admin", source: "whatsapp" },
   });
   await say(L(lang, "songDone", { title, artist: artist ? ` - ${artist}` : "" }));
-  await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""}`);
+  await notifyAdmin(`🎤 WhatsApp song request from ${c.name || c.phone}: ${title}${artist ? " - " + artist : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`);
   return patchContact(c.id, { waState: { flow: null } });
 }
 
