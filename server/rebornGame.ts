@@ -12,6 +12,7 @@ import { sendAdminMessage, sendReviewRequest, notifyAdmins, sendWhatsApp } from 
 import { generateLayaSupportReply } from "./layaAgent";
 import { sendRebornStaffNotification, sendRebornUserNotification } from "./bridgeX";
 import { emitLiveUpdate } from "./liveUpdates";
+import { searchSongCatalog, textPinyin } from "./songSearch";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -937,6 +938,15 @@ export function registerRebornRoutes(app: Express) {
     } catch (e) { console.error("songs", e); res.status(500).json({ message: "Failed to load songs" }); }
   });
 
+  app.get("/api/reborn/songs/search", requireAuth, async (req, res) => {
+    try {
+      res.json(await searchSongCatalog(req.query.q, 10));
+    } catch (e) {
+      console.error("song search", e);
+      res.status(500).json({ message: "Song search failed" });
+    }
+  });
+
   app.post("/api/reborn/songs/request", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
@@ -953,17 +963,22 @@ export function registerRebornRoutes(app: Express) {
         title = String(title || "").trim();
         if (!title && titlePinyin) title = String(titlePinyin).trim();
         if (!title) return res.status(400).json({ message: "Enter the song name" });
-        // Don't duplicate: reuse an existing song matching the title or its pinyin.
-        const tp = String(titlePinyin || "").trim();
+        // Don't duplicate: reuse only the same title + singer. Different covers remain selectable.
+        const cleanArtist = String(artist || "").trim();
+        const tp = String(titlePinyin || "").trim() || textPinyin(title);
+        const ap = String(artistPinyin || "").trim() || textPinyin(cleanArtist);
         const existing = await db.select().from(songs).where(
-          or(ilike(songs.title, title), tp ? ilike(songs.titlePinyin, tp) : ilike(songs.title, title))
+          and(
+            or(ilike(songs.title, title), tp ? ilike(songs.titlePinyin, tp) : ilike(songs.title, title)),
+            cleanArtist ? ilike(songs.artist, cleanArtist) : ilike(songs.artist, ""),
+          )
         ).limit(1);
         if (existing[0]) {
           song = existing[0];
           await db.update(songs).set({ requestCount: (song.requestCount || 0) + 1 }).where(eq(songs.id, song.id));
         } else {
           [song] = await db.insert(songs).values({
-            title, titlePinyin: tp, artist: String(artist || "").trim(), artistPinyin: String(artistPinyin || "").trim(),
+            title, titlePinyin: tp, artist: cleanArtist, artistPinyin: ap,
             spotifyUrl: spotifyUrl || null, artistPhoto: artistPhoto || null, isHit: false, requestCount: 1, createdBy: userId,
           }).returning();
         }
