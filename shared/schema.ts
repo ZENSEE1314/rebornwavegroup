@@ -162,6 +162,8 @@ export const bridgeStaffProfiles = pgTable("bridge_staff_profiles", {
   payType: varchar("pay_type").notNull().default("salary"), // salary | hourly
   baseSalary: decimal("base_salary", { precision: 14, scale: 2 }).default("0").notNull(),
   hourlyRate: decimal("hourly_rate", { precision: 14, scale: 2 }).default("0").notNull(),
+  commissionRate: decimal("commission_rate", { precision: 6, scale: 2 }).default("0").notNull(),
+  salesTarget: decimal("sales_target", { precision: 14, scale: 2 }).default("0").notNull(),
   hireDate: varchar("hire_date"),
   status: varchar("status").notNull().default("active"),
   rankingScore: decimal("ranking_score", { precision: 10, scale: 2 }).default("0").notNull(),
@@ -835,6 +837,12 @@ export const posTickets = pgTable("pos_tickets", {
   orderMode: varchar("order_mode").default("dine_in"), // 'dine_in' | 'take_away'
   paymentMethod: varchar("payment_method"), // 'cash' | 'card'
   paymentReference: varchar("payment_reference"), // card approval / terminal receipt number
+  cashReceived: decimal("cash_received", { precision: 10, scale: 2 }),
+  changeGiven: decimal("change_given", { precision: 10, scale: 2 }),
+  adjustmentReason: text("adjustment_reason"),
+  refundReason: text("refund_reason"),
+  refundedBy: varchar("refunded_by"),
+  refundedAt: timestamp("refunded_at"),
   pointsEarned: integer("points_earned").default(0).notNull(),
   staffId: varchar("staff_id"),
   salesStaffId: varchar("sales_staff_id"),   // staff credited with the sale (commission)
@@ -864,7 +872,7 @@ export const bottleKeeps = pgTable("bottle_keeps", {
   userId: varchar("user_id"),
   memberName: varchar("member_name"),
   memberCode: varchar("member_code"),
-  type: varchar("type").default("beer").notNull(), // 'beer' | 'whisky' | 'other'
+  type: varchar("type").default("beer").notNull(), // 'beer' | 'wine' | 'whisky' | 'other'
   name: varchar("name").notNull(),
   quantity: integer("quantity").default(1).notNull(), // bottles left
   photoUrl: varchar("photo_url"),                     // whisky: photo of remaining level

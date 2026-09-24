@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins } from "lucide-react";
 
 const ANIM_CSS = `
@@ -23,6 +24,7 @@ function Avatar({ u }: any) {
 }
 
 export default function RebornKos() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [q, setQ] = useState("");
@@ -98,8 +100,7 @@ export default function RebornKos() {
             <span className={`w-7 text-center font-extrabold ${i === 0 ? "text-amber-300" : i === 1 ? "text-slate-300" : i === 2 ? "text-orange-400" : "text-white/40"}`}>{i + 1}</span>
             <Avatar u={u} />
             <div className="flex-1 min-w-0"><p className="font-semibold truncate">{nameOf(u)}</p><p className="text-xs text-amber-300">🪙 {fmt(u.stars)}</p></div>
-            <button onClick={() => addFriend.mutate(u.id)} title="Add friend" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white"><UserPlus className="w-4 h-4" /></button>
-            <button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>Gift</button>
+            {u.id === (user as any)?.id ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/60">You</span> : <><button onClick={() => addFriend.mutate(u.id)} title="Add friend" aria-label={`Add ${nameOf(u)} as friend`} className="w-11 h-11 rounded-full bg-amber-400 border border-amber-200 shadow-lg flex items-center justify-center text-black"><UserPlus className="w-5 h-5" /></button><button onClick={() => setTarget(u)} className="px-4 py-2 rounded-full text-sm font-bold text-black" style={{ background: "linear-gradient(90deg,#ec4899,#c9a84c)" }}>Gift</button></>}
           </div>
         ))}
       </div>
