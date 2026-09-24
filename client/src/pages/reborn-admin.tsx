@@ -372,6 +372,9 @@ function Settings() {
       </Card>
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> Reviews & referral</h3>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Business address (sent automatically when someone asks on WhatsApp)</span><textarea value={cur.businessAddress || ""} onChange={(e) => setStr("businessAddress", e.target.value)} placeholder="Full business address" className={inp + " min-h-20 w-full"} /></label>
+        <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Google Maps pin link (optional)</span><input value={cur.businessMapUrl || ""} onChange={(e) => setStr("businessMapUrl", e.target.value)} placeholder="https://maps.app.goo.gl/..." className={inp + " w-full"} /></label>
+        <p className="mb-3 text-[11px] text-white/40">If the map link is empty, WhatsApp creates a Google Maps pin from the address above.</p>
         <label className="block mb-3"><span className="text-xs text-white/60 block mb-1">Google review link (sent on WhatsApp after payment)</span><input value={cur.googleReviewUrl || ""} onChange={(e) => setStr("googleReviewUrl", e.target.value)} placeholder="https://g.page/r/..." className={inp + " w-full"} /></label>
         <label className="block"><span className="text-xs text-white/60 block mb-1">House referral account — user ID that owns un-referred signups (commission)</span><input value={cur.houseReferralUserId || ""} onChange={(e) => setStr("houseReferralUserId", e.target.value)} placeholder="e.g. your admin user id" className={inp + " w-full"} /></label>
         <p className="text-[11px] text-white/40 mt-1">Signups from the website or WhatsApp with no referral code are credited to this account.</p>
