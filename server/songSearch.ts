@@ -5,13 +5,14 @@ import { songs } from "@shared/schema";
 
 export type SongSuggestion = {
   id?: number;
-  source: "library" | "spotify";
+  source: "library" | "spotify" | "musicbrainz";
   externalId?: string;
   title: string;
   titlePinyin: string;
   artist: string;
   artistPinyin: string;
   spotifyUrl?: string | null;
+  catalogUrl?: string | null;
   artistPhoto?: string | null;
   isHit?: boolean | null;
   requestCount?: number | null;
@@ -19,6 +20,10 @@ export type SongSuggestion = {
 
 let spotifyToken = "";
 let spotifyTokenExpiresAt = 0;
+const musicBrainzCache = new Map<string, { expiresAt: number; rows: SongSuggestion[] }>();
+const musicBrainzInflight = new Map<string, Promise<SongSuggestion[]>>();
+let musicBrainzLastRequestAt = 0;
+let musicBrainzQueue: Promise<unknown> = Promise.resolve();
 
 export function textPinyin(value: unknown): string {
   const text = String(value || "").trim();
@@ -73,9 +78,61 @@ async function searchSpotify(query: string, limit: number): Promise<SongSuggesti
   }).filter((row: SongSuggestion) => row.title);
 }
 
-export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<{ songs: SongSuggestion[]; spotifyConnected: boolean }> {
+function musicBrainzArtist(credits: any[]): string {
+  return (credits || []).map((credit) => `${credit?.name || credit?.artist?.name || ""}${credit?.joinphrase || ""}`).join("").trim();
+}
+
+async function musicBrainzRequest(query: string, limit: number): Promise<SongSuggestion[]> {
+  const waitMs = Math.max(0, 1_100 - (Date.now() - musicBrainzLastRequestAt));
+  if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  const params = new URLSearchParams({ query, fmt: "json", limit: String(Math.min(10, limit)) });
+  try {
+    const response = await fetch(`https://musicbrainz.org/ws/2/recording/?${params}`, {
+      headers: { "User-Agent": process.env.MUSICBRAINZ_USER_AGENT || "BridgeXPOS/1.0 (https://rebornwave.group)" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`MusicBrainz search failed (${response.status})`);
+    const body = await response.json() as any;
+    return (body?.recordings || []).map((recording: any) => {
+      const title = String(recording?.title || "").trim();
+      const artist = musicBrainzArtist(recording?.["artist-credit"] || []);
+      return {
+        source: "musicbrainz" as const,
+        externalId: recording?.id,
+        title,
+        titlePinyin: textPinyin(title),
+        artist,
+        artistPinyin: textPinyin(artist),
+        catalogUrl: recording?.id ? `https://musicbrainz.org/recording/${recording.id}` : null,
+      };
+    }).filter((row: SongSuggestion) => row.title);
+  } finally {
+    musicBrainzLastRequestAt = Date.now();
+  }
+}
+
+async function searchMusicBrainz(query: string, limit: number): Promise<SongSuggestion[]> {
+  const key = `${query.toLocaleLowerCase()}|${limit}`;
+  const cached = musicBrainzCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.rows;
+  const current = musicBrainzInflight.get(key);
+  if (current) return current;
+  const request = musicBrainzQueue.then(() => musicBrainzRequest(query, limit)) as Promise<SongSuggestion[]>;
+  musicBrainzQueue = request.then(() => undefined, () => undefined);
+  musicBrainzInflight.set(key, request);
+  try {
+    const rows = await request;
+    musicBrainzCache.set(key, { expiresAt: Date.now() + 60 * 60 * 1000, rows });
+    if (musicBrainzCache.size > 500) musicBrainzCache.delete(musicBrainzCache.keys().next().value!);
+    return rows;
+  } finally {
+    musicBrainzInflight.delete(key);
+  }
+}
+
+export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<{ songs: SongSuggestion[]; spotifyConnected: boolean; freeCatalogConnected: boolean }> {
   const query = String(rawQuery || "").trim().slice(0, 120);
-  if (!query) return { songs: [], spotifyConnected: spotifySearchConfigured() };
+  if (!query) return { songs: [], spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
   const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
   const local = await db.select().from(songs).where(or(
     ilike(songs.title, pattern),
@@ -89,8 +146,12 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
     try { remote = await searchSpotify(query, limit); }
     catch (error) { console.error("[spotify] search", error); }
   }
+  let freeCatalog: SongSuggestion[] = [];
+  try { freeCatalog = await searchMusicBrainz(query, limit); }
+  catch (error) { console.error("[musicbrainz] search", error); }
   const combined: SongSuggestion[] = [
     ...remote,
+    ...freeCatalog,
     ...local.map((row): SongSuggestion => ({
       id: row.id,
       source: "library",
@@ -111,5 +172,5 @@ export async function searchSongCatalog(rawQuery: unknown, limit = 10): Promise<
     seen.add(key);
     return true;
   }).slice(0, limit);
-  return { songs: deduped, spotifyConnected: spotifySearchConfigured() };
+  return { songs: deduped, spotifyConnected: spotifySearchConfigured(), freeCatalogConnected: true };
 }
