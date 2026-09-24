@@ -212,6 +212,8 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS bridge_feedback (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer, user_id varchar, category varchar NOT NULL, staff_user_id varchar, rating integer CHECK (rating BETWEEN 1 AND 5), subject varchar, message text NOT NULL, status varchar NOT NULL DEFAULT 'new', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_company_settings (company_id integer PRIMARY KEY, config jsonb NOT NULL DEFAULT '{}', updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS branch_id integer;
+    ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_name varchar; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_address text; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS supplier_phone varchar;
+    ALTER TABLE song_requests ADD COLUMN IF NOT EXISTS performance_mode varchar NOT NULL DEFAULT 'self';
     ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_tickets ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS branch_id integer;
     ALTER TABLE ledger_entries ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE ledger_entries ADD COLUMN IF NOT EXISTS branch_id integer;

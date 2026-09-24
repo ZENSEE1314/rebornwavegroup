@@ -73,17 +73,29 @@ function kitchenHtml(o: Order) {
   `;
 }
 
-function printDoc(inner: string) {
-  const w = window.open("", "_blank", "width=380,height=640");
-  if (!w) { alert("Allow pop-ups to print receipts."); return; }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title><style>${CSS}</style></head><body>${inner}<script>window.onload=function(){window.print();setTimeout(function(){window.close();},300);};<\/script></body></html>`);
-  w.document.close();
+function printDoc(inner: string): boolean {
+  if (/Android|iPhone|iPad|iPod|; wv\)/i.test(navigator.userAgent)) return false;
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  if (!doc) { frame.remove(); return false; }
+  doc.open();
+  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title><style>${CSS}</style></head><body>${inner}</body></html>`);
+  doc.close();
+  frame.onload = () => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    window.setTimeout(() => frame.remove(), 3000);
+  };
+  return true;
 }
 
 // Prints a merchant copy + customer copy in one job.
 export function printReceipt(order: Order, meta: ReceiptMeta) {
-  printDoc(receiptHtml(order, meta, "MERCHANT COPY") + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, "CUSTOMER COPY"));
+  return printDoc(receiptHtml(order, meta, "MERCHANT COPY") + `<div style="page-break-after:always;height:8mm;"></div>` + receiptHtml(order, meta, "CUSTOMER COPY"));
 }
 export function printKitchen(order: Order) {
-  printDoc(kitchenHtml(order));
+  return printDoc(kitchenHtml(order));
 }
