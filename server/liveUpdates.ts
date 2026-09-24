@@ -4,6 +4,8 @@ import { getUserId } from "./multiAuth";
 type LivePayload = {
   resource?: string;
   action?: string;
+  type?: string;
+  userId?: string;
   at?: number;
 };
 

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star, QrCode } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import { printReceipt } from "@/lib/receipt";
 
 // Tabs staff (sub-admin) can use; the rest are full-admin only
 const STAFF_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Users", "Staff", "Leaderboard", "Feedback"] as const;
-const ADMIN_TABS = ["Overview", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
+const ADMIN_TABS = ["Overview", "Venue", "Bookings", "Requests", "Redemptions", "Bottles", "Top-ups", "Codes", "Pills", "Songs", "Events", "Broadcast", "CRM", "Users", "Staff", "Payroll", "Leaderboard", "Feedback", "Products", "Inventory", "Accounting", "Prizes", "Gifts", "FAQ", "Settings", "Logs"] as const;
 
 export default function RebornAdmin() {
   const { user } = useAuth();
@@ -27,6 +27,7 @@ export default function RebornAdmin() {
         ))}
       </div>
       {tab === "Overview" && <Overview onGo={setTab} />}
+      {tab === "Venue" && <VenueSession />}
       {tab === "Bookings" && <AdminBookings />}
       {tab === "Bottles" && <AdminBottles />}
       {tab === "Codes" && <Codes />}
@@ -88,7 +89,31 @@ const TAB_ICON: Record<string, JSX.Element> = {
   Settings: <SettingsIcon className="w-4 h-4" />, Logs: <ScrollText className="w-4 h-4" />,
   Inventory: <Boxes className="w-4 h-4" />, CRM: <Contact className="w-4 h-4" />, Bookings: <CalendarDays className="w-4 h-4" />, Bottles: <Wine className="w-4 h-4" />,
   Staff: <Clock className="w-4 h-4" />, Payroll: <Calculator className="w-4 h-4" />, Leaderboard: <Sparkles className="w-4 h-4" />, Feedback: <MessageCircle className="w-4 h-4" />,
+  Venue: <QrCode className="w-4 h-4" />,
 };
+
+function VenueSession() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data } = useQuery<any>({ queryKey: ["/api/reborn/admin/venue/session"], queryFn: () => apiRequest("GET", "/api/reborn/admin/venue/session").then((r) => r.json()), refetchInterval: 5000 });
+  const close = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/reborn/admin/venue/close", {}).then((r) => r.json()),
+    onSuccess: (d) => { toast({ title: "Venue closed", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/admin/venue/session"] }); },
+  });
+  return <Card>
+    <h3 className="font-bold text-lg flex items-center gap-2"><QrCode className="w-5 h-5 text-amber-300" /> Daily venue check-in</h3>
+    <p className="text-sm text-white/55 mt-1 mb-4">Show this QR at the entrance. Checked-in members appear in Kings of Singers and can receive gifts.</p>
+    <div className="grid sm:grid-cols-[minmax(220px,360px)_1fr] gap-5 items-center">
+      <div className="bg-white rounded-2xl p-3"><img src={`/api/reborn/admin/venue/qr?v=${encodeURIComponent(data?.code || "")}`} alt="Daily venue check-in QR" className="w-full aspect-square" /></div>
+      <div>
+        <p className="text-xs text-white/45">Today</p><p className="font-bold text-xl">{data?.day || "—"}</p>
+        <p className="text-xs text-white/45 mt-3">Checked in now</p><p className="font-extrabold text-4xl text-amber-300">{data?.count ?? 0}</p>
+        <p className="text-xs text-white/45 mt-3">QR code</p><p className="font-mono tracking-[0.25em] font-bold">{data?.code || "—"}</p>
+        <button onClick={() => { if (confirm("Close the venue day, clear every checked-in member and create a new QR?")) close.mutate(); }} disabled={close.isPending} className="mt-5 w-full py-3 rounded-xl border border-red-400/40 bg-red-500/10 text-red-200 font-bold disabled:opacity-50">Close POS day & clear guests</button>
+      </div>
+    </div>
+  </Card>;
+}
 
 function Overview({ onGo }: { onGo: (tab: string) => void }) {
   const { user } = useAuth();

@@ -233,6 +233,31 @@ export const bridgeNotifications = pgTable("bridge_notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const venueCheckins = pgTable("venue_checkins", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: varchar("user_id").notNull(),
+  venueDay: varchar("venue_day").notNull(),
+  sessionCode: varchar("session_code").notNull(),
+  checkedInAt: timestamp("checked_in_at").defaultNow().notNull(),
+  checkedOutAt: timestamp("checked_out_at"),
+}, (table) => [
+  uniqueIndex("venue_checkin_day_user").on(table.venueDay, table.userId),
+  index("venue_checkin_session_active").on(table.venueDay, table.sessionCode, table.checkedOutAt),
+]);
+
+export const memberWalletTransactions = pgTable("member_wallet_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type").notNull(),
+  rpAmount: decimal("rp_amount", { precision: 14, scale: 2 }).default("0").notNull(),
+  kgoldAmount: integer("kgold_amount").default(0).notNull(),
+  description: text("description").notNull(),
+  referenceType: varchar("reference_type"),
+  referenceId: varchar("reference_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [index("member_wallet_user_created").on(table.userId, table.createdAt)]);
+
 // Referrals tracking table
 export const referrals = pgTable("referrals", {
   id: serial("id").primaryKey(),

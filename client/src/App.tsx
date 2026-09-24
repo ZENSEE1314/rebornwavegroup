@@ -87,6 +87,7 @@ const RebornOrder          = lazy(() => import("@/pages/reborn-order"));
 const RebornPos            = lazy(() => import("@/pages/reborn-pos"));
 const RebornProfile        = lazy(() => import("@/pages/reborn-profile"));
 const RebornBottles        = lazy(() => import("@/pages/reborn-bottles"));
+const RebornHistory        = lazy(() => import("@/pages/reborn-history"));
 const BridgeXAdmin         = lazy(() => import("@/pages/bridgex-admin"));
 const StaffFeedback        = lazy(() => import("@/pages/staff-feedback"));
 const BridgeXLanding       = lazy(() => import("@/pages/bridgex-landing"));
@@ -247,6 +248,7 @@ function Router() {
             <Route path="/loyalty-program" component={LoyaltyProgram} />
             <Route path="/seasonal-collections" component={SimpleCollections} />
             <Route path="/profile" component={RebornProfile} />
+            <Route path="/history" component={RebornHistory} />
             <Route path="/profile-legacy" component={Profile} />
             <Route path="/checkout" component={Checkout} />
             <Route path="/payment-success" component={PaymentSuccess} />

@@ -155,14 +155,28 @@ async function createCompany(req: Request, ownerUserId: string, body: any) {
 export async function sendBridgeXNotifications(companyId: number, userIds: string[], payload: { type: string; title: string; body: string; data?: Record<string, unknown> }) {
   const targets = Array.from(new Set(userIds.filter(Boolean)));
   if (!targets.length) return;
-  await db.insert(bridgeNotifications).values(targets.map((userId) => ({ companyId, userId, type: payload.type, title: payload.title, body: payload.body, data: payload.data || {} })));
+  const notices = await db.insert(bridgeNotifications).values(targets.map((userId) => ({ companyId, userId, type: payload.type, title: payload.title, body: payload.body, data: payload.data || {} }))).returning();
   const tokens = await db.select().from(bridgeDeviceTokens).where(and(inArray(bridgeDeviceTokens.userId, targets), eq(bridgeDeviceTokens.active, true)));
-  if (!tokens.length) return;
-  const messages = tokens.map((token) => ({ to: token.expoPushToken, sound: "default", title: payload.title, body: payload.body, data: { type: payload.type, companyId, ...(payload.data || {}) } }));
+  if (!tokens.length) {
+    await db.update(bridgeNotifications).set({ pushStatus: "no_device" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
+    return;
+  }
+  const messages = tokens.map((token) => ({ to: token.expoPushToken, sound: "default", priority: "high", channelId: "bridgex", title: payload.title, body: payload.body, data: { type: payload.type, companyId, ...(payload.data || {}) } }));
   try {
-    const response = await fetch("https://exp.host/--/api/v2/push/send", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(messages) });
-    if (!response.ok) console.warn("Expo push rejected", response.status, await response.text());
-  } catch (error) { console.warn("Expo push unavailable", error); }
+    const tickets: any[] = [];
+    for (let start = 0; start < messages.length; start += 100) {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(messages.slice(start, start + 100)) });
+      if (!response.ok) throw new Error(`Expo push rejected ${response.status}: ${await response.text()}`);
+      const result: any = await response.json();
+      tickets.push(...(Array.isArray(result?.data) ? result.data : [result?.data]));
+    }
+    const invalid = tokens.filter((_, index) => tickets[index]?.details?.error === "DeviceNotRegistered");
+    if (invalid.length) await db.update(bridgeDeviceTokens).set({ active: false, updatedAt: new Date() }).where(inArray(bridgeDeviceTokens.id, invalid.map((token) => token.id)));
+    await db.update(bridgeNotifications).set({ pushStatus: tickets.some((ticket: any) => ticket?.status === "ok") ? "sent" : "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
+  } catch (error) {
+    await db.update(bridgeNotifications).set({ pushStatus: "failed" }).where(inArray(bridgeNotifications.id, notices.map((notice) => notice.id)));
+    console.warn("Expo push unavailable", error);
+  }
 }
 
 const liveCompanyClients = new Map<number, Set<Response>>();
@@ -217,6 +231,10 @@ export async function ensureBridgeXSchema() {
     CREATE TABLE IF NOT EXISTS bridge_meetings (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer, title varchar NOT NULL, agenda text, starts_at timestamp NOT NULL, location varchar, status varchar NOT NULL DEFAULT 'scheduled', created_by varchar NOT NULL, created_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_device_tokens (id serial PRIMARY KEY, user_id varchar NOT NULL, company_id integer, expo_push_token text UNIQUE NOT NULL, platform varchar NOT NULL, device_id varchar, active boolean NOT NULL DEFAULT true, updated_at timestamp NOT NULL DEFAULT now(), created_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_notifications (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, type varchar NOT NULL, title varchar NOT NULL, body text NOT NULL, data jsonb NOT NULL DEFAULT '{}', push_status varchar NOT NULL DEFAULT 'pending', read_at timestamp, created_at timestamp NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS venue_checkins (id serial PRIMARY KEY, company_id integer, user_id varchar NOT NULL, venue_day varchar NOT NULL, session_code varchar NOT NULL, checked_in_at timestamp NOT NULL DEFAULT now(), checked_out_at timestamp, UNIQUE(venue_day,user_id));
+    CREATE TABLE IF NOT EXISTS member_wallet_transactions (id serial PRIMARY KEY, user_id varchar NOT NULL, type varchar NOT NULL, rp_amount numeric(14,2) NOT NULL DEFAULT 0, kgold_amount integer NOT NULL DEFAULT 0, description text NOT NULL, reference_type varchar, reference_id varchar, created_at timestamp NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS venue_checkin_session_active ON venue_checkins(venue_day,session_code,checked_out_at);
+    CREATE INDEX IF NOT EXISTS member_wallet_user_created ON member_wallet_transactions(user_id,created_at);
     CREATE TABLE IF NOT EXISTS bridge_feedback (id serial PRIMARY KEY, company_id integer NOT NULL, branch_id integer, user_id varchar, category varchar NOT NULL, staff_user_id varchar, rating integer CHECK (rating BETWEEN 1 AND 5), subject varchar, message text NOT NULL, status varchar NOT NULL DEFAULT 'new', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
     CREATE TABLE IF NOT EXISTS bridge_company_settings (company_id integer PRIMARY KEY, config jsonb NOT NULL DEFAULT '{}', updated_at timestamp NOT NULL DEFAULT now());
     ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS company_id integer; ALTER TABLE pos_products ADD COLUMN IF NOT EXISTS branch_id integer;
@@ -651,6 +669,16 @@ export function registerBridgeXRoutes(app: Express) {
     const token = String(req.body?.expoPushToken || ""); if (!/^(ExponentPushToken|ExpoPushToken)/.test(token)) return res.status(400).json({ message: "Valid Expo push token required" });
     const [row] = await db.insert(bridgeDeviceTokens).values({ userId: user.id, companyId: requestedCompanyId(req), expoPushToken: token, platform: req.body?.platform || "unknown", deviceId: req.body?.deviceId || null }).onConflictDoUpdate({ target: bridgeDeviceTokens.expoPushToken, set: { userId: user.id, companyId: requestedCompanyId(req), platform: req.body?.platform || "unknown", deviceId: req.body?.deviceId || null, active: true, updatedAt: new Date() } }).returning();
     res.json(row);
+  }));
+  app.get("/api/v1/app/device-tokens/status", route(async (req, res) => {
+    const user = await requireUser(req, res); if (!user) return;
+    const rows = await db.select().from(bridgeDeviceTokens).where(and(eq(bridgeDeviceTokens.userId, user.id), eq(bridgeDeviceTokens.active, true)));
+    res.json({ registered: rows.length > 0, devices: rows.map((row) => ({ platform: row.platform, updatedAt: row.updatedAt })) });
+  }));
+  app.post("/api/v1/app/notifications/test", route(async (req, res) => {
+    const user = await requireUser(req, res); if (!user) return;
+    await sendRebornUserNotification(user.id, { type: "test", title: "Reborn notifications are working", body: "You will receive live orders, gifts, messages and updates on this phone.", data: { path: "/profile" } });
+    res.json({ message: "Test notification sent to your registered phone." });
   }));
   app.get("/api/v1/app/notifications", route(async (req, res) => { const user = await requireUser(req, res); if (user) res.json(await db.select().from(bridgeNotifications).where(eq(bridgeNotifications.userId, user.id)).orderBy(desc(bridgeNotifications.id)).limit(100)); }));
   app.post("/api/v1/app/notifications/:id/read", route(async (req, res) => { const user = await requireUser(req, res); if (!user) return; res.json((await db.update(bridgeNotifications).set({ readAt: new Date() }).where(and(eq(bridgeNotifications.id, Number(req.params.id)), eq(bridgeNotifications.userId, user.id))).returning())[0]); }));
