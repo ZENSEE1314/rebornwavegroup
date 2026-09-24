@@ -38,6 +38,8 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   bookingTables: "V1,V2,1,2,3,4,5,T6,T7,T8,T9", // legacy single table list (back-compat)
   bookingAreas: "",         // JSON array of venue areas by level (empty → server defaults)
   googleReviewUrl: "",      // link sent after payment to collect a Google review
+  businessAddress: "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Batam Centre, Blok A No. 51, Sadai, Bengkong, Batam City, Riau Islands 29444",
+  businessMapUrl: "",
   houseReferralUserId: "",  // admin account that owns un-referred signups (house commission)
   spinPoolPercent: "10",    // % of un-referred paid sales set aside into the Lucky Spin prize pool
   spinPoolMin: "1000000",   // spin only pays prizes when the pool is at/above this (min 1,000,000)
@@ -67,6 +69,8 @@ async function getSettings() {
     bookingTables: map.bookingTables || "V1,V2,1,2,3,4,5,T6,T7,T8,T9",
     bookingAreas: map.bookingAreas || "",
     googleReviewUrl: map.googleReviewUrl || "",
+    businessAddress: map.businessAddress || SETTINGS_DEFAULTS.businessAddress,
+    businessMapUrl: map.businessMapUrl || "",
     houseReferralUserId: map.houseReferralUserId || "",
     spinPoolPercent: Number(map.spinPoolPercent) || 10,
     spinPoolMin: Math.max(1000000, Number(map.spinPoolMin) || 1000000),
@@ -1159,7 +1163,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "businessAddress", "businessMapUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);

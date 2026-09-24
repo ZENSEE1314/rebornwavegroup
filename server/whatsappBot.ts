@@ -22,6 +22,7 @@ import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas,
 const GRAPH_VERSION = "v20.0";
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://rebornwave.group";
 const DEFAULT_PASSWORD = "123456";
+const WEBSITE_ADDRESS = "Ruko Oceanic Bliss, Jl. Pasir Putih Harbourfront – Batam Centre, Blok A No. 51, Sadai, Bengkong, Batam City, Riau Islands 29444";
 const HOUR_MS = 3600_000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -94,6 +95,17 @@ export async function sendWhatsAppImage(to: string, imageUrl: string, caption: s
 async function settingVal(key: string): Promise<string> {
   try { const [r] = await db.select().from(appSettings).where(eq(appSettings.key, key)); return r?.value || ""; }
   catch { return ""; }
+}
+
+function asksForLocation(text: string): boolean {
+  return /\b(address|location|located|directions?|map|maps|where are you|how to get there|alamat|lokasi|peta|dimana|di mana)\b|地址|位置|在哪里|在哪儿|怎么走/i.test(text);
+}
+
+async function locationReply(): Promise<string> {
+  const address = (await settingVal("businessAddress")).trim() || WEBSITE_ADDRESS;
+  const savedMap = (await settingVal("businessMapUrl")).trim();
+  const mapUrl = savedMap || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `📍 Reborn Wave Group\n${address}\n\nOpen the map pin here:\n${mapUrl}`;
 }
 
 // --- CRM -----------------------------------------------------------------
@@ -447,6 +459,14 @@ async function handleInbound(from: string, text: string, profileName?: string) {
   let c = await getOrCreateContact(from, profileName);
   await patchContact(c.id, { lastInboundAt: new Date() });
   await logMsg(c.id, c.phone, "in", body, false); // store every incoming message for the admin inbox
+
+  // Always answer a location question immediately, even for a first-time number.
+  if (asksForLocation(body)) {
+    const reply = await locationReply();
+    await sendWhatsApp(from, reply);
+    await logMsg(c.id, c.phone, "out", reply, true);
+    return;
+  }
 
   // If this phone already has an app account, skip onboarding — greet by name.
   if (!c.userId && (c.stage === "new" || c.stage === "await_lang" || c.stage === "await_name" || c.stage === "await_email")) {
