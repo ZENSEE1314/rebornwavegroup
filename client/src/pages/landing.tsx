@@ -164,7 +164,7 @@ const MAPS_URL = "https://www.google.com/maps/search/?api=1&query=" + encodeURIC
 const INSTAGRAM_URL = "https://www.instagram.com/rebornwavegroup/";
 const TIKTOK_URL = "https://www.tiktok.com/@reborn.wave.group";
 const SERVICES = "KTV · Game House · Beauty · Pet Cafe · Live House · Blindbox Rewards";
-const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/6a5b7f19-53d4-4e93-ba97-d0c4849abca8";
+const ANDROID_APP_URL = "https://expo.dev/accounts/zensee/projects/reborn-wave-group/builds/e7f6dcfd-4c0f-49e4-b841-7d04858458de";
 
 const AUDIENCE = [
   { icon: "🧳", title: "Tourists", desc: "A clear Batam destination for singing, food, pet cafe content, sea-view nightlife, and live performances." },
@@ -368,7 +368,7 @@ export default function Landing() {
               <div className="app-points reveal">
                 <div className="app-point"><span aria-hidden="true">🎉</span><strong>New events</strong><p>Keep up with club nights, live shows and member activities.</p></div>
                 <div className="app-point"><span aria-hidden="true">🐾</span><strong>Pet care</strong><p>Feed your Doloruu, collect daily tokens and follow its progress.</p></div>
-                <div className="app-point"><span aria-hidden="true">🔔</span><strong>Notifications</strong><p>Event alerts and pet-care reminders are coming with the store release.</p></div>
+                <div className="app-point"><span aria-hidden="true">🔔</span><strong>Notifications</strong><p>Get instant app alerts for orders, bookings, songs, events and staff updates.</p></div>
               </div>
             </div>
             <div className="store-card reveal">
