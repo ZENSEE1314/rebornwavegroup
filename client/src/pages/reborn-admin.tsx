@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane } from "lucide-react";
+import { Plus, Trash2, Check, X, Ticket, Gift, Pill, Music2, Coins, Users as UsersIcon, Megaphone, ScrollText, Package, Calculator, Pencil, LayoutGrid, Disc3, HelpCircle, Settings as SettingsIcon, Send, ShoppingBag, Sparkles, Boxes, Contact, Download, MessageCircle, AlertTriangle, CalendarDays, Wine, Clock, LogIn, LogOut, CalendarClock, Plane, Star } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -331,6 +331,9 @@ function Settings() {
   if (!cur) return <Empty text="Loading…" />;
   const set = (k: string, v: any) => setE({ ...cur, [k]: Number(v) });
   const setStr = (k: string, v: any) => setE({ ...cur, [k]: v });
+  const loyalty = cur.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] };
+  const setLoyalty = (patch: any) => setE({ ...cur, loyalty: { ...loyalty, ...patch } });
+  const updateTier = (index: number, patch: any) => setLoyalty({ tiers: (loyalty.tiers || []).map((tier: any, i: number) => i === index ? { ...tier, ...patch } : tier) });
   return (
     <div className="space-y-4">
       <Card>
@@ -349,10 +352,23 @@ function Settings() {
         <ImageUpload value={cur.receiptLogoUrl} onChange={(v) => setStr("receiptLogoUrl", v)} label="Upload logo" />
       </Card>
       <Card>
+        <h3 className="font-bold mb-1 flex items-center gap-2"><Star className="w-4 h-4 text-amber-300" /> Loyalty settings</h3>
+        <p className="mb-3 text-[11px] text-white/50">Points are added automatically at checkout. Set tiers, discounts and store gifts here.</p>
+        <Field label="Spend RP for 1 point" value={loyalty.pointsSpendRp || 1000} onChange={(v:any)=>setLoyalty({pointsSpendRp:Math.max(1,Number(v)||1)})}/>
+        <label className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={loyalty.rewardsEnabled !== false} onChange={(e)=>setLoyalty({rewardsEnabled:e.target.checked})}/> Enable reward redemption</label>
+        <div className="space-y-2">{(loyalty.tiers || []).map((tier:any,index:number)=><div key={index} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="grid grid-cols-2 gap-2"><input className={inp} value={tier.name||""} placeholder="Tier name" onChange={(e)=>updateTier(index,{name:e.target.value})}/><input className={inp} type="number" value={tier.minPoints||0} placeholder="Points needed" onChange={(e)=>updateTier(index,{minPoints:Number(e.target.value)})}/><input className={inp} type="number" value={tier.discountPercent||0} placeholder="Discount %" onChange={(e)=>updateTier(index,{discountPercent:Number(e.target.value)})}/><input className={inp} type="number" value={tier.freeRp||0} placeholder="Free RP" onChange={(e)=>updateTier(index,{freeRp:Number(e.target.value)})}/></div><input className={inp+" mt-2 w-full"} value={(tier.benefits||[]).join(", ")} placeholder="Benefits, comma separated" onChange={(e)=>updateTier(index,{benefits:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})}/><button className="mt-2 text-xs text-red-300" onClick={()=>setLoyalty({tiers:loyalty.tiers.filter((_:any,i:number)=>i!==index)})}>Remove tier</button></div>)}</div>
+        <button className="mt-3 text-sm font-semibold text-amber-300" onClick={()=>setLoyalty({tiers:[...(loyalty.tiers||[]),{name:`Tier ${(loyalty.tiers||[]).length+1}`,minPoints:0,discountPercent:0,freeRp:0,benefits:[]}]})}>+ Add loyalty tier</button>
+      </Card>
+      <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><Calculator className="w-4 h-4 text-amber-300" /> Booking areas (by level)</h3>
         <p className="text-[11px] text-white/50 mb-3">Hours are fixed: Sun–Thu 5pm–2am · Fri–Sat 5pm–3am · 2-hour slots. Each area shows on the member booking page and on WhatsApp. Add tables/rooms and a layout image where guests pick a spot (e.g. KTV Lounge).</p>
         <BookingAreasEditor value={cur.bookingAreas} onChange={(v) => setStr("bookingAreas", v)} />
         <label className="block mt-3"><span className="text-xs text-white/60 block mb-1">Booking note (optional, shown with timings)</span><input value={cur.bookingNote || ""} onChange={(e) => setStr("bookingNote", e.target.value)} className={inp + " w-full"} /></label>
+        <button onClick={()=>save.mutate()} disabled={save.isPending} className={btn+" mt-3 w-full justify-center"}>{save.isPending?"Saving…":"Save booking times & visibility"}</button>
+      </Card>
+      <Card>
+        <h3 className="font-bold mb-2 flex items-center gap-2"><Music2 className="w-4 h-4 text-amber-300"/> Song request options</h3>
+        <label className="flex items-center gap-2 rounded-xl border border-white/10 p-3 text-sm"><input type="checkbox" checked={cur.songRequestModeEnabled !== false} onChange={(e)=>setStr("songRequestModeEnabled",e.target.checked)}/> Let members choose Self sing or By singer</label>
       </Card>
       <Card>
         <h3 className="font-bold mb-1 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-amber-300" /> Reviews & referral</h3>
@@ -533,7 +549,7 @@ function SongRequests() {
         <Card key={r.id}>
           <div className="flex items-center gap-3">
             <Music2 className="w-5 h-5 text-amber-300 flex-shrink-0" />
-            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · user {r.userId?.slice(0, 8)}</p></div>
+            <div className="flex-1 min-w-0"><p className="font-semibold text-sm truncate">{r.title}</p><p className="text-xs text-white/40 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? "By singer" : "Self sing"} · user {r.userId?.slice(0, 8)}</p></div>
             <button onClick={() => act.mutate({ id: r.id, approve: true })} className={btnSave}><Check className="w-4 h-4" /> Confirm</button>
             <button onClick={() => { const comment = prompt("Reject — reason/comment (optional):", "") ?? undefined; act.mutate({ id: r.id, approve: false, comment }); }} className={btnDel}><X className="w-4 h-4" /> Reject</button>
           </div>
@@ -915,10 +931,10 @@ function Products() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/pos/products"], queryFn: () => apiRequest("GET", "/api/reborn/pos/products").then((r) => r.json()) });
-  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "" });
+  const [n, setN] = useState({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "" });
   const create = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/admin/pos/products", n).then((r) => r.json()),
-    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
+    onSuccess: () => { toast({ title: "Product added" }); setN({ name: "", category: "General", price: 0, cost: 0, stock: 0, imageUrl: "", supplierName: "", supplierAddress: "", supplierPhone: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   return (
@@ -932,6 +948,7 @@ function Products() {
           <label className="text-xs text-white/50">Sell price (RP)<input type="number" value={n.price} onChange={(e) => setN({ ...n, price: Number(e.target.value) })} className={inp + " w-full"} /></label>
           <label className="text-xs text-white/50">Unit cost (RP)<input type="number" value={n.cost} onChange={(e) => setN({ ...n, cost: Number(e.target.value) })} className={inp + " w-full"} /></label>
         </div>
+        <div className="mb-2 grid grid-cols-2 gap-2"><input value={n.supplierName} onChange={(e)=>setN({...n,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={n.supplierPhone} onChange={(e)=>setN({...n,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={n.supplierAddress} onChange={(e)=>setN({...n,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" col-span-2"}/></div>
         <div className="mb-3"><p className="text-xs text-white/50 mb-1">Photo</p><ImageUpload value={n.imageUrl} onChange={(v) => setN({ ...n, imageUrl: v })} label="Upload photo" /></div>
         <button onClick={() => create.mutate()} disabled={!n.name.trim() || create.isPending} className={btn + " disabled:opacity-50"}><Plus className="w-4 h-4" /> Add</button>
       </Card>
@@ -945,7 +962,7 @@ function ProductRow({ p }: any) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, imageUrl: p.imageUrl || "" });
+  const [f, setF] = useState({ name: p.name, category: p.category, price: Number(p.price), cost: Number(p.cost), active: p.active, imageUrl: p.imageUrl || "", supplierName: p.supplierName || "", supplierAddress: p.supplierAddress || "", supplierPhone: p.supplierPhone || "" });
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/reborn/admin/pos/products/${p.id}`, f).then((r) => r.json()),
     onSuccess: () => { toast({ title: "Saved" }); setEdit(false); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] }); },
@@ -958,8 +975,9 @@ function ProductRow({ p }: any) {
           {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />}
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate">{p.name} {!p.active && <span className="text-xs text-red-400">(hidden)</span>}</p>
-            <p className="text-xs text-white/50">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}</p>
+            <p className="text-xs text-white/50">{p.category} · RP {Number(p.price).toLocaleString()} · stock {p.stock}{p.supplierName ? ` · ${p.supplierName}` : ""}</p>
           </div>
+          <div className="mb-2 grid grid-cols-2 gap-2"><input value={f.supplierName} onChange={(e)=>setF({...f,supplierName:e.target.value})} placeholder="Supplier name (optional)" className={inp}/><input value={f.supplierPhone} onChange={(e)=>setF({...f,supplierPhone:e.target.value})} placeholder="Supplier phone (optional)" className={inp}/><input value={f.supplierAddress} onChange={(e)=>setF({...f,supplierAddress:e.target.value})} placeholder="Supplier address (optional)" className={inp+" col-span-2"}/></div>
           <button onClick={() => setEdit(true)} className={btnSm}><Pencil className="w-4 h-4" /></button>
         </div>
       ) : (

@@ -773,6 +773,7 @@ export const songRequests = pgTable("song_requests", {
   songId: integer("song_id"),
   title: varchar("title").notNull(),
   artist: varchar("artist").default(""),
+  performanceMode: varchar("performance_mode").default("self").notNull(), // self | singer
   status: varchar("status").default("pending"), // pending | confirmed | rejected
   adminNote: text("admin_note"), // optional note/comment from admin (e.g. reason for reject)
   createdAt: timestamp("created_at").defaultNow(),
@@ -806,6 +807,9 @@ export const posProducts = pgTable("pos_products", {
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0").notNull(), // unit cost for accounting
   stock: integer("stock").default(0).notNull(),
   imageUrl: varchar("image_url"),
+  supplierName: varchar("supplier_name"),
+  supplierAddress: text("supplier_address"),
+  supplierPhone: varchar("supplier_phone"),
   active: boolean("active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),

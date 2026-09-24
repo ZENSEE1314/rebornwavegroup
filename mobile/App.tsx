@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   BackHandler,
   Image,
@@ -32,6 +33,18 @@ async function getPushToken() {
   if (!Device.isDevice) return null;
   if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("bridgex", { name: "BridgeXPOS alerts", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 250, 250, 250] });
   const current = await Notifications.getPermissionsAsync();
+  if (current.status !== "granted" && current.canAskAgain) {
+    const accepted = await new Promise<boolean>((resolve) => Alert.alert(
+      "Enable instant updates",
+      "Allow notifications to receive new orders, bookings, song requests, meetings and staff updates immediately.",
+      [
+        { text: "Not now", style: "cancel", onPress: () => resolve(false) },
+        { text: "Allow notifications", onPress: () => resolve(true) },
+      ],
+      { cancelable: false },
+    ));
+    if (!accepted) return null;
+  }
   const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
   if (permission.status !== "granted") return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;

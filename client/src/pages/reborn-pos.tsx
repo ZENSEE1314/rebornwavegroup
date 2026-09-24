@@ -12,7 +12,7 @@ import { Plus, Minus, Trash2, UserCheck, X, Store, Search, PackagePlus, Receipt,
 
 interface Product { id: number; name: string; category: string; price: string; stock: number; imageUrl?: string; }
 interface Staff { id: string; name: string; role: string; }
-interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; items?: any[]; }
+interface Order { id: number; orderNo: string; tableNumber?: string; memberName?: string; memberCode?: string; salesStaffName?: string; total: string; source: string; orderMode?: string; items?: any[]; }
 type Tab = "tables" | "sell" | "stock" | "bottles";
 const rp = (n: number) => "RP " + (n || 0).toLocaleString("en-US");
 
@@ -207,6 +207,20 @@ function TablesTab() {
   );
 }
 
+const emptyBottle = () => ({ enabled: false, type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+function KeepBottleCheckout({ value, onChange, hasMember }: { value: any; onChange: (value: any) => void; hasMember: boolean }) {
+  const input = "w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white";
+  return <div className="mb-2 rounded-xl border border-white/10 bg-black/20 p-3">
+    <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })}/><Wine className="h-4 w-4 text-amber-300"/> Keep unfinished bottle with this checkout</label>
+    {value.enabled && <div className="mt-3 space-y-2">
+      {!hasMember && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-200">Select or tag a member first.</p>}
+      <div className="grid grid-cols-[1fr_80px] gap-2"><select className={input} value={value.type} onChange={(e)=>onChange({...value,type:e.target.value})}><option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option></select><input className={input} type="number" min={1} value={value.quantity} onChange={(e)=>onChange({...value,quantity:Number(e.target.value)})}/></div>
+      <input className={input} value={value.name} onChange={(e)=>onChange({...value,name:e.target.value})} placeholder="Bottle name"/>
+      <input className={input} value={value.note} onChange={(e)=>onChange({...value,note:e.target.value})} placeholder="Note (optional)"/>
+    </div>}
+  </div>;
+}
+
 function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -217,6 +231,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
   const [discPct, setDiscPct] = useState("");
   const [discReason, setDiscReason] = useState((order as any).discountReason || "");
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">((order.orderMode as any) || "dine_in");
+  const [keepBottle, setKeepBottle] = useState(emptyBottle);
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/reborn/pos/orders"] });
   const addItems = useMutation({
     mutationFn: (items: any[]) => post(`/api/reborn/pos/orders/${order.id}/items`, { items }),
@@ -229,10 +244,10 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
     onError: (e: any) => toast({ title: "Not found", description: e.message, variant: "destructive" }),
   });
   const payNow = useMutation({
-    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode }),
+    mutationFn: () => post(`/api/reborn/pos/orders/${order.id}/pay`, { paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, keepBottle }),
     onSuccess: async (d) => {
       if (pay === "cash") { const ok = await openCashDrawer(); if (!ok && drawerConfigured()) toast({ title: "Drawer not opened", description: "Check Cash drawer setup." }); }
-      if (d.order) printReceipt(d.order, d.receipt || {});
+      if (d.order && !printReceipt(d.order, d.receipt || {})) toast({ title: "Payment complete", description: "Receipt printing is available from the counter browser." });
       toast({ title: "Paid", description: d.message }); invalidate(); onBack();
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -356,6 +371,7 @@ function TicketDetail({ order, onBack }: { order: Order; onBack: () => void }) {
                 <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
               ))}
             </div>
+            <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!order.memberName}/>
             <button onClick={() => payNow.mutate()} disabled={payNow.isPending || total <= 0} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Charge {rp(Math.max(0, total - discount))} {pay} · print</button>
             <button onClick={() => { if (confirm("Cancel this ticket and restore stock?")) cancel.mutate(); }} disabled={cancel.isPending} className="w-full py-2.5 rounded-xl text-red-300 text-sm mt-2 border border-red-400/30 bg-red-500/10">Cancel ticket</button>
           </div>
@@ -375,16 +391,17 @@ function QuickSaleTab() {
   const [sales, setSales] = useState("");
   const [discount, setDiscount] = useState(0);
   const [orderMode, setOrderMode] = useState<"dine_in" | "take_away">("dine_in");
+  const [keepBottle, setKeepBottle] = useState(emptyBottle);
   const lookup = useMutation({
     mutationFn: () => apiRequest("GET", `/api/reborn/pos/member/${encodeURIComponent(code.trim())}`).then((r) => r.json().then((d) => ({ ok: r.ok, d }))),
     onSuccess: ({ ok, d }) => { if (ok) { setMember(d); toast({ title: "Member found", description: d.name }); } else toast({ title: "Not found", description: d.message, variant: "destructive" }); },
   });
   const sell = useMutation({
-    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, items }),
+    mutationFn: (items: any[]) => post("/api/reborn/pos/sale", { memberCode: member?.code || undefined, paymentMethod: pay, salesStaffId: sales || undefined, discount, orderMode, keepBottle, items }),
     onSuccess: async (d) => {
       if (pay === "cash") await openCashDrawer();
-      if (d.order) printReceipt(d.order, d.receipt || {});
-      toast({ title: "Sale complete", description: d.message }); setMember(null); setCode(""); setDiscount(0); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
+      if (d.order && !printReceipt(d.order, d.receipt || {})) toast({ title: "Sale complete", description: "Receipt printing is available from the counter browser." });
+      toast({ title: "Sale complete", description: d.message }); setMember(null); setCode(""); setDiscount(0); setKeepBottle(emptyBottle()); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/products"] });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
@@ -415,6 +432,7 @@ function QuickSaleTab() {
         </div>
         <SalesPicker value={sales} onChange={setSales} />
         <label className="text-xs text-white/50 block">Discount (RP)<input type="number" min={0} value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-white text-sm" /></label>
+        <KeepBottleCheckout value={keepBottle} onChange={setKeepBottle} hasMember={!!member}/>
         <div className="grid grid-cols-2 gap-2">
           {(["cash", "card"] as const).map((m) => (
             <button key={m} onClick={() => setPay(m)} className={`py-2.5 rounded-xl border font-semibold text-sm capitalize ${pay === m ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-white/10 bg-black/30 text-white/60"}`}>{m}</button>
@@ -491,15 +509,21 @@ function BottlesTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [f, setF] = useState({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" });
+  const [selectedMember, setSelectedMember] = useState<any>(null);
   const [q, setQ] = useState("");
   const { data: kept = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/pos/bottle-keeps", q],
     queryFn: () => apiRequest("GET", `/api/reborn/pos/bottle-keeps${q ? "?q=" + encodeURIComponent(q) : ""}`).then((r) => r.json()),
     refetchInterval: 20000,
   });
+  const { data: memberMatches = [] } = useQuery<any[]>({
+    queryKey: ["/api/reborn/pos/members", f.memberCode],
+    queryFn: () => apiRequest("GET", `/api/reborn/pos/members?q=${encodeURIComponent(f.memberCode)}`).then((r) => r.json()),
+    enabled: f.memberCode.trim().length >= 1 && !selectedMember,
+  });
   const store = useMutation({
     mutationFn: () => post("/api/reborn/pos/bottle-keep", f),
-    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
+    onSuccess: (d) => { toast({ title: d.message }); setF({ memberCode: "", type: "beer", name: "", quantity: 1, photoUrl: "", note: "" }); setSelectedMember(null); qc.invalidateQueries({ queryKey: ["/api/reborn/pos/bottle-keeps"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const collect = useMutation({
@@ -512,7 +536,10 @@ function BottlesTab() {
     <div className="lg:grid lg:grid-cols-[360px_1fr] lg:gap-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-3 mb-4 lg:mb-0 h-fit">
         <p className="font-bold mb-2 text-sm flex items-center gap-2"><Wine className="w-4 h-4 text-amber-300" /> Keep a bottle</p>
-        <input value={f.memberCode} onChange={(e) => setF({ ...f, memberCode: e.target.value })} placeholder="Member code / card / username" className={inp + " mb-2"} />
+        <div className="relative mb-2"><input value={f.memberCode} onChange={(e) => { setSelectedMember(null); setF({ ...f, memberCode: e.target.value }); }} placeholder="Type name, code, card or email" className={inp} />
+          {!selectedMember && memberMatches.length > 0 && <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-white/15 bg-[#160f2a] p-1 shadow-2xl">{memberMatches.map((m)=><button key={m.id} type="button" onClick={()=>{setSelectedMember(m);setF({...f,memberCode:m.code||m.card||m.email})}} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10"><b className="block text-sm">{m.name}</b><span className="text-xs text-white/50">{m.code||m.card||m.email}</span></button>)}</div>}
+        </div>
+        {selectedMember && <div className="mb-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-2 text-sm text-emerald-200"><UserCheck className="mr-1 inline h-4 w-4"/> {selectedMember.name}</div>}
         <div className="grid grid-cols-2 gap-2 mb-2">
           <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className={inp}>
             <option value="beer">Beer</option><option value="whisky">Whisky</option><option value="other">Other</option>

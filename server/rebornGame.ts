@@ -45,11 +45,14 @@ const SETTINGS_DEFAULTS: Record<string, string> = {
   spinTokenCost: "1",       // tokens spent per spin (admin-set)
   spinAssumedBill: "500000", // representative bill used to estimate a %-voucher's pool cost
   mainAdminPassword: "",    // required to run the "reset numbers" action (set by the main admin)
+  songRequestModeEnabled: "true",
 };
 async function getSettings() {
   const rows = await db.select().from(appSettings);
   const map: Record<string, string> = { ...SETTINGS_DEFAULTS };
   for (const r of rows) if (r.key in map || true) map[r.key] = r.value ?? map[r.key];
+  const companySettingsResult = await db.execute(sql`SELECT s.config FROM bridge_company_settings s JOIN bridge_companies c ON c.id=s.company_id WHERE c.slug='reborn-wave-group' LIMIT 1`);
+  const companyConfig: any = (companySettingsResult.rows || companySettingsResult as any)[0]?.config || {};
   return {
     giftFeePercent: Number(map.giftFeePercent) || 30,
     kgoldPerRp: Number(map.kgoldPerRp) || 100,
@@ -71,6 +74,8 @@ async function getSettings() {
     spinTokenCost: Math.max(1, Number(map.spinTokenCost) || 1),
     spinAssumedBill: Math.max(0, Number(map.spinAssumedBill) || 500000),
     mainAdminPassword: map.mainAdminPassword || "",
+    songRequestModeEnabled: map.songRequestModeEnabled !== "false",
+    loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
 }
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
@@ -931,7 +936,9 @@ export function registerRebornRoutes(app: Express) {
   app.post("/api/reborn/songs/request", requireAuth, async (req, res) => {
     try {
       const userId = getUserId(req)!;
-      let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto } = req.body || {};
+      let { songId, title, titlePinyin, artist, artistPinyin, spotifyUrl, artistPhoto, performanceMode } = req.body || {};
+      const songSettings = await getSettings();
+      performanceMode = songSettings.songRequestModeEnabled && performanceMode === "singer" ? "singer" : "self";
       let song: any = null;
       if (songId) {
         [song] = await db.select().from(songs).where(eq(songs.id, Number(songId)));
@@ -958,11 +965,11 @@ export function registerRebornRoutes(app: Express) {
         }
         songId = song.id;
       }
-      const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", status: "pending" }).returning();
+      const [reqRow] = await db.insert(songRequests).values({ userId, songId: Number(songId), title: song.title, artist: song.artist || "", performanceMode, status: "pending" }).returning();
       await sendRebornStaffNotification({
         type: "song_request",
         title: "New app song request",
-        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""}`,
+        body: `${song.title}${song.artist ? ` - ${song.artist}` : ""} · ${performanceMode === "singer" ? "By singer" : "Self sing"}`,
         data: { path: "/reborn-admin", songRequestId: reqRow.id, source: "app" },
       });
       res.json({ message: "Request sent! Staff will confirm it shortly.", request: reqRow });
@@ -975,6 +982,10 @@ export function registerRebornRoutes(app: Express) {
       const rows = await db.select().from(songRequests).where(eq(songRequests.userId, userId)).orderBy(desc(songRequests.createdAt)).limit(100);
       res.json(rows);
     } catch { res.json([]); }
+  });
+  app.get("/api/reborn/song-settings", requireAuth, async (_req, res) => {
+    const settings = await getSettings();
+    res.json({ performanceModeEnabled: settings.songRequestModeEnabled });
   });
 
   // ── Admin ────────────────────────────────────────────────────────────────
@@ -1148,7 +1159,7 @@ export function registerRebornRoutes(app: Express) {
     res.json(await getSettings());
   }));
   app.post("/api/reborn/admin/settings", requireAdmin(async (req, res) => {
-    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword"];
+    const allowed = ["giftFeePercent", "kgoldPerRp", "minBuyKgold", "minCashoutRp", "taxPercent", "clubName", "receiptLogoUrl", "receiptFooter", "bookingImageUrl", "bookingNote", "bookingTables", "bookingAreas", "googleReviewUrl", "houseReferralUserId", "spinPoolPercent", "spinPoolMin", "spinTokenCost", "spinAssumedBill", "mainAdminPassword", "songRequestModeEnabled"];
     for (const k of allowed) {
       if (req.body?.[k] !== undefined) {
         let v = String(req.body[k]);
@@ -1157,6 +1168,15 @@ export function registerRebornRoutes(app: Express) {
         await db.insert(appSettings).values({ key: k, value: v, updatedAt: new Date() })
           .onConflictDoUpdate({ target: appSettings.key, set: { value: v, updatedAt: new Date() } });
       }
+    }
+    if (req.body?.loyalty && typeof req.body.loyalty === "object") {
+      const loyalty = req.body.loyalty;
+      const clean = {
+        pointsSpendRp: Math.max(1, Number(loyalty.pointsSpendRp) || 1000),
+        rewardsEnabled: loyalty.rewardsEnabled !== false,
+        tiers: Array.isArray(loyalty.tiers) ? loyalty.tiers.slice(0, 20) : [],
+      };
+      await db.execute(sql`UPDATE bridge_company_settings s SET config=jsonb_set(COALESCE(s.config,'{}'::jsonb),'{loyalty}',${JSON.stringify(clean)}::jsonb,true), updated_at=now() FROM bridge_companies c WHERE s.company_id=c.id AND c.slug='reborn-wave-group'`);
     }
     res.json(await getSettings());
   }));
@@ -1441,6 +1461,21 @@ export function registerRebornRoutes(app: Express) {
     return Math.max(1, Number((result.rows || result as any)[0]?.value) || 1000);
   }
 
+  const KEEP_DAYS = 30;
+  async function storeBottleForMember(u: any, bottle: any, staffId: string) {
+    if (!u || !bottle?.enabled) return null;
+    const name = String(bottle.name || "").trim();
+    if (!name) throw new Error("Enter the bottle name before payment");
+    const now = new Date();
+    const [row] = await db.insert(bottleKeeps).values({
+      userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
+      memberCode: u.referralCode, type: ["beer", "whisky", "other"].includes(bottle.type) ? bottle.type : "beer",
+      name, quantity: Math.max(1, Math.floor(Number(bottle.quantity) || 1)), photoUrl: bottle.photoUrl || null,
+      note: bottle.note || null, storedByStaffId: staffId, status: "kept", storedAt: now, expiresAt: addDays(KEEP_DAYS, now),
+    }).returning();
+    return row;
+  }
+
   // Products — staff can read (to sell); admin manages catalogue/prices/stock.
   app.get("/api/reborn/pos/products", requireStaff(async (_req, res) => {
     res.json(await db.select().from(posProducts).orderBy(posProducts.sortOrder, posProducts.name));
@@ -1456,6 +1491,7 @@ export function registerRebornRoutes(app: Express) {
     const [row] = await db.insert(posProducts).values({
       name: String(b.name).trim(), category: b.category || "General", price: String(Number(b.price) || 0),
       cost: String(Number(b.cost) || 0), stock: Number(b.stock) || 0, imageUrl: b.imageUrl || null,
+      supplierName: b.supplierName || null, supplierAddress: b.supplierAddress || null, supplierPhone: b.supplierPhone || null,
       active: b.active !== false, sortOrder: Number(b.sortOrder) || 0,
     }).returning();
     if ((row.stock ?? 0) > 0) await db.insert(stockMovements).values({ productId: row.id, delta: row.stock, reason: "stock_in", note: "Initial stock", userId: getUserId(req)! });
@@ -1467,7 +1503,7 @@ export function registerRebornRoutes(app: Express) {
     const [prev] = await db.select().from(posProducts).where(eq(posProducts.id, id));
     if (!prev) return res.status(404).json({ message: "Not found" });
     const patch: any = {};
-    for (const k of ["name", "category", "imageUrl"]) if (b[k] !== undefined) patch[k] = b[k];
+    for (const k of ["name", "category", "imageUrl", "supplierName", "supplierAddress", "supplierPhone"]) if (b[k] !== undefined) patch[k] = b[k] || null;
     for (const k of ["price", "cost"]) if (b[k] !== undefined) patch[k] = String(Number(b[k]) || 0);
     if (b.sortOrder !== undefined) patch.sortOrder = Number(b.sortOrder);
     if (b.active !== undefined) patch.active = !!b.active;
@@ -1504,6 +1540,14 @@ export function registerRebornRoutes(app: Express) {
     ).limit(1);
     if (!u) return res.status(404).json({ message: "Member not found" });
     res.json({ id: u.id, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email, code: u.referralCode, membershipCardNumber: u.membershipCardNumber, credits: u.credits, loyaltyPoints: u.loyaltyPoints, tokens: u.tokens });
+  }));
+  app.get("/api/reborn/pos/members", requireStaff(async (req, res) => {
+    const q = String(req.query.q || "").trim();
+    if (!q) return res.json([]);
+    const rows = await db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username, email: users.email, phone: users.phoneNumber, code: users.referralCode, card: users.membershipCardNumber }).from(users).where(or(
+      ilike(users.firstName, `%${q}%`), ilike(users.lastName, `%${q}%`), ilike(users.username, `%${q}%`), ilike(users.email, `%${q}%`), ilike(users.referralCode, `%${q}%`), ilike(users.membershipCardNumber, `%${q}%`)
+    )).orderBy(users.firstName).limit(12);
+    res.json(rows.map((u) => ({ ...u, name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email })));
   }));
 
   // Deduct stock for a set of items, append them to an order, and re-total the ticket.
@@ -1606,6 +1650,8 @@ export function registerRebornRoutes(app: Express) {
     if (!clean!.length) return res.status(400).json({ message: "No items" });
     const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
     const u = await findMemberByCode(req.body?.memberCode || "");
+    if (req.body?.keepBottle?.enabled && !u) return res.status(400).json({ message: "Select a member before keeping a bottle at checkout" });
+    if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: "Enter the bottle name before payment" });
     const settings = await getSettings();
     const subtotal = clean!.reduce((s, it) => s + it.price * it.qty, 0);
     const discount = Math.min(subtotal, Math.max(0, Number(req.body?.discount) || 0));
@@ -1623,6 +1669,7 @@ export function registerRebornRoutes(app: Express) {
     await db.update(posTickets).set({ subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total) }).where(eq(posTickets.id, row.id));
     if (u && points > 0) await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, u.id));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Sale ${row.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(row.id), userId: u?.id || null });
+    const keptBottle = u ? await storeBottleForMember(u, req.body?.keepBottle, getUserId(req)!) : null;
     await logAdmin(req, { targetUserId: u?.id, targetType: "pos_order", targetId: row.id, action: "sale", entityType: "order", description: `Quick sale ${row.orderNo} RP ${total}` });
     if (u) {
       crmRecordVisit({ userId: u.id, phone: (u as any).phoneNumber, name: [u.firstName, u.lastName].filter(Boolean).join(" ") }).catch(() => {});
@@ -1630,7 +1677,7 @@ export function registerRebornRoutes(app: Express) {
     }
     contributeSpinPoolIfUnreferred(u?.id ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, row.id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...row, subtotal: String(subtotal), discount: String(discount), tax: String(tax), total: String(total), items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
 
   // Member orders from the app — merges into their table's open ticket (or opens one).
@@ -1653,6 +1700,8 @@ export function registerRebornRoutes(app: Express) {
     }
     await appendItems(order.id, order.orderNo, clean!, userId, "pending", "app"); // counter must accept
     await notifyAdmins(`🛎️ New order from table ${tableNumber} (${order.memberName || "member"}) — needs Accept/Reject in POS.`);
+    await sendRebornStaffNotification({ type: "new_order", title: `New order ${order.orderNo}`, body: `${order.memberName || "Member"} · Table ${tableNumber} · ${clean!.length} item${clean!.length === 1 ? "" : "s"}`, data: { path: "/reborn-pos", ticketId: order.id } });
+    emitLiveUpdate("/api/reborn/pos/orders", { action: "NEW_ORDER", resource: String(order.id) });
     res.json({ message: "Order sent — waiting for the counter to accept.", order });
   });
   // Counter accepts / rejects / serves an app order item.
@@ -1790,6 +1839,8 @@ export function registerRebornRoutes(app: Express) {
     const id = Number(req.params.id); const paymentMethod = req.body?.paymentMethod === "card" ? "card" : "cash";
     const [o] = await db.select().from(posTickets).where(eq(posTickets.id, id));
     if (!o || o.status !== "open") return res.status(400).json({ message: "Order not open" });
+    if (req.body?.keepBottle?.enabled && !o.memberId) return res.status(400).json({ message: "Tag a member before keeping a bottle at checkout" });
+    if (req.body?.keepBottle?.enabled && !String(req.body.keepBottle.name || "").trim()) return res.status(400).json({ message: "Enter the bottle name before payment" });
     const settings = await getSettings();
     const subtotal = Number(o.subtotal || o.total);
     // Use the request discount if provided, else the discount already set on the ticket.
@@ -1804,6 +1855,8 @@ export function registerRebornRoutes(app: Express) {
     if (o.memberId && points > 0)
       await db.update(users).set({ loyaltyPoints: sql`${users.loyaltyPoints} + ${points}`, lifetimePoints: sql`${users.lifetimePoints} + ${points}`, updatedAt: new Date() }).where(eq(users.id, o.memberId));
     await db.insert(ledgerEntries).values({ kind: "income", category: "product_sale", amount: String(total), note: `Order ${o.orderNo} (${paymentMethod})`, refType: "pos_order", refId: String(id), userId: o.memberId || null });
+    const [member] = o.memberId ? await db.select().from(users).where(eq(users.id, o.memberId)).limit(1) : [];
+    const keptBottle = member ? await storeBottleForMember(member, req.body?.keepBottle, getUserId(req)!) : null;
     await logAdmin(req, { targetUserId: o.memberId || undefined, targetType: "pos_order", targetId: id, action: "close", entityType: "order", description: `Closed ${o.orderNo} RP ${total} (${paymentMethod})${points ? ` · ${points} pts` : ""}` });
     if (o.memberId) {
       crmRecordVisit({ userId: o.memberId, name: o.memberName }).catch(() => {});
@@ -1812,7 +1865,7 @@ export function registerRebornRoutes(app: Express) {
     contributeSpinPoolIfUnreferred(o?.memberId ?? null, total).catch(() => {});
     const items = await db.select().from(posTicketItems).where(eq(posTicketItems.orderId, id));
     const [fresh] = await db.select().from(posTickets).where(eq(posTickets.id, id));
-    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}`, order: { ...fresh, items }, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
+    res.json({ message: `Paid RP ${total.toLocaleString()}${points ? ` · ${points} points added` : ""}${keptBottle ? " · bottle stored for 30 days" : ""}`, order: { ...fresh, items }, bottle: keptBottle, receipt: { clubName: settings.clubName, logoUrl: settings.receiptLogoUrl, footer: settings.receiptFooter, taxPercent: settings.taxPercent } });
   }));
   app.post("/api/reborn/pos/orders/:id/cancel", requireStaff(async (req, res) => {
     const id = Number(req.params.id);
@@ -1829,7 +1882,6 @@ export function registerRebornRoutes(app: Express) {
   }));
 
   // ── Bottle keep (locker) ────────────────────────────────────────────────
-  const KEEP_DAYS = 30;
   const bottleView = (b: any) => {
     const now = Date.now();
     const exp = b.expiresAt ? new Date(b.expiresAt).getTime() : 0;
@@ -1842,14 +1894,8 @@ export function registerRebornRoutes(app: Express) {
     const b = req.body || {};
     const u = await findMemberByCode(b.memberCode || "");
     if (!u) return res.status(404).json({ message: "Enter a valid member (code/card/username/email) to keep a bottle." });
-    const now = new Date();
-    const [row] = await db.insert(bottleKeeps).values({
-      userId: u.id, memberName: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email,
-      memberCode: u.referralCode, type: ["beer", "whisky", "other"].includes(b.type) ? b.type : "beer",
-      name: String(b.name || "").trim() || "Bottle", quantity: Math.max(1, Math.floor(Number(b.quantity) || 1)),
-      photoUrl: b.photoUrl || null, note: b.note || null, storedByStaffId: getUserId(req)!,
-      status: "kept", storedAt: now, expiresAt: addDays(KEEP_DAYS, now),
-    }).returning();
+    const row = await storeBottleForMember(u, { ...b, enabled: true, name: String(b.name || "").trim() || "Bottle" }, getUserId(req)!);
+    if (!row) return res.status(400).json({ message: "Could not store bottle" });
     await logAdmin(req, { targetUserId: u.id, targetType: "bottle_keep", targetId: row.id, action: "store", entityType: "bottle", description: `Kept ${row.quantity}× ${row.name} for ${row.memberName} (30 days)` });
     res.json({ message: `Stored for ${row.memberName} — 30 days to collect.`, bottle: bottleView(row) });
   }));

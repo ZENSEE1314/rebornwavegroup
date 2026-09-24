@@ -7,6 +7,10 @@ import { Search, Music2, Check, Clock, X, Plus, ExternalLink, Mic2 } from "lucid
 
 const TABS = ["Top 500", "Request", "My Requests"] as const;
 
+function ModePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/5 p-2">{[["self","Self sing"],["singer","By singer"]].map(([id,label])=><button key={id} type="button" onClick={()=>onChange(id)} className={`rounded-xl px-3 py-2 text-sm font-semibold ${value===id?"bg-amber-400 text-black":"bg-black/20 text-white/60"}`}>{label}</button>)}</div>;
+}
+
 export default function RebornSong() {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Top 500");
   return (
@@ -41,15 +45,18 @@ function TopList() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [q, setQ] = useState("");
+  const [performanceMode, setPerformanceMode] = useState("self");
+  const { data: songSettings } = useQuery<any>({ queryKey: ["/api/reborn/song-settings"], queryFn: () => apiRequest("GET", "/api/reborn/song-settings").then((r) => r.json()) });
   const { data: songs = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/songs"], queryFn: () => apiRequest("GET", "/api/reborn/songs").then((r) => r.json()) });
   const req = useMutation({
-    mutationFn: (songId: number) => apiRequest("POST", "/api/reborn/songs/request", { songId }).then((r) => r.json()),
+    mutationFn: (songId: number) => apiRequest("POST", "/api/reborn/songs/request", { songId, performanceMode }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: "Requested!", description: d.message }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const filtered = songs.filter((s) => !q.trim() || [s.title, s.titlePinyin, s.artist, s.artistPinyin].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase()));
   return (
     <div>
+      {songSettings?.performanceModeEnabled && <ModePicker value={performanceMode} onChange={setPerformanceMode}/>}
       <div className="relative mb-4">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search songs or artists…" className="w-full pl-9 pr-4 py-3 rounded-full bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60" />
@@ -63,10 +70,11 @@ function TopList() {
 function NewRequest() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [f, setF] = useState({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "" });
+  const [f, setF] = useState({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "", performanceMode: "self" });
+  const { data: songSettings } = useQuery<any>({ queryKey: ["/api/reborn/song-settings"], queryFn: () => apiRequest("GET", "/api/reborn/song-settings").then((r) => r.json()) });
   const req = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/songs/request", f).then((r) => r.json()),
-    onSuccess: (d) => { toast({ title: "Request sent!", description: d.message }); setF({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
+    onSuccess: (d) => { toast({ title: "Request sent!", description: d.message }); setF({ title: "", titlePinyin: "", artist: "", artistPinyin: "", spotifyUrl: "", performanceMode: "self" }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs/my-requests"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/songs"] }); },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
   const inp = "w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-amber-400/60";
@@ -75,6 +83,7 @@ function NewRequest() {
     <div className="rounded-3xl p-5 border border-white/10 bg-white/5">
       <h3 className="font-bold mb-1 flex items-center gap-2"><Mic2 className="w-5 h-5 text-amber-300" /> Request a song</h3>
       <p className="text-sm text-white/60 mb-4">Can't find it in the Top 500? Request it here — staff confirm it and it's added to the library. Already there? Your request just gets logged.</p>
+      {songSettings?.performanceModeEnabled && <ModePicker value={f.performanceMode} onChange={(performanceMode)=>setF({...f,performanceMode})}/>}
       <div className="grid grid-cols-2 gap-2 mb-3">
         <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Song name 中文" className={inp} />
         <input value={f.titlePinyin} onChange={(e) => setF({ ...f, titlePinyin: e.target.value })} placeholder="Song pinyin" className={inp} />
@@ -94,7 +103,7 @@ function MyRequests() {
     <div className="space-y-2">
       {rows.map((r) => (
         <div key={r.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10">
-          <div className="flex-1 min-w-0"><p className="font-semibold truncate">{r.title}</p><p className="text-xs text-white/50 truncate">{r.artist || "—"} · {new Date(r.createdAt).toLocaleDateString()}</p></div>
+          <div className="flex-1 min-w-0"><p className="font-semibold truncate">{r.title}</p><p className="text-xs text-white/50 truncate">{r.artist || "—"} · {r.performanceMode === "singer" ? "By singer" : "Self sing"} · {new Date(r.createdAt).toLocaleDateString()}</p></div>
           {r.status === "confirmed" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400"><Check className="w-4 h-4" /> Confirmed</span>
             : r.status === "rejected" ? <span className="inline-flex items-center gap-1 text-xs font-bold text-red-400"><X className="w-4 h-4" /> Declined</span>
             : <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300"><Clock className="w-4 h-4" /> Pending</span>}
