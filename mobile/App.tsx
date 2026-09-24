@@ -141,6 +141,13 @@ function RebornApp() {
     `);
   }, [pushToken]);
 
+  // The WebView often finishes loading before Expo finishes obtaining the
+  // device token. Register again as soon as the token becomes available so a
+  // fast page load can never leave the phone disconnected from push alerts.
+  useEffect(() => {
+    if (pushToken) syncPushToken();
+  }, [pushToken, syncPushToken]);
+
   const retry = useCallback(() => {
     setFailed(false);
     setLoading(true);

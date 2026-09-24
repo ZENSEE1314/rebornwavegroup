@@ -62,7 +62,7 @@ export default function RebornChat() {
         {friends.map((f) => (
           <button key={f.friendshipId} onClick={() => setActive(f)} className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left">
             <Avatar u={f.user} />
-            <span className="flex-1 font-semibold truncate">{nameOf(f.user)}</span>
+            <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{nameOf(f.user)}</span><span className="block text-xs text-white/45 truncate">{f.lastMessage?.content || "Start a conversation"}</span></span>
             <MessageCircle className="w-5 h-5 text-white/40" />
           </button>
         ))}

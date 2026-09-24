@@ -14,6 +14,7 @@ import { sendRebornAllNotification, sendRebornStaffNotification, sendRebornUserN
 import { emitLiveUpdate } from "./liveUpdates";
 import { searchSongCatalog, textPinyin } from "./songSearch";
 import { TOP_SONGS_500 } from "./topSongs500";
+import QRCode from "qrcode";
 import { createBooking, bookingHoursSummary, todayStr, parseAreas, enabledAreas, areaSlotsForDate, areaSlotLabelsForDate, areaHoursTextForDate, areaOpenHourForDate, isTableTaken, isAreaBlocked, takenTablesForDate, bookingWhen, BLOCK_ALL } from "./booking";
 import {
   pets, users, tokenTransactions, activationCodes, petPills,
@@ -22,6 +23,7 @@ import {
   appSettings, kosGiftTypes, adminLogs, topUpRequests, events,
   posProducts, posTickets, posTicketItems, stockMovements, ledgerEntries, bottleKeeps, crmContacts, crmMessages, appointments,
   staffAttendance, workerShifts, leaveRequests, bridgeCompanies, bridgeCompanyMembers, bridgePositions, bridgeStaffProfiles, bridgeStaffReviews, commissionHistory,
+  venueCheckins, memberWalletTransactions,
 } from "@shared/schema";
 import { ilike, or } from "drizzle-orm";
 
@@ -85,6 +87,29 @@ async function getSettings() {
     songRequestModeEnabled: map.songRequestModeEnabled !== "false",
     loyalty: companyConfig.loyalty || { pointsSpendRp: 1000, rewardsEnabled: true, tiers: [] },
   };
+}
+
+async function rebornCompany() {
+  return (await db.select().from(bridgeCompanies).where(eq(bridgeCompanies.slug, "reborn-wave-group")).limit(1))[0] || null;
+}
+
+async function ensureVenueSession(rotate = false) {
+  const day = wibDay();
+  const rows = await db.select().from(appSettings).where(inArray(appSettings.key, ["venueSessionDay", "venueSessionCode"]));
+  const values = Object.fromEntries(rows.map((row) => [row.key, row.value || ""]));
+  let code = values.venueSessionCode;
+  if (rotate || values.venueSessionDay !== day || !code) {
+    code = randomVenueCode();
+    for (const [key, value] of [["venueSessionDay", day], ["venueSessionCode", code]]) {
+      await db.insert(appSettings).values({ key, value, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: appSettings.key, set: { value, updatedAt: new Date() } });
+    }
+  }
+  return { day, code };
+}
+
+function randomVenueCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 // Contribute the pool % only for UN-referred buyers (a referred buyer's 10% is their
 // referrer's commission instead). House-account referrals count as un-referred.
@@ -738,15 +763,15 @@ export function registerRebornRoutes(app: Express) {
   });
 
   // ── KOS (Kings of Singers) — KGOLD gifting + leaderboard ─────────────────
-  app.get("/api/reborn/kos/leaderboard", async (_req, res) => {
+  app.get("/api/reborn/kos/leaderboard", requireAuth, async (_req, res) => {
     try {
-      const rows = await db.select({
-        id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl,
-        stars: sql<number>`coalesce(sum(${kosGifts.recipientKgold}),0)`,
-      }).from(kosGifts).innerJoin(users, eq(users.id, kosGifts.toUserId))
-        .groupBy(users.id, users.firstName, users.username, users.profileImageUrl)
-        .orderBy(desc(sql`sum(${kosGifts.recipientKgold})`)).limit(100);
-      res.json(rows);
+      const session = await ensureVenueSession();
+      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo,COALESCE(SUM(g.recipient_kgold),0)::int AS stars
+        FROM venue_checkins v JOIN users u ON u.id=v.user_id
+        LEFT JOIN kos_gifts g ON g.to_user_id=u.id AND g.created_at>=v.checked_in_at
+        WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL
+        GROUP BY u.id,u.first_name,u.username,u.profile_image_url,v.checked_in_at ORDER BY stars DESC,v.checked_in_at ASC LIMIT 100`);
+      res.json(result.rows || result);
     } catch (e) { console.error("kos leaderboard", e); res.status(500).json({ message: "Failed to load leaderboard" }); }
   });
 
@@ -755,9 +780,11 @@ export function registerRebornRoutes(app: Express) {
       const q = String(req.query.q || "").trim();
       const me = getUserId(req)!;
       if (q.length < 2) return res.json([]);
-      const rows = await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl })
-        .from(users).where(and(sql`${users.id} <> ${me}`, or(ilike(users.username, `%${q}%`), ilike(users.firstName, `%${q}%`)))).limit(20);
-      res.json(rows);
+      const session = await ensureVenueSession();
+      const result = await db.execute(sql`SELECT u.id,u.first_name AS "firstName",u.username,u.profile_image_url AS photo FROM venue_checkins v JOIN users u ON u.id=v.user_id
+        WHERE v.venue_day=${session.day} AND v.session_code=${session.code} AND v.checked_out_at IS NULL AND u.id<>${me}
+        AND (u.username ILIKE ${`%${q}%`} OR u.first_name ILIKE ${`%${q}%`}) LIMIT 20`);
+      res.json(result.rows || result);
     } catch { res.json([]); }
   });
 
@@ -793,6 +820,7 @@ export function registerRebornRoutes(app: Express) {
       if (!u || Number(u.credits || 0) < rpCost) return res.status(400).json({ message: `Not enough credits. This costs RP ${rpCost.toLocaleString()}.` });
       const now = new Date();
       await db.update(users).set({ credits: sql`${users.credits} - ${rpCost}`, kgold: sql`${users.kgold} + ${kgold}`, updatedAt: now }).where(eq(users.id, userId));
+      await db.insert(memberWalletTransactions).values({ userId, type: "kgold_purchase", rpAmount: String(-rpCost), kgoldAmount: kgold, description: `Bought ${kgold.toLocaleString()} KGOLD` });
       const fresh = await storage.getUser(userId);
       res.json({ message: `Bought ${kgold.toLocaleString()} KGOLD.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
     } catch (e) { console.error("kos buy", e); res.status(500).json({ message: "Purchase failed" }); }
@@ -810,6 +838,7 @@ export function registerRebornRoutes(app: Express) {
       if (kgold > kgoldBal) return res.status(400).json({ message: "Not enough KGOLD." });
       const now = new Date();
       await db.update(users).set({ kgold: sql`${users.kgold} - ${kgold}`, credits: sql`${users.credits} + ${rp}`, updatedAt: now }).where(eq(users.id, userId));
+      await db.insert(memberWalletTransactions).values({ userId, type: "kgold_cashout", rpAmount: String(rp), kgoldAmount: -kgold, description: `Cashed out ${kgold.toLocaleString()} KGOLD` });
       const fresh = await storage.getUser(userId);
       res.json({ message: `Cashed out ${kgold.toLocaleString()} KGOLD → RP ${rp.toLocaleString()} credits.`, kgold: fresh?.kgold ?? 0, credits: Number(fresh?.credits || 0) });
     } catch (e) { console.error("kos cashout", e); res.status(500).json({ message: "Cash out failed" }); }
@@ -822,6 +851,9 @@ export function registerRebornRoutes(app: Express) {
       const giftTypeId = Number(req.body?.giftTypeId);
       if (!toUserId) return res.status(400).json({ message: "Choose someone to gift" });
       if (toUserId === fromUserId) return res.status(400).json({ message: "You can't gift yourself" });
+      const session = await ensureVenueSession();
+      const [present] = await db.select({ id: venueCheckins.id }).from(venueCheckins).where(and(eq(venueCheckins.userId, toUserId), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`)).limit(1);
+      if (!present) return res.status(400).json({ message: "This member is not checked in at the venue." });
       const [gt] = await db.select().from(kosGiftTypes).where(eq(kosGiftTypes.id, giftTypeId));
       if (!gt || !gt.active) return res.status(404).json({ message: "Gift not found" });
       const giver = await storage.getUser(fromUserId);
@@ -832,7 +864,11 @@ export function registerRebornRoutes(app: Express) {
       const now = new Date();
       await db.update(users).set({ kgold: sql`${users.kgold} - ${cost}`, updatedAt: now }).where(eq(users.id, fromUserId));
       await db.update(users).set({ kgold: sql`${users.kgold} + ${recipientKgold}`, updatedAt: now }).where(eq(users.id, toUserId));
-      await db.insert(kosGifts).values({ fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false });
+      const [giftRow] = await db.insert(kosGifts).values({ fromUserId, toUserId, giftTypeId, giftName: gt.name, kgoldCost: cost, recipientKgold, seen: false }).returning();
+      await db.insert(memberWalletTransactions).values([
+        { userId: fromUserId, type: "kgold_gift_sent", kgoldAmount: -cost, description: `Sent ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
+        { userId: toUserId, type: "kgold_gift_received", kgoldAmount: recipientKgold, description: `Received ${gt.name}`, referenceType: "kos_gift", referenceId: String(giftRow.id) },
+      ]);
       await sendRebornUserNotification(toUserId, { type: "kos_gift", title: `${giver.firstName || giver.username || "Someone"} sent you ${gt.name}`, body: `You received ${recipientKgold.toLocaleString()} KGOLD`, data: { path: "/kos" } });
       const fresh = await storage.getUser(fromUserId);
       res.json({ message: `Sent a ${gt.name}!`, kgold: fresh?.kgold ?? 0 });
@@ -861,6 +897,57 @@ export function registerRebornRoutes(app: Express) {
       await db.update(kosGifts).set({ seen: true }).where(and(eq(kosGifts.toUserId, userId), eq(kosGifts.seen, false)));
       res.json({ ok: true });
     } catch { res.json({ ok: false }); }
+  });
+
+  // Daily venue attendance controls who appears in Kings of Singers.
+  app.get("/api/reborn/venue/status", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const session = await ensureVenueSession();
+    const [row] = await db.select().from(venueCheckins).where(and(eq(venueCheckins.userId, userId), eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`)).limit(1);
+    res.json({ checkedIn: !!row, day: session.day, checkedInAt: row?.checkedInAt || null });
+  });
+  app.post("/api/reborn/venue/checkin", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const session = await ensureVenueSession();
+    if (String(req.body?.code || "").trim().toUpperCase() !== session.code) return res.status(400).json({ message: "This venue QR has expired. Scan today's QR." });
+    const company = await rebornCompany();
+    const [row] = await db.insert(venueCheckins).values({ companyId: company?.id || null, userId, venueDay: session.day, sessionCode: session.code, checkedInAt: new Date(), checkedOutAt: null })
+      .onConflictDoUpdate({ target: [venueCheckins.venueDay, venueCheckins.userId], set: { companyId: company?.id || null, sessionCode: session.code, checkedInAt: new Date(), checkedOutAt: null } }).returning();
+    emitLiveUpdate("kos", { type: "venue_checkin", userId });
+    res.json({ message: "Checked in. You now appear in Kings of Singers.", checkin: row });
+  });
+  app.get("/api/reborn/admin/venue/session", requireAdmin(async (req, res) => {
+    const session = await ensureVenueSession();
+    const [count] = await db.select({ count: sql<number>`count(*)` }).from(venueCheckins).where(and(eq(venueCheckins.venueDay, session.day), eq(venueCheckins.sessionCode, session.code), sql`${venueCheckins.checkedOutAt} IS NULL`));
+    const host = `${req.protocol}://${req.get("host")}`;
+    res.json({ ...session, count: Number(count?.count) || 0, link: `${host}/kos?venue=${encodeURIComponent(session.code)}` });
+  }));
+  app.get("/api/reborn/admin/venue/qr", requireAdmin(async (req, res) => {
+    const session = await ensureVenueSession();
+    const host = `${req.protocol}://${req.get("host")}`;
+    const svg = await QRCode.toString(`${host}/kos?venue=${encodeURIComponent(session.code)}`, { type: "svg", width: 720, margin: 2, color: { dark: "#120b20", light: "#ffffff" } });
+    res.type("image/svg+xml").send(svg);
+  }));
+  app.post("/api/reborn/admin/venue/close", requireAdmin(async (_req, res) => {
+    const current = await ensureVenueSession();
+    await db.update(venueCheckins).set({ checkedOutAt: new Date() }).where(and(eq(venueCheckins.venueDay, current.day), eq(venueCheckins.sessionCode, current.code), sql`${venueCheckins.checkedOutAt} IS NULL`));
+    const next = await ensureVenueSession(true);
+    emitLiveUpdate("kos", { type: "venue_closed" });
+    res.json({ message: "Venue day closed. The guest list is empty and a new QR is ready.", ...next });
+  }));
+
+  app.get("/api/reborn/history", requireAuth, async (req, res) => {
+    const userId = getUserId(req)!;
+    const [wallet, topups, tickets, prizes, gifts] = await Promise.all([
+      db.select().from(memberWalletTransactions).where(eq(memberWalletTransactions.userId, userId)).orderBy(desc(memberWalletTransactions.createdAt)).limit(300),
+      db.select().from(topUpRequests).where(eq(topUpRequests.userId, userId)).orderBy(desc(topUpRequests.createdAt)).limit(100),
+      db.select().from(posTickets).where(eq(posTickets.memberId, userId)).orderBy(desc(posTickets.createdAt)).limit(100),
+      db.select().from(spinResults).where(eq(spinResults.userId, userId)).orderBy(desc(spinResults.createdAt)).limit(100),
+      db.select().from(kosGifts).where(or(eq(kosGifts.fromUserId, userId), eq(kosGifts.toUserId, userId))).orderBy(desc(kosGifts.createdAt)).limit(200),
+    ]);
+    const ticketIds = tickets.map((ticket) => ticket.id);
+    const items = ticketIds.length ? await db.select().from(posTicketItems).where(inArray(posTicketItems.orderId, ticketIds)) : [];
+    res.json({ wallet, topups, tickets: tickets.map((ticket) => ({ ...ticket, items: items.filter((item) => item.orderId === ticket.id) })), prizes, gifts: gifts.map((gift) => ({ ...gift, direction: gift.toUserId === userId ? "received" : "sent" })) });
   });
 
   // ── Chat: friend requests + member-to-member messaging ───────────────────
@@ -901,7 +988,10 @@ export function registerRebornRoutes(app: Express) {
       const otherIds = Array.from(new Set(all.map((f) => (f.requesterId === me ? f.addresseeId : f.requesterId))));
       const userRows = otherIds.length ? await db.select({ id: users.id, firstName: users.firstName, username: users.username, photo: users.profileImageUrl }).from(users).where(sql`${users.id} in (${sql.join(otherIds.map((i) => sql`${i}`), sql`, `)})`) : [];
       const umap = Object.fromEntries(userRows.map((u) => [u.id, u]));
-      const friends = all.filter((f) => f.status === "accepted").map((f) => { const oid = f.requesterId === me ? f.addresseeId : f.requesterId; return { friendshipId: f.id, user: umap[oid] || { id: oid } }; });
+      const messages = otherIds.length ? await db.select().from(chatMessages).where(or(and(eq(chatMessages.senderId, me), inArray(chatMessages.receiverId, otherIds)), and(eq(chatMessages.receiverId, me), inArray(chatMessages.senderId, otherIds)))).orderBy(desc(chatMessages.createdAt)) : [];
+      const latest = new Map<string, any>();
+      for (const message of messages) { const oid = message.senderId === me ? message.receiverId : message.senderId; if (!latest.has(oid)) latest.set(oid, message); }
+      const friends = all.filter((f) => f.status === "accepted").map((f) => { const oid = f.requesterId === me ? f.addresseeId : f.requesterId; return { friendshipId: f.id, user: umap[oid] || { id: oid }, lastMessage: latest.get(oid) || null }; }).sort((a, b) => new Date(b.lastMessage?.createdAt || 0).getTime() - new Date(a.lastMessage?.createdAt || 0).getTime());
       const incoming = all.filter((f) => f.status === "pending" && f.addresseeId === me).map((f) => ({ friendshipId: f.id, user: umap[f.requesterId] || { id: f.requesterId } }));
       const outgoing = all.filter((f) => f.status === "pending" && f.requesterId === me).map((f) => ({ friendshipId: f.id, user: umap[f.addresseeId] || { id: f.addresseeId } }));
       res.json({ friends, incoming, outgoing });
@@ -925,6 +1015,7 @@ export function registerRebornRoutes(app: Express) {
         and(eq(chatMessages.senderId, me), eq(chatMessages.receiverId, other)),
         and(eq(chatMessages.senderId, other), eq(chatMessages.receiverId, me)),
       )).orderBy(chatMessages.createdAt).limit(200);
+      await db.update(chatMessages).set({ isRead: true }).where(and(eq(chatMessages.senderId, other), eq(chatMessages.receiverId, me), eq(chatMessages.isRead, false)));
       res.json(msgs);
     } catch (e) { console.error("chat msgs", e); res.status(500).json({ message: "Failed" }); }
   });

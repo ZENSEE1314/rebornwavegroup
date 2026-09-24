@@ -10,7 +10,7 @@ import { useTranslation } from "@/lib/i18n";
 import {
   PawPrint, Disc3, Gift, Calendar, Trophy, Music, Users, Headphones, User,
   Coins, Star, DollarSign, HelpCircle, Shield, ChevronRight, Plus, Megaphone, X,
-  Utensils, Store, Wine, Mic2,
+  Utensils, Store, Wine, Mic2, ReceiptText,
 } from "lucide-react";
 
 const TILES = [
@@ -26,6 +26,7 @@ const TILES = [
   { label: "Referrals", desc: "Invite friends", icon: <Users className="w-6 h-6" />, path: "/my-referral", color: "#6366f1" },
   { label: "Support", desc: "Chat & FAQ", icon: <Headphones className="w-6 h-6" />, path: "/support", color: "#45b7d1" },
   { label: "Profile", desc: "Your account", icon: <User className="w-6 h-6" />, path: "/profile", color: "#94a3b8" },
+  { label: "My History", desc: "Payments, receipts & gifts", icon: <ReceiptText className="w-6 h-6" />, path: "/history", color: "#f0d787" },
 ];
 
 function formatRp(n: number) { return "RP " + (n || 0).toLocaleString("en-US"); }
@@ -39,7 +40,7 @@ export default function RebornDashboard() {
     try { return !localStorage.getItem("onboarding-completed"); } catch { return true; }
   });
   const closeTour = () => { try { localStorage.setItem("onboarding-completed", "true"); } catch {} setShowTour(false); };
-  const [showTopup, setShowTopup] = useState(false);
+  const [showTopup, setShowTopup] = useState(() => new URLSearchParams(window.location.search).get("topup") === "1");
 
   const { data: pets = [] } = useQuery<any[]>({
     queryKey: ["/api/reborn/pets"],

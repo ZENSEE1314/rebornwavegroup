@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { RebornLayout } from "@/components/RebornLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import { Search, Crown, X, Mic2, UserPlus, Bell, Plus, ArrowDownToLine, Coins } from "lucide-react";
 
 const ANIM_CSS = `
@@ -24,6 +25,7 @@ function Avatar({ u }: any) {
 }
 
 export default function RebornKos() {
+  const [, navigate] = useLocation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -31,6 +33,18 @@ export default function RebornKos() {
   const [target, setTarget] = useState<any>(null);
   const [modal, setModal] = useState<null | "buy" | "cashout">(null);
   const [showNotif, setShowNotif] = useState(false);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("venue");
+    if (!code) return;
+    apiRequest("POST", "/api/reborn/venue/checkin", { code }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Check-in failed");
+      toast({ title: "Venue check-in complete", description: data.message });
+      qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] });
+      window.history.replaceState({}, "", "/kos");
+    }).catch((error) => toast({ title: "Check-in failed", description: error.message, variant: "destructive" }));
+  }, [qc, toast]);
 
   const { data: wallet } = useQuery<any>({ queryKey: ["/api/reborn/kos/wallet"], queryFn: () => apiRequest("GET", "/api/reborn/kos/wallet").then((r) => r.json()), refetchInterval: 20000 });
   const { data: board = [] } = useQuery<any[]>({ queryKey: ["/api/reborn/kos/leaderboard"], queryFn: () => apiRequest("GET", "/api/reborn/kos/leaderboard").then((r) => r.json()), refetchInterval: 15000 });
@@ -41,6 +55,10 @@ export default function RebornKos() {
     queryFn: () => q.trim().length >= 2 ? apiRequest("GET", `/api/reborn/kos/search?q=${encodeURIComponent(q.trim())}`).then((r) => r.json()) : Promise.resolve([]),
     enabled: q.trim().length >= 2,
   });
+
+  useEffect(() => {
+    if (notifs.length > 0) setShowNotif(true);
+  }, [notifs.length]);
 
   const refreshWallet = () => { qc.invalidateQueries({ queryKey: ["/api/reborn/kos/wallet"] }); qc.invalidateQueries({ queryKey: ["/api/auth/user"] }); qc.invalidateQueries({ queryKey: ["/api/reborn/kos/leaderboard"] }); };
   const gift = useMutation({
@@ -122,7 +140,7 @@ export default function RebornKos() {
         </Overlay>
       )}
 
-      {modal === "buy" && <BuyModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
+      {modal === "buy" && <BuyModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} onTopup={() => navigate("/?topup=1")} />}
       {modal === "cashout" && <CashoutModal wallet={wallet} onClose={() => setModal(null)} onDone={refreshWallet} />}
       {showNotif && <GiftInbox notifs={notifs} onClose={() => { setShowNotif(false); apiRequest("POST", "/api/reborn/kos/notifications/seen").then(() => qc.invalidateQueries({ queryKey: ["/api/reborn/kos/notifications"] })); }} />}
     </RebornLayout>
@@ -141,11 +159,13 @@ function Overlay({ children, onClose }: any) {
   );
 }
 
-function BuyModal({ wallet, onClose, onDone }: any) {
+function BuyModal({ wallet, onClose, onDone, onTopup }: any) {
   const { toast } = useToast();
   const min = wallet?.minBuyKgold ?? 1000000;
   const per = wallet?.kgoldPerRp ?? 100;
   const [kg, setKg] = useState(min);
+  const cost = kg / per;
+  const insufficient = cost > Number(wallet?.credits || 0);
   const buy = useMutation({
     mutationFn: () => apiRequest("POST", "/api/reborn/kos/buy", { kgold: kg }).then((r) => r.json()),
     onSuccess: (d) => { toast({ title: d.message }); onDone(); onClose(); },
@@ -156,8 +176,8 @@ function BuyModal({ wallet, onClose, onDone }: any) {
       <h3 className="text-xl font-extrabold mb-1">Buy KGOLD</h3>
       <p className="text-sm text-white/60 mb-4">{per} KGOLD = 1 RP · minimum {fmt(min)} KGOLD.</p>
       <input type="number" min={min} step={min} value={kg} onChange={(e) => setKg(Number(e.target.value))} className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white mb-2" />
-      <p className="text-sm text-white/60 mb-4">Cost: <b className="text-amber-300">RP {fmt(kg / per)}</b> from your credits (you have RP {fmt(wallet?.credits ?? 0)})</p>
-      <button onClick={() => buy.mutate()} disabled={buy.isPending || kg < min} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>Buy {fmt(kg)} KGOLD</button>
+      <p className="text-sm text-white/60 mb-4">Cost: <b className="text-amber-300">RP {fmt(cost)}</b> from your credits (you have RP {fmt(wallet?.credits ?? 0)})</p>
+      <button onClick={() => insufficient ? onTopup() : buy.mutate()} disabled={buy.isPending || kg < min} className="w-full py-3 rounded-xl font-bold text-black disabled:opacity-50" style={{ background: "linear-gradient(90deg,#c9a84c,#f0d787)" }}>{insufficient ? "Top up RP to continue" : `Buy ${fmt(kg)} KGOLD`}</button>
     </Overlay>
   );
 }
